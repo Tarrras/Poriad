@@ -1,8 +1,9 @@
 // Кабінет організатора й підказки адрес: node worker/kabinet.test.mjs
 import assert from "node:assert/strict";
 import worker from "./index.mjs";
-import { places } from "./kabinet.mjs";
+import { places, clientKey } from "./kabinet.mjs";
 import { env, ctx } from "./fixtures.mjs";
+import { readFileSync } from "node:fs";
 
 const directive = (response, name) => response.headers.get("content-security-policy").split("; ").find((d) => d.startsWith(`${name} `));
 const store = new Map();
@@ -26,6 +27,17 @@ for (const path of ["/kabinet", "/kabinet.html"]) {
   assert.equal(page.headers.get("x-frame-options"), "DENY");
 }
 assert.equal((await worker.fetch(new Request("https://poriad.app/kabinet", { method: "POST" }), env, ctx)).status, 405);
+
+// meta-CSP у kabinet.html — друга лінія без воркера: та сама політика, що заголовок prod, плюс dev-проєкт (сайт на
+// localhost ходить у dev, а meta й заголовок діють разом), без frame-ancestors (у meta не діє).
+const [prod, dev] = [...readFileSync(new URL("./wrangler.toml", import.meta.url), "utf8").matchAll(/SUPABASE_URL = "([^"]+)"/g)].map((m) => m[1]);
+const prodPage = await worker.fetch(new Request("https://poriad.app/kabinet"), { ...env, SUPABASE_URL: prod }, ctx);
+const expected = prodPage.headers.get("content-security-policy").split("; ").filter((d) => !d.startsWith("frame-ancestors"))
+  .map((d) => d.split(" ").flatMap((t) => t.startsWith(prod) ? [t, t.replace(prod, dev)] : [t]).join(" ")).join("; ");
+const kabinetHtml = readFileSync(new URL("../site/kabinet.html", import.meta.url), "utf8");
+const metaCsp = kabinetHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/)?.[1];
+assert.equal(metaCsp, expected, "meta-CSP розійшлася з CSP.kabinet — оновіть kabinet.html");
+assert.ok(kabinetHtml.indexOf("Content-Security-Policy") < kabinetHtml.indexOf("<link"), "meta — до стилів і скриптів, інакше їх вона не охопить");
 const afisha = await worker.fetch(new Request("https://poriad.app/afisha.html"), env, ctx);
 assert.equal(afisha.headers.get("x-robots-tag"), null, "решта сайту індексується як була");
 
@@ -54,7 +66,7 @@ const sent = new URL(calls[0].url);
 assert.equal(sent.origin + sent.pathname, "https://photon.komoot.io/api/");
 assert.equal(sent.searchParams.get("q"), "хрещатик 22", "пробіли й регістр — один ключ кешу");
 assert.deepEqual([sent.searchParams.get("lat"), sent.searchParams.get("lon")], ["50.4501", "30.5234"], "пріоритет — центр міста форми");
-assert.match(calls[0].ua, /^PoriadBot\/.+hello@poriad\.app\)$/);
+assert.match(calls[0].ua, /^PoriadKabinet\/.+hello@poriad\.app\)$/, "свій User-Agent: блок кабінету не зачепить імпорт (PoriadBot)");
 assert.deepEqual(list.map((p) => [p.label, p.detail]), [
   ["вулиця Хрещатик, 22", "Центр, Київ"],
   ["вулиця Хрещатик, 22", "Ощадбанк, Центр, Київ"],
@@ -97,4 +109,21 @@ assert.equal((await ask("хрещатик 22", limited(false))).status, 200, "з
 assert.equal(keys.length, 1, "кеш ліміту не рахує");
 assert.equal((await ask("нова адреса", limited(true))).status, 200);
 assert.equal(calls.length, 1);
+
+// Загальна стеля (GEOCODE_GLOBAL, ключ "global"): спрацьовує, навіть коли окрема адреса в ліміті.
+const both = { ...limited(true), GEOCODE_GLOBAL: { limit: async ({ key }) => { keys.push(key); return { success: false }; } } };
+keys.length = 0;
+calls = [];
+assert.equal((await ask("ще одна адреса", both)).status, 429);
+assert.deepEqual(keys, ["203.0.113.7", "global"]);
+assert.equal(calls.length, 0);
+
+// Ключ на людину: IPv6 — мережа /64 у повній формі, хоч як записано адресу.
+assert.equal(clientKey("203.0.113.7"), "203.0.113.7");
+assert.equal(clientKey("2001:db8:abcd:12:1:2:3:4"), "2001:db8:abcd:12::/64");
+assert.equal(clientKey("2001:0db8:abcd:0012:ffff::1"), "2001:db8:abcd:12::/64", "та сама /64 з іншою адресою й нулями");
+assert.equal(clientKey("2001:db8::1"), "2001:db8:0:0::/64", "стиснення :: — нулі");
+assert.equal(clientKey("::1"), "0:0:0:0::/64");
+assert.equal(clientKey("::ffff:203.0.113.7"), "::ffff:203.0.113.7", "IPv4 у формі IPv6 — як є");
+assert.equal(clientKey(null), "local");
 console.log("kabinet ok");

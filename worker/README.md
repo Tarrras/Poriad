@@ -33,14 +33,16 @@
 `poriad.app/kabinet` (`site/kabinet.html`, `site/js/kabinet.js`) воркер бере з Pages, як решту сайту, але зі своєю
 політикою `CSP.kabinet`: там лежить токен організатора, тож картинки — лише свої й зі сховища Supabase (а не будь-який
 https), плюс мапа й `blob:` для прев'ю фото й перевірки відео; заголовок `x-robots-tag: noindex`. Підказки адрес
-редактора — `/api/geocode?q=&city=` (`worker/kabinet.mjs`): Photon з User-Agent PoriadBot і центром міста форми, кеш
+редактора — `/api/geocode?q=&city=` (`worker/kabinet.mjs`): Photon зі своїм User-Agent `PoriadKabinet` (не імпорту:
+блок кабінету не зачепить геокодинг імпорту) і центром міста форми, кеш
 на краю на добу, запит від 3 до 100 символів і лише п'ять міст сайту. Тести — `worker/kabinet.test.mjs`.
 
-Запити повз кеш обмежені: 30 на хвилину з однієї адреси (`GEOCODE_LIMIT`, Workers Rate Limiting у `wrangler.toml`,
-у dev — свій `namespace_id`), понад ліміт — 429, і кабінет просто не показує підказок. Інакше кожен новий рядок іде в
+Запити повз кеш обмежені: 30 на хвилину з однієї адреси, IPv6 — з мережі /64 (`GEOCODE_LIMIT`), і 120 на всіх разом
+(`GEOCODE_GLOBAL`; обидва — Workers Rate Limiting у `wrangler.toml`, у dev — свої `namespace_id`). Понад ліміт — 429, і
+кабінет просто не показує підказок. Інакше кожен новий рядок іде в
 komoot, а той за зловживання блокує наш User-Agent для всіх. Ліміт рахується окремо в кожній локації Cloudflare і
 приблизний. Документація binding-а не каже, чи він є на безкоштовному плані: якщо `npx wrangler deploy` відмовить через
-`ratelimits`, приберіть блок `[[ratelimits]]` (код без binding-а працює без ліміту) і додайте правило в панелі —
+`ratelimits`, приберіть блоки `[[ratelimits]]` (код без binding-ів працює без ліміту) і додайте правило в панелі —
 Security → WAF → Rate limiting rules: `URI Path equals /api/geocode`, рахувати за IP, 30 запитів за 1 хвилину, дія Block
 на 1 хвилину.
 

@@ -15,13 +15,21 @@ routes = [
 SUPABASE_URL = "https://tzdogzdvctlumsqlqskr.supabase.co"
 SUPABASE_KEY = "sb_publishable_RoY0wFzTOcXlmOIYC0UE-w_fOt5rXPq"
 
-# Підказки адрес кабінету (/api/geocode, worker/kabinet.mjs): 30 запитів повз кеш за хвилину з однієї адреси. Ліміт —
-# у межах локації Cloudflare й приблизний; namespace_id — свій лічильник (у dev — інший, щоб не ділити з prod).
+# Підказки адрес кабінету (/api/geocode, worker/kabinet.mjs): повз кеш — 30 запитів за хвилину з однієї адреси (IPv6 —
+# з мережі /64) і 120 на всіх разом. Ліміти — у межах локації Cloudflare й приблизні; namespace_id — свій лічильник
+# (у dev — інші, щоб не ділити з prod).
 [[ratelimits]]
 name = "GEOCODE_LIMIT"
 namespace_id = "1501"
   [ratelimits.simple]
   limit = 30
+  period = 60
+
+[[ratelimits]]
+name = "GEOCODE_GLOBAL"
+namespace_id = "1503"
+  [ratelimits.simple]
+  limit = 120
   period = 60
 
 # Локальна перевірка: `npx wrangler dev --env dev` → http://localhost:8787. Сайт — тека site/ замість Pages, дані — dev.
@@ -35,6 +43,13 @@ name = "GEOCODE_LIMIT"
 namespace_id = "1502"
   [env.dev.ratelimits.simple]
   limit = 30
+  period = 60
+
+[[env.dev.ratelimits]]
+name = "GEOCODE_GLOBAL"
+namespace_id = "1504"
+  [env.dev.ratelimits.simple]
+  limit = 120
   period = 60
 
 [env.dev.vars]
