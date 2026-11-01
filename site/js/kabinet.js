@@ -504,14 +504,20 @@ const loadLottie = () => lottieLoading ??= new Promise((resolve, reject) => {
   document.head.append(js);
 });
 const playing = new Map(); // контейнер → анімація: нова в тому самому місці прибирає стару
-const stop = (container) => { playing.get(container)?.destroy(); playing.delete(container); };
+// Контейнер → останній виклик animate(). Плеєр і JSON вантажаться довше, ніж публікація без файлів: stop() чи новий
+// виклик за цей час скасовує запізнілий, інакше петля стартувала б у вже закритій накладці.
+const wanted = new Map();
+const stop = (container) => { wanted.delete(container); playing.get(container)?.destroy(); playing.delete(container); };
 
 /** `publishing` — петлею, стоп-кадр 0; `published` — раз, стоп-кадр — останній (штамп уже стоїть). Збій — без анімації. */
 async function animate(container, name, category) {
   stop(container);
+  const call = {};
+  wanted.set(container, call);
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   try {
     const [lottie, data] = await Promise.all([loadLottie(), fetch(`vendor/lottie/${name}${isDark() ? "_dark" : ""}.json?v=12`).then((r) => r.json())]);
+    if (wanted.get(container) !== call) return;
     const stub = getComputedStyle(document.documentElement).getPropertyValue(`--cat-${category}-stub`).trim();
     const loop = name === "publishing";
     const animation = lottie.loadAnimation({ container, renderer: "svg", loop, autoplay: !still, animationData: recolorStub(data, stub) });
