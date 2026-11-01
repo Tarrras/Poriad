@@ -903,6 +903,7 @@
   <string name="description_placeholder">Кілька речень про подію</string>
   <string name="err_objectionable">Текст містить слова, які ми не публікуємо. Перепишіть, будь ласка.</string>
   <string name="err_link_expired">Посилання застаріло або вже використане. Запросіть новий лист на цьому пристрої</string>
+  <string name="err_invalid_code">Код не підійшов або застарів. Надішліть новий</string>
   <string name="err_link_other_device">Відкрийте посилання з листа на тому самому пристрої, де ви реєструвались або запитували відновлення.</string>
   <!-- Профіль: свій і картка людини. Див. docs/profile.md. -->
   <string name="profile_edit">Редагувати профіль</string>

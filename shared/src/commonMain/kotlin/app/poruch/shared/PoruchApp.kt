@@ -720,8 +720,14 @@ class PoruchApp internal constructor(
 
     // ---- Безпека
 
-    /** Вік для акаунта, створеного до появи питання. Дозволено раз. */
+    /**
+     * Дата народження, поки її нема: акаунт до питання про вік і людина з галочкою на подію з віком від 19 чи верхньою
+     * межею (`join` → [AppError.AgeRequired]). Дозволено раз.
+     */
     fun declareBirthDate(birthDate: String) = safetyUseCases.declareBirthDate(birthDate)
+
+    /** Галочка «Мені вже є 18»: крок після входу ([SessionState.askBirthDate]) і картка віку в профілі. */
+    fun confirmAdult() = safetyUseCases.confirmAdult()
     fun reportEvent(eventId: String, reason: ReportReason, details: String? = null) =
         safetyUseCases.reportEvent(eventId, reason, details)
 
@@ -756,9 +762,21 @@ class PoruchApp internal constructor(
     fun signInWithIdToken(provider: IdProvider, idToken: String, name: String? = null) =
         sessionUseCases.signInWithIdToken(provider, idToken, name)
 
-    /** [birthDate] — ISO-8601. Платформа лише для дорослих. */
+    /** [birthDate] — ISO-8601. Платформа лише для дорослих. Збірки з галочкою кличуть [signUp] без дати. */
     fun signUp(email: String, password: String, name: String, birthDate: String) =
         sessionUseCases.signUp(email, password, name, birthDate)
+
+    /** Реєстрація з галочкою «Мені вже є 18»: кнопка форми вмикається лише з нею. */
+    fun signUp(email: String, password: String, name: String) = sessionUseCases.signUp(email, password, name)
+
+    /**
+     * «Увійти кодом з пошти»: лист з кодом, далі екран входу питає його ([SessionState.awaitingCode]). Той самий акаунт,
+     * що на сайті: людина, яка записалась на `poriad.app/e/…` поштою, бачить тут свої події. Повтор — новий код.
+     */
+    fun sendSignInCode(email: String) = sessionUseCases.sendSignInCode(email)
+
+    /** Код з листа. Новий акаунт — без віку: екран входу далі питає галочку ([SessionState.askBirthDate]). */
+    fun verifySignInCode(email: String, code: String) = sessionUseCases.verifySignInCode(email, code)
 
     /** Людина повернулась до форми або закрила екран: крок «перевірте пошту» більше не показуємо. */
     fun dismissConfirmationStep() = sessionUseCases.dismissConfirmationStep()

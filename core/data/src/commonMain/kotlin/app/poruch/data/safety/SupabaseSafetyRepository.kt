@@ -13,16 +13,21 @@ class SupabaseSafetyRepository(private val api: ApiClient, private val auth: Aut
     override suspend fun account(): AccountFacts {
         val row = api.request(
             "/rest/v1/account_facts", token = auth.accessToken(),
-            query = mapOf("user_id" to "eq.${uid()}", "select" to "birth_date,status")
+            query = mapOf("user_id" to "eq.${uid()}", "select" to "birth_date,adult_confirmed_at,status")
         ).jsonArray.firstOrNull()?.jsonObject ?: return AccountFacts()
         return AccountFacts(
             birthDate = row["birth_date"]?.jsonPrimitive?.contentOrNull,
-            status = row["status"]?.jsonPrimitive?.contentOrNull?.let(AccountStatus::fromKey) ?: AccountStatus.ACTIVE
+            status = row["status"]?.jsonPrimitive?.contentOrNull?.let(AccountStatus::fromKey) ?: AccountStatus.ACTIVE,
+            adultConfirmedAt = row["adult_confirmed_at"]?.jsonPrimitive?.contentOrNull
         )
     }
 
     override suspend fun declareBirthDate(date: String) {
         rpc("set_birth_date", buildJsonObject { put("p_birth", date) })
+    }
+
+    override suspend fun confirmAdult() {
+        rpc("confirm_adult", JsonObject(emptyMap()))
     }
 
     override suspend fun reportEvent(eventId: String, reason: ReportReason, details: String?) {

@@ -27,6 +27,8 @@ sealed interface AppError {
      * посиланням уже скористались, воно старе, або лист просили деінде. Вихід один — новий лист.
      */
     data object LinkExpired : AppError
+    /** Код входу з листа не підійшов: хибний, прострочений чи вже використаний. Вихід — надіслати новий. */
+    data object InvalidCode : AppError
     data object NotOwner : AppError
 
     // ---- Події

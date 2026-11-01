@@ -49,17 +49,51 @@ internal class SessionUseCases(
                 PoruchLog.w("auth") { "provider name not saved: ${e.asAppError()}" }
             }
         }
+        askAgeIfMissing()
+        store.tell(AppMessage.SIGNED_IN)
+    }
+
+    /**
+     * Акаунт без віку (новий через Google, Apple чи код з пошти) лишає екран входу відкритим на кроці віку
+     * ([SessionState.askBirthDate]): галочка «Мені вже є 18» ([SafetyUseCases.confirmAdult]).
+     */
+    private suspend fun askAgeIfMissing() {
         // Не вдалось дізнатись — не питаємо: картка віку в профілі й сервер при приєднанні підстрахують.
         val ageDeclared = try { safety?.account()?.ageDeclared } catch (e: CancellationException) { throw e } catch (e: Exception) { null } ?: true
         store.update { it.copy(session = it.session.copy(askBirthDate = !ageDeclared)) }
+    }
+
+    /** Код входу на [email]: далі екран входу питає код ([SessionState.awaitingCode]). Повтор — новий лист. */
+    fun sendSignInCode(email: String) = store.mutate {
+        PoruchLog.i("auth") { "sign-in code requested" }
+        account.sendCode(email)
+        store.update { it.copy(session = it.session.copy(awaitingCode = email.trim())) }
+    }
+
+    /**
+     * Код з листа. Новий акаунт з'являється тут же, як на сайті, і без віку: тоді крок галочки, як після Google.
+     * Хибний чи прострочений код — [AppError.InvalidCode], крок коду лишається.
+     */
+    fun verifySignInCode(email: String, code: String) = store.mutate {
+        PoruchLog.i("auth") { "sign-in code entered" }
+        account.verifyCode(email, code)
+        PoruchAnalytics.track("login", "method" to "code")
+        identity.synchronize(auth.session.value?.userId)
+        askAgeIfMissing()
         store.tell(AppMessage.SIGNED_IN)
     }
 
     /** [birthDate] — ISO-8601. Платформа лише для дорослих, і перевірка починається тут. */
-    fun signUp(email: String, password: String, name: String, birthDate: String) = store.mutate {
+    fun signUp(email: String, password: String, name: String, birthDate: String) = signUp(email) {
+        account.signUp(email, password, name, birthDate, Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date)
+    }
+
+    /** Реєстрація з галочкою «Мені вже є 18» замість дати (хвиля 2). */
+    fun signUp(email: String, password: String, name: String) = signUp(email) { account.signUp(email, password, name) }
+
+    private fun signUp(email: String, request: suspend () -> Boolean) = store.mutate {
         PoruchLog.i("auth") { "sign up requested" }
-        val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
-        val signedIn = account.signUp(email, password, name, birthDate, today)
+        val signedIn = request()
         PoruchAnalytics.track("sign_up", "confirmed" to signedIn)
         PoruchLog.i("auth") { "sign up ${if (signedIn) "signed in immediately" else "awaiting email confirmation"}" }
         // Без сесії відповідь — не банер, а окремий крок: екран входу показує, куди пішов лист і що далі.
@@ -68,7 +102,9 @@ internal class SessionUseCases(
     }
 
     /** Людина повернулась до форми або закрила екран: крок «перевірте пошту» більше не показуємо. */
-    fun dismissConfirmationStep() = store.update { it.copy(session = it.session.copy(awaitingConfirmation = null, askBirthDate = false)) }
+    fun dismissConfirmationStep() = store.update {
+        it.copy(session = it.session.copy(awaitingConfirmation = null, awaitingCode = null, askBirthDate = false))
+    }
 
     fun signOut() = store.mutate {
         PoruchLog.i("auth") { "sign out" }

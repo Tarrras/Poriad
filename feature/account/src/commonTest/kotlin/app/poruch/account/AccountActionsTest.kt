@@ -9,7 +9,11 @@ class AccountActionsTest {
         override val session = MutableStateFlow<UserSession?>(null)
         var signedIn = false
         override suspend fun signIn(email:String,password:String) { signedIn=true }
-        override suspend fun signUp(email:String,password:String,name:String,birthDate:String) = true
+        var signedUpWith:String?="unset"
+        override suspend fun signUp(email:String,password:String,name:String,birthDate:String?):Boolean { signedUpWith=birthDate; return true }
+        val codes=mutableListOf<String>()
+        override suspend fun sendCode(email:String) { codes+=email }
+        override suspend fun verifyCode(email:String,code:String) { codes+="$email:$code" }
         override suspend fun signOut() {}
         override suspend fun accessToken():String? = null
         override suspend fun requestPasswordReset(email:String) {}
@@ -45,6 +49,22 @@ class AccountActionsTest {
     }
     @Test fun anUnreadableDateIsRejected() = runTest {
         assertFailsWith<AppFailure> { AccountActions(Auth()).signUp("a@b.com","password123","Олена","yesterday",today) }
+    }
+    /** Галочка замість дати: дата в репозиторій не йде, і сервер ставить `adult_confirmed_at`. */
+    @Test fun aCheckboxSignUpSendsNoDate() = runTest {
+        val auth=Auth()
+        assertTrue(AccountActions(auth).signUp("person@example.com","password123","Олена"))
+        assertNull(auth.signedUpWith)
+    }
+    /** Пошту й код перевіряємо до мережі: хибний код не палить спробу на сервері. */
+    @Test fun aCodeIsDigitsOnly() = runTest {
+        val auth=Auth(); val actions=AccountActions(auth)
+        assertEquals(AppError.InvalidEmail,assertFailsWith<AppFailure> { actions.sendCode("not-an-email") }.error)
+        assertEquals(AppError.InvalidCode,assertFailsWith<AppFailure> { actions.verifyCode("a@b.com","12a456") }.error)
+        assertEquals(AppError.InvalidCode,assertFailsWith<AppFailure> { actions.verifyCode("a@b.com","123") }.error)
+        assertTrue(auth.codes.isEmpty())
+        actions.sendCode(" a@b.com "); actions.verifyCode("a@b.com"," 123456 ")
+        assertEquals(listOf(" a@b.com ","a@b.com: 123456 "),auth.codes)
     }
     private val today = kotlinx.datetime.LocalDate.parse("2026-09-06")
 }

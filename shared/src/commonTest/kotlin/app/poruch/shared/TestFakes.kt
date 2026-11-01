@@ -13,9 +13,21 @@ internal class Auth: AuthRepository {
     override suspend fun signIn(email:String,password:String) {}
     /** Чи повертає бекенд сесію одразу; без підтвердження пошти — ні. */
     var signUpSignsIn=true
-    override suspend fun signUp(email:String,password:String,name:String,birthDate:String):Boolean {
+    /** Дата, з якою пішла реєстрація; null — галочка. */
+    var signedUpWith:String?="unset"
+    override suspend fun signUp(email:String,password:String,name:String,birthDate:String?):Boolean {
+        signedUpWith=birthDate
         if(signUpSignsIn) session.value=UserSession("fresh","token","refresh",9999999999)
         return signUpSignsIn
+    }
+    val codesSent=mutableListOf<String>()
+    override suspend fun sendCode(email:String) { codesSent+=email }
+    /** Єдиний код, який підробка приймає; вхід ним дає сесію [codeUser]. */
+    var validCode="123456"
+    var codeUser="code-user"
+    override suspend fun verifyCode(email:String,code:String) {
+        if(code!=validCode) fail(AppError.InvalidCode)
+        session.value=UserSession(codeUser,"token","refresh",9999999999,setOf("email"))
     }
     /** Сервер не впізнав прострочений токен: локально вихід усе одно відбувся. */
     var signOutRefused=false
@@ -221,6 +233,8 @@ internal class Safety(var facts: AccountFacts = AccountFacts("1990-01-01")): Saf
     var declared: String? = null
     override suspend fun account()=if(fail) fail(AppError.ServiceUnavailable) else facts
     override suspend fun declareBirthDate(date:String) { declared=date; facts=facts.copy(birthDate=date) }
+    var adultConfirmations=0
+    override suspend fun confirmAdult() { adultConfirmations++; facts=facts.copy(adultConfirmedAt=facts.adultConfirmedAt?:"2026-11-01T10:00:00Z") }
     override suspend fun reportEvent(eventId:String,reason:ReportReason,details:String?) { reports+=Triple(eventId,reason,details) }
     override suspend fun reportUser(userId:String,reason:ReportReason,details:String?) { reports+=Triple(userId,reason,details) }
     override suspend fun reportMessage(messageId:String,reason:ReportReason,details:String?) { reports+=Triple(messageId,reason,details) }
