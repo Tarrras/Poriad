@@ -30,6 +30,10 @@ export async function geocode(request, env, ctx) {
   const key = new Request(`${url.origin}/api/geocode?${new URLSearchParams({ city: name, q })}`);
   const cached = await caches.default.match(key);
   if (cached) return cached;
+  // Кожен новий запит іде в komoot, а той за зловживання блокує наш User-Agent для всіх. Тож повз кеш — не більше
+  // ліміту на адресу (GEOCODE_LIMIT у wrangler.toml, у межах однієї локації Cloudflare). Без binding-а — без ліміту.
+  const limited = env.GEOCODE_LIMIT && !(await env.GEOCODE_LIMIT.limit({ key: request.headers.get("cf-connecting-ip") ?? "local" })).success;
+  if (limited) return answer({ error: "rate" }, 429);
   const city = cityOf(name);
   let found;
   try {

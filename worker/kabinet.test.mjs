@@ -81,4 +81,20 @@ assert.deepEqual(await down.json(), [], "Photon ліг — підказок не
 assert.equal(down.headers.get("cache-control"), "no-store", "збій не кешуємо");
 assert.equal([...store.keys()].filter((k) => k.includes("geocode")).length, 1);
 assert.equal(places([], "Київ").length, 0);
+
+// Ліміт на адресу (GEOCODE_LIMIT): лише запити повз кеш, ключ — cf-connecting-ip; понад ліміт — 429 без Photon.
+const keys = [];
+const limited = (success) => ({ ...env, GEOCODE_LIMIT: { limit: async ({ key }) => { keys.push(key); return { success }; } } });
+calls = [];
+globalThis.fetch = async (url) => { calls.push(String(url)); return new Response(JSON.stringify({ features: photon })); };
+const ask = (q, environment) => worker.fetch(new Request(`https://poriad.app/api/geocode?${new URLSearchParams({ q, city: "Київ" })}`, { headers: { "cf-connecting-ip": "203.0.113.7" } }), environment, ctx);
+const blocked = await ask("нова адреса", limited(false));
+assert.equal(blocked.status, 429);
+assert.equal(blocked.headers.get("cache-control"), "no-store");
+assert.equal(calls.length, 0, "понад ліміт — до komoot не йдемо");
+assert.deepEqual(keys, ["203.0.113.7"]);
+assert.equal((await ask("хрещатик 22", limited(false))).status, 200, "з кешу — без ліміту");
+assert.equal(keys.length, 1, "кеш ліміту не рахує");
+assert.equal((await ask("нова адреса", limited(true))).status, 200);
+assert.equal(calls.length, 1);
 console.log("kabinet ok");
