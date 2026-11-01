@@ -27,7 +27,10 @@ assert.ok(follow.text.includes("бо стежите за Олена.") && follow
 assert.ok(mailText("organizer", id, "П", "Т").text.includes("бо стежите за організатором."), "без імені — загальне слово");
 
 // Організатору — у кабінет; питання — ще й куди відповідати.
+// Заявка — теж фіксованим текстом: ім'я запитувача організатор побачить у кабінеті.
 const req = mailText("request", id, "Пробіжка", "Олена просить приєднатися");
+assert.equal(req.subject, "Нова заявка на «Пробіжка»");
+assert.ok(req.text.includes("Нова заявка на «Пробіжка»") && !/Олена/.test(req.text + req.html + req.subject));
 assert.ok(req.html.includes(`href="https://poriad.app/kabinet#/e/${id}"`) && req.text.includes("бо організовуєте «Пробіжка»."));
 assert.ok(!req.text.includes("Скасувати запис") && !req.text.includes("застосунку"));
 // Питання — фіксованим текстом: ні слів запитувача, ні його імені в листі з нашої адреси.
@@ -37,7 +40,7 @@ assert.ok(q.text.includes("Вам поставили питання про «П�
 assert.ok(!/evil|Олена|пароль/.test(q.text + q.html + q.subject));
 
 // Чужий текст не стає розміткою; тема — один рядок до 150 символів.
-const evil = mailText("request", id, `<img src=x onerror=alert(1)>`, `Ім"я\r\nBcc: x@y`);
+const evil = mailText("approved", id, `<img src=x onerror=alert(1)>`, `Ім"я\r\nBcc: x@y`);
 assert.ok(!evil.html.includes("<img") && evil.html.includes("&lt;img src=x onerror=alert(1)&gt;"));
 assert.ok(!/[\r\n]/.test(evil.subject));
 const long = mailText("organizer", id, "Н".repeat(200), "Т");

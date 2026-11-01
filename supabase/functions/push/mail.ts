@@ -39,7 +39,8 @@ export function esc(s: string): string {
 /**
  * [title] і [body] — заголовок і текст пуша (заголовок — назва події), [who] — імʼя організатора для «Стежити».
  * Організатору (запит, питання) — кнопка в кабінет; учаснику — на сторінку події, де можна скасувати запис.
- * Питання — фіксованим текстом, без слів запитувача: лист іде з нашої адреси, і чужий текст у ньому — готовий фішинг.
+ * Організатору — фіксованим текстом, без імені й слів запитувача: лист іде з нашої адреси, і чужий текст у ньому —
+ * готовий фішинг. Ім'я він побачить у кабінеті.
  */
 export function mailText(kind: MailKind, eventId: string, title: string, body: string, who = ""): Mail {
   const page = `${SITE}/e/${eventId}`;
@@ -47,7 +48,7 @@ export function mailText(kind: MailKind, eventId: string, title: string, body: s
   const button = organizer ? { label: "Переглянути", url: `${SITE}/kabinet#/e/${eventId}` } : { label: "Відкрити подію", url: page };
   // Відповісти з вебу в першій версії не можна (1.2).
   const note = kind === "question" ? "Відповісти можна в застосунку «Поряд»." : "";
-  const line = kind === "question" ? `Вам поставили питання про «${title}»` : body;
+  const line = kind === "question" ? `Вам поставили питання про «${title}»` : kind === "request" ? `Нова заявка на «${title}»` : body;
   const why = organizer ? `Ви отримали цей лист, бо організовуєте «${title}».`
     : kind === "organizer" ? `Ви отримали цей лист, бо стежите за ${who || "організатором"}.`
     : kind === "declined" ? `Ви отримали цей лист, бо надіслали запит на «${title}».`
@@ -56,7 +57,7 @@ export function mailText(kind: MailKind, eventId: string, title: string, body: s
   const link = kind === "organizer" ? { label: "Не стежити", url: `${page}?unfollow` }
     : kind === "approved" || kind === "promoted" || kind === "moved" ? { label: "Скасувати запис", url: page } : null;
 
-  const oneLine = (kind === "question" ? line : `«${title}»: ${body}`).replace(/\s+/g, " ").trim();
+  const oneLine = (organizer ? line : `«${title}»: ${body}`).replace(/\s+/g, " ").trim();
   const subject = oneLine.length <= SUBJECT_MAX ? oneLine : `${oneLine.slice(0, SUBJECT_MAX - 1).trimEnd()}…`;
   const text = [title, line, ...(note ? [note] : []), `${button.label}: ${button.url}`, "", "—", why,
     ...(link ? [`${link.label}: ${link.url}`] : [])].join("\n");
