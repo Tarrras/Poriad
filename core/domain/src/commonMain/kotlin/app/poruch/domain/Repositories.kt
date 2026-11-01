@@ -7,10 +7,13 @@ interface SecureSessionStore {
     fun write(value: String)
     fun clear()
 }
-/** [providers] — чим входить акаунт (`email`, `google`, `apple`), з токена доступу. Порожньо — невідомо. */
+/**
+ * [providers] — чим входить акаунт (`email`, `google`, `apple`), з токена доступу. [methods] — чим відкрито саме цю сесію
+ * (`amr` токена: `password`, `otp`, `oauth`…). Порожньо — невідомо.
+ */
 data class UserSession(
     val userId: String, val accessToken: String, val refreshToken: String, val expiresAt: Long,
-    val providers: Set<String> = emptySet()
+    val providers: Set<String> = emptySet(), val methods: Set<String> = emptySet()
 )
 
 /** Вхід ID-токеном Google чи Apple: [key] — назва провайдера в Supabase Auth. */
@@ -18,8 +21,15 @@ enum class IdProvider(val key: String) { GOOGLE("google"), APPLE("apple") }
 interface AuthRepository {
     val session: StateFlow<UserSession?>
     suspend fun signIn(email: String, password: String)
-    /** [birthDate] — ISO-8601, їде в метаданих реєстрації. Мінімальний вік перевіряє сервер. */
-    suspend fun signUp(email: String, password: String, name: String, birthDate: String): Boolean
+    /**
+     * [birthDate] — ISO-8601, їде в метаданих реєстрації; мінімальний вік перевіряє сервер. Null — галочка «Мені вже є 18»
+     * (docs/organizers-1.5.md, хвиля 2): у метадані йде `adult_confirmed`.
+     */
+    suspend fun signUp(email: String, password: String, name: String, birthDate: String?): Boolean
+    /** Код входу на пошту (`/auth/v1/otp`). Нової пошти акаунт з'являється з першим входом, як на сайті. */
+    suspend fun sendCode(email: String)
+    /** Код з листа → сесія. Хибний чи прострочений — [AppError.InvalidCode]. */
+    suspend fun verifyCode(email: String, code: String)
     /**
      * Новий nonce для входу ID-токеном: повертає його SHA-256 (hex) — це платформа передає Google чи
      * Apple, а сирий лишається тут і йде в [signInWithIdToken]. Так чужий токен не підсунути.
@@ -47,9 +57,14 @@ interface AuthRepository {
 }
 // Доступ до подій — в EventAccess.kt.
 
-/** Що акаунт про себе заявив і що про нього думає модерація. */
-data class AccountFacts(val birthDate: String? = null, val status: AccountStatus = AccountStatus.ACTIVE) {
-    val ageDeclared get() = birthDate != null
+/**
+ * Що акаунт про себе заявив і що про нього думає модерація. [adultConfirmedAt] — галочка «Мені вже є 18» замість дати:
+ * її досить усюди, крім подій з віком від 19 чи верхньою межею (там сервер просить дату, `AGE_REQUIRED`).
+ */
+data class AccountFacts(
+    val birthDate: String? = null, val status: AccountStatus = AccountStatus.ACTIVE, val adultConfirmedAt: String? = null
+) {
+    val ageDeclared get() = birthDate != null || adultConfirmedAt != null
     val restricted get() = status != AccountStatus.ACTIVE
 }
 
@@ -65,8 +80,10 @@ enum class AccountStatus(val key: String) {
 /** Скарги й блокування. Окремо від подій, бо стосується людей. */
 interface SafetyRepository {
     suspend fun account(): AccountFacts
-    /** Дозволено один раз, для акаунтів, створених до появи питання про вік. */
+    /** Дозволено один раз, поки дати нема: акаунти до питання про вік і з галочкою на подію з віком від 19 чи межею. */
     suspend fun declareBirthDate(date: String)
+    /** Галочка «Мені вже є 18» (`confirm_adult`): повтор нічого не змінює. */
+    suspend fun confirmAdult()
     suspend fun reportEvent(eventId: String, reason: ReportReason, details: String?)
     suspend fun reportUser(userId: String, reason: ReportReason, details: String?)
     /** Скарга на повідомлення в чаті: іде на автора, з подією і текстом для контексту. */

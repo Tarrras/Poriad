@@ -30,8 +30,33 @@ internal class SafetyUseCases(
             )
         }
         store.tell(AppMessage.AGE_CONFIRMED)
-        // Намір «Хочу піти з компанією» чекав саме на вік.
+        ageDeclared()
+    }
+
+    /** Що чекало саме на вік: намір «Хочу піти з компанією» і публікація, відкладена до входу. */
+    private fun ageDeclared() {
         library.consumePendingCompany()
+        onAgeDeclared?.invoke()
+    }
+
+    /** Ставить [PoruchApp]: публікація гостя після входу ([EventUseCases.publishPending]). */
+    var onAgeDeclared: (() -> Unit)? = null
+
+    /**
+     * Галочка «Мені вже є 18» (хвиля 2): після входу через Google, Apple чи код і з картки віку в профілі. Подія з віком
+     * від 19 чи верхньою межею однаково попросить дату ([AppError.AgeRequired] → [declareBirthDate]).
+     */
+    fun confirmAdult() = store.mutate {
+        repository().confirmAdult()
+        store.update {
+            val account = it.library.account
+            it.copy(
+                library = it.library.copy(account = account.copy(adultConfirmedAt = account.adultConfirmedAt ?: Clock.System.now().toString())),
+                session = it.session.copy(askBirthDate = false)
+            )
+        }
+        store.tell(AppMessage.AGE_CONFIRMED)
+        ageDeclared()
     }
 
     fun reportEvent(eventId: String, reason: ReportReason, details: String?) = store.mutate {

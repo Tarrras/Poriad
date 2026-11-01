@@ -43,6 +43,8 @@ data class AppState(
     /** Людина дозволила продуктову аналітику. Прапорець пристрою, за замовчуванням так. Див. [PoruchAnalytics.enabled]. */
     val analyticsEnabled: Boolean = true,
     val mutating: Boolean = false,
+    /** Публікація чи правка вантажить фото й відео: «Завантажуємо 2 з 4». Null — не вантажить. */
+    val mediaUpload: MediaUpload? = null,
     val notice: AppNotice? = null,
     val completedEventId: String? = null,
     /** Щойно створений супутник «Йдемо разом»: платформа відкриває «Поділитися» і кличе [PoruchApp.clearCreatedCompanion]. */
@@ -54,6 +56,12 @@ data class AppState(
      * Переживає зміну акаунта, бо вхід — саме вона.
      */
     val pendingCompany: String? = null,
+    /**
+     * Гість натиснув «Опублікувати»: подія публікується сама після входу (і галочки віку, якщо акаунт новий). Платформа
+     * тримає вхід з причиною `create` відкритим, поки `publishAfterSignIn && (!signedIn || session.askBirthDate)`: крок
+     * галочки може зʼявитись і після входу, коли сервер не знайшов віку. Закрили вхід — [PoruchApp.cancelPendingPublish].
+     */
+    val publishAfterSignIn: Boolean = false,
     /**
      * Подія й хто на неї кличе, якщо її відкрили з посилання-запрошення (docs/invites.md). Окремо від [detail]: деталі
      * тієї ж події перевідкриваються по-різному (новий екран, той самий, вхід), а «… кличе тебе» має лишатись.
@@ -162,6 +170,9 @@ data class AppState(
     private fun runOf(id: String) = map.index.firstOrNull { run -> run.sessions.any { it.id == id } }
         ?: home.index.firstOrNull { run -> run.sessions.any { it.id == id } }
 }
+
+/** Котрий файл зараз іде ([current], від 1) з [total] нових у чернетці. */
+data class MediaUpload(val current: Int, val total: Int)
 
 /** Відкрита подія з тим, що бачить лише вона. Порожньо — нічого не відкрито. */
 data class DetailState(
@@ -272,6 +283,8 @@ data class SessionState(
      * показує наступний крок замість форми. Зникає з входом або коли людина повертається до форми.
      */
     val awaitingConfirmation: String? = null,
+    /** Пошта, на яку пішов код входу: поки непорожньо, екран входу питає код. Зникає з входом або з [PoruchApp.dismissConfirmationStep]. */
+    val awaitingCode: String? = null,
     /**
      * Пристрій зареєстровано для пушів під цим акаунтом. Тоді про нове дзвонить сервер, а
      * локальні сповіщення при перечитуванні мовчать, щоб не дублювати.
@@ -279,14 +292,24 @@ data class SessionState(
     val pushRegistered: Boolean = false,
     /** Чим входить акаунт: `email`, `google`, `apple` (з токена). Порожньо — невідомо, вважаємо, що пароль є. */
     val providers: Set<String> = emptySet(),
+    /** Чим відкрито цю сесію (`amr` токена): `password`, `otp`… Порожньо — невідомо. */
+    val methods: Set<String> = emptySet(),
     /**
-     * Щойно увійшли через Google чи Apple, а дати народження в акаунта нема: екран входу не закривається,
-     * а питає її. Зникає з [PoruchApp.declareBirthDate] або коли людина закриває екран.
+     * Щойно увійшли через Google, Apple чи код з пошти, а віку в акаунта нема: екран входу не закривається, а питає
+     * галочку «Мені вже є 18» ([PoruchApp.confirmAdult]; стара збірка — дату, [PoruchApp.declareBirthDate]). Зникає
+     * з відповіддю або коли людина закриває екран.
      */
     val askBirthDate: Boolean = false
 ) {
     /** Акаунт без пароля (лише Google/Apple): ні зміни пароля, ні пароля при видаленні. */
-    val passwordless get() = providers.isNotEmpty() && "email" !in providers
+    val passwordless get() = (providers.isNotEmpty() && "email" !in providers) || viaCode
+
+    /**
+     * Сесію відкрито кодом з пошти. Пароля в такого акаунта може й не бути (запис з вебу), тож його не питаємо: видалення —
+     * без пароля одразу після входу або через новий код ([PoruchApp.deleteAccountWithCode]). ponytail: назви методів —
+     * з `amr` GoTrue (`otp`, `magiclink`); з новою назвою акаунт знову проситиме пароль, якого нема.
+     */
+    val viaCode get() = methods.any { it == "otp" || it == "magiclink" }
     /** Акаунт входить через Apple: при видаленні відкликаємо його токени. */
     val viaApple get() = IdProvider.APPLE.key in providers
 }
@@ -296,10 +319,11 @@ data class SessionState(
  * акаунту, для входу, виходу й зміни акаунта. Відповіді онбордингу й місто належать телефону і лишаються.
  * Картки теж: у них членство («Ви йдете»), тож їх перечитує новий акаунт. Індекси — публічні й лишаються.
  */
-internal fun AppState.forAccount(uid: String?, providers: Set<String> = emptySet()): AppState = copy(
+internal fun AppState.forAccount(uid: String?, providers: Set<String> = emptySet(), methods: Set<String> = emptySet()): AppState = copy(
     session = SessionState(
         userId = uid,
         providers = providers,
+        methods = methods,
         // Вхід або підтвердження з листа: наступний крок реєстрації вже не потрібен.
         awaitingConfirmation = if (uid != null) null else session.awaitingConfirmation
     ),
@@ -310,5 +334,7 @@ internal fun AppState.forAccount(uid: String?, providers: Set<String> = emptySet
     person = null,
     completedEventId = null,
     createdCompanion = null,
-    matchedCompanion = null
+    matchedCompanion = null,
+    // Вихід: чернетка гостя вже нічия. Вхід — саме те, чого вона чекала.
+    publishAfterSignIn = publishAfterSignIn && uid != null
 ).materialized()

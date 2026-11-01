@@ -18,6 +18,7 @@ import app.poruch.shared.AppNotice
 fun AppNotice.text(): String = when (this) {
     is AppNotice.Failed -> error.text()
     is AppNotice.Told -> stringResource(message.resource)
+    is AppNotice.MediaFailed -> pluralStringResource(R.plurals.media_failed, count, count)
 }
 
 @Composable
@@ -41,6 +42,7 @@ private val AppError.resource: Int
         AppError.EmailNotConfirmed -> R.string.err_email_not_confirmed
         AppError.LinkOnAnotherDevice -> R.string.err_link_other_device
         AppError.LinkExpired -> R.string.err_link_expired
+        AppError.InvalidCode -> R.string.err_invalid_code
         AppError.NotOwner -> R.string.err_not_owner
         AppError.EventUnavailable -> R.string.err_event_unavailable
         AppError.EventCancelled -> R.string.err_event_cancelled

@@ -43,6 +43,13 @@
   <string name="underway_until">до %1$s</string>
   <!-- Решта сеансів прокату на картці. Число, а не проміжок «22–30 грудня»: прокат буває з
        розривами («Хор Гомін» 5, 12 і 27 жовтня), і проміжок збрехав би про дні між ними. -->
+  <plurals name="media_failed">
+    <item quantity="one">Не вдалося додати %d файл. Спробуйте ще раз у редагуванні.</item>
+    <item quantity="few">Не вдалося додати %d файли. Спробуйте ще раз у редагуванні.</item>
+    <item quantity="many">Не вдалося додати %d файлів. Спробуйте ще раз у редагуванні.</item>
+    <item quantity="other">Не вдалося додати %d файлу. Спробуйте ще раз у редагуванні.</item>
+  </plurals>
+
   <plurals name="series_more_dates">
     <item quantity="one">ще %d дата</item>
     <item quantity="few">ще %d дати</item>
@@ -903,6 +910,7 @@
   <string name="description_placeholder">Кілька речень про подію</string>
   <string name="err_objectionable">Текст містить слова, які ми не публікуємо. Перепишіть, будь ласка.</string>
   <string name="err_link_expired">Посилання застаріло або вже використане. Запросіть новий лист на цьому пристрої</string>
+  <string name="err_invalid_code">Код не підійшов або застарів. Надішліть новий</string>
   <string name="err_link_other_device">Відкрийте посилання з листа на тому самому пристрої, де ви реєструвались або запитували відновлення.</string>
   <!-- Профіль: свій і картка людини. Див. docs/profile.md. -->
   <string name="profile_edit">Редагувати профіль</string>
@@ -1192,4 +1200,62 @@
   <string name="company_cancel_a11y">Скасувати пошук компанії</string>
   <string name="company_open_a11y">Відкрити компанію</string>
   <string name="company_bar_people">Подивитися, хто ще шукає</string>
+
+  <!-- 1.5, хвиля 2 (docs/organizers-1.5.md). Вхід кодом з пошти: ті самі слова, що на сайті. -->
+  <string name="auth_code_button">Увійти кодом з пошти</string>
+  <string name="auth_code_title">Вхід кодом з пошти</string>
+  <string name="auth_code_subtitle">Надішлемо код для входу. Пароль не потрібен.</string>
+  <string name="auth_code_send">Надіслати код</string>
+  <string name="auth_code_sent">Надіслали код на %1$s.</string>
+  <string name="auth_code_field">Код з листа</string>
+  <string name="auth_code_confirm">Підтвердити</string>
+  <string name="auth_code_resend">Надіслати ще раз</string>
+  <!-- Supabase Auth шле не частіше за раз на 60 с. -->
+  <string name="auth_code_resend_in">Надіслати ще раз через %1$d с</string>
+  <string name="auth_code_other_email">Інша пошта</string>
+  <!-- Кнопка застосунку на «Ви в списку» тим, хто записався на сайті поштою. -->
+  <string name="auth_code_same_email">Увійдіть тією самою поштою.</string>
+  <!-- Галочка замість дати: реєстрація, крок після Google, Apple чи коду, картка віку в профілі. -->
+  <string name="adult_confirm">Мені вже є 18</string>
+  <string name="adult_confirm_hint">«Поряд» — для повнолітніх. Дату народження спитаємо лише для подій з віковими межами.</string>
+  <string name="auth_adult_subtitle">Підтвердьте, що вам уже є 18: «Поряд» — для повнолітніх.</string>
+  <!-- AGE_REQUIRED на події з віком від 19 чи верхньою межею: вибір дати на деталях. -->
+  <string name="age_date_title">Подія з віковими межами</string>
+  <string name="age_date_body">Організатор обмежив вік, тож тут потрібна дата народження. Її ніхто не побачить.</string>
+  <string name="age_date_continue">Зберегти й записатися</string>
+  <!-- Редактор без входу: вхід на «Опублікувати». -->
+  <string name="auth_subtitle_publish">Увійдіть, щоб опублікувати. Чернетку збережено.</string>
+  <!-- Крок 1, картка «Вставити анонс». Список полів — з announce_part_*, через кому. -->
+  <string name="announce_title">Є готовий анонс?</string>
+  <string name="announce_subtitle">Вставте текст — заповнимо назву, опис, дату й місце</string>
+  <string name="announce_field">Текст анонсу</string>
+  <string name="announce_fill">Заповнити</string>
+  <string name="announce_filling">Заповнюємо…</string>
+  <string name="announce_filled">Заповнили з анонсу: %1$s. Перевірте на кожному кроці.</string>
+  <string name="announce_other">Інший текст</string>
+  <string name="announce_failed">Не вдалося розібрати анонс. Текст уже в описі — допишіть назву.</string>
+  <string name="announce_limited">Забагато анонсів за годину. Текст уже в описі — допишіть назву.</string>
+  <string name="announce_part_title">назву</string>
+  <string name="announce_part_description">опис</string>
+  <string name="announce_part_category">жанр</string>
+  <string name="announce_part_date">дату</string>
+  <string name="announce_part_place">місце</string>
+  <string name="announce_part_capacity">кількість місць</string>
+  <string name="announce_part_age">вік</string>
+  <string name="announce_part_contact">чат</string>
+  <!-- Фото й відео в редакторі (крок 1) і на деталях. Невдалі файли після публікації — plurals media_failed. -->
+  <string name="media_title">Фото й відео</string>
+  <string name="media_hint">До 5 фото чи відео. Перше стане обкладинкою.</string>
+  <string name="media_add_a11y">Додати фото чи відео</string>
+  <string name="media_remove_a11y">Прибрати</string>
+  <string name="media_cover">Обкладинка</string>
+  <string name="media_video_trimmed">Перші 30 секунд</string>
+  <string name="media_compressing">Стискаємо відео…</string>
+  <string name="media_not_added">Не вдалося додати цей файл</string>
+  <string name="media_uploading">Завантажуємо %1$d з %2$d</string>
+  <string name="media_play_a11y">Відтворити відео</string>
+  <!-- Дії організатора на власній спільнотній події: «Мої події» й деталі. -->
+  <string name="repeat_event">Повторити</string>
+  <string name="threads_post">Пост для Threads</string>
+  <string name="threads_copied">Текст скопійовано</string>
 </resources>

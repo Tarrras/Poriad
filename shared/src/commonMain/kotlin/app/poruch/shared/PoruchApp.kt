@@ -82,7 +82,10 @@ class PoruchApp internal constructor(
     // Відповіді читаємо синхронно: від них залежить, чи перший кадр — онбординг чи застосунок.
     private val store = AppStore(
         AppState(
-            session = SessionState(userId = auth.session.value?.userId, providers = auth.session.value?.providers.orEmpty()),
+            session = SessionState(
+                userId = auth.session.value?.userId, providers = auth.session.value?.providers.orEmpty(),
+                methods = auth.session.value?.methods.orEmpty()
+            ),
             taste = tasteStore?.read() ?: Taste(),
             remindersEnabled = reminderStore?.enabled() ?: false,
             digestEnabled = reminderStore?.digestEnabled() ?: true,
@@ -137,7 +140,8 @@ class PoruchApp internal constructor(
         library,
         reloader,
         followUseCases,
-        goodDays
+        goodDays,
+        compute
     )
     private val identity =
         IdentitySync(auth, store, discovery, library, chatEngine, pushSync, eventUseCases)
@@ -151,6 +155,8 @@ class PoruchApp internal constructor(
         // Перемикач збору — до першої події: `first_open` не має піти, якщо людина відмовилась.
         PoruchAnalytics.enabled = state.value.analyticsEnabled
         discovery.onQueryChanged = library::dismiss
+        library.afterAccountLoad = eventUseCases::publishPending
+        safetyUseCases.onAgeDeclared = eventUseCases::publishPending
         identity.start()
         pushSync.retryPending()
         pushSync.start()
@@ -323,8 +329,17 @@ class PoruchApp internal constructor(
     /**
      * Редактор нової події: відкрито (`about`) чи пройдено «Далі» на крок `place`, `schedule`, `people` — воронка між
      * `create_start` і `event_create`, котрий крок губить людей. [draft] — форма з незакінченої чернетки: чи повертаються до неї.
+     * [mediaCount] — скільки фото й відео вже в чернетці. `guest` — гість: редактор відкритий і йому, вхід — на «Опублікувати».
      */
-    fun createStep(step: String, draft: Boolean) = PoruchAnalytics.track("create_step", "step" to step, "draft" to draft)
+    fun createStep(step: String, draft: Boolean, mediaCount: Int) = PoruchAnalytics.track(
+        "create_step", "step" to step, "draft" to draft, "guest" to !state.value.signedIn, "media_count" to mediaCount
+    )
+
+    /** Збірки до фото й відео в редакторі. */
+    fun createStep(step: String, draft: Boolean) = createStep(step, draft, 0)
+
+    /** До чернетки додали фото чи відео (кожен файл): чи додають організатори медіа, і що саме. */
+    fun mediaAdded(kind: MediaKind) = PoruchAnalytics.track("media_add", "kind" to kind.key)
 
     /** «Далі» чи «Опублікувати» спинило правило: яке поле на якому кроці заважає найчастіше. */
     fun createBlocked(step: String, field: DraftField) =
@@ -408,7 +423,44 @@ class PoruchApp internal constructor(
 
     /** Закладка спрацьовує одразу, запит іде окремо; при збої повертається як було. */
     fun toggleSaved(id: String) = eventUseCases.toggleSaved(id)
+    /**
+     * «Опублікувати». Подія створюється, далі нові фото й відео вантажаться по черзі ([AppState.mediaUpload]) і стають
+     * її `media` одним запитом; файл не завантажився — подія лишається, а [AppNotice.MediaFailed] каже скільки. Гість:
+     * чернетку перевіряємо й чекаємо на вхід ([AppState.publishAfterSignIn]), після нього подія публікується сама.
+     */
     fun createEvent(draft: EventDraft) = eventUseCases.create(draft)
+
+    /** Вхід, відкритий через «Опублікувати», закрили без входу: гість лишається в редакторі, сама публікація скасована. */
+    fun cancelPendingPublish() = eventUseCases.cancelPendingPublish()
+
+    /**
+     * «Заповнити» на картці «Є готовий анонс?» (крок 1, і гостю). [city] і [timeZone] — з форми. Поля, яких у тексті нема,
+     * — null: у формі лишається як було. Адреса — рядок для поля «Адреса» з підказками ([searchAddress]); крапку ставить
+     * людина. Не розібрали — [AnnouncementFill.failure], а назва й опис — з самого тексту. Сам рахує `announce_fill` чи
+     * `announce_failed`.
+     */
+    suspend fun fillFromAnnouncement(text: String, city: String, timeZone: String): AnnouncementFill =
+        eventUseCases.announce(text, city, timeZone)
+
+    /**
+     * «Повторити» в «Моїх подіях»: чернетка з власної спільнотної події — усі поля, фото й відео, на тиждень пізніше, поки
+     * не в майбутньому. Медіа копіюються в нову подію з публікацією ([createEvent]). Чужа подія чи афіша — null.
+     */
+    fun repeatDraft(event: Event): EventDraft? {
+        if (!state.value.organizes(event)) return null
+        return EventRepeat.draft(event, Clock.System.now())?.also {
+            PoruchAnalytics.track("repeat_event", "media" to it.media?.size)
+        }
+    }
+
+    /**
+     * Текст «Пост для Threads» для власної події (дія організатора на деталях і в «Моїх подіях»): платформа відкриває з ним
+     * системне меню з фото й відео події, кладе його в буфер і каже «Текст скопійовано». Сам рахує `share` з `kind=threads`.
+     */
+    fun threadsPost(event: Event): String {
+        PoruchAnalytics.track("share", "kind" to "threads")
+        return ThreadsPost.text(event)
+    }
 
     /** «Шукаю компанію» на відкриту афішу. [meetAt] — з [CompanionRules.meetTimes], ISO-8601. */
     /** Новий час збору (R7б); «Перенести на …» і «Інший час» з питання R7а. «Скасувати збір» — [cancelEvent]. */
@@ -423,7 +475,13 @@ class PoruchApp internal constructor(
     fun dropCompany() = eventUseCases.setCompanyIntent(false)
     /** «Піти разом» з людиною з наміром на відкриту афішу. */
     fun sayCompanyYes(userId: String) = eventUseCases.sayCompanyYes(userId)
+    /**
+     * Збереження правки. [EventDraft.media] null — медіа не чіпаємо (редактор без розділу «Фото й відео»). З розділом —
+     * чернетка бере медіа події як `event.media.map { DraftMedia.Remote(it) }`, а прибрані файли зникають і зі сховища.
+     */
     fun updateEvent(id: String, draft: EventDraft) = eventUseCases.update(id, draft)
+
+    /** Стара обкладинка з деталей; хвиля 2 прибирає цей вибір, фото й відео — у редакторі ([EventDraft.media]). */
     fun uploadEventImage(eventId: String, bytes: ByteArray, contentType: String) =
         eventUseCases.uploadImage(eventId, bytes, contentType)
 
@@ -720,8 +778,14 @@ class PoruchApp internal constructor(
 
     // ---- Безпека
 
-    /** Вік для акаунта, створеного до появи питання. Дозволено раз. */
+    /**
+     * Дата народження, поки її нема: акаунт до питання про вік і людина з галочкою на подію з віком від 19 чи верхньою
+     * межею (`join` → [AppError.AgeRequired]). Дозволено раз.
+     */
     fun declareBirthDate(birthDate: String) = safetyUseCases.declareBirthDate(birthDate)
+
+    /** Галочка «Мені вже є 18»: крок після входу ([SessionState.askBirthDate]) і картка віку в профілі. */
+    fun confirmAdult() = safetyUseCases.confirmAdult()
     fun reportEvent(eventId: String, reason: ReportReason, details: String? = null) =
         safetyUseCases.reportEvent(eventId, reason, details)
 
@@ -756,12 +820,28 @@ class PoruchApp internal constructor(
     fun signInWithIdToken(provider: IdProvider, idToken: String, name: String? = null) =
         sessionUseCases.signInWithIdToken(provider, idToken, name)
 
-    /** [birthDate] — ISO-8601. Платформа лише для дорослих. */
+    /** [birthDate] — ISO-8601. Платформа лише для дорослих. Збірки з галочкою кличуть [signUp] без дати. */
     fun signUp(email: String, password: String, name: String, birthDate: String) =
         sessionUseCases.signUp(email, password, name, birthDate)
 
+    /** Реєстрація з галочкою «Мені вже є 18»: кнопка форми вмикається лише з нею. */
+    fun signUp(email: String, password: String, name: String) = sessionUseCases.signUp(email, password, name)
+
+    /**
+     * «Увійти кодом з пошти»: лист з кодом, далі екран входу питає його ([SessionState.awaitingCode]). Той самий акаунт,
+     * що на сайті: людина, яка записалась на `poriad.app/e/…` поштою, бачить тут свої події. Повтор — новий код.
+     */
+    fun sendSignInCode(email: String) = sessionUseCases.sendSignInCode(email)
+
+    /** Код з листа. Новий акаунт — без віку: екран входу далі питає галочку ([SessionState.askBirthDate]). */
+    fun verifySignInCode(email: String, code: String) = sessionUseCases.verifySignInCode(email, code)
+
     /** Людина повернулась до форми або закрила екран: крок «перевірте пошту» більше не показуємо. */
-    fun dismissConfirmationStep() = sessionUseCases.dismissConfirmationStep()
+    fun dismissConfirmationStep() {
+        // Спершу публікація: вона дивиться, чи закрили саме крок галочки.
+        eventUseCases.cancelPendingPublish()
+        sessionUseCases.dismissConfirmationStep()
+    }
     fun signOut() = sessionUseCases.signOut()
 
     /**
@@ -771,6 +851,14 @@ class PoruchApp internal constructor(
      */
     fun deleteAccount(password: String? = null, appleAuthorizationCode: String? = null) =
         sessionUseCases.deleteAccount(password, appleAuthorizationCode)
+    /**
+     * Видалення акаунта, що входить кодом ([SessionState.viaCode], пароля може не бути): «Надіслати код» → [sendDeletionCode],
+     * код з листа → [deleteAccountWithCode]. [deleteAccount] без пароля для нього працює лише хвилин 10 після входу:
+     * далі сервер відповідає [AppError.InvalidCredentials], і саме тоді — код.
+     */
+    fun sendDeletionCode() = sessionUseCases.sendDeletionCode()
+    fun deleteAccountWithCode(code: String) = sessionUseCases.deleteAccountWithCode(code)
+
     fun requestPasswordReset(email: String) = sessionUseCases.requestPasswordReset(email)
     fun updatePassword(password: String) = sessionUseCases.updatePassword(password)
 

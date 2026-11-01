@@ -49,17 +49,51 @@ internal class SessionUseCases(
                 PoruchLog.w("auth") { "provider name not saved: ${e.asAppError()}" }
             }
         }
+        askAgeIfMissing()
+        store.tell(AppMessage.SIGNED_IN)
+    }
+
+    /**
+     * Акаунт без віку (новий через Google, Apple чи код з пошти) лишає екран входу відкритим на кроці віку
+     * ([SessionState.askBirthDate]): галочка «Мені вже є 18» ([SafetyUseCases.confirmAdult]).
+     */
+    private suspend fun askAgeIfMissing() {
         // Не вдалось дізнатись — не питаємо: картка віку в профілі й сервер при приєднанні підстрахують.
         val ageDeclared = try { safety?.account()?.ageDeclared } catch (e: CancellationException) { throw e } catch (e: Exception) { null } ?: true
         store.update { it.copy(session = it.session.copy(askBirthDate = !ageDeclared)) }
+    }
+
+    /** Код входу на [email]: далі екран входу питає код ([SessionState.awaitingCode]). Повтор — новий лист. */
+    fun sendSignInCode(email: String) = store.mutate {
+        PoruchLog.i("auth") { "sign-in code requested" }
+        account.sendCode(email)
+        store.update { it.copy(session = it.session.copy(awaitingCode = email.trim())) }
+    }
+
+    /**
+     * Код з листа. Новий акаунт з'являється тут же, як на сайті, і без віку: тоді крок галочки, як після Google.
+     * Хибний чи прострочений код — [AppError.InvalidCode], крок коду лишається.
+     */
+    fun verifySignInCode(email: String, code: String) = store.mutate {
+        PoruchLog.i("auth") { "sign-in code entered" }
+        account.verifyCode(email, code)
+        PoruchAnalytics.track("login", "method" to "code")
+        identity.synchronize(auth.session.value?.userId)
+        askAgeIfMissing()
         store.tell(AppMessage.SIGNED_IN)
     }
 
     /** [birthDate] — ISO-8601. Платформа лише для дорослих, і перевірка починається тут. */
-    fun signUp(email: String, password: String, name: String, birthDate: String) = store.mutate {
+    fun signUp(email: String, password: String, name: String, birthDate: String) = signUp(email) {
+        account.signUp(email, password, name, birthDate, Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date)
+    }
+
+    /** Реєстрація з галочкою «Мені вже є 18» замість дати (хвиля 2). */
+    fun signUp(email: String, password: String, name: String) = signUp(email) { account.signUp(email, password, name) }
+
+    private fun signUp(email: String, request: suspend () -> Boolean) = store.mutate {
         PoruchLog.i("auth") { "sign up requested" }
-        val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
-        val signedIn = account.signUp(email, password, name, birthDate, today)
+        val signedIn = request()
         PoruchAnalytics.track("sign_up", "confirmed" to signedIn)
         PoruchLog.i("auth") { "sign up ${if (signedIn) "signed in immediately" else "awaiting email confirmation"}" }
         // Без сесії відповідь — не банер, а окремий крок: екран входу показує, куди пішов лист і що далі.
@@ -68,7 +102,9 @@ internal class SessionUseCases(
     }
 
     /** Людина повернулась до форми або закрила екран: крок «перевірте пошту» більше не показуємо. */
-    fun dismissConfirmationStep() = store.update { it.copy(session = it.session.copy(awaitingConfirmation = null, askBirthDate = false)) }
+    fun dismissConfirmationStep() = store.update {
+        it.copy(session = it.session.copy(awaitingConfirmation = null, awaitingCode = null, askBirthDate = false))
+    }
 
     fun signOut() = store.mutate {
         PoruchLog.i("auth") { "sign out" }
@@ -98,9 +134,37 @@ internal class SessionUseCases(
             if (password == null || !AccountRules.isPassword(password)) fail(AppError.InvalidCredentials)
             auth.verifyPassword(password)
         }
+        delete(password.takeUnless { passwordless }, appleAuthorizationCode)
+    }
+
+    /**
+     * Код на пошту акаунта перед видаленням: акаунт з коду (запис з вебу) пароля не має, а сервер без пароля видаляє лише
+     * одразу після входу. Пошта — з профілю, тож код підтвердить саме цей акаунт.
+     */
+    fun sendDeletionCode() = store.mutate {
+        PoruchLog.i("auth") { "deletion code requested" }
+        account.sendCode(accountEmail())
+    }
+
+    /** Код з листа — свіжий вхід (`amr` не старший за 10 хв), і сервер видаляє акаунт без пароля. Хибний код — нічого не видаляє. */
+    fun deleteAccountWithCode(code: String) = store.mutate {
+        PoruchLog.i("auth") { "account deletion with a code requested" }
+        val uid = auth.session.value?.userId ?: fail(AppError.SessionRequired)
+        account.verifyCode(accountEmail(), code)
+        // Та сама пошта — той самий акаунт; інший тут означав би, що профіль показував чужу пошту.
+        if (auth.session.value?.userId != uid) fail(AppError.Rejected)
+        delete(null, null)
+    }
+
+    private suspend fun accountEmail(): String {
+        val uid = auth.session.value?.userId ?: fail(AppError.SessionRequired)
+        return (store.value.library.profile ?: profiles?.profile(uid))?.email?.takeIf { it.isNotBlank() } ?: fail(AppError.ServiceUnavailable)
+    }
+
+    private suspend fun delete(password: String?, appleAuthorizationCode: String?) {
         push.unregister(auth.session.value)
         try {
-            auth.deleteAccount(password.takeUnless { passwordless }, appleAuthorizationCode)
+            auth.deleteAccount(password, appleAuthorizationCode)
         } catch (e: Exception) {
             // 401 — сесії вже нема, акаунт вийшов разом з нею. Інакше повертаємо пуші, які щойно зняли.
             if (e.asAppError() == AppError.SessionRequired) identity.synchronize(null) else push.register()

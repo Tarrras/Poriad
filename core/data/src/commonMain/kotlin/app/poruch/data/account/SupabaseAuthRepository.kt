@@ -53,14 +53,21 @@ class SupabaseAuthRepository(
         val expiresAt = value["expires_in"]?.jsonPrimitive?.longOrNull?.let { Clock.System.now().epochSeconds + it }
             ?: value["expires_at"]?.jsonPrimitive?.longOrNull ?: (Clock.System.now().epochSeconds + 3600)
         val token = value.string("access_token")
-        return UserSession(uid, token, value.string("refresh_token"), expiresAt, providers(token))
+        val claims = claims(token)
+        return UserSession(uid, token, value.string("refresh_token"), expiresAt, providers(claims), methods(claims))
     }
-    /** `app_metadata.providers` з JWT доступу: так знаємо і про сесію, збережену до цієї версії. */
     @OptIn(ExperimentalEncodingApi::class)
-    private fun providers(token: String): Set<String> = runCatching {
+    private fun claims(token: String): JsonObject? = runCatching {
         val payload = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT_OPTIONAL).decode(token.split('.')[1])
-        api.json.parseToJsonElement(payload.decodeToString()).jsonObject["app_metadata"]!!.jsonObject["providers"]!!
-            .jsonArray.map { it.jsonPrimitive.content }.toSet()
+        api.json.parseToJsonElement(payload.decodeToString()).jsonObject
+    }.getOrNull()
+    /** `app_metadata.providers` з JWT доступу: так знаємо і про сесію, збережену до цієї версії. */
+    private fun providers(claims: JsonObject?): Set<String> = runCatching {
+        claims!!["app_metadata"]!!.jsonObject["providers"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet()
+    }.getOrDefault(emptySet())
+    /** `amr` з JWT: як відкрито цю сесію. Оновлення токена його не міняє. */
+    private fun methods(claims: JsonObject?): Set<String> = runCatching {
+        claims!!["amr"]!!.jsonArray.map { it.jsonObject.string("method") }.filter { it.isNotEmpty() }.toSet()
     }.getOrDefault(emptySet())
     /** Пише сесію. Verifier-и інших потоків лишаються: [dropVerifier] — той, що щойно обміняли. */
     private fun persist(value: JsonObject, dropVerifier: String? = null) {
@@ -104,16 +111,36 @@ class SupabaseAuthRepository(
         }, query=mapOf("grant_type" to "id_token"))
         persist(result.jsonObject)
     }
-    override suspend fun signUp(email: String, password: String, name: String, birthDate: String): Boolean = mutex.withLock {
+    override suspend fun signUp(email: String, password: String, name: String, birthDate: String?): Boolean = mutex.withLock {
         val verifier = Pkce.newVerifier()
         val result = api.request("/auth/v1/signup", HttpMethod.Post, buildJsonObject {
             put("email", email.trim()); put("password", password)
-            // Дата народження їде в метаданих: тригер акаунта відмовляє неповнолітнім у тій самій транзакції.
-            put("data", buildJsonObject { put("display_name", name.trim()); put("birth_date", birthDate) })
+            // Вік їде в метаданих: тригер акаунта відмовляє неповнолітнім у тій самій транзакції, а галочку пише як
+            // `adult_confirmed_at`.
+            put("data", buildJsonObject {
+                put("display_name", name.trim())
+                if (birthDate != null) put("birth_date", birthDate) else put("adult_confirmed", true)
+            })
             pkceParams(verifier).forEach { (k, v) -> put(k, v) }
         }, query=mapOf("redirect_to" to callback)).jsonObject
         if (result.string("access_token").isNotEmpty()) { persist(result); true }
         else { rememberVerifier(verifier, FLOW_SIGNUP); false }
+    }
+    override suspend fun sendCode(email: String) {
+        // Той самий запит, що на сайті (`site/js/auth.js`): лист з кодом, без посилання й PKCE.
+        api.request("/auth/v1/otp", HttpMethod.Post, buildJsonObject { put("email", email.trim()); put("create_user", true) })
+    }
+    override suspend fun verifyCode(email: String, code: String) = mutex.withLock {
+        val result = try {
+            api.request("/auth/v1/verify", HttpMethod.Post, buildJsonObject {
+                put("type", "email"); put("email", email.trim()); put("token", code.trim())
+            })
+        } catch (e: AppFailure) {
+            // GoTrue каже про хибний код так само, як про прострочене посилання (`otp_expired`).
+            if (e.error is AppError.LinkExpired || e.error is AppError.NotOwner) fail(AppError.InvalidCode)
+            throw e
+        }
+        persist(result.jsonObject)
     }
     override suspend fun signOut() {
         // Свіжий токен до м'ютекса: з простроченим сервер відмовив би, і refresh-токен лишився б живим.

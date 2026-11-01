@@ -81,10 +81,13 @@ object AccountRules {
     val nameLength = 2..60
     const val MIN_PASSWORD = 8
     private val email = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
+    private val code = Regex("^\\d{6,10}$")
 
     fun isEmail(value: String) = email.matches(value.trim())
     fun isPassword(value: String) = value.length >= MIN_PASSWORD
     fun isName(value: String) = value.trim().length in nameLength
+    /** Код входу з листа: цифри, довжину задає Supabase Auth (6 за замовчуванням, до 10). */
+    fun isCode(value: String) = code.matches(value.trim())
 }
 
 /** Що Storage приймає як обкладинку. Політика бакета перевіряє те саме. */

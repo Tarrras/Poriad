@@ -262,6 +262,9 @@ internal class UserLibrary(
         if (openEventId == id) detail { copy(company = teaser, companyPeople = people) }
     }
 
+    /** Ставить [PoruchApp]: публікація, яку гість відклав до входу ([EventUseCases.publishPending]). */
+    var afterAccountLoad: (() -> Unit)? = null
+
     /**
      * Намір, який гість поставив до входу ([AppState.pendingCompany]). Без дати народження чекає на неї: кличе ще й
      * [SafetyUseCases.declareBirthDate].
@@ -383,8 +386,9 @@ internal class UserLibrary(
                         ).rankedIfTasteChanged(it.taste)
                     }
                 }
-                // Гість натиснув «Хочу піти з компанією» і через це ввійшов: намір — тепер.
+                // Гість натиснув «Хочу піти з компанією» чи «Опублікувати» і через це ввійшов: тепер.
                 consumePendingCompany()
+                afterAccountLoad?.invoke()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
