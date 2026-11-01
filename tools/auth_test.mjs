@@ -75,6 +75,29 @@ respond(() => [200, []]);
 await rpc("discover_events", {});
 assert.equal(calls[0].auth, undefined, "без сесії — як гість");
 
+// Поки оновлення в дорозі, сховище змінилось — відповідь його не перезаписує.
+const old = { access_token: "o", refresh_token: "ro", expires_at: at(-10) };
+const other = { access_token: "t", refresh_token: "rt", expires_at: at(3600) };
+const midway = (change, status, body) => respond(() => { change(); return [status, body]; });
+localStorage.setItem("poriad.session", JSON.stringify(old));
+midway(() => localStorage.removeItem("poriad.session"), 200, { access_token: "n", refresh_token: "rn", expires_at: at(3600) });
+assert.equal(await session(), null, "людина вийшла під час оновлення — не повертаємо її назад");
+assert.equal(localStorage.getItem("poriad.session"), null);
+localStorage.setItem("poriad.session", JSON.stringify(old));
+midway(() => localStorage.setItem("poriad.session", JSON.stringify(other)), 400, { error_code: "refresh_token_already_used" });
+assert.deepEqual(await session(), other, "інша вкладка вже оновила: «токен використано» не стирає її свіжу сесію");
+assert.deepEqual(stored(), other);
+localStorage.setItem("poriad.session", JSON.stringify(old));
+midway(() => localStorage.setItem("poriad.session", JSON.stringify(other)), 200, { access_token: "n", refresh_token: "rn", expires_at: at(3600) });
+assert.deepEqual(await session(), other, "і успішна відповідь не перезаписує новішу сесію");
+
+// 401, а оновити нема чим: помилка session_expired, а не той самий запис гостем.
+localStorage.setItem("poriad.session", JSON.stringify(other));
+respond((path) => path.startsWith("/auth/v1/token") ? [400, { error_code: "refresh_token_not_found" }] : [401, { code: "PGRST303", message: "JWT expired" }]);
+await assert.rejects(rpc("join_event_web", { p_event: "e1" }), { status: 401, code: "session_expired" });
+assert.deepEqual(calls.map((c) => c.url.slice(DB.length)), ["/rest/v1/rpc/join_event_web", "/auth/v1/token?grant_type=refresh_token"], "без третього запиту");
+assert.equal(localStorage.getItem("poriad.session"), null);
+
 // Google: PKCE S256 і повернення з ?code=.
 await google("https://poriad.app/e/1?ref=threads", { join: "e1" });
 const pending = JSON.parse(sessionStorage.getItem("poriad.pkce"));
@@ -121,9 +144,13 @@ assert.equal(localStorage.getItem("poriad.session"), null, "вихід і без
 const threads = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/22B83 Barcelona 361.0.0.32.111 (iPhone15,3; iOS 18_1; uk_UA; uk; scale=3.00; 1290x2796; 676585183)";
 const instagram = "Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/AP2A.240905.003; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0.6668.100 Mobile Safari/537.36 Instagram 352.0.0.42.110 Android";
 const facebook = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/482.0.0.38.109;FBBV/650143633]";
+const webview = "Mozilla/5.0 (Linux; Android 14; SM-S918B Build/UP1A.231005.007; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0.6723.58 Mobile Safari/537.36";
+const tiktokIos = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 musical_ly_35.1.0 JsSdk/2.0 NetType/WIFI Channel/App Store ByteLocale/uk Region/UA";
+const tiktokAndroid = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0.6668.100 Mobile Safari/537.36 trill_350102 BytedanceWebview/d8a21c6";
+const telegram = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.107 Mobile Safari/537.36 Telegram-Android/11.4.2 (Google Pixel 8; Android 14; SDK 34; HIGH)";
 const safari = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";
 const chrome = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
-assert.ok([threads, instagram, facebook].every((ua) => inAppBrowser(ua)));
+for (const ua of [threads, instagram, facebook, webview, tiktokIos, tiktokAndroid, telegram]) assert.ok(inAppBrowser(ua), ua);
 assert.ok(![safari, chrome].some((ua) => inAppBrowser(ua)));
 assert.deepEqual(browserLinks("https://poriad.app/e/1?by=AbC#top"), {
   android: "intent://poriad.app/e/1?by=AbC#Intent;scheme=https;end",

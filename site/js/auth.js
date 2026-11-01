@@ -40,14 +40,17 @@ let refreshing = null;
 /**
  * Чинна сесія або null. Ту, що протухла чи протухне за хвилину (або `force`), оновлює; відкликану сервером забуває.
  * Збій мережі — помилка, а сесія лишається. Одночасні виклики оновлюють один раз: refresh-токен одноразовий.
+ * Поки йде оновлення, людина могла вийти, а інша вкладка — вже оновити ту саму сесію: тоді відповідь (і нову, і
+ * «токен уже використано») не записуємо поверх, а віддаємо те, що тепер у сховищі.
  */
 export async function session(force = false) {
   const current = read();
   if (!current) return null;
   if (!force && current.expires_at * 1000 - Date.now() > 60_000) return current;
+  const same = () => read()?.refresh_token === current.refresh_token;
   refreshing ??= auth("token?grant_type=refresh_token", { refresh_token: current.refresh_token })
-    .then(keep)
-    .catch((error) => { if (![400, 401, 403].includes(error.status)) throw error; return write(null); })
+    .then((data) => same() ? keep(data) : read())
+    .catch((error) => { if (![400, 401, 403].includes(error.status)) throw error; return same() ? write(null) : read(); })
     .finally(() => { refreshing = null; });
   return refreshing;
 }
@@ -100,11 +103,18 @@ export async function completeRedirect() {
 
 const headers = (current, extra) => ({ apikey: SUPABASE.key, ...(current ? { authorization: `Bearer ${current.access_token}` } : {}), ...extra });
 
-/** Запит від імені людини (без сесії — як гість). 401 — токен відкликали чи годинник телефона відстає: оновлюємо й повторюємо раз. */
+/**
+ * Запит від імені людини (без сесії — як гість). 401 — токен відкликали чи годинник телефона відстає: оновлюємо й
+ * повторюємо раз. Сесії вже нема — помилка `session_expired`, а не той самий запит гостем.
+ */
 async function signed(send) {
   const current = await session();
   let response = await send(current);
-  if (response.status === 401 && current) response = await send(await session(true));
+  if (response.status === 401 && current) {
+    const renewed = await session(true);
+    if (!renewed) throw Object.assign(new Error("Сесія закінчилась, увійдіть ще раз"), { status: 401, code: "session_expired" });
+    response = await send(renewed);
+  }
   if (!response.ok) throw await failure(response);
   return response;
 }
@@ -134,8 +144,11 @@ export async function signOut() {
   if (current) await auth("logout?scope=local", {}, current.access_token).catch(() => {});
 }
 
-/** Вбудований браузер Threads (Barcelona), Instagram чи Facebook: Google там вхід не пускає (disallowed_useragent). */
-export const inAppBrowser = (ua = navigator.userAgent) => /Instagram|Barcelona|FBAN|FBAV/.test(ua);
+/**
+ * Вбудований браузер: Threads (Barcelona), Instagram, Facebook, TikTok (musical_ly, BytedanceWebview), Telegram і
+ * будь-який Android WebView (`; wv)`). Google туди вхід не пускає (disallowed_useragent).
+ */
+export const inAppBrowser = (ua = navigator.userAgent) => /Instagram|Barcelona|FBAN|FBAV|; wv\)|musical_ly|BytedanceWebview|Telegram/.test(ua);
 
 /** «Відкрити в браузері» з вбудованого: Android — intent:// (типовий браузер), iOS — x-safari-https:// (Safari). */
 export function browserLinks(href = location.href) {
