@@ -120,12 +120,6 @@ private func tabItems(waiting: Int, newFollows: Bool) -> [TabItem] {
     ]
 }
 
-/// Що показує шит входу: причина, з якою гість до нього прийшов.
-struct AuthSheet: Identifiable {
-    let id = UUID()
-    let reason: AuthReason
-}
-
 struct RootView: View {
     /// Без підписки на весь `AppModel`: корінь перераховується зі свого зрізу `RootScreenModel`.
     @Environment(\.appModel) private var appModel
@@ -133,10 +127,6 @@ struct RootView: View {
     private var root: RootScreenModel { model.root }
     @State private var tab = 0
     @State private var creating = false
-    /// Шит входу. Причину віддаємо разом із ним, а не окремим станом: тоді екран входу отримує її в мить показу.
-    @State private var authSheet: AuthSheet?
-    /// Гість тапнув «Створити»: після входу редактор відкривається сам, а не лишає людину на головній.
-    @State private var createAfterAuth = false
     /// Екран, що заявив `hidesTabBar()`, зараз це деталі події.
     @State private var tabBarHidden = false
     /// Явні шляхи стосів замість `navigationDestination(isPresented:)`: після `dismiss()` SwiftUI
@@ -246,18 +236,10 @@ struct RootView: View {
         if homePath.isEmpty { NotificationCenter.default.post(name: .homeScrollToTop, object: nil) } else { homePath = NavigationPath() }
     }
 
-    /// Тап по «Створити»: рахуємо його разом зі входом, з якого місця він був, — гостя далі чекає реєстрація.
+    /// Тап по «Створити»: рахуємо, з якого місця він був. Редактор відкритий і гостю — вхід лише на «Опублікувати».
     private func startCreating(from: String) {
         model.app.createStarted(from: from)
-        if !root.signedIn { createAfterAuth = true; authSheet = AuthSheet(reason: .create) } else { creating = true }
-    }
-
-    /// Шит входу закрився: якщо людина тепер увійшла, її створення не губимо — відкриваємо редактор. Закрила без входу — нічого.
-    private func continueCreating() {
-        let signedIn = root.signedIn
-        let go = createAfterAuth && signedIn
-        createAfterAuth = false
-        if go { creating = true }
+        creating = true
     }
 
     private var app: some View {
@@ -331,7 +313,7 @@ struct RootView: View {
         // на паузу, а лист дайджесту (другий запуск) чи вхід — відкладають, поки людина не відповість.
         .coachMarks(
             [.city, .map, .create],
-            enabled: newcomer && tab == 0 && homePath.isEmpty && !tabBarHidden && !digestAsk && deck == nil && authSheet == nil && !creating
+            enabled: newcomer && tab == 0 && homePath.isEmpty && !tabBarHidden && !digestAsk && deck == nil && !creating
         ) {
             // Тур пройдено чи пропущено: тепер питання про геолокацію. Пауза — щоб системне вікно не наклалось на згасання.
             guard location.undecided else { return }
@@ -344,7 +326,6 @@ struct RootView: View {
             // Без нічого — дайджест вихідних: лише головна.
             PushDelegate.openEvent = { id, chat, placeId, artistId, thread in
                 creating = false
-                authSheet = nil
                 dismissPresentedSheets()
                 tab = 0
                 minePath = NavigationPath()
@@ -373,9 +354,6 @@ struct RootView: View {
         .environment(\.openMap, showMap)
         .environment(\.morphSpace, morphs ? morph : nil)
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
-        .sheet(item: $authSheet, onDismiss: continueCreating) { sheet in
-            NavigationStack { AuthView(reason: sheet.reason) }
-        }
         .sheet(isPresented: Binding(get: { root.passwordRecovery }, set: { _ in })) { NewPasswordView() }
         .sheet(
             item: Binding(get: { root.ticketIntake.flatMap { $0.local ? nil : $0 } }, set: { root.ticketIntake = $0 }),

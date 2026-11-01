@@ -230,5 +230,12 @@ extension EnvironmentValues {
     func reloadAll() async { try? await app.reloadAll() }
     func reloadMyEvents() async { try? await app.reloadMyEvents() }
     func reloadEvent(id: String) async { try? await app.reloadEvent(id: id) }
+
+    /// Подія з фото й відео: картки стрічки й «Моїх подій» медіа не несуть, їх дають лише деталі (`event_details`).
+    func withMedia(_ event: Event) async -> Event {
+        guard event.media.isEmpty else { return event }
+        await reloadEvent(id: event.id)
+        return state?.detail.event.flatMap { $0.id == event.id ? $0 : nil } ?? event
+    }
     deinit { network.cancel(); subscription?.close(); graph.close() }
 }

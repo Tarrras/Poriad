@@ -13,9 +13,16 @@ struct EventEditor: View {
     @State private var discardingChanges = false
     @State private var startingOver = false
 
-    init(event: Event?, app: PoruchApp, home: AppState?) {
+    /// [repeated] — чернетка «Повторити» (`PoruchApp.repeatDraft`): нова подія з полями й медіа іншої.
+    init(event: Event?, app: PoruchApp, home: AppState?, repeated: EventDraft? = nil) {
         self.event = event
-        _editor = StateObject(wrappedValue: EventEditorModel(app: app, event: event, home: home))
+        _editor = StateObject(wrappedValue: EventEditorModel(app: app, event: event, home: home, repeated: repeated))
+    }
+
+    /// Вхід лишається відкритим, поки людина не ввійшла чи поки сервер питає галочку віку (KDoc `publishAfterSignIn`).
+    private var waitsForSignIn: Bool {
+        guard let state = model.state, state.publishAfterSignIn else { return false }
+        return !state.signedIn || state.session.askBirthDate
     }
 
     var body: some View {
@@ -41,7 +48,7 @@ struct EventEditor: View {
                             Text(editor.step.hint).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                         }.padding(.bottom, Space.xs)
                         switch editor.step {
-                        case .about: AboutStep(form: $editor.form, issues: editor.issueTexts)
+                        case .about: AboutStep(editor: editor)
                         case .place: PlaceStep(editor: editor)
                         case .schedule: ScheduleStep(form: $editor.form, issues: editor.issueTexts)
                         case .people: PeopleStep(form: $editor.form, issues: editor.issueTexts)
@@ -78,10 +85,12 @@ struct EventEditor: View {
         }
         // При згортанні застосунку аркуш не зникає, тож відкладений запис дожимаємо самі.
         .onChange(of: scenePhase) { _, phase in if phase != .active { editor.persist() } }
-        .onDisappear { editor.persist() }
-        // Зміна закінчилась без підтвердженого запису — відмова: форма лишається редагованою й зберігається.
+        .onDisappear { editor.close() }
+        // Зміна закінчилась без підтвердженого запису — відмова: форма лишається редагованою й зберігається. Гість, що
+        // чекає на вхід, — не відмова: подія опублікується сама, щойно він увійде.
         .onChange(of: model.state?.mutating) { _, mutating in
-            guard mutating == false, editor.submitted, model.state?.completedEventId == nil else { return }
+            guard mutating == false, editor.submitted, model.state?.completedEventId == nil,
+                  model.state?.publishAfterSignIn != true else { return }
             let error = (model.state?.notice as? AppNoticeFailed)?.error
             editor.failed(fields: (error as? AppErrorInvalidDraft)?.fields ?? [])
         }
@@ -89,6 +98,15 @@ struct EventEditor: View {
             guard editor.submitted, id != nil else { return }
             editor.finish()
             dismiss()
+        }
+        // «Опублікувати» в гостя: вхід поверх редактора з чернеткою під ним. Увійшов — вхід закривається сам, а подія
+        // публікується; закрив без входу — публікація скасована, людина лишається тут з тією самою чернеткою.
+        .sheet(isPresented: Binding(get: { waitsForSignIn }, set: { if !$0 { model.app.cancelPendingPublish() } })) {
+            NavigationStack { AuthView(reason: .create) }
+        }
+        .onChange(of: model.state?.publishAfterSignIn) { _, waits in
+            guard waits == false, model.state?.completedEventId == nil, model.state?.mutating != true else { return }
+            editor.failed(fields: [])
         }
         // Під час публікації аркуш не закривається: інакше відповідь сервера нікому було б прийняти,
         // чернетка лишалась би, і наступне «+» публікувало б ту саму подію вдруге.
@@ -144,7 +162,13 @@ struct EventEditor: View {
     private var actions: some View {
         // На великому шрифті дві кнопки поруч не вміщають напис — ставимо одна під одною.
         let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: Space.md)) : AnyLayout(HStackLayout(spacing: Space.md))
-        return layout {
+        return VStack(spacing: Space.sm) {
+            // Подію вже створено, файли йдуть по черзі: людина бачить, чого чекає.
+            if let upload = model.state?.mediaUpload {
+                Text(Copy.media_uploading("\(upload.current)", "\(upload.total)"))
+                    .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).monospacedDigit()
+            }
+            layout {
             if editor.step != .about { SecondaryButton(title: Copy.back) { editor.retreat() } }
             PrimaryButton(
                 title: !editor.step.isLast ? Copy.next : editor.editing ? Copy.save_changes : Copy.publish,
@@ -152,6 +176,7 @@ struct EventEditor: View {
                 // Не вимкнена, поки крок не заповнено: натискання показує, що саме не так.
                 enabled: model.state?.mutating != true
             ) { if editor.step.isLast { editor.submit() } else { editor.advance() } }
+            }
         }
         .padding(Space.page)
         .background(Palette.surface.ignoresSafeArea(edges: .bottom))
@@ -266,41 +291,104 @@ private struct FieldIssue: View {
     }
 }
 
+/// «Що»: готовий анонс, назва, опис, фото й відео, жанр — текст і медіа, як у пості Threads.
 private struct AboutStep: View {
-    @Binding var form: EditorForm
-    /// Тексти під полями значенням, а не замиканням: замикання SwiftUI не порівнює, і крок не перемальовувався.
-    let issues: [DraftField: String]
+    @ObservedObject var editor: EventEditorModel
     @FocusState private var focus: DraftField?
     private var descriptionRange: KotlinIntRange { EventRules.shared.descriptionLength }
+    private var form: Binding<EditorForm> { $editor.form }
+    private var issues: [DraftField: String] { editor.issueTexts }
     var body: some View {
+        // Правка й повтор уже мають тексти: анонс — для нової з нуля.
+        if !editor.editing && !editor.repeating { AnnounceCard(editor: editor) }
         VStack(alignment: .leading, spacing: Space.sm) {
-            LabelledField(label: Copy.title, text: $form.title, placeholder: Copy.title_placeholder)
+            LabelledField(label: Copy.title, text: form.title, placeholder: Copy.title_placeholder)
                 .focused($focus, equals: .title)
                 .submitLabel(.next).onSubmit { focus = .description_ }
             FieldIssue(text: issues[.title])
         }.id(DraftField.title)
         VStack(alignment: .leading, spacing: Space.sm) {
             LabelledField(
-                label: Copy.description, text: $form.description,
+                label: Copy.description, text: form.description,
                 placeholder: Copy.description_placeholder,
-                hint: Copy.description_hint("\(descriptionRange.first)", "\(form.descriptionLength)", "\(descriptionRange.last)"),
+                hint: Copy.description_hint("\(descriptionRange.first)", "\(editor.form.descriptionLength)", "\(descriptionRange.last)"),
                 multiline: true
             )
             .focused($focus, equals: .description_)
             FieldIssue(text: issues[.description_])
         }.id(DraftField.description_)
+        MediaSection(editor: editor)
         VStack(alignment: .leading, spacing: Space.sm) {
             Text(Copy.category_single.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
             // Ті самі плитки, що в шторці категорій пошуку: жанр обирають однаково скрізь. Усі одинадцять видно одразу.
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 76), spacing: Space.sm)], spacing: Space.md) {
                 ForEach(categories, id: \.0) { category in
-                    CategoryTile(category: category.0, selected: form.category == category.0) {
-                        form.category = category.0
+                    CategoryTile(category: category.0, selected: editor.form.category == category.0) {
+                        editor.form.category = category.0
                     }
                 }
             }
             FieldIssue(text: issues[.category])
         }.id(DraftField.category)
+    }
+}
+
+/// «Є готовий анонс?» над назвою: організатор з Threads уже написав пост, тож поля заповнює він (`parse-announcement`).
+/// Після відповіді — рядок «Заповнили з анонсу: …» з «Інший текст».
+private struct AnnounceCard: View {
+    @ObservedObject var editor: EventEditorModel
+    private var limit: Int { Int(AnnouncementRules.shared.TEXT_MAX) }
+
+    var body: some View {
+        Group {
+            if let result = editor.announced { collapsed(result) } else { expanded }
+        }
+        .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading)
+        // Тоном, а не білою карткою: біле поле тексту на білій картці зникало.
+        .background(Palette.brandContainer, in: RoundedRectangle(cornerRadius: Corner.lg, style: .continuous))
+        .motion(value: editor.announced)
+    }
+
+    private var expanded: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            VStack(alignment: .leading, spacing: Space.xs) {
+                Text(Copy.announce_title).font(PoruchFont.cardName).foregroundStyle(Palette.ink).accessibilityAddTraits(.isHeader)
+                Text(Copy.announce_subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+            }
+            LabelledField(
+                label: Copy.announce_field,
+                text: Binding(get: { editor.announceText }, set: { editor.announceText = String($0.prefix(limit)) }),
+                multiline: true
+            )
+            HStack(spacing: Space.md) {
+                // Системна «Вставити»: бере з буфера без питання про доступ.
+                PasteButton(payloadType: String.self) { strings in
+                    guard let text = strings.first else { return }
+                    Task { @MainActor in editor.announceText = String(text.prefix(limit)) }
+                }
+                .labelStyle(.titleAndIcon).buttonBorderShape(.capsule).tint(Palette.ink)
+                Spacer(minLength: 0)
+                PrimaryButton(
+                    title: editor.announcing ? Copy.announce_filling : Copy.announce_fill, loading: editor.announcing,
+                    enabled: !editor.announceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !editor.announcing
+                ) { editor.fillFromAnnouncement() }
+                .fixedSize()
+            }
+        }
+    }
+
+    private func collapsed(_ result: AnnounceResult) -> some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+                PoruchIcon(glyph: result.failed ? PoruchIcons.alert : PoruchIcons.checkCircle, size: 18)
+                    .foregroundStyle(result.failed ? Palette.danger : Palette.success)
+                Text(result.text).font(PoruchFont.subhead).foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            Button(Copy.announce_other) { editor.reopenAnnouncement() }
+                .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).tapTarget()
+        }
     }
 }
 
@@ -484,8 +572,6 @@ private struct PeopleStep: View {
             .id(DraftField.contactUrl)
             FieldIssue(text: issues[.contactUrl])
         }
-        Text(Copy.photo_after_publish)
-            .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
     }
 }
 

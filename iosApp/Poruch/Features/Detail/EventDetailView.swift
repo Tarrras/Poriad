@@ -51,7 +51,10 @@ struct EventDetailView: View, Equatable {
     @State var blocking = false
     /// Попередження перед виходом у чужий чат: спершу кажемо, куди й хто це додав.
     @State var openingContact = false
-    @State var photo: PhotosPickerItem?
+    /// «Пост для Threads»: подія, для якої готуємо меню (файли вантажаться). Nil — нічого.
+    @State var threadsEvent: Event?
+    /// `AGE_REQUIRED` на події з віком від 19 чи верхньою межею: вибір дати замість банера.
+    @State var askingBirthDate = false
     /// Зміщення стрічки, за яким їде обкладинка. Див. `reportsScrollOffset`. Класом, а не `@State CGFloat`: його
     /// читають лише обкладинка, смуга статусу й згасання назви, тож на кадр прокрутки перераховуються вони, а не весь екран.
     @State var scroll = DetailScroll()
@@ -150,7 +153,18 @@ struct EventDetailView: View, Equatable {
         }
         // Повернення поверх іншого екрана деталей: той перебрав єдиний слот відкритої події, просимо назад.
         .onAppear { screen.reopen() }
-        .task(id: photo) { if let event = view.event { await actions.upload(photo, to: event) } }
+        // Галочки досить для 18+, а ця подія просить дату: вибір дати, і після нього — та сама дія ще раз.
+        .onChange(of: ageRequired) { _, required in
+            guard required else { return }
+            model.app.clearNotice()
+            askingBirthDate = true
+        }
+        .sheet(isPresented: $askingBirthDate) {
+            AgeDateSheet {
+                if let event = screen.state.event { _ = actions.perform(screen.state.action, on: event, signedIn: true) }
+            }
+        }
+        .threadsShare($threadsEvent)
         // У деталей власна нижня панель, таббар стояв би на ній.
         .hidesTabBar()
         .toolbar(.hidden, for: .navigationBar)
@@ -201,6 +215,8 @@ struct EventDetailView: View, Equatable {
             model.app.boughtPromptAnswered(saved: false, ticket: false)
         }
     }
+
+    private var ageRequired: Bool { (model.root.notice as? AppNoticeFailed)?.error is AppErrorAgeRequired }
 
     /// Подія з квитка головної, з якого тапнули (рейка «З ким піти» чи «У місті»): її обкладинка — шапка, поки рахуються
     /// деталі. Та сама рамка й декодування, що в `HeroBackdrop`, тож шапка потім бере картинку з кеша, а не блимає.
@@ -451,6 +467,8 @@ let companyPeopleID = "company-people"
 /// Зміщення стрічки деталей. Його читають лише вигляди нижче, тож кадр прокрутки не перераховує секції й панель дії.
 @Observable final class DetailScroll {
     var offset: CGFloat = 0
+    /// Сторінка каруселі фото й відео: шапка під смугою статусу показує саме її.
+    var mediaPage = 0
 }
 
 /// Єдиний шар обкладинки: від краю екрана, під смугою статусу. При потягу вниз розтягується, при прокрутці їде вгору
@@ -461,13 +479,26 @@ private struct HeroBackdrop: View {
     let event: Event
     let scroll: DetailScroll
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// З каруселлю — картинка її сторінки (у відео — постер): карусель їде зі стрічкою, тож і шапка без паралаксу.
+    private var page: URL? {
+        guard !event.media.isEmpty else { return nil }
+        let item = event.media[min(scroll.mediaPage, event.media.count - 1)]
+        return URL(string: item.kind == .video ? item.poster ?? "" : item.url)
+    }
     var body: some View {
         let offset = scroll.offset
-        // `fill`: горизонтальне фото на 480 pt заввишки розпаковується з запасом за шириною, а не розтягується.
-        EventArt(event: event, maxDimension: heroHeight, glyphSize: 260, glyphDrop: 120, fill: true)
+        let page = page
+        Group {
+            if let page {
+                CachedImage(url: page, maxDimension: heroHeight, fill: true).id(page)
+            } else {
+                // `fill`: горизонтальне фото на 480 pt заввишки розпаковується з запасом за шириною, а не розтягується.
+                EventArt(event: event, maxDimension: heroHeight, glyphSize: 260, glyphDrop: 120, fill: true)
+            }
+        }
             .frame(height: heroHeight + max(offset, 0)).frame(maxWidth: .infinity).clipped()
             .overlay(photoScrim)
-            .offset(y: min(offset, 0) * (reduceMotion ? 1 : heroParallax))
+            .offset(y: min(offset, 0) * (reduceMotion || !event.media.isEmpty ? 1 : heroParallax))
             .ignoresSafeArea(edges: .top)
     }
 }

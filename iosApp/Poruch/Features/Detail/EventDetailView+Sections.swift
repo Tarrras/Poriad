@@ -15,6 +15,13 @@ extension EventDetailView {
         Color.clear
             // Низ обкладинки на `Corner.xl` ховається під аркушем секцій.
             .frame(height: max(heroHeight - topInset - Corner.xl, 0)).frame(maxWidth: .infinity)
+            // Фото й відео організатора — каруселлю тут, у стрічці, щоб гортались і тапались. Від краю екрана, як тло під
+            // нею: першу сторінку не відрізнити від обкладинки.
+            .background(alignment: .top) {
+                if !event.media.isEmpty {
+                    MediaCarousel(media: event.media, scroll: scroll).frame(height: heroHeight).offset(y: -topInset)
+                }
+            }
             // Назва лежить на затемненні обкладинки, як на великій картці головної: одна сцена, а не фото з підписом.
             // Текст їде зі стрічкою, а смуга статусу з'являється лише з аркушем: назва гасне, поки не дійшла до годинника.
             .overlay(alignment: .bottomLeading) {
@@ -40,6 +47,7 @@ extension EventDetailView {
                 HStack(spacing: Space.sm) {
                     ScrimButton(glyph: PoruchIcons.chevronLeft, label: Copy.back) { dismiss() }
                     Spacer()
+                    if event.media.count > 1 { MediaDots(count: event.media.count, scroll: scroll); Spacer() }
                     ScrimButton(
                         glyph: view.saved ? PoruchIcons.bookmarkFilled : PoruchIcons.bookmark,
                         label: view.saved ? Copy.unsave : Copy.save
@@ -603,16 +611,10 @@ extension EventDetailView {
             Divider().overlay(Palette.hairline)
             // Час, місце й місткість супутника тримає сервер; після початку сервер не приймає правок. Лишається скасувати.
             let editable = view.companionOf == nil && !view.started
-            if editable {
-                PhotosPicker(selection: $photo, matching: .images) {
-                    Label(Copy.add_photo, systemImage: "camera")
-                        .font(PoruchFont.subhead.weight(.semibold)).foregroundStyle(Palette.ink)
-                        .frame(maxWidth: .infinity).frame(minHeight: 52)
-                        .background(Palette.brandContainer, in: buttonShape)
-                }.disabled(view.mutating)
-            }
-            if let error = actions.photoError {
-                Text(error).font(PoruchFont.caption).foregroundStyle(Palette.danger)
+            // Фото й відео — у редакторі. Тут — пост, яким організатор кличе людей у Threads; «Поділитися» на своїй події
+            // зайняте «Покликати».
+            if view.companionOf == nil, let event = view.event {
+                SecondaryButton(title: Copy.threads_post, glyph: PoruchIcons.copy, enabled: threadsEvent == nil) { threadsEvent = event }
             }
             // Збір: організатор міняє лише час (R7б).
             if view.canMoveMeet, let event = view.event {

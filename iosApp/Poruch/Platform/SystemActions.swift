@@ -16,6 +16,19 @@ enum SystemActions {
         Copy.invite_share_text(event.displayTitle, eventDate(event), "\(event.city), \(event.address)", link)
     }
 
+    /// Файли події для системного меню («Пост для Threads»): адреса в меню стала б посиланням, а не фото. Що не
+    /// завантажилось — без нього.
+    static func download(_ urls: [String]) async -> [URL] {
+        var files: [URL] = []
+        for raw in urls {
+            guard let url = URL(string: raw), let (temp, _) = try? await URLSession.shared.download(from: url) else { continue }
+            let file = FileManager.default.temporaryDirectory.appendingPathComponent(url.lastPathComponent)
+            try? FileManager.default.removeItem(at: file)
+            if (try? FileManager.default.moveItem(at: temp, to: file)) != nil { files.append(file) }
+        }
+        return files
+    }
+
     /// Маршрут будує системна мапа.
     @MainActor static func openInMaps(_ event: Event) {
         openInMaps(latitude: event.latitude, longitude: event.longitude, label: event.title)

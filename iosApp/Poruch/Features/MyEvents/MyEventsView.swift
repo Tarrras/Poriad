@@ -27,6 +27,12 @@ struct MyEventsView: View, Equatable {
     @State private var allPast = false
     /// Подія, яку оцінюють у шторці. Маршрут, бо `sheet(item:)` потребує identity.
     @State private var rating: EventRoute?
+    /// «Повторити»: редактор з чернеткою своєї події на тиждень пізніше.
+    @State private var repeating: RepeatDraft?
+    /// Подія, з якої зараз робимо чернетку «Повторити» (деталі з фото й відео ще в дорозі).
+    @State private var preparingRepeat: String?
+    /// «Пост для Threads» з панелі чи рядка: див. `threadsShare`.
+    @State private var threadsEvent: Event?
 
     private var tabs: [MyEventsTab] { signedIn ? [.going, .organizing, .saved, .tickets] : MyEventsTab.companion.guest }
     private var signedIn: Bool { view.signedIn }
@@ -83,6 +89,8 @@ struct MyEventsView: View, Equatable {
         }
         .onDisappear { commitDecline() }
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
+        .sheet(item: $repeating) { EventEditor(event: nil, app: model.app, home: model.state, repeated: $0.draft) }
+        .threadsShare($threadsEvent)
         .sheet(isPresented: $auth) { NavigationStack { AuthView() } }
         .sheet(item: $rating) { route in
             if let event = view.myEvents.first(where: { $0.id == route.id }) {
@@ -287,8 +295,10 @@ struct MyEventsView: View, Equatable {
                 OrganizerPanel(event: first, unread: unread[first.id] ?? 0,
                                requests: view.requestsFor(id: first.id).filter { !isDeclining($0) },
                                declined: declining.flatMap { $0.eventId == first.id ? $0 : nil },
+                               preparing: preparingRepeat == first.id || threadsEvent?.id == first.id,
                                open: { open($0, from: "my_panel") }, chat: openChat,
-                               decline: startDecline, undo: { declining = nil })
+                               decline: startDecline, undo: { declining = nil },
+                               threads: { threadsEvent = $0 }, repeatEvent: startRepeat)
             }
             if events.count > 1 {
                 overline(Copy.next)
@@ -297,7 +307,7 @@ struct MyEventsView: View, Equatable {
         case .past:
             let shown = allPast ? events : Array(events.prefix(Int(MyEventsRules.shared.PAST_PREVIEW)))
             overline(Copy.section_past)
-            rows(shown)
+            rows(shown, past: true)
             if events.count > shown.count {
                 Button(Copy.show_all_past("\(events.count)")) { allPast = true }
                     .font(PoruchFont.label).foregroundStyle(Palette.ink).frame(minHeight: 44)
@@ -319,12 +329,12 @@ struct MyEventsView: View, Equatable {
             .foregroundStyle(Palette.inkTertiary).padding(.bottom, -Space.md)
     }
 
-    @ViewBuilder private func rows(_ events: [Event]) -> some View {
+    @ViewBuilder private func rows(_ events: [Event], past: Bool = false) -> some View {
         if !events.isEmpty {
             let unread = unread
             GroupedRows {
                 ForEach(Array(events.enumerated()), id: \.element.id) { position, event in
-                    row(event, unread: unread[event.id] ?? 0)
+                    row(event, unread: unread[event.id] ?? 0, past: past)
                     if position < events.count - 1 {
                         Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 60 + Space.md)
                     }
@@ -333,12 +343,15 @@ struct MyEventsView: View, Equatable {
         }
     }
 
-    /// Рядок і, праворуч, його власна дія: «Оцінити» для минулої, закладка — у збережених.
-    private func row(_ event: Event, unread: Int) -> some View {
+    /// Рядок і, праворуч, його власна дія: «Оцінити» для минулої, закладка — у збережених, «Повторити» — для своєї минулої.
+    private func row(_ event: Event, unread: Int, past: Bool) -> some View {
         let now = nowInstant()
         let score = view.myScore(id: event.id)?.intValue
         let rate = tab == .going && score == nil && RatingRules.shared.canRate(event: event, now: now)
         let bookmark = tab == .saved
+        // Своя спільнотна подія (не збір на афішу): її можна повторити й анонсувати в Threads.
+        let own = tab == .organizing && event.gathering != nil && event.gathering?.companionOf == nil
+        let again = own && past
         // Запит до не найближчої події інакше видно лише в бейджі чипа.
         let asks = tab == .organizing ? view.requestsFor(id: event.id).count : 0
         let status: (String, BadgeTone, PoruchGlyph?)? = asks > 0
@@ -349,9 +362,29 @@ struct MyEventsView: View, Equatable {
         return layout {
             Button { open(event.id, from: "my_row") } label: {
                 EventRow(event: event, unread: unread, waitlisted: view.isWaitlisted(id: event.id),
-                         note: score.map { Copy.my_score("\($0)") }, chevron: !rate && !bookmark, status: status)
+                         note: score.map { Copy.my_score("\($0)") }, chevron: !rate && !bookmark && !again, status: status)
             }.buttonStyle(PressableStyle(pressedScale: 1))
             .morphSource("my_row/\(event.id)")
+            // Майбутню теж можна повторити чи анонсувати — довгим дотиком, щоб рядок лишався рядком.
+            .contextMenu {
+                if own {
+                    Button { startRepeat(event) } label: { Label(Copy.repeat_event, systemImage: "arrow.clockwise") }
+                    Button { threadsEvent = event } label: { Label(Copy.threads_post, systemImage: "doc.on.doc") }
+                }
+            }
+            if again {
+                Button { startRepeat(event) } label: {
+                    HStack(spacing: Space.xs) {
+                        if preparingRepeat == event.id { ProgressView() }
+                        Text(Copy.repeat_event).font(PoruchFont.label).foregroundStyle(Palette.ink)
+                    }
+                    .padding(.horizontal, Space.md).frame(minHeight: 36).background(Palette.brandContainer, in: buttonShape)
+                    .frame(minHeight: 44)
+                }
+                .buttonStyle(PressableStyle()).fixedSize()
+                .disabled(preparingRepeat != nil)
+                .padding(.bottom, typeSize.isAccessibilitySize ? Space.md : 0)
+            }
             if rate {
                 Button { rating = EventRoute(id: event.id) } label: {
                     // Тонова, а не чорнильна: три головні кнопки підряд сперечались за увагу. Без гліфа — інакше
@@ -368,6 +401,17 @@ struct MyEventsView: View, Equatable {
                     .accessibilityLabel(Copy.unsave)
             }
         }.padding(.horizontal, Space.lg)
+    }
+
+    /// «Повторити»: чернетка з усіма полями, фото й відео. Картка «Моїх подій» медіа не несе — спершу деталі.
+    private func startRepeat(_ event: Event) {
+        guard preparingRepeat == nil else { return }
+        preparingRepeat = event.id
+        Task {
+            let full = await model.withMedia(event)
+            preparingRepeat = nil
+            if let draft = model.app.repeatDraft(event: full) { repeating = RepeatDraft(draft: draft) }
+        }
     }
 
     /// `from` — панель чи рядок: найближча подія буває і там, і там, а квиток розгортається з того, на який натиснули.
@@ -500,6 +544,12 @@ private struct GoingHero: View {
     }
 }
 
+/// Чернетка «Повторити» для `sheet(item:)`: Kotlin-клас identity не має.
+private struct RepeatDraft: Identifiable {
+    let id = UUID()
+    let draft: EventDraft
+}
+
 /// Найближча своя подія: квиток (місця — на корінці), перший запит із відповіддю на місці й дії організатора.
 private struct OrganizerPanel: View {
     @EnvironmentObject var model: AppModel
@@ -508,10 +558,14 @@ private struct OrganizerPanel: View {
     let requests: [JoinRequest]
     /// Щойно відхилений запит: кілька секунд на його місці «Повернути».
     let declined: JoinRequest?
+    /// Чернетка «Повторити» чи меню Threads ще готуються: їхні кнопки чекають.
+    let preparing: Bool
     let open: (String) -> Void
     let chat: (String) -> Void
     let decline: (JoinRequest) -> Void
     let undo: () -> Void
+    let threads: (Event) -> Void
+    let repeatEvent: (Event) -> Void
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             PanelTicket(event: event, open: open) {
@@ -527,6 +581,14 @@ private struct OrganizerPanel: View {
                         .frame(width: 48, height: 48).background(Palette.brandContainer, in: Circle())
                 }.accessibilityLabel(Copy.share)
                 .simultaneousGesture(TapGesture().onEnded { model.app.eventShared() })
+            }
+            // Збір на афішу не повторюють і не анонсують: він живе разом з афішею.
+            if event.gathering?.companionOf == nil {
+                PanelActions {
+                    CardButton(title: Copy.threads_post, glyph: PoruchIcons.copy) { threads(event) }
+                    CardButton(title: Copy.repeat_event, glyph: PoruchIcons.refresh) { repeatEvent(event) }
+                }
+                .disabled(preparing)
             }
         }
     }

@@ -12,6 +12,81 @@ struct ShareText: Identifiable {
     var id: String { text }
 }
 
+/// Що віддати системному меню: текст і файли.
+struct ShareItems: Identifiable {
+    let id = UUID()
+    let items: [Any]
+}
+
+/// «Пост для Threads» (docs/organizers-1.5.md, 1.5): текст — у буфер і «Текст скопійовано», бо Threads з меню бере лише
+/// медіа; далі системне меню з текстом, фото й відео події. Ставлять [event] — меню відкривається, щойно файли доїхали.
+private struct ThreadsShare: ViewModifier {
+    @Binding var event: Event?
+    @Environment(\.appModel) private var model
+    @State private var share: ShareItems?
+    @State private var copied = false
+
+    func body(content: Content) -> some View {
+        content
+            .task(id: event?.id) {
+                guard let model, let picked = event else { return }
+                let full = await model.withMedia(picked)
+                let text = model.app.threadsPost(event: full)
+                UIPasteboard.general.string = text
+                copied = true
+                let files = await SystemActions.download(full.media.isEmpty ? full.imageUrl.map { [$0] } ?? [] : full.media.map(\.url))
+                share = ShareItems(items: [text] + files)
+                event = nil
+            }
+            .sheet(item: $share) { ActivitySheet(items: $0.items).presentationDetents([.medium, .large]) }
+            .notice(copied ? Notice(text: Copy.threads_copied, isError: false) : nil) { copied = false }
+    }
+}
+
+extension View {
+    func threadsShare(_ event: Binding<Event?>) -> some View { modifier(ThreadsShare(event: event)) }
+}
+
+/// `AGE_REQUIRED`: галочки «Мені вже є 18» досить для більшості подій, а ця — з віком від 19 чи верхньою межею — просить
+/// дату. Дату ніхто не бачить; після неї [onSaved] повторює дію, на якій спинились.
+struct AgeDateSheet: View {
+    let onSaved: () -> Void
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var date: Date?
+    private let latest = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
+    private let earliest = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
+
+    var body: some View {
+        let mutating = model.state?.mutating == true
+        ScrollView {
+            VStack(alignment: .leading, spacing: Space.lg) {
+                Text(Copy.age_date_title).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+                Text(Copy.age_date_body).font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    Text(Copy.birth_date.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                    BirthDateField(date: $date, range: earliest...latest)
+                }
+                PrimaryButton(title: Copy.age_date_continue, loading: mutating, enabled: date != nil && !mutating) {
+                    if let date { model.app.declareBirthDate(birthDate: isoDay(date)) }
+                }
+                SecondaryButton(title: Copy.cancel, enabled: !mutating) { dismiss() }.frame(maxWidth: .infinity)
+            }
+            .padding(Space.page).padding(.top, Space.sm)
+        }
+        .background(Palette.canvas)
+        .presentationDetents([.large])
+        // Банер кореня під шторкою: відмову («вже вказано», «замолодий») показуємо тут.
+        .notice(model.state?.notice?.presented) { model.app.clearNotice() }
+        .onChange(of: model.state?.library.account.birthDate) { _, saved in
+            guard saved != nil else { return }
+            dismiss()
+            onSaved()
+        }
+    }
+}
+
 /// Системний аркуш «Поділитися». `ShareLink` — лише кнопка, а тут його відкриває створення супутника.
 struct ActivitySheet: UIViewControllerRepresentable {
     let items: [Any]
