@@ -170,6 +170,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     static func clearDrafts() {
         let defaults = UserDefaults.standard
         for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(draftPrefix) { defaults.removeObject(forKey: key) }
+        DraftFiles.deleteAll()
     }
     /// Один кодувальник на редактор: створення дорожче за кодування.
     private let encoder = JSONEncoder()

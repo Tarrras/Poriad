@@ -72,11 +72,17 @@ func kotlinBytes(_ data: Data) -> KotlinByteArray {
 
 /// Тека файлів чернеток. Одна на телефон: чернетки належать людині й зникають з виходом (`EventEditorModel.clearDrafts`).
 enum DraftFiles {
-    /// Щоразу перевіряємо, що тека є: вихід з акаунта стирає її цілком.
+    /// Щоразу перевіряємо, що тека є: вихід з акаунта стирає її цілком. Не в Caches — система їх чистить, а чернетка
+    /// лишилась би без файлів; і не в бекап iCloud — десятки мегабайт відео, яке ще навіть не опубліковане.
     static var directory: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let directory = base.appendingPathComponent("draft-media", isDirectory: true)
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var directory = base.appendingPathComponent("draft-media", isDirectory: true)
+        if !FileManager.default.fileExists(atPath: directory.path) {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try? directory.setResourceValues(values)
+        }
         return directory
     }
 
