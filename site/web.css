@@ -777,6 +777,7 @@ a.row:hover { background: var(--surface-muted); }
 .links { display: flex; flex-wrap: wrap; gap: 8px 24px; }
 .join-sheet .error { font: 500 15px/21px var(--font); color: var(--danger); }
 .install-box[aria-busy="true"] :is(.btn, .act, .link) { opacity: .55; pointer-events: none; }
+.bar [data-join][aria-busy="true"] { opacity: .6; cursor: progress; }
 .join-sheet .after { display: flex; flex-direction: column; gap: 14px; padding-top: 6px; }
 .join-sheet .row .act:disabled { background: none; color: var(--ink-secondary); cursor: default; }
 .app-pitch { display: flex; flex-direction: column; gap: 10px; padding-top: 16px; border-top: 1px solid var(--hairline); }

@@ -145,7 +145,8 @@ async function icsRoute(request, env, ctx, match) {
   if (!UUID.test(match[1])) return lost();
   const upstream = await eventRpc("event_details", match[1], env);
   if (!upstream.ok) return new Response(null, { status: 503, headers: { "cache-control": "no-store" } });
-  const [event] = await upstream.json();
+  const rows = await upstream.json().catch(() => null);
+  const event = Array.isArray(rows) ? rows[0] : null;
   if (!event) return lost();
   return new Response(icsFile(event, new Date(), "PT3H"), {
     headers: { "content-type": "text/calendar; charset=utf-8", "content-disposition": `attachment; filename="poriad-${event.id}.ics"`,

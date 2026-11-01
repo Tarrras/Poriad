@@ -77,10 +77,12 @@ export function weekRow(card, now = new Date()) {
 }
 
 const PENDING = "poriad.join"; // пошта, на яку пішов код: Threads може перезавантажити сторінку, поки людина в пошті
+const PENDING_TTL = 15 * 60_000; // старий код однаково протух, а шторка не має вискакувати на кожному перезавантаженні
 const sheet = globalThis.document?.querySelector(".join-sheet");
 if (sheet) start(sheet);
 
-function start(sheet) {
+/** Шторка на сторінці: обробники й стан. Експорт — для tools/join_test.mjs (фейковий DOM). */
+export function start(sheet) {
   const $ = (selector) => sheet.querySelector(selector);
   const box = $(".install-box");
   const data = sheet.dataset;
@@ -89,6 +91,7 @@ function start(sheet) {
   let action = "join"; // що зробити після входу: join чи unfollow
   let state = "none";
   let shown = null; // що зараз у шторці
+  let version = 0; // скільки разів мінявся стан: тихе оновлення не перезаписує свіжішого
   let working = false;
   let resendTimer;
 
@@ -97,8 +100,11 @@ function start(sheet) {
     event?.preventDefault();
     if (working) return;
     working = true;
-    box.setAttribute("aria-busy", "true");
-    try { await fn(event); } catch (e) { fail(e); } finally { working = false; box.removeAttribute("aria-busy"); }
+    for (const el of [box, bar]) el?.setAttribute("aria-busy", "true");
+    try { await fn(event); } catch (e) { fail(e); } finally {
+      working = false;
+      for (const el of [box, bar]) el?.removeAttribute("aria-busy");
+    }
   };
 
   function open(step) {
@@ -123,6 +129,7 @@ function start(sheet) {
 
   function setState(next) {
     state = next;
+    version += 1;
     if (bar) bar.textContent = LABELS[next];
   }
   function show(kind) {
@@ -157,19 +164,23 @@ function start(sheet) {
       if (waitlist && e.code === "EVENT_HAS_SPACE") return join();
       if (e.code !== "ALREADY_MEMBER") throw e;
     }
-    if (!(await refresh())) throw new Error("not joined");
+    // Запит пройшов, а в списку людини нема: не «нема звʼязку», а «не вийшло».
+    if (!(await refresh())) throw Object.assign(new Error("Після запису людини нема в списку"), { status: 200 });
     show(state);
   }
   /**
    * Стан людини на цій події з бази: власний рядок учасника, інакше черга. Повертає, чи вона десь у списку. Заразом
-   * свіжі місця в панелі: сторінка з кешу могла показати «0 з 6» тому, хто вже записаний.
+   * свіжі місця в панелі: сторінка з кешу могла показати «0 з 6» тому, хто вже записаний. `quiet` — повторний візит без
+   * замка: якщо людина тим часом натиснула «Йду» чи стан уже змінився, застарілу відповідь відкидаємо.
    */
-  async function refresh() {
+  async function refresh(quiet = false) {
+    const seen = version;
     const [event] = (await rpc("event_details", { p_event_id: id })) ?? [];
     const spots = document.querySelector("[data-spots]");
     if (spots && Number.isInteger(event?.attendee_count)) spots.textContent = event.capacity ? `${event.attendee_count} з ${event.capacity}` : `${event.attendee_count}`;
     let next = ["approved", "requested"].includes(event?.membership) ? event.membership : "none";
     if (next === "none" && event?.capacity && ((await rpc("my_waitlist")) ?? []).includes(id)) next = "waitlist";
+    if (quiet && (working || version !== seen)) return state !== "none";
     setState(next);
     return next !== "none";
   }
@@ -186,7 +197,13 @@ function start(sheet) {
   }
 
   // ---- Вхід
-  const pending = () => { try { return JSON.parse(sessionStorage.getItem(PENDING)); } catch { return null; } };
+  function pending() {
+    let p = null;
+    try { p = JSON.parse(sessionStorage.getItem(PENDING)); } catch {}
+    if (p && Date.now() - p.sentAt < PENDING_TTL) return p;
+    sessionStorage.removeItem(PENDING);
+    return null;
+  }
   function codeStep(p) {
     $("[data-email]").textContent = p.email;
     open("code");
@@ -278,6 +295,8 @@ function start(sheet) {
     return proceed();
   }));
   $("[data-close]").addEventListener("click", () => sheet.close());
+  // Закрили шторку — передумали: наступне перезавантаження не відкриває крок з кодом.
+  sheet.addEventListener("close", () => sessionStorage.removeItem(PENDING));
   sheet.addEventListener("click", (event) => { if (event.target === sheet) sheet.close(); });
   $("[data-google]").addEventListener("click", task(() => google(location.origin + location.pathname, { event: id, action })));
   $('[data-form="email"]').addEventListener("submit", task((event) => send(event.target.email.value.trim())));
@@ -297,11 +316,17 @@ function start(sheet) {
   });
   $('[data-form="profile"]').addEventListener("submit", task(async (event) => {
     const form = event.target;
-    await rpc("confirm_adult");
+    const name = form.name.value.trim();
+    if (!name) {
+      form.name.focus();
+      return error("Напишіть, як вас звати.");
+    }
+    // Спершу дата: якщо їй менше 18, set_birth_date каже UNDERAGE, і галочки ми вже не ставимо.
     if (needsBirthDate(data.minAge, data.maxAge)) {
       await rpc("set_birth_date", { p_birth: form.birth.value }).catch((e) => { if (e.code !== "AGE_ALREADY_SET") throw e; });
     }
-    await profile("PATCH", { display_name: form.name.value.trim() });
+    await rpc("confirm_adult");
+    await profile("PATCH", { display_name: name });
     await join();
   }));
   $("[data-waitlist]").addEventListener("click", task(() => join(true)));
@@ -321,24 +346,35 @@ function start(sheet) {
     $("[data-browser]").href = /Android/i.test(navigator.userAgent) ? links.android : links.ios;
   }
 
-  // ---- Звідки прийшли: повернення від Google, код у пошті, «Не стежити» з листа, повторний візит.
-  task(async () => {
+  // ---- Звідки прийшли: повернення від Google, «Не стежити» з листа, код у пошті. Повертає, чи щось зроблено.
+  async function arrive() {
     try {
       const intent = await completeRedirect();
-      if (intent?.event === id) { action = intent.action; return proceed(); }
+      if (intent?.event === id) { action = intent.action; await proceed(); return true; }
     } catch (e) {
       if (e.intent?.event === id) { action = e.intent.action; open("start"); throw e; }
     }
-    const p = pending();
-    if (p?.event === id) { action = p.action; return codeStep(p); }
     const url = new URL(location.href);
-    if (url.searchParams.has("unfollow")) {
+    const unfollowing = url.searchParams.has("unfollow");
+    if (unfollowing) {
       url.searchParams.delete("unfollow");
       history.replaceState(history.state, "", url);
       action = "unfollow";
-      return proceed();
+      if (await session()) { await unfollow(); return true; }
     }
-    // Повторний візит: сесія в localStorage — одразу «Ви в списку». Збій мережі тут мовчить: кнопка лишається «Йду».
-    if (await session().catch(() => null)) await refresh().catch(() => {});
+    const p = pending();
+    if (p?.event === id) {
+      if (!unfollowing) action = p.action;
+      codeStep(p);
+      return true;
+    }
+    if (unfollowing) open("start");
+    return unfollowing;
+  }
+  return task(async () => {
+    if (await arrive()) return;
+    // Повторний візит: сесія в localStorage — одразу «Ви в списку». Поза замком: тап на «Йду», поки стан вантажиться,
+    // не губиться. Збій мережі тут мовчить: кнопка лишається «Йду».
+    if (await session().catch(() => null)) refresh(true).catch(() => {});
   })();
 }

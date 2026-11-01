@@ -272,7 +272,9 @@ function calendarPlace(card) {
  * (тривалість ISO 8601): сайт — за годину, запис з вебу (`/e/{id}.ics`) — за 3 години, бо листа-нагадування нема.
  */
 export function icsFile(card, now = new Date(), before = "PT1H") {
-  const text = (value) => value.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\r?\n/g, "\\n");
+  // Будь-який розрив рядка (і одиночний \r) — «\n», решта керівних символів геть: інакше назва з \r додала б файлу
+  // свою властивість (URL:, BEGIN:VALARM).
+  const text = (value) => value.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\r\n|\r|\n/g, "\\n").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
   const title = text(displayTitle(card.title));
   return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Poriad//poriad.app//UK", "METHOD:PUBLISH", "BEGIN:VEVENT",
     `UID:${card.id}@poriad.app`, `DTSTAMP:${calendarTime(now)}`, `DTSTART:${calendarTime(new Date(card.starts_at))}`, `DTEND:${calendarTime(calendarEnd(card))}`,

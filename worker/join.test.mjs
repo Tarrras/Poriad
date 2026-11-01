@@ -77,10 +77,20 @@ assert.ok(text.includes("TRIGGER:-PT3H") && !text.includes("TRIGGER:-PT1H"), "н
 assert.ok(text.includes(`UID:${base.id}@poriad.app`) && text.includes("DTSTART:20261004T160000Z") && text.includes("DTEND:20261004T190000Z"));
 assert.ok(text.includes("SUMMARY:Настолки\\, кава\\; вечір") && text.includes("LOCATION:Хрещатик\\, 22\\, Київ"), "текст екрановано");
 assert.ok(text.includes(`URL:https://poriad.app/e/${base.id}`));
+// Одиночний \r чи інший керівний символ у назві й адресі не додає файлу своїх властивостей.
+globalThis.fetch = async () => new Response(JSON.stringify([{ ...base, title: "Зустріч\rURL:https://evil.example\rBEGIN:VALARM", address: "Хрещатик\r\nATTENDEE:x\u0000\u0007, 22" }]), { status: 200 });
+const evil = await (await worker.fetch(new Request(`https://poriad.app/e/${base.id}.ics`), env, ctx)).text();
+const lines = evil.replace(/\r\n /g, "").split("\r\n");
+assert.ok(!/\r(?!\n)|[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(evil), "жодного сирого \\r чи керівного символу");
+assert.ok(!lines.some((l) => l.startsWith("URL:https://evil") || l.startsWith("ATTENDEE")), "чужих властивостей нема");
+assert.equal(lines.filter((l) => l === "BEGIN:VALARM").length, 1, "одне нагадування — наше");
+assert.ok(lines.includes("SUMMARY:Зустріч\\nURL:https://evil.example\\nBEGIN:VALARM"), "розриви — текстом \\n");
 assert.equal((await worker.fetch(new Request("https://poriad.app/e/abc.ics"), env, ctx)).status, 404);
 assert.equal((await worker.fetch(new Request(`https://poriad.app/e/${base.id}.ics`, { method: "POST" }), env, ctx)).status, 405);
-globalThis.fetch = async () => new Response("[]", { status: 200 });
-assert.equal((await worker.fetch(new Request(`https://poriad.app/e/${base.id}.ics`), env, ctx)).status, 404);
+for (const body of ["[]", "{}", "null", "not json"]) {
+  globalThis.fetch = async () => new Response(body, { status: 200 });
+  assert.equal((await worker.fetch(new Request(`https://poriad.app/e/${base.id}.ics`), env, ctx)).status, 404, `відповідь ${body} — 404, а не 500`);
+}
 globalThis.fetch = async () => new Response("{}", { status: 500 });
 const down = await worker.fetch(new Request(`https://poriad.app/e/${base.id}.ics`), env, ctx);
 assert.equal(down.status, 503);
