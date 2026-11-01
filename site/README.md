@@ -30,7 +30,7 @@ python3 -m http.server 8766 --directory site
 
 `tools/site_test.mjs` звіряє правила `js/poriad.js` із застосунком (назви, дати в поясі події, вихідні, згортання). Сервер — щоб відкрити `http://localhost:8766/` і `/afisha.html`: модулі з `file://` не завантажуються. З CSP і сторінками `/e/{id}`, `/afisha/{місто}` — `cd worker && npx wrangler dev --env dev` (`worker/README.md`).
 
-**CSP.** Усі сторінки домену віддає воркер із суворою CSP: жодних `<script>` без `src`, `style="…"` і `on…=` у розмітці (і в `innerHTML`) — їх браузер не виконає. Скрипт — окремим файлом у `js/`, стиль — класом у CSS, обробник — `addEventListener`. Сторонні скрипти — лише в `vendor/`.
+**CSP.** Усі сторінки домену віддає воркер із суворою CSP: жодних `<script>` без `src`, `style="…"` і `on…=` у розмітці (і в `innerHTML`) — їх браузер не виконає. Скрипт — окремим файлом у `js/`, стиль — класом у CSS, обробник — `addEventListener`. Сторонні скрипти — лише в `vendor/`. `tools/site_test.mjs` шукає таке в `*.html` і `js/*.js` і падає.
 
 ## Google Play
 

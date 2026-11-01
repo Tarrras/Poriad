@@ -2,9 +2,12 @@
 import assert from "node:assert/strict";
 import { displayTitle, overline, inWhen, fold, soonFirst, otherDays, plural, EVENTS, price, qrPath, icsFile, googleCalendarUrl, SUPABASE } from "../site/js/poriad.js";
 
-// Проєкт Supabase: node-скрипти й poriad.app — prod, локальний сайт — dev (кожен ?host — окремий екземпляр модуля).
+// Проєкт Supabase: node-скрипти й poriad.app — prod, локальний сайт, емулятор і LAN — dev (кожен ?host — окремий
+// екземпляр модуля).
 assert.equal(SUPABASE.url, "https://tzdogzdvctlumsqlqskr.supabase.co");
-for (const [hostname, ref] of [["localhost", "ojadoyxeahepycpmjuvf"], ["127.0.0.1", "ojadoyxeahepycpmjuvf"], ["poriad.app", "tzdogzdvctlumsqlqskr"], ["localhost.evil.com", "tzdogzdvctlumsqlqskr"]]) {
+const dev = ["localhost", "127.0.0.1", "10.0.2.2", "10.1.2.3", "192.168.1.5", "172.16.0.1", "172.31.255.2"];
+const prod = ["poriad.app", "localhost.evil.com", "10.0.2.2.evil.com", "172.15.0.1", "172.32.0.1", "192.169.0.1", "11.0.0.1"];
+for (const [hostname, ref] of [...dev.map((h) => [h, "ojadoyxeahepycpmjuvf"]), ...prod.map((h) => [h, "tzdogzdvctlumsqlqskr"])]) {
   globalThis.location = { hostname };
   assert.equal((await import(`../site/js/poriad.js?${hostname}`)).SUPABASE.url, `https://${ref}.supabase.co`, hostname);
 }
@@ -111,3 +114,20 @@ assert.equal(price({ is_free: true, price_min: 0 }), "Безкоштовно");
   for (const [, tag] of Object.values(CHANNELS)) assert.match(tag, /^[a-z]{1,12}$/, "site/app.html відкидає іншу мітку");
 }
 console.log("ok");
+
+// CSP сайту (worker/index.mjs) мовчки блокує inline: style="…", on…=, <script> без src (крім JSON-LD) і javascript: —
+// і в сторінках, і в HTML, який складають скрипти. Скрипт — файлом у js/, стиль — класом, обробник — addEventListener.
+{
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const site = new URL("../site/", import.meta.url);
+  const files = [...readdirSync(site).filter((f) => f.endsWith(".html")), ...readdirSync(new URL("js/", site)).filter((f) => f.endsWith(".js")).map((f) => `js/${f}`)];
+  const banned = [[/\sstyle=["'`$]/i, "style="], [/\son[a-z]+=["'`$]/i, "on…="], [/<script\b(?![^>]*\ssrc=)(?![^>]*application\/ld\+json)/i, "<script> без src"], [/javascript:/i, "javascript:"]];
+  const bad = ['<p style="x">', '<img onerror="this.remove()">', "`<a onclick=${f}>`", "<script>alert(1)</script>", '<script type="module">', '<a href="javascript:void 0">'];
+  assert.ok(bad.every((html) => banned.some(([re]) => re.test(html))), "сканер ловить кожен вид");
+  assert.ok(![`<script src="js/a.js?v=12"></script>`, '<script type="application/ld+json">{}</script>', "el.style.cursor = 'x'", "b.onclick = close"].some((ok) => banned.some(([re]) => re.test(ok))));
+  for (const file of files) {
+    const text = readFileSync(new URL(file, site), "utf8");
+    for (const [re, what] of banned) assert.ok(!re.test(text), `site/${file}: ${what} (${text.match(re)?.[0]}) — CSP це заблокує`);
+  }
+}
+console.log("csp ok");

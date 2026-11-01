@@ -2,11 +2,13 @@
 // (discover_events, event_cards_by_ids, event_safety) з publishable-ключем, як у worker/. Модуль без побічних
 // дій при імпорті: правила назв, дат і згортання перевіряє `node tools/site_test.mjs`.
 
-// Проєкт Supabase: сайт на localhost чи 127.0.0.1 (`wrangler dev --env dev`, будь-який локальний сервер) ходить у dev,
-// решта — у prod. Воркер і node-скрипти location не мають: воркер передає свій із wrangler.toml, скрипти — prod.
+// Проєкт Supabase: сайт з локальної машини (`wrangler dev --env dev`, будь-який локальний сервер) ходить у dev, решта —
+// у prod. Локальна — localhost, 127.0.0.1, емулятор Android (10.0.2.2) і телефон у тій самій мережі (10.*, 192.168.*,
+// 172.16–31.*). Воркер і node-скрипти location не мають: воркер передає свій із wrangler.toml, скрипти — prod.
 const PROD = { url: "https://tzdogzdvctlumsqlqskr.supabase.co", key: "sb_publishable_RoY0wFzTOcXlmOIYC0UE-w_fOt5rXPq" };
 const DEV = { url: "https://ojadoyxeahepycpmjuvf.supabase.co", key: "sb_publishable_J56z68XYw4Qn1nuivKO1Dw_zEb2zaEu" };
-export const SUPABASE = /^(localhost|127\.0\.0\.1)$/.test(globalThis.location?.hostname ?? "") ? DEV : PROD;
+const LOCAL = /^(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/;
+export const SUPABASE = LOCAL.test(globalThis.location?.hostname ?? "") ? DEV : PROD;
 // Мітки джерела: ct — кампанія App Store Connect (Analytics → Campaigns, pt — наш акаунт), utm — звіт Play Console.
 // Сайт — ct=site, сторінки подій (worker/) — event, QR і /app — qr, банер Safari — banner.
 export const APP_STORE_URL = "https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&ct=site&mt=8";
