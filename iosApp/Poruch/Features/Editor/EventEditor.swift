@@ -12,6 +12,8 @@ struct EventEditor: View {
     @StateObject private var editor: EventEditorModel
     @State private var discardingChanges = false
     @State private var startingOver = false
+    /// Щойно опублікована подія: редактор показує «Подію створено» (`AppState.published`).
+    @State private var shownPublished: PublishedEvent?
 
     /// [repeated] — чернетка «Повторити» (`PoruchApp.repeatDraft`): нова подія з полями й медіа іншої.
     init(event: Event?, app: PoruchApp, home: AppState?, repeated: EventDraft? = nil) {
@@ -25,7 +27,8 @@ struct EventEditor: View {
         return !state.signedIn || state.session.askBirthDate
     }
 
-    var body: some View {
+    /// Кроки редактора. Поки подія публікується — накладка з квитком, що друкується (1.6).
+    private var content: some View {
         VStack(spacing: 0) {
             wizardHeader
             ScrollViewReader { proxy in
@@ -74,6 +77,23 @@ struct EventEditor: View {
             }
             actions
         }
+        .overlay {
+            if publishing {
+                PublishingOverlay(upload: model.state?.mediaUpload, stub: categoryStub(editor.form.category))
+            }
+        }
+        .motion(value: publishing)
+    }
+
+    var body: some View {
+        Group {
+            // Опубліковано — «Подію створено» тут же, замість кроків: друга шторка поверх цієї не відкрилась би.
+            if let shownPublished {
+                PublishedView(published: shownPublished) { finishPublished() }
+            } else {
+                content
+            }
+        }
         .background(Palette.canvas)
         // Редактор — аркуш над коренем, тож банер кореня з помилкою публікації лишався під ним.
         .notice(model.state?.notice?.presented) { model.app.clearNotice() }
@@ -85,7 +105,11 @@ struct EventEditor: View {
         }
         // При згортанні застосунку аркуш не зникає, тож відкладений запис дожимаємо самі.
         .onChange(of: scenePhase) { _, phase in if phase != .active { editor.persist() } }
-        .onDisappear { editor.persist() }
+        .onDisappear {
+            editor.persist()
+            // «Подію створено» змахнули вниз — те саме, що «Готово».
+            if shownPublished != nil { finishPublished(closing: false) }
+        }
         // Зміна закінчилась без підтвердженого запису — відмова: форма лишається редагованою й зберігається. Гість, що
         // чекає на вхід, — не відмова: подія опублікується сама, щойно він увійде.
         .onChange(of: model.state?.mutating) { _, mutating in
@@ -95,9 +119,13 @@ struct EventEditor: View {
             editor.failed(fields: (error as? AppErrorInvalidDraft)?.fields ?? [])
         }
         .onChange(of: model.state?.completedEventId) { _, id in
-            guard editor.submitted, id != nil else { return }
+            guard editor.submitted, let id else { return }
             editor.finish()
-            dismiss()
+            // Нова подія — «Подію створено»; правка — просто закриваємось.
+            guard !editor.editing, let published = model.state?.published, published.id == id else { return dismiss() }
+            // «Подію опубліковано» каже сам екран; збій файлів (MediaFailed) лишаємо — його треба побачити.
+            if model.state?.notice is AppNoticeTold { model.app.clearNotice() }
+            withMotion { shownPublished = published }
         }
         // «Опублікувати» в гостя: вхід поверх редактора з чернеткою під ним. Увійшов — вхід закривається сам, а подія
         // публікується; закрив без входу — публікація скасована, людина лишається тут з тією самою чернеткою.
@@ -118,6 +146,21 @@ struct EventEditor: View {
         .confirmationDialog(Copy.editor_start_over_title, isPresented: $startingOver, titleVisibility: .visible) {
             Button(Copy.editor_delete_draft, role: .destructive) { editor.startOver() }
         } message: { Text(Copy.editor_start_over_explain) }
+    }
+
+    /// Подія публікується: накладка з анімацією замість кроків. Гість, що чекає на вхід, ще нічого не публікує.
+    private var publishing: Bool {
+        editor.submitted && !editor.editing && !waitsForSignIn && model.state?.mutating == true
+    }
+
+    /// «Готово» чи змах униз на «Подію створено»: екран зникає (`publish_done {done}`), далі — деталі події. Деталі
+    /// відкриває той самий шлях, що й пуш: з будь-якої вкладки, після того як шторка закрилась.
+    private func finishPublished(closing: Bool = true) {
+        guard let published = shownPublished else { return }
+        shownPublished = nil
+        model.app.publishDone(action: .done)
+        if closing { dismiss() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { PushDelegate.open(eventId: published.id, chat: false) }
     }
 
     private func stepLabel(_ step: EditorStep) -> String {
@@ -277,6 +320,28 @@ private struct DraftTicket: View {
     /// Ще не надрукований рядок.
     private func blank(_ width: CGFloat, height: CGFloat) -> some View {
         Capsule().fill(Palette.hairline).frame(width: width, height: height).padding(.vertical, 3)
+    }
+}
+
+/// Поки подія публікується: квиток друкується в петлі (`publishing.json`), під ним «Завантажуємо N з M» чи «Публікуємо
+/// подію…». «Зменшити рух» — надрукований квиток, кадр 0.
+private struct PublishingOverlay: View {
+    let upload: MediaUpload?
+    let stub: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var body: some View {
+        VStack(spacing: Space.lg) {
+            BrandAnimation(name: "Publishing", still: reduceMotion, stub: stub)
+                .frame(width: 300, height: 200)
+                .decorative()
+            Text(upload.map { Copy.media_uploading("\($0.current)", "\($0.total)") } ?? Copy.publishing_caption)
+                .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Palette.canvas.opacity(0.97).ignoresSafeArea())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.updatesFrequently)
+        .transition(.opacity)
     }
 }
 

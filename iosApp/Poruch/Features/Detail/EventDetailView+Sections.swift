@@ -267,10 +267,19 @@ extension EventDetailView {
             Button { SystemActions.openInMaps(event) } label: {
                 RoundAction(title: Copy.rate_tag_route) { PoruchIcon(glyph: PoruchIcons.directions, size: 20) }
             }.buttonStyle(PressableStyle())
-            // Поділитися подією — і є покликати (docs/invites.md). Скасовану чи минулу — просто поділитися.
-            if view.canInvite {
+            // Хто чим ділиться (1.6, `shareMode`): організатор своєї події — «Поширити анонс» (пост для Threads з
+            // посиланням для запису, лише з повними деталями); усі інші — «Поділитися з другом», особисте посилання, як
+            // «Покликати» (docs/invites.md). Скасовану чи минулу — просто поділитися.
+            if view.canInvite && view.shareMode == .promote {
+                Button { threadsEvent = event } label: {
+                    RoundAction(title: Copy.share_promote, enabled: screen.detailsLoaded && threadsEvent == nil) {
+                        if threadsEvent != nil { ProgressView() } else { PoruchIcon(glyph: PoruchIcons.share, size: 20) }
+                    }
+                }.buttonStyle(PressableStyle())
+                .disabled(!screen.detailsLoaded || threadsEvent != nil)
+            } else if view.canInvite {
                 Button { invite(event) } label: {
-                    RoundAction(title: Copy.invite) {
+                    RoundAction(title: Copy.share_friend) {
                         if inviting { ProgressView() } else { PoruchIcon(glyph: PoruchIcons.personAdd, size: 20) }
                     }
                 }.buttonStyle(PressableStyle())
@@ -611,11 +620,7 @@ extension EventDetailView {
             Divider().overlay(Palette.hairline)
             // Час, місце й місткість супутника тримає сервер; після початку сервер не приймає правок. Лишається скасувати.
             let editable = view.companionOf == nil && !view.started
-            // Фото й відео — у редакторі. Тут — пост, яким організатор кличе людей у Threads; «Поділитися» на своїй події
-            // зайняте «Покликати».
-            if view.companionOf == nil, let event = view.event {
-                SecondaryButton(title: Copy.threads_post, glyph: PoruchIcons.copy, enabled: threadsEvent == nil && screen.detailsLoaded) { threadsEvent = event }
-            }
+            // Фото й відео — у редакторі; пост для Threads — «Поширити анонс» у ряду дій угорі (1.6).
             // Збір: організатор міняє лише час (R7б).
             if view.canMoveMeet, let event = view.event {
                 SecondaryButton(title: Copy.meet_change, glyph: PoruchIcons.clock) { movingMeet = MeetTarget(at: event.startsAt) }

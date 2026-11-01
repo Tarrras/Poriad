@@ -45,6 +45,7 @@
 		B0C4D11CADB885B700D37D1C /* EditorMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFAA9AAB48D4E337FCD365E9 /* EditorMedia.swift */; };
 		FD20BB2CAE3C2D21066BDD34 /* EventEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D06D7136B86EA238509F57DC /* EventEditor.swift */; };
 		A3D72CE0074B39E7B06C9014 /* EventEditorModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32CF28A222EE5EA55389A04D /* EventEditorModel.swift */; };
+		5044FA4FA4D9C702776FFBDC /* PublishedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4529F80D3D7CB279290389F0 /* PublishedView.swift */; };
 		2D8B82FBE38E9ACA2B852C61 /* ScheduleFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = 850DB60274EB143CDA5125F3 /* ScheduleFields.swift */; };
 		73394C43F0108E271225D96C /* DeckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80E22B135CF7A98B33AD7BC /* DeckView.swift */; };
 		9BC60559391110D75C2A46E4 /* HomeFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = D725E491238932BD1AE0461D /* HomeFeed.swift */; };
@@ -118,6 +119,7 @@
 		AFAA9AAB48D4E337FCD365E9 /* EditorMedia.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EditorMedia.swift; path = Features/Editor/EditorMedia.swift; sourceTree = "<group>"; };
 		D06D7136B86EA238509F57DC /* EventEditor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EventEditor.swift; path = Features/Editor/EventEditor.swift; sourceTree = "<group>"; };
 		32CF28A222EE5EA55389A04D /* EventEditorModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EventEditorModel.swift; path = Features/Editor/EventEditorModel.swift; sourceTree = "<group>"; };
+		4529F80D3D7CB279290389F0 /* PublishedView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PublishedView.swift; path = Features/Editor/PublishedView.swift; sourceTree = "<group>"; };
 		850DB60274EB143CDA5125F3 /* ScheduleFields.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ScheduleFields.swift; path = Features/Editor/ScheduleFields.swift; sourceTree = "<group>"; };
 		E80E22B135CF7A98B33AD7BC /* DeckView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DeckView.swift; path = Features/Home/DeckView.swift; sourceTree = "<group>"; };
 		D725E491238932BD1AE0461D /* HomeFeed.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HomeFeed.swift; path = Features/Home/HomeFeed.swift; sourceTree = "<group>"; };
@@ -226,6 +228,7 @@
 				AFAA9AAB48D4E337FCD365E9 /* EditorMedia.swift */,
 				D06D7136B86EA238509F57DC /* EventEditor.swift */,
 				32CF28A222EE5EA55389A04D /* EventEditorModel.swift */,
+				4529F80D3D7CB279290389F0 /* PublishedView.swift */,
 				850DB60274EB143CDA5125F3 /* ScheduleFields.swift */,
 				E80E22B135CF7A98B33AD7BC /* DeckView.swift */,
 				D725E491238932BD1AE0461D /* HomeFeed.swift */,
@@ -462,6 +465,7 @@
 				B0C4D11CADB885B700D37D1C /* EditorMedia.swift in Sources */,
 				FD20BB2CAE3C2D21066BDD34 /* EventEditor.swift in Sources */,
 				A3D72CE0074B39E7B06C9014 /* EventEditorModel.swift in Sources */,
+				5044FA4FA4D9C702776FFBDC /* PublishedView.swift in Sources */,
 				2D8B82FBE38E9ACA2B852C61 /* ScheduleFields.swift in Sources */,
 				73394C43F0108E271225D96C /* DeckView.swift in Sources */,
 				9BC60559391110D75C2A46E4 /* HomeFeed.swift in Sources */,

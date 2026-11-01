@@ -53,9 +53,28 @@ enum SystemActions {
 /// Редактор EventKit: вибір календаря, нагадування й підтвердження лишаються в Apple. Копія в
 /// системному календарі переживає наші локальні сповіщення.
 struct CalendarEditor: UIViewControllerRepresentable {
-    let event: Event
+    let title: String
+    let notes: String?
+    let location: String
+    let timeZone: String
+    let start: Date
+    let end: Date
     let store: EKEventStore
     @Environment(\.dismiss) private var dismiss
+
+    init(event: Event, store: EKEventStore) {
+        let start = parseEventDate(event.startsAt) ?? Date()
+        self.init(
+            title: event.title, notes: event.description_, location: "\(event.city), \(event.address)", timeZone: event.timeZone,
+            start: start, end: parseEventDate(event.endsAt) ?? start.addingTimeInterval(defaultDuration), store: store
+        )
+    }
+
+    /// Щойно опублікована подія («Подію створено»): картки ще нема, поля дає `PublishedEvent`.
+    init(title: String, notes: String?, location: String, timeZone: String, start: Date, end: Date, store: EKEventStore) {
+        self.title = title; self.notes = notes; self.location = location; self.timeZone = timeZone
+        self.start = start; self.end = end; self.store = store
+    }
 
     func makeCoordinator() -> Coordinator { Coordinator { dismiss() } }
 
@@ -63,13 +82,12 @@ struct CalendarEditor: UIViewControllerRepresentable {
         let controller = EKEventEditViewController()
         controller.eventStore = store
         let entry = EKEvent(eventStore: store)
-        entry.title = event.title
-        entry.notes = event.description_
-        entry.location = "\(event.city), \(event.address)"
-        entry.timeZone = TimeZone(identifier: event.timeZone)
-        let start = parseEventDate(event.startsAt) ?? Date()
+        entry.title = title
+        entry.notes = notes
+        entry.location = location
+        entry.timeZone = TimeZone(identifier: timeZone)
         entry.startDate = start
-        entry.endDate = parseEventDate(event.endsAt) ?? start.addingTimeInterval(defaultDuration)
+        entry.endDate = end
         controller.event = entry
         controller.editViewDelegate = context.coordinator
         return controller
