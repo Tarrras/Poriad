@@ -1,9 +1,12 @@
-// Дані й формат для сайту «Поряд». Афіша — та сама, що бачить гість у застосунку: публічні RPC prod-проєкту
+// Дані й формат для сайту «Поряд». Афіша — та сама, що бачить гість у застосунку: публічні RPC
 // (discover_events, event_cards_by_ids, event_safety) з publishable-ключем, як у worker/. Модуль без побічних
 // дій при імпорті: правила назв, дат і згортання перевіряє `node tools/site_test.mjs`.
 
-const SUPABASE_URL = "https://tzdogzdvctlumsqlqskr.supabase.co";
-const SUPABASE_KEY = "sb_publishable_RoY0wFzTOcXlmOIYC0UE-w_fOt5rXPq";
+// Проєкт Supabase: сайт на localhost чи 127.0.0.1 (`wrangler dev --env dev`, будь-який локальний сервер) ходить у dev,
+// решта — у prod. Воркер і node-скрипти location не мають: воркер передає свій із wrangler.toml, скрипти — prod.
+const PROD = { url: "https://tzdogzdvctlumsqlqskr.supabase.co", key: "sb_publishable_RoY0wFzTOcXlmOIYC0UE-w_fOt5rXPq" };
+const DEV = { url: "https://ojadoyxeahepycpmjuvf.supabase.co", key: "sb_publishable_J56z68XYw4Qn1nuivKO1Dw_zEb2zaEu" };
+export const SUPABASE = /^(localhost|127\.0\.0\.1)$/.test(globalThis.location?.hostname ?? "") ? DEV : PROD;
 // Мітки джерела: ct — кампанія App Store Connect (Analytics → Campaigns, pt — наш акаунт), utm — звіт Play Console.
 // Сайт — ct=site, сторінки подій (worker/) — event, QR і /app — qr, банер Safari — banner.
 export const APP_STORE_URL = "https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&ct=site&mt=8";
@@ -34,10 +37,10 @@ export const CATEGORY_COLORS = {
   social: "#B8562F", comedy: "#A07813", kids: "#1F8A8A", tours: "#5F7F1F", conference: "#933FA8",
 };
 
-async function rpc(name, body) {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+async function rpc(name, body, db = SUPABASE) {
+  const response = await fetch(`${db.url}/rest/v1/rpc/${name}`, {
     method: "POST",
-    headers: { apikey: SUPABASE_KEY, "content-type": "application/json" },
+    headers: { apikey: db.key, "content-type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!response.ok) throw new Error(`${name}: ${response.status}`);
@@ -48,12 +51,12 @@ async function rpc(name, body) {
  * Афіша міста: індекс усіх майбутніх подій (дати й категорії фільтруємо на місці — миттєво) і перші картки.
  * Текст шукає сервер: він бачить ще опис і адресу, яких в індексі нема.
  */
-export async function discover(city, { text = null, cards = 24, category = null, to = null } = {}) {
+export async function discover(city, { text = null, cards = 24, category = null, to = null, db = SUPABASE } = {}) {
   const c = cityOf(city);
   const data = await rpc("discover_events", {
     p_south: c.lat - 0.15, p_west: c.lng - 0.25, p_north: c.lat + 0.15, p_east: c.lng + 0.25,
     p_text: text || null, p_cards: cards, p_category: category, p_to: to,
-  });
+  }, db);
   return { index: data.index.map(toEntry), cards: data.cards };
 }
 
@@ -61,9 +64,9 @@ const toEntry = ([id, lat, lng, category, startsAt, tz, title, origin, source, c
   ({ id, lat, lng, category, startsAt, tz: tz || "Europe/Kyiv", title, origin, source, capacity, count });
 
 /** Картки за id, до сотні за раз (стеля RPC). */
-export async function cardsByIds(ids) {
+export async function cardsByIds(ids, db = SUPABASE) {
   const out = [];
-  for (let i = 0; i < ids.length; i += 100) out.push(...await rpc("event_cards_by_ids", { p_ids: ids.slice(i, i + 100) }));
+  for (let i = 0; i < ids.length; i += 100) out.push(...await rpc("event_cards_by_ids", { p_ids: ids.slice(i, i + 100) }, db));
   return out;
 }
 

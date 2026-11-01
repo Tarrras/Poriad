@@ -3,7 +3,19 @@
 `poriad.app/e/{id}` — сторінка події з прев'ю для Telegram і месенджерів (Open Graph), Smart App Banner на iOS
 і кнопками «Відкрити в «Поряд»» / App Store. Той самий Worker віддає `/.well-known/apple-app-site-association`
 і `/.well-known/assetlinks.json`, за якими iOS і Android відкривають такі посилання одразу в застосунку.
-Решта сайту — як і раніше, GitHub Pages (`site/`): маршрути в `wrangler.toml` перехоплюють лише ці адреси.
+
+## Весь домен і CSP
+
+З 1.5 воркер стоїть на `poriad.app/*`: сайт тримає токен входу в `localStorage`, а його бачить кожна сторінка домену.
+Решту сайту він бере з GitHub Pages тим самим запитом (запит воркера у власну зону Cloudflare йде на origin з DNS, а
+не знову у воркер) і додає до HTML заголовки безпеки; js, css, шрифти й картинки віддає як є.
+
+- Маршрути — таблиця `ROUTES` у `index.mjs`: перший збіг шляху. Нова сторінка чи API — один рядок там.
+- CSP кожен маршрут збирає з частин (`CSP` в `index.mjs`): сторінка події — Supabase у `connect-src` і сховище в
+  `media-src`; міста — лише свій домен; сторінки Pages — ще MapLibre (`site/vendor/`, тайли OpenFreeMap, `blob:`).
+  Inline-скриптів нема ніде, крім «Поділитися» з хешем; inline-стилів і `on…=` — теж.
+- Кожен запит до сайту тепер рахується як запит воркера (безкоштовно — 100 тис. на добу). Якщо впремося, у панелі
+  Cloudflare можна зняти воркер з `/js/*`, `/fonts/*`, `/img/*`, `/vendor/*`: заголовки там не потрібні.
 
 Дані — публічний RPC `event_details` prod-проєкту з publishable-ключем, тобто рівно те, що бачить гість у
 застосунку. Приховані, приватні й заблоковані події він не віддає → сторінка «Подію не знайдено». Відповідь
@@ -26,8 +38,20 @@
 ## Перевірка без Cloudflare
 
 ```bash
-node worker/test.mjs
+node --test worker/*.test.mjs
 ```
+
+`--test` запускає кожен файл окремо (`node worker/*.test.mjs` прогнав би лише перший); те саме робить CI.
+
+## Локально з dev-базою
+
+```bash
+cd worker && npx wrangler dev --env dev
+```
+
+http://localhost:8787 — увесь сайт: сторінки з теки `site/` (assets замість Pages), дані — dev-проєкт Supabase. Сайт
+на `localhost` сам ходить у dev (`SUPABASE` у `site/js/poriad.js`). Вхід через Google локально — лише якщо
+`http://localhost:8787/**` є в Redirect URLs dev-проєкту.
 
 ## Перший деплой (один раз)
 

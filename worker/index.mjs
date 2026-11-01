@@ -1,7 +1,7 @@
-// Cloudflare Worker перед GitHub Pages: сторінка події `poriad.app/e/{id}` з прев'ю для Telegram і
-// файли, за якими iOS і Android перевіряють, що посилання належать застосунку. Решту сайту не чіпає —
-// маршрути в wrangler.toml перехоплюють лише ці адреси. Дані — публічний RPC `event_details`, той
-// самий, що бачить гість у застосунку: приховані й приватні події він не віддає.
+// Cloudflare Worker перед GitHub Pages на весь домен (`poriad.app/*`): сторінка події `poriad.app/e/{id}` з прев'ю
+// для Telegram, сторінки міст і файли, за якими iOS і Android перевіряють, що посилання належать застосунку. Решту
+// бере з Pages і додає до HTML заголовки безпеки: токен входу в localStorage бачить кожна сторінка домену. Дані —
+// публічний RPC `event_details`, той самий, що бачить гість у застосунку: приховані й приватні події він не віддає.
 
 // Назви, дати й ціна — ті самі правила, що на сайті (site/js/poriad.js, порт TitleRules і формату застосунку).
 // wrangler збирає цей імпорт у воркер; той самий файл сайт віддає браузеру.
@@ -22,48 +22,97 @@ const CACHE_SECONDS = 300;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Токен «Покликати з собою» (docs/invites.md): 128 біт у base64url.
 const INVITE = /^[A-Za-z0-9_-]{22}$/;
-// Хеш єдиного вбудованого скрипта (кнопка «Поділитися» внизу eventPage: ділиться адресою без запрошення — хто ділиться
-// зі сторінки, той не кличе); worker/test.mjs звіряє його з текстом. Не експорт: workerd приймає з модуля лише обробники.
+// Хеш єдиного вбудованого скрипта (кнопка «Поділитися» внизу layout: ділиться адресою без запрошення — хто ділиться
+// зі сторінки, той не кличе); worker/headers.test.mjs звіряє його з текстом. Не експорт: workerd приймає з модуля
+// лише обробники.
 const SHARE_SCRIPT_HASH = "sha256-jSzQzkOzijHE4QQonaYxQFjt59YF0NEivzZqmyVNC6g=";
-// Обкладинки — з сайтів продавців, тож img-src https:; маячок Cloudflare Web Analytics Cloudflare вставляє в сторінку
-// сам (скрипт зі static.cloudflareinsights.com, дані — на cloudflareinsights.com); решта — лише свій домен.
-const SECURITY_HEADERS = {
+
+// ---- CSP: кожен маршрут збирає свою з частин. Обкладинки — з сайтів продавців, тож img-src https:; маячок Cloudflare
+// Web Analytics Cloudflare вставляє в сторінку сам (скрипт зі static.cloudflareinsights.com, дані — на
+// cloudflareinsights.com); решта — лише свій домен. Жодних inline-скриптів і стилів, крім хешу «Поділитися».
+const BASE = {
+  "default-src": "'self'", "img-src": "'self' https: data:", "script-src": "'self' https://static.cloudflareinsights.com",
+  "connect-src": "'self' https://cloudflareinsights.com", "style-src": "'self'", "font-src": "'self'",
+  "object-src": "'none'", "base-uri": "'none'", "form-action": "'none'", "frame-ancestors": "'none'",
+};
+const SHARE = { "script-src": `'${SHARE_SCRIPT_HASH}'` };
+// MapLibre (site/vendor): тайли й шрифти — OpenFreeMap, воркери й картинки іконок — з blob:.
+const MAP = { "connect-src": "https://tiles.openfreemap.org", "worker-src": "blob:", "child-src": "blob:", "img-src": "blob:" };
+// Вхід, запис і RPC зі сторінки — у Supabase напряму; фото й відео подій — з його сховища.
+const supabase = (env) => ({ "connect-src": env.SUPABASE_URL });
+const storage = (env) => ({ "media-src": env.SUPABASE_URL && `${env.SUPABASE_URL}/storage/v1/object/public/` });
+
+/** Частини CSP → рядок: значення однієї директиви склеюються, порожні пропускаються. */
+function csp(...parts) {
+  const out = {};
+  for (const part of parts) for (const [name, value] of Object.entries(part)) if (value) out[name] = out[name] ? `${out[name]} ${value}` : value;
+  return Object.entries(out).map(([name, value]) => `${name} ${value}`).join("; ");
+}
+const CSP = {
+  event: (env) => csp(BASE, SHARE, supabase(env), storage(env)),
+  city: () => csp(BASE, SHARE),
+  pages: (env) => csp(BASE, MAP, supabase(env)),
+};
+
+const securityHeaders = (policy) => ({
   "strict-transport-security": "max-age=31536000",
   "x-content-type-options": "nosniff",
   "x-frame-options": "DENY",
   "referrer-policy": "strict-origin-when-cross-origin",
-  "content-security-policy": `default-src 'self'; img-src 'self' https: data:; script-src '${SHARE_SCRIPT_HASH}' `
-    + "https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; style-src 'self'; "
-    + "font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
-};
+  "content-security-policy": policy,
+});
+
+// ---- Маршрути: перший збіг шляху. Новий маршрут — рядок тут (обробник отримує request, env, ctx і збіг регулярки).
+const readOnly = (handler) => (request, ...rest) =>
+  request.method === "GET" || request.method === "HEAD" ? handler(request, ...rest) : new Response(null, { status: 405 });
+const ROUTES = [
+  [/^\/\.well-known\/apple-app-site-association$/, () => json(appleAssociation())],
+  [/^\/\.well-known\/assetlinks\.json$/, () => json(androidAssociation())],
+  [/^\/afisha\//, readOnly(cityRoute)],
+  [/^\/e\/([^/]+)\/?$/, readOnly(eventRoute)],
+];
 
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    if (url.pathname === "/.well-known/apple-app-site-association") return json(appleAssociation());
-    if (url.pathname === "/.well-known/assetlinks.json") return json(androidAssociation());
-    const afisha = url.pathname.startsWith("/afisha/");
-    const match = url.pathname.match(/^\/e\/([^/]+)\/?$/);
-    if (!match && !afisha) return fetch(request);
-    if (request.method !== "GET" && request.method !== "HEAD") return new Response(null, { status: 405 });
-    if (afisha) return cityRoute(url, ctx);
-
-    // Запрошення: сторінка з ім'ям того, хто кличе, особиста — повз спільний кеш в обидва боки. Невідомий чи
-    // протухлий токен дає звичайну сторінку з кешу.
-    const by = url.searchParams.get("by");
-    const inviter = by && INVITE.test(by) ? await inviterOf(by, match[1], env) : null;
-    if (inviter) return eventResponse(match[1], env, { by, name: inviter });
-
-    // Telegram, месенджери й люди відкривають одне посилання хвилями: кеш на краю, а не запит у базу щоразу.
-    // Ключ у нижньому регістрі: UUID приймаємо без огляду на регістр, тож варіанти однієї адреси не оминають кеш.
-    const cacheKey = new Request(url.origin + url.pathname.toLowerCase());
-    const cached = await caches.default.match(cacheKey);
-    if (cached) return cached;
-    const response = await eventResponse(match[1], env);
-    if (response.status === 200 || response.status === 404) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
-    return response;
+    const { pathname } = new URL(request.url);
+    for (const [path, handler] of ROUTES) {
+      const match = pathname.match(path);
+      if (match) return handler(request, env, ctx, match);
+    }
+    return pages(request, env);
   },
 };
+
+/**
+ * Решта сайту — GitHub Pages: запит воркера у власну зону Cloudflare шле на origin з DNS, а не знову у воркер
+ * (не вмикати global_fetch_strictly_public — тоді він піде через інтернет назад сюди). У `wrangler dev --env dev`
+ * origin — локальна тека site/ (assets). До HTML додаємо заголовки безпеки, решту (js, css, шрифти) не чіпаємо.
+ */
+async function pages(request, env) {
+  const response = await (env.ASSETS ? env.ASSETS.fetch(request) : fetch(request));
+  if (!response.headers.get("content-type")?.startsWith("text/html")) return response;
+  const out = new Response(response.body, response);
+  for (const [name, value] of Object.entries(securityHeaders(CSP.pages(env)))) out.headers.set(name, value);
+  return out;
+}
+
+async function eventRoute(request, env, ctx, match) {
+  const url = new URL(request.url);
+  // Запрошення: сторінка з ім'ям того, хто кличе, особиста — повз спільний кеш в обидва боки. Невідомий чи
+  // протухлий токен дає звичайну сторінку з кешу.
+  const by = url.searchParams.get("by");
+  const inviter = by && INVITE.test(by) ? await inviterOf(by, match[1], env) : null;
+  if (inviter) return eventResponse(match[1], env, { by, name: inviter });
+
+  // Telegram, месенджери й люди відкривають одне посилання хвилями: кеш на краю, а не запит у базу щоразу.
+  // Ключ у нижньому регістрі: UUID приймаємо без огляду на регістр, тож варіанти однієї адреси не оминають кеш.
+  const cacheKey = new Request(url.origin + url.pathname.toLowerCase());
+  const cached = await caches.default.match(cacheKey);
+  if (cached) return cached;
+  const response = await eventResponse(match[1], env);
+  if (response.status === 200 || response.status === 404) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+  return response;
+}
 
 /** Ім'я того, хто кличе, або null: збій бази тут не помилка, а звичайна сторінка. */
 async function inviterOf(token, id, env) {
@@ -83,7 +132,8 @@ async function inviterOf(token, id, env) {
 
 /** [invite] — `{ by, name }` запрошення, що вже пройшло перевірку: сторінка особиста й не кешується спільно. */
 export async function eventResponse(id, env, invite = null) {
-  if (!UUID.test(id)) return html(notFoundPage(), 404);
+  const policy = CSP.event(env);
+  if (!UUID.test(id)) return html(notFoundPage(), 404, policy);
   const rpc = (name) => fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${name}`, {
     method: "POST",
     headers: { apikey: env.SUPABASE_KEY, "content-type": "application/json" },
@@ -91,9 +141,9 @@ export async function eventResponse(id, env, invite = null) {
   });
   const [upstream, safety] = await Promise.all([rpc("event_details"), rpc("event_safety").catch(() => null)]);
   // Помилку бази не кешуємо й не видаємо за «подію не знайдено».
-  if (!upstream.ok) return html(notFoundPage("Не вдалося завантажити подію. Спробуйте ще раз за хвилину."), 503);
+  if (!upstream.ok) return html(notFoundPage("Не вдалося завантажити подію. Спробуйте ще раз за хвилину."), 503, policy);
   const rows = await upstream.json();
-  if (!Array.isArray(rows) || rows.length === 0) return html(notFoundPage(), 404);
+  if (!Array.isArray(rows) || rows.length === 0) return html(notFoundPage(), 404, policy);
   // Злиту подію (docs/event-offers.md, R2) база віддає під живим id: стара адреса переїжджає назавжди.
   const live = String(rows[0].id ?? "");
   if (UUID.test(live) && live.toLowerCase() !== id.toLowerCase()) {
@@ -101,7 +151,7 @@ export async function eventResponse(id, env, invite = null) {
   }
   // Укриття — доповнення: збій чи стара база без event_safety лише ховають секцію.
   const shelters = safety?.ok ? ((await safety.json().catch(() => null))?.shelters ?? []) : [];
-  return html(eventPage(rows[0], new Date(), shelters, invite), 200, Boolean(invite));
+  return html(eventPage(rows[0], new Date(), shelters, invite), 200, policy, Boolean(invite));
 }
 
 export function eventPage(e, now, shelters = [], invite = null) {
@@ -268,31 +318,33 @@ const FACETS = {
 const MAX_ROWS = 100; // стеля event_cards_by_ids: сторінка — два запити в базу
 const MIN_INDEXED = 3; // менше — тонка сторінка: людям показуємо, пошуковику індексувати не пропонуємо
 
-async function cityRoute(url, ctx) {
+async function cityRoute(request, env, ctx) {
+  const url = new URL(request.url);
   const path = url.pathname.toLowerCase();
   if (path === "/afisha/") return Response.redirect("https://poriad.app/afisha.html", 301);
   if (path.endsWith("/")) return Response.redirect(`https://poriad.app${path.slice(0, -1)}`, 301);
   const [, slug, facet = ""] = path.match(/^\/afisha\/([a-z]+)(?:\/([a-z]+))?$/) ?? [];
-  if (!Object.hasOwn(CITY_PAGES, slug ?? "") || !Object.hasOwn(FACETS, facet)) return html(notFoundPage("Такої сторінки афіші нема."), 404);
+  if (!Object.hasOwn(CITY_PAGES, slug ?? "") || !Object.hasOwn(FACETS, facet)) return html(notFoundPage("Такої сторінки афіші нема."), 404, CSP.city());
   const cacheKey = new Request(url.origin + path);
   const cached = await caches.default.match(cacheKey);
   if (cached) return cached;
-  const response = await cityResponse(slug, facet);
+  const response = await cityResponse(slug, facet, env);
   if (response.status === 200) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
   return response;
 }
 
-export async function cityResponse(slug, key, now = new Date()) {
+export async function cityResponse(slug, key, env, now = new Date()) {
   const facet = FACETS[key];
+  const db = { url: env.SUPABASE_URL, key: env.SUPABASE_KEY };
   try {
-    const { index } = await discover(CITY_PAGES[slug][0], { cards: 0, category: facet.category ?? null, to: new Date(+now + facet.days * 864e5).toISOString() });
+    const { index } = await discover(CITY_PAGES[slug][0], { cards: 0, category: facet.category ?? null, to: new Date(+now + facet.days * 864e5).toISOString(), db });
     // Те, що ще попереду; сеанси прокату й той самий вечір у двох продавців — один рядок.
     const list = fold(index.filter((e) => e.origin === "import" && Date.parse(e.startsAt) >= +now && (!facet.when || inWhen(e, facet.when, now))));
-    const cards = (await cardsByIds(spread(list, now).map((e) => e.id))).filter(isLive);
-    return html(cityPage(slug, key, cards, list.length, now), 200);
+    const cards = (await cardsByIds(spread(list, now).map((e) => e.id), db)).filter(isLive);
+    return html(cityPage(slug, key, cards, list.length, now), 200, CSP.city());
   } catch {
     // Збій бази не кешуємо й не видаємо за порожню афішу.
-    return html(notFoundPage("Не вдалося завантажити афішу. Спробуйте ще раз за хвилину."), 503);
+    return html(notFoundPage("Не вдалося завантажити афішу. Спробуйте ще раз за хвилину."), 503, CSP.city());
   }
 }
 
@@ -439,20 +491,19 @@ function androidAssociation() {
   }];
 }
 
-
-function html(body, status, personal = false) {
+function html(body, status, policy, personal = false) {
   // 404 — на хвилину: випадкові /e/<uuid> інакше щоразу ходили б у базу. 503 не кешуємо: збій бази мине.
   // Сторінка запрошення — лише браузеру того, хто відкрив: проміжні кеші її не тримають.
   const cache = personal ? `private, max-age=${CACHE_SECONDS}` : status === 200 ? `public, max-age=${CACHE_SECONDS}`
     : status === 404 ? "public, max-age=60" : "no-store";
   return new Response(body, {
     status,
-    headers: { "content-type": "text/html; charset=utf-8", "cache-control": cache, ...SECURITY_HEADERS },
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": cache, ...securityHeaders(policy) },
   });
 }
 
 function json(body) {
   return new Response(JSON.stringify(body), {
-    headers: { "content-type": "application/json", "cache-control": "public, max-age=3600", ...SECURITY_HEADERS },
+    headers: { "content-type": "application/json", "cache-control": "public, max-age=3600", ...securityHeaders(csp(BASE)) },
   });
 }

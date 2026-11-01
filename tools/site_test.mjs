@@ -1,6 +1,14 @@
 // Правила сайту, що мають збігатися із застосунком: node tools/site_test.mjs
 import assert from "node:assert/strict";
-import { displayTitle, overline, inWhen, fold, soonFirst, otherDays, plural, EVENTS, price, qrPath, icsFile, googleCalendarUrl } from "../site/js/poriad.js";
+import { displayTitle, overline, inWhen, fold, soonFirst, otherDays, plural, EVENTS, price, qrPath, icsFile, googleCalendarUrl, SUPABASE } from "../site/js/poriad.js";
+
+// Проєкт Supabase: node-скрипти й poriad.app — prod, локальний сайт — dev (кожен ?host — окремий екземпляр модуля).
+assert.equal(SUPABASE.url, "https://tzdogzdvctlumsqlqskr.supabase.co");
+for (const [hostname, ref] of [["localhost", "ojadoyxeahepycpmjuvf"], ["127.0.0.1", "ojadoyxeahepycpmjuvf"], ["poriad.app", "tzdogzdvctlumsqlqskr"], ["localhost.evil.com", "tzdogzdvctlumsqlqskr"]]) {
+  globalThis.location = { hostname };
+  assert.equal((await import(`../site/js/poriad.js?${hostname}`)).SUPABASE.url, `https://${ref}.supabase.co`, hostname);
+}
+delete globalThis.location;
 
 // Ті самі випадки, що TitleRulesTest (core/domain).
 for (const [raw, shown] of [
