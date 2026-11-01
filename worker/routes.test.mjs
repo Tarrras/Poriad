@@ -1,5 +1,6 @@
 // Таблиця маршрутів: що воркер віддає сам, а що бере з Pages. node worker/routes.test.mjs
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
 import worker from "./index.mjs";
 import { base, env, ctx, detailsOk } from "./fixtures.mjs";
 
@@ -41,4 +42,18 @@ globalThis.fetch = async () => { throw new Error("у dev не ходимо на 
 const dev = { ...env, ASSETS: { fetch: pagesFetch } };
 assert.equal(await (await worker.fetch(new Request("http://localhost:8787/afisha.html"), dev, ctx)).text(), "pages");
 assert.equal(passed.length, 1);
+
+// Маршрути wrangler.toml (prod): кожна сторінка сайту, з рядком запиту теж (?fbclid з Threads та Instagram, utm з
+// реклами), іде через воркер, інакше лишиться без CSP. Зіставлення — як у Cloudflare (docs: Routes, Matching behavior):
+// шаблон без * — уся адреса разом із запитом, * у кінці — будь-яке продовження.
+const toml = readFileSync(new URL("./wrangler.toml", import.meta.url), "utf8").split("[env.")[0];
+const patterns = [...toml.matchAll(/pattern = "([^"]+)"/g)].map((m) => m[1]);
+const routed = (url) => patterns.some((p) => p.endsWith("*") ? url.startsWith(p.slice(0, -1)) : url === p);
+const pages = readdirSync(new URL("../site/", import.meta.url)).filter((f) => f.endsWith(".html")).map((f) => f.slice(0, -5));
+assert.ok(pages.includes("index") && pages.includes("afisha"));
+for (const page of pages) {
+  const forms = [`/${page}.html`, `/${page}`, ...(page === "index" ? ["/"] : [])];
+  for (const path of forms.flatMap((f) => [f, `${f}?fbclid=x`])) assert.ok(routed(`poriad.app${path}`), `site/${page}.html: ${path} без маршруту — без CSP`);
+}
+for (const path of ["/e/a1000000-0000-4000-8000-000000000005?by=x", "/afisha/kyiv", "/.well-known/assetlinks.json", "/kabinet", "/kabinet.html?fbclid=x"]) assert.ok(routed(`poriad.app${path}`), path);
 console.log("routes ok");

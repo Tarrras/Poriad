@@ -41,6 +41,8 @@ const MAP = { "connect-src": "https://tiles.openfreemap.org", "worker-src": "blo
 // Вхід, запис і RPC зі сторінки — у Supabase напряму; фото й відео подій — з його сховища.
 const supabase = (env) => ({ "connect-src": env.SUPABASE_URL });
 const storage = (env) => ({ "media-src": env.SUPABASE_URL && `${env.SUPABASE_URL}/storage/v1/object/public/` });
+// Кабінет перевіряє вибране відео (тривалість, постер) до вивантаження — з blob:.
+const LOCAL_MEDIA = { "media-src": "blob:" };
 
 /** Частини CSP → рядок: значення однієї директиви склеюються, порожні пропускаються. */
 function csp(...parts) {
@@ -51,7 +53,7 @@ function csp(...parts) {
 const CSP = {
   event: (env) => csp(BASE, SHARE, supabase(env), storage(env)),
   city: () => csp(BASE, SHARE),
-  pages: (env) => csp(BASE, MAP, supabase(env)),
+  pages: (env) => csp(BASE, MAP, supabase(env), storage(env), LOCAL_MEDIA),
 };
 
 const securityHeaders = (policy) => ({
@@ -491,7 +493,7 @@ function androidAssociation() {
   }];
 }
 
-function html(body, status, policy, personal = false) {
+function html(body, status, policy = csp(BASE), personal = false) {
   // 404 — на хвилину: випадкові /e/<uuid> інакше щоразу ходили б у базу. 503 не кешуємо: збій бази мине.
   // Сторінка запрошення — лише браузеру того, хто відкрив: проміжні кеші її не тримають.
   const cache = personal ? `private, max-age=${CACHE_SECONDS}` : status === 200 ? `public, max-age=${CACHE_SECONDS}`

@@ -55,6 +55,7 @@ assert.equal(directive(afisha, "img-src"), "img-src 'self' https: data: blob:");
 assert.equal(directive(afisha, "worker-src"), "worker-src blob:");
 assert.equal(directive(afisha, "child-src"), "child-src blob:");
 assert.equal(directive(afisha, "style-src"), "style-src 'self'");
+assert.equal(directive(afisha, "media-src"), "media-src https://db.invalid/storage/v1/object/public/ blob:", "відео зі сховища й прев'ю в кабінеті");
 const script = await worker.fetch(new Request("https://poriad.app/js/afisha.js"), env, ctx);
 assert.equal(script.headers.get("content-security-policy"), null, "js, css і шрифти — без заголовків сторінки");
 assert.equal(await script.text(), "export {}");
