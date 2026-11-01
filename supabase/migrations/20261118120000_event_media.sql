@@ -44,7 +44,8 @@ begin
 end $$;
 revoke all on function private.assert_media(jsonb,uuid,uuid) from public,anon,authenticated;
 
--- Обкладинка з медіа: перше фото, а якщо самі відео — постер першого. Порожній список — обкладинка як передали.
+-- Обкладинка з медіа: перше фото, а якщо самі відео — постер першого. Новий клієнт (медіа передано) обкладинку
+-- окремо не задає: порожній список — без обкладинки, інакше вона вказувала б на щойно прибраний файл.
 create function private.media_cover(p_media jsonb, p_image_url text) returns text language sql immutable set search_path='' as $$
  select coalesce(
   (select m->>'url' from jsonb_array_elements(p_media) with ordinality t(m,i) where m->>'kind'='photo' order by i limit 1),
@@ -88,7 +89,7 @@ begin
   raise exception 'TOO_MANY_EVENTS' using errcode='P0001'; end if;
  insert into public.events(id,organizer_id,title,description,category,city,address,latitude,longitude,starts_at,ends_at,time_zone,capacity,image_url,min_age,max_age,approval_required,contact_url,media,created_via)
  values(p_id,v_user,p_title,p_description,p_category,p_city,p_address,p_latitude,p_longitude,p_starts_at,p_ends_at,p_time_zone,p_capacity,
-  private.media_cover(v_media,p_image_url),p_min_age,p_max_age,p_approval_required,nullif(btrim(p_contact_url),''),v_media,p_via);
+  case when p_media is null then p_image_url else private.media_cover(p_media,null) end,p_min_age,p_max_age,p_approval_required,nullif(btrim(p_contact_url),''),v_media,p_via);
  return p_id;
 end $$;
 
@@ -112,7 +113,7 @@ begin
  perform private.assert_clean_text(p_city); perform private.assert_clean_text(p_address);
  update public.events set title=p_title,description=p_description,category=p_category,city=p_city,address=p_address,
  latitude=p_latitude,longitude=p_longitude,starts_at=p_starts_at,ends_at=p_ends_at,time_zone=p_time_zone,capacity=p_capacity,
- image_url=case when p_media is null then p_image_url else private.media_cover(p_media,p_image_url) end,
+ image_url=case when p_media is null then p_image_url else private.media_cover(p_media,null) end,
  media=coalesce(p_media,media),
  min_age=p_min_age,max_age=p_max_age,approval_required=p_approval_required,contact_url=nullif(btrim(p_contact_url),''),updated_at=now() where id=p_id;
  perform private.promote_waitlist(p_id);
