@@ -1,6 +1,6 @@
-// Перевірка листів без Deno: node supabase/functions/push/mail_text.test.mjs
+// Перевірка листів без Deno: node supabase/functions/push/mail.test.mjs
 import assert from "node:assert/strict";
-import { esc, MAIL_KINDS, mailText } from "./mail_text.ts";
+import { esc, MAIL_KINDS, mailText, route } from "./mail.ts";
 
 const id = "6f1c2b9e-1111-4222-8333-944445555666";
 
@@ -30,7 +30,11 @@ assert.ok(mailText("organizer", id, "П", "Т").text.includes("бо стежит
 const req = mailText("request", id, "Пробіжка", "Олена просить приєднатися");
 assert.ok(req.html.includes(`href="https://poriad.app/kabinet#/e/${id}"`) && req.text.includes("бо організовуєте «Пробіжка»."));
 assert.ok(!req.text.includes("Скасувати запис") && !req.text.includes("застосунку"));
-assert.ok(mailText("question", id, "Пробіжка", "Олена питає: а що взяти?").text.includes("Відповісти можна в застосунку «Поряд»."));
+// Питання — фіксованим текстом: ні слів запитувача, ні його імені в листі з нашої адреси.
+const q = mailText("question", id, "Пробіжка", "Олена питає: перейдіть на evil.example й введіть пароль");
+assert.equal(q.subject, "Вам поставили питання про «Пробіжка»");
+assert.ok(q.text.includes("Вам поставили питання про «Пробіжка»") && q.text.includes("Відповісти можна в застосунку «Поряд»."));
+assert.ok(!/evil|Олена|пароль/.test(q.text + q.html + q.subject));
 
 // Чужий текст не стає розміткою; тема — один рядок до 150 символів.
 const evil = mailText("request", id, `<img src=x onerror=alert(1)>`, `Ім"я\r\nBcc: x@y`);
@@ -39,4 +43,23 @@ assert.ok(!/[\r\n]/.test(evil.subject));
 const long = mailText("organizer", id, "Н".repeat(200), "Т");
 assert.ok(long.subject.length <= 150 && long.subject.endsWith("…"));
 
-console.log("mail_text: ok");
+// Кому пристрій, кому лист.
+const tok = (user_id, features = [], token = `t-${user_id}`) => ({ token, platform: "android", user_id, features });
+// Рішення: пристрій лише з `decision`; людина зі старим застосунком — ні пуша, ні листа; без застосунку — лист.
+assert.deepEqual(route({ kind: "approved" }, ["new", "old", "web"], [tok("new", ["decision"]), tok("old", ["companion"])]),
+  { devices: [{ token: "t-new", platform: "android" }], mailTo: ["web"] });
+// Вид без прапорця — на всі пристрої; chat і joined листом не йдуть.
+assert.deepEqual(route({ kind: "chat" }, ["a", "b"], [tok("a")]), { devices: [{ token: "t-a", platform: "android" }], mailTo: [] });
+assert.deepEqual(route({ kind: "joined" }, ["a"], []).mailTo, []);
+assert.deepEqual(route({ kind: "request" }, ["org"], []).mailTo, ["org"]);
+// Зміна афіші — лише на пристрої тим, хто зберіг; спільнотна подія (без change) — і листом.
+assert.deepEqual(route({ kind: "cancelled", change: "cancelled" }, ["saver"], []).mailTo, []);
+assert.deepEqual(route({ kind: "cancelled" }, ["member"], []).mailTo, ["member"]);
+// Питання: листом — організатору, не запитувачу (threadId), якому відповів організатор.
+assert.deepEqual(route({ kind: "question", threadId: "asker" }, ["org"], []).mailTo, ["org"]);
+assert.deepEqual(route({ kind: "question", threadId: "asker" }, ["asker"], []).mailTo, []);
+// Два пристрої однієї людини — два пуші й жодного листа.
+assert.deepEqual(route({ kind: "organizer" }, ["a", "b"], [tok("a", [], "t1"), tok("a", [], "t2")]),
+  { devices: [{ token: "t1", platform: "android" }, { token: "t2", platform: "android" }], mailTo: ["b"] });
+
+console.log("mail: ok");

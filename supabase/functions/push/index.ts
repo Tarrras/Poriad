@@ -7,7 +7,7 @@
 // відкривали застосунок (docs/guest-channel.md), а учаснику — про рішення організатора й місце з черги
 // (docs/organizers-1.5.md, 1.1).
 // Вона вирішує, кому слати, бере токени й шле у FCM (Android) і APNs (iOS). Хто не має жодного пристрою, отримує лист
-// (Resend), але лише там, де від нього чекають відповіді чи змінилась його подія: `MAIL_KINDS` у mail_text.ts.
+// (Resend), але лише там, де від нього чекають відповіді чи змінилась його подія: `MAIL_KINDS` у mail.ts.
 // Тихі години для «Стежити» (22:00–09:00 за Києвом) тримає база в `private.notify_push`, ще до виклику: сюди нічний
 // пуш приходить уже вранці — і лист теж.
 //
@@ -24,7 +24,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import * as jose from "npm:jose@5.10.0";
 import { artistText, companionText, organizerText, placeText, winbackText, zoneText, type ArtistLine, type EventLine, type PlaceLine } from "./follow_text.ts";
-import { MAIL_KINDS, mailText, type MailKind } from "./mail_text.ts";
+import { mailText, route, type MailKind, type TokenRow } from "./mail.ts";
 
 type Payload =
   | { type: "message"; message_id: string; event_id: string }
@@ -68,9 +68,6 @@ const CONCURRENCY = 10;
 const TIMEOUT_MS = 10_000;
 // Скільки людей у одному запиті за токенами: id ідуть у рядок адреси, а їх може бути сотні.
 const TOKEN_CHUNK = 100;
-// Пуші, які випущені клієнти не покажуть (Android невідомий kind мовчки відкидає): лише на токени з прапорцем
-// `push_tokens.features`, який реєструє застосунок, що їх знає.
-const FEATURE: Partial<Record<Push["kind"], string>> = { companion: "companion", company: "company", approved: "decision", declined: "decision", promoted: "decision" };
 // Resend приймає до 100 листів одним запитом.
 const MAIL_BATCH = 100;
 
@@ -112,20 +109,19 @@ Deno.serve(async (req) => {
       : payload.type === "decision" ? await forDecision(db, payload)
       : payload.type === "follow" ? await forFollow(db, payload) : await forRequest(db, payload));
     if (!push || recipients.length === 0) return json({ sent: 0, reason: "no recipients" });
-    const feature = FEATURE[push.kind];
-    // Людина з будь-яким пристроєм листа не отримує, навіть якщо її застосунок цього виду ще не знає.
-    const withDevice = new Set<string>();
+    const tokens: TokenRow[] = [];
     for (let i = 0; i < recipients.length; i += TOKEN_CHUNK) {
-      const { data: tokens } = await db.from("push_tokens").select("token,platform,user_id,features").in("user_id", recipients.slice(i, i + TOKEN_CHUNK));
-      for (const t of tokens ?? []) {
-        withDevice.add(t.user_id as string);
-        if (!feature || (t.features as string[]).includes(feature)) list.push({ token: t.token as string, platform: t.platform as Token["platform"] });
-      }
+      const { data } = await db.from("push_tokens").select("token,platform,user_id,features").in("user_id", recipients.slice(i, i + TOKEN_CHUNK));
+      tokens.push(...((data ?? []) as TokenRow[]));
     }
-    // Питання листом — лише організатору: відповідь організатора учаснику (threadId — це він) лишається в застосунку.
-    // Зміна афіші (change) — тим, хто її зберіг у застосунку, а листом — лише спільнотна подія, куди записались.
-    const { kind, threadId, change } = push;
-    if (MAIL_KINDS.includes(kind) && !change) mailTo = recipients.filter((id) => !withDevice.has(id) && !(kind === "question" && id === threadId));
+    const routed = route(push, recipients, tokens);
+    list.push(...routed.devices);
+    mailTo = routed.mailTo;
+    // Про питання — не частіше за лист на годину на розмову: запитувач може писати 20 повідомлень на хвилину.
+    if (push.kind === "question" && mailTo.length > 0) {
+      const { data: due } = await db.rpc("question_mail_due", { p_event: push.eventId, p_thread: push.threadId });
+      if (due !== true) mailTo = [];
+    }
     if (list.length === 0 && mailTo.length === 0) return json({ sent: 0, reason: "no tokens" });
   }
   const message = push;
@@ -570,7 +566,8 @@ async function sendMails(db: ReturnType<typeof createClient>, people: string[], 
         body: JSON.stringify(batch.map((to) => ({ from, to: [to], subject: mail.subject, html: mail.html, text: mail.text }))),
       });
       if (res.ok) mailed += batch.length;
-      else { failed += batch.length; console.error("resend failed", res.status, await res.text()); }
+      // Без тіла: Resend повторює в помилці адреси.
+      else { failed += batch.length; console.error("resend failed", res.status); await res.body?.cancel(); }
     } catch (e) {
       failed += batch.length;
       console.error("resend failed", String(e));
