@@ -39,6 +39,8 @@ private struct ThreadsShare: ViewModifier {
                 copied = true
                 let files = FileManager.default.temporaryDirectory.appendingPathComponent("threads-\(UUID().uuidString)", isDirectory: true)
                 let downloaded = await SystemActions.download(full.media.isEmpty ? full.imageUrl.map { [$0] } ?? [] : full.media.map(\.url), into: files)
+                // Екран зняли, поки вантажилось: меню вже нікому показати.
+                guard !Task.isCancelled else { try? FileManager.default.removeItem(at: files); return }
                 folder = files
                 share = ShareItems(items: [text] + downloaded)
                 event = nil

@@ -33,6 +33,8 @@ struct MyEventsView: View, Equatable {
     @State private var preparingRepeat: String?
     /// «Пост для Threads» з панелі чи рядка: див. `threadsShare`.
     @State private var threadsEvent: Event?
+    /// Одна підготовка за раз: «Повторити» й Threads обидві беруть деталі в єдиний слот відкритої події.
+    private var preparing: Bool { preparingRepeat != nil || threadsEvent != nil }
 
     private var tabs: [MyEventsTab] { signedIn ? [.going, .organizing, .saved, .tickets] : MyEventsTab.companion.guest }
     private var signedIn: Bool { view.signedIn }
@@ -295,10 +297,10 @@ struct MyEventsView: View, Equatable {
                 OrganizerPanel(event: first, unread: unread[first.id] ?? 0,
                                requests: view.requestsFor(id: first.id).filter { !isDeclining($0) },
                                declined: declining.flatMap { $0.eventId == first.id ? $0 : nil },
-                               preparing: preparingRepeat == first.id || threadsEvent?.id == first.id,
+                               preparing: preparing,
                                open: { open($0, from: "my_panel") }, chat: openChat,
                                decline: startDecline, undo: { declining = nil },
-                               threads: { threadsEvent = $0 }, repeatEvent: startRepeat)
+                               threads: startThreads, repeatEvent: startRepeat)
             }
             if events.count > 1 {
                 overline(Copy.next)
@@ -369,7 +371,9 @@ struct MyEventsView: View, Equatable {
             .contextMenu {
                 if own {
                     Button { startRepeat(event) } label: { Label(Copy.repeat_event, systemImage: "arrow.clockwise") }
-                    Button { threadsEvent = event } label: { Label(Copy.threads_post, systemImage: "doc.on.doc") }
+                        .disabled(preparing)
+                    Button { startThreads(event) } label: { Label(Copy.threads_post, systemImage: "doc.on.doc") }
+                        .disabled(preparing)
                 }
             }
             if again {
@@ -382,7 +386,7 @@ struct MyEventsView: View, Equatable {
                     .frame(minHeight: 44)
                 }
                 .buttonStyle(PressableStyle()).fixedSize()
-                .disabled(preparingRepeat != nil)
+                .disabled(preparing)
                 .padding(.bottom, typeSize.isAccessibilitySize ? Space.md : 0)
             }
             if rate {
@@ -405,13 +409,19 @@ struct MyEventsView: View, Equatable {
 
     /// «Повторити»: чернетка з усіма полями, фото й відео. Картка «Моїх подій» медіа не несе — спершу деталі.
     private func startRepeat(_ event: Event) {
-        guard preparingRepeat == nil else { return }
+        guard !preparing else { return }
         preparingRepeat = event.id
         Task {
             let full = await model.withMedia(event)
             preparingRepeat = nil
             if let full, let draft = model.app.repeatDraft(event: full) { repeating = RepeatDraft(draft: draft) }
         }
+    }
+
+    /// «Пост для Threads»: деталі з медіа й файли готує `threadsShare`; поки готує — і ця, і «Повторити» чекають.
+    private func startThreads(_ event: Event) {
+        guard !preparing else { return }
+        threadsEvent = event
     }
 
     /// `from` — панель чи рядок: найближча подія буває і там, і там, а квиток розгортається з того, на який натиснули.

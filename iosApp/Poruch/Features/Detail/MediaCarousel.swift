@@ -10,10 +10,15 @@ struct MediaCarousel: View {
     let media: [EventMedia]
     let scroll: DetailScroll
     @State private var playing: PlayingVideo?
+    /// Зверху відкрили інший екран: відео під ним не грає.
+    @State private var onScreen = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Без автозапуску (Reduce Motion чи вимкнений «Автовідтворення відео») — лише постер; тап однаково відкриває відео.
-    private var autoplay: Bool { !reduceMotion && UIAccessibility.isVideoAutoplayEnabled }
+    /// Грає, лише поки обкладинку видно й екран зверху.
+    private var autoplay: Bool {
+        !reduceMotion && UIAccessibility.isVideoAutoplayEnabled && onScreen && scroll.heroVisible && playing == nil
+    }
 
     var body: some View {
         ScrollView(.horizontal) {
@@ -34,6 +39,8 @@ struct MediaCarousel: View {
         // Назва лежить на затемненні, як на обкладинці. Дотиків не забирає.
         .overlay(photoScrim.allowsHitTesting(false))
         .fullScreenCover(item: $playing) { FullScreenVideo(url: $0.url) }
+        .onAppear { onScreen = true }
+        .onDisappear { onScreen = false }
     }
 
     @ViewBuilder private func page(_ item: EventMedia, playing live: Bool) -> some View {
@@ -41,7 +48,7 @@ struct MediaCarousel: View {
             // Постер під відео: перші кадри ще в дорозі, а чорна сторінка виглядала б зламаною.
             ZStack {
                 if let poster = item.poster.flatMap(URL.init(string:)) { CachedImage(url: poster, maxDimension: heroHeight, fill: true) }
-                if live { LoopingVideo(url: url) }
+                if live { CachedVideo(remote: url) }
             }
                 .contentShape(Rectangle())
                 .onTapGesture { playing = PlayingVideo(url: url) }
@@ -74,6 +81,68 @@ struct MediaDots: View {
 private struct PlayingVideo: Identifiable {
     let url: URL
     var id: URL { url }
+}
+
+/// Відео сторінки з кешу на диску: доки файл їде, видно постер під ним.
+private struct CachedVideo: View {
+    let remote: URL
+    @State private var local: URL?
+    var body: some View {
+        // Основа — прозора, а не порожній Group: на порожньому `.task` не стартує.
+        Color.clear
+            .overlay { if let local { LoopingVideo(url: local) } }
+            .task(id: remote) { local = await VideoCache.file(for: remote) }
+    }
+}
+
+/// Відео каруселі файлом у Caches: петля, повернення на сторінку й повторне відкриття події грають з диска, а не тягнуть
+/// файл зі Storage знову — кожен перегляд там наш трафік, а Spend Cap обмежує весь проєкт (docs/organizers-1.5.md, 1.3).
+/// Коли разом понад [limit], геть те, що грало найдавніше.
+enum VideoCache {
+    /// З запасом на кілька відео з кабінету (до 50 МБ без стиснення) і на десятки з застосунку (до 8 МБ).
+    private static let limit = 100 * 1024 * 1024
+    private static let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 15
+        config.timeoutIntervalForResource = 120
+        return URLSession(configuration: config)
+    }()
+
+    private static var directory: URL {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        let directory = base.appendingPathComponent("event-videos", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    /// Локальний файл відео: з кешу або щойно завантажений. Не вийшло — nil, і сторінка лишається постером.
+    static func file(for remote: URL) async -> URL? {
+        // Подія й імʼя файлу: імена — uuid, тож збігу між подіями нема, а адреса бакета лишається поза іменем.
+        let file = directory.appendingPathComponent(remote.pathComponents.suffix(2).joined(separator: "-"))
+        if FileManager.default.fileExists(atPath: file.path) {
+            try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: file.path)
+            return file
+        }
+        guard let (temp, response) = try? await session.download(from: remote),
+              (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        if (try? FileManager.default.moveItem(at: temp, to: file)) == nil { try? FileManager.default.removeItem(at: temp) }
+        prune()
+        return FileManager.default.fileExists(atPath: file.path) ? file : nil
+    }
+
+    private static func prune() {
+        let keys: [URLResourceKey] = [.contentModificationDateKey, .fileSizeKey]
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: keys)) ?? []
+        let sorted = files.compactMap { url -> (URL, Date, Int)? in
+            guard let values = try? url.resourceValues(forKeys: Set(keys)) else { return nil }
+            return (url, values.contentModificationDate ?? .distantPast, values.fileSize ?? 0)
+        }.sorted { $0.1 > $1.1 }
+        var total = 0
+        for (url, _, size) in sorted {
+            total += size
+            if total > limit { try? FileManager.default.removeItem(at: url) }
+        }
+    }
 }
 
 /// Відео без звуку в циклі, без елементів керування. Чужої музики не перебиває: сесія `ambient`.

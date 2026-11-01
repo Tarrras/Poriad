@@ -466,9 +466,17 @@ let companyPeopleID = "company-people"
 
 /// Зміщення стрічки деталей. Його читають лише вигляди нижче, тож кадр прокрутки не перераховує секції й панель дії.
 @Observable final class DetailScroll {
-    var offset: CGFloat = 0
+    var offset: CGFloat = 0 {
+        // Окремим прапорцем, що міняється рідко: карусель читає його, а не зміщення на кожен кадр прокрутки.
+        didSet {
+            let visible = offset > -heroHeight * 0.8
+            if heroVisible != visible { heroVisible = visible }
+        }
+    }
     /// Сторінка каруселі фото й відео: шапка під смугою статусу показує саме її.
     var mediaPage = 0
+    /// Обкладинку ще видно: прокрутили з екрана — відео каруселі стає.
+    private(set) var heroVisible = true
 }
 
 /// Єдиний шар обкладинки: від краю екрана, під смугою статусу. При потягу вниз розтягується, при прокрутці їде вгору

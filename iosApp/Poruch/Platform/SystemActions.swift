@@ -22,12 +22,21 @@ enum SystemActions {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         var files: [URL] = []
         for raw in urls {
-            guard let url = URL(string: raw), let (temp, _) = try? await URLSession.shared.download(from: url) else { continue }
+            guard !Task.isCancelled else { break }
+            guard let url = URL(string: raw), let (temp, _) = try? await downloads.download(from: url) else { continue }
             let file = folder.appendingPathComponent(url.lastPathComponent)
             if (try? FileManager.default.moveItem(at: temp, to: file)) != nil { files.append(file) } else { try? FileManager.default.removeItem(at: temp) }
         }
         return files
     }
+
+    /// Меню не чекає довше, ніж людина згодна дивитись на неактивну кнопку: файл, що завис, просто пропускаємо.
+    private static let downloads: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 15
+        config.timeoutIntervalForResource = 45
+        return URLSession(configuration: config)
+    }()
 
     /// Маршрут будує системна мапа.
     @MainActor static func openInMaps(_ event: Event) {
