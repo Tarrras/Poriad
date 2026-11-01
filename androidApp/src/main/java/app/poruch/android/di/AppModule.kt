@@ -11,6 +11,7 @@ import app.poruch.android.feature.detail.DetailViewModel
 import app.poruch.android.feature.editor.DraftMediaFiles
 import app.poruch.android.feature.editor.DraftStore
 import app.poruch.android.feature.editor.EditorViewModel
+import app.poruch.android.feature.editor.PublishedViewModel
 import app.poruch.android.feature.explore.ExploreViewModel
 import app.poruch.android.feature.home.HomeViewModel
 import app.poruch.android.feature.mine.MyEventsViewModel
@@ -60,6 +61,7 @@ val appModule = module {
     viewModelOf(::FollowsViewModel)
     viewModelOf(::MyPlacesViewModel)
     viewModelOf(::OnboardingViewModel)
+    viewModelOf(::PublishedViewModel)
     viewModel { (route: Auth) -> AuthViewModel(get(), route.reason) }
     viewModel { (route: Detail) -> DetailViewModel(get(), get(), route.eventId) }
     viewModel { (route: Editor) -> EditorViewModel(get(), get(), get(), get(), route.editingId, route.repeatOf) }

@@ -34,5 +34,7 @@ sealed interface Tab : NavKey
 @Serializable data object Follows : NavKey
 /** «Мої місця»: райони й кола, про нові зустрічі в яких скажемо пушем. З профілю. */
 @Serializable data object MyPlaces : NavKey
+/** «Подію створено» після публікації (1.6): що показати — у спільному стані, тож без аргументів. */
+@Serializable data object Published : NavKey
 /** Лист відновлення відкрив застосунок: окремий екран для нового пароля, поверх стека. */
 @Serializable data object NewPassword : NavKey

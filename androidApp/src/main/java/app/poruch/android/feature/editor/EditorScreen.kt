@@ -142,6 +142,7 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     }
 
     if (state.pickingPoint) PointPicker(state, onIntent)
+    if (state.publishing) PublishingOverlay(state)
 
     state.discarding?.let { what ->
         val changes = what == Discard.CHANGES
@@ -249,7 +250,7 @@ private fun AboutStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         },
         error = state.problem(DraftField.DESCRIPTION)
     )
-    if (state.mediaReady) MediaSection(state, onIntent)
+    MediaSection(state, onIntent)
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Text(
             stringResource(R.string.category_single).uppercase(), style = MaterialTheme.typography.labelSmall,

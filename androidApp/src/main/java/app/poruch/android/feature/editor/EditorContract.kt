@@ -41,8 +41,11 @@ data class EditorForm(
     val point: Pair<Double, Double>?
         get() = latitude.toDoubleOrNull()?.let { lat -> longitude.toDoubleOrNull()?.let { lon -> lat to lon } }
 
-    /** Null, поки не розбирається кожне поле. Кнопка публікації дивиться сюди. [media] null — медіа події не чіпати. */
-    fun toDraft(imageUrl: String?, media: List<DraftMedia>?): EventDraft? = runCatching {
+    /**
+     * Null, поки не розбирається кожне поле. Кнопка публікації дивиться сюди. [media] null — медіа події не чіпати;
+     * [mediaBase] — з чернетки правки ([app.poruch.shared.PoruchApp.editDraft]).
+     */
+    fun toDraft(imageUrl: String?, media: List<DraftMedia>?, mediaBase: Set<String>? = null): EventDraft? = runCatching {
         val zone = ZoneId.of(timeZone)
         EventDraft(
             title = title.trim(), description = description.trim(), category = category,
@@ -52,7 +55,8 @@ data class EditorForm(
             endsAt = LocalDateTime.parse(ends, LOCAL_FORMAT).atZone(zone).toInstant().toString(),
             timeZone = timeZone, capacity = capacity.toInt(), imageUrl = imageUrl,
             minAge = minAge.toInt(), maxAge = maxAge.trim().takeIf { it.isNotEmpty() }?.toInt(),
-            approvalRequired = approvalRequired, contactUrl = ContactRules.normalize(contactUrl), media = media
+            approvalRequired = approvalRequired, contactUrl = ContactRules.normalize(contactUrl), media = media,
+            mediaBase = mediaBase
         ).also {
             if (!SafetyRules.isAgeLimit(it.minAge, it.maxAge)) error("age limits")
             if (!ContactRules.isContactUrl(it.contactUrl)) error("contact url")
@@ -143,8 +147,8 @@ data class EditorState(
     val trimmed: Set<String> = emptySet(),
     /** «Завантажуємо 2 з 4» під час публікації. */
     val upload: app.poruch.shared.MediaUpload? = null,
-    /** Медіа відомі: нова подія — одразу, правка — коли приїхали повні деталі. До того розділ схований. */
-    val mediaReady: Boolean = true
+    /** Нова подія публікується: накладка з анімацією й лічильником файлів. */
+    val publishing: Boolean = false
 ) {
     val point get() = form.point
     val pointChosen get() = point != null
@@ -204,5 +208,7 @@ sealed interface EditorEffect {
     data object Close : EditorEffect
     /** Гість натиснув «Опублікувати»: вхід поверх редактора, після нього подія публікується сама. */
     data object SignIn : EditorEffect
+    /** Нову подію опубліковано: редактор поступається екрану «Подію створено». */
+    data object Published : EditorEffect
     data object AskNotificationPermission : EditorEffect
 }

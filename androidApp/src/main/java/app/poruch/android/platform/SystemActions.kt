@@ -68,18 +68,26 @@ fun Context.shareCompanion(parent: Event, companionId: String) {
  * «Пост для Threads» (docs/organizers-1.5.md, 1.5): системне меню з текстом і всіма фото й відео події. Threads з меню
  * бере лише медіа, тож текст ще й у буфері — людина вставляє його сама. Файли — копіями в кеші для FileProvider.
  */
-suspend fun Context.shareThreadsPost(event: Event, text: String) {
+suspend fun Context.shareThreadsPost(media: List<EventMedia>, text: String) {
     // Файли качаються кілька секунд: другий тап за цей час не починає ще одне завантаження й друге меню.
     if (!preparingThreadsPost.compareAndSet(false, true)) return
-    try { prepareThreadsPost(event, text) } finally { preparingThreadsPost.set(false) }
+    try { prepareThreadsPost(media, text) } finally { preparingThreadsPost.set(false) }
+}
+
+/** Фото й відео події для посту; подія до 1.5 — її обкладинка. */
+val Event.shareMedia: List<EventMedia> get() = media.ifEmpty { listOfNotNull(imageUrl?.let { EventMedia(MediaKind.PHOTO, it) }) }
+
+/** «Поділитися з другом» з «Подію створено»: лише посилання, особисте `?by=` від спільного шару. */
+fun Context.shareLink(link: String) {
+    val intent = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, link)
+    startActivity(Intent.createChooser(intent, getString(R.string.share_friend)))
 }
 
 private val preparingThreadsPost = AtomicBoolean(false)
 
-private suspend fun Context.prepareThreadsPost(event: Event, text: String) {
+private suspend fun Context.prepareThreadsPost(media: List<EventMedia>, text: String) {
     copyText(text)
     toast(R.string.threads_copied)
-    val media = event.media.ifEmpty { listOfNotNull(event.imageUrl?.let { EventMedia(MediaKind.PHOTO, it) }) }
     val files = withContext(Dispatchers.IO) {
         // Своя тека на кожне поширення: застосунок, куди поділились, може ще читати файли попереднього. Старші за годину
         // вже нікому не потрібні.
@@ -137,12 +145,17 @@ fun Context.openStorePage(): Boolean =
 fun Context.addToCalendar(event: Event): Boolean {
     val start = runCatching { Instant.parse(event.startsAt).toEpochMilli() }.getOrNull() ?: return false
     val end = runCatching { Instant.parse(event.endsAt).toEpochMilli() }.getOrNull() ?: (start + DEFAULT_DURATION_MS)
+    return addToCalendar(event.title, event.description, "${event.city}, ${event.address}", event.timeZone, start, end)
+}
+
+/** Системний календар з готовими полями, без дозволів: людина сама зберігає подію в календарі. */
+fun Context.addToCalendar(title: String, description: String?, location: String, timeZone: String, start: Long, end: Long): Boolean {
     val intent = Intent(Intent.ACTION_INSERT)
         .setData(CalendarContract.Events.CONTENT_URI)
-        .putExtra(CalendarContract.Events.TITLE, event.title)
-        .putExtra(CalendarContract.Events.DESCRIPTION, event.description)
-        .putExtra(CalendarContract.Events.EVENT_LOCATION, "${event.city}, ${event.address}")
-        .putExtra(CalendarContract.Events.EVENT_TIMEZONE, event.timeZone)
+        .putExtra(CalendarContract.Events.TITLE, title)
+        .putExtra(CalendarContract.Events.DESCRIPTION, description)
+        .putExtra(CalendarContract.Events.EVENT_LOCATION, location)
+        .putExtra(CalendarContract.Events.EVENT_TIMEZONE, timeZone)
         .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, start)
         .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, end)
     return runCatching { startActivity(intent) }.isSuccess

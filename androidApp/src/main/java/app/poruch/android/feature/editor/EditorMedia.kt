@@ -28,6 +28,8 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import app.poruch.android.R
@@ -216,6 +218,29 @@ private fun MediaTile(
         // Під плиткою, а не на ній: на 88 dp «Обкладинка» переносилась.
         if (first) Text(stringResource(R.string.media_cover), style = MaterialTheme.typography.labelSmall, color = colors.ink, maxLines = 1)
         if (trimmed) Text(stringResource(R.string.media_video_trimmed), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+    }
+}
+
+/**
+ * Поки публікується нова подія (1.6): квиток друкується в петлі, під ним — «Завантажуємо 2 з 4» чи «Публікуємо подію…».
+ * Накриває редактор і ловить дотики: правити чернетку, поки вона їде на сервер, нема чого. Без анімацій — перший кадр.
+ */
+@Composable
+internal fun PublishingOverlay(state: EditorState) {
+    val colors = Poruch.colors
+    Box(
+        Modifier.fillMaxSize().background(colors.canvas.copy(alpha = 0.96f))
+            .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            BrandAnimation(R.raw.publishing, Modifier.size(200.dp), still = Poruch.reducedMotion)
+            Text(
+                state.upload?.let { stringResource(R.string.media_uploading, it.current, it.total) } ?: stringResource(R.string.publishing_caption),
+                style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+            )
+        }
     }
 }
 
