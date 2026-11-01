@@ -29,7 +29,9 @@ export const remember = (list) => list.forEach((card) => cards.set(card.id, card
  * Фото з джерела; не завантажилось — зникає, і квиток лишається друкованим. Referer не ховаємо: джерело має бачити, що
  * обкладинку показує poriad.app, і мати змогу це закрити (docs/legal-audit-afisha-2026-10-28.md).
  */
-export const photo = (card, lazy = true) => `<img src="${esc(card.image_url)}" alt="" ${lazy ? 'loading="lazy" ' : ""}decoding="async" onerror="this.remove()">`;
+export const photo = (card, lazy = true) => `<img src="${esc(card.image_url)}" alt="" ${lazy ? 'loading="lazy" ' : ""}decoding="async" data-photo>`;
+// error не спливає, тож ловимо на зануренні: один обробник на всі фото, без onerror в HTML, який CSP не пустить.
+document.addEventListener("error", (event) => { if (event.target.matches?.("img[data-photo]")) event.target.remove(); }, true);
 
 /** Обкладинка шторки: фото врівень із краєм; без фото блок ховається, і назва друкується великим кеглем. */
 export function art(card) {
@@ -138,7 +140,7 @@ export async function openEvent(id, entry = null) {
     if (!full) throw new Error("not found");
     renderEvent(full, entry);
   } catch {
-    eventDialog.querySelector(".sheet-scroll").innerHTML = `<div class="detail" style="padding-top:72px"><div class="empty"><b>Подію не знайдено</b>
+    eventDialog.querySelector(".sheet-scroll").innerHTML = `<div class="detail lost"><div class="empty"><b>Подію не знайдено</b>
       <span>Її могли приховати, або вона вже минула.</span><button class="btn secondary" type="button" data-close>Повернутися до афіші</button></div></div>`;
     eventDialog.querySelectorAll("[data-close]").forEach((b) => { b.onclick = closeEvent; });
   }

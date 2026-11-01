@@ -184,12 +184,13 @@ function syncUrl() {
   history.replaceState(history.state, "", url);
 }
 
-// ---- Мапа: MapLibre з CDN, лише коли людина її відкрила. Стиль — порт стилю застосунку, тайли OpenFreeMap.
+// ---- Мапа: MapLibre зі свого домену (site/vendor), лише коли людина її відкрила. Стиль — порт стилю застосунку,
+// тайли OpenFreeMap.
 let mapReady;
 function loadMap() {
   return mapReady ??= new Promise((resolve, reject) => {
-    const css = Object.assign(document.createElement("link"), { rel: "stylesheet", href: "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" });
-    const js = Object.assign(document.createElement("script"), { src: "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" });
+    const css = Object.assign(document.createElement("link"), { rel: "stylesheet", href: "vendor/maplibre-gl@4.7.1/maplibre-gl.css" });
+    const js = Object.assign(document.createElement("script"), { src: "vendor/maplibre-gl@4.7.1/maplibre-gl.js" });
     js.onload = () => {
       const city = cityOf(state.city);
       // Мапа у своєму вигляді займає весь екран під фільтрами, тож пересувається одним пальцем, як у застосунку.
@@ -277,7 +278,7 @@ async function renderMap() {
       mapCity = state.city;
     }
   } catch {
-    $("[data-map]").innerHTML = `<div class="empty" style="height:100%;justify-content:center"><b>Мапа не завантажилась</b><span>Список подій працює й без неї.</span></div>`;
+    $("[data-map]").innerHTML = `<div class="empty"><b>Мапа не завантажилась</b><span>Список подій працює й без неї.</span></div>`;
   }
 }
 

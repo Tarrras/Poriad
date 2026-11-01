@@ -6,18 +6,7 @@
 <title>Завантажити «Поряд»</title>
 <meta name="robots" content="noindex">
 <!-- Куди веде QR-код сайту (poriad.app/app): одразу в стор телефона, на комп’ютері — на лендинг. -->
-<script>
-  // Мітка джерела для App Store Connect і Play Console (див. js/poriad.js): QR — qr, сторінка події — ?from=event.
-  var ua = navigator.userAgent, from = new URLSearchParams(location.search).get("from") || "";
-  var ct = /^[a-z]{1,12}$/.test(from) ? from : "qr";
-  var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  if (ios) location.replace("https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&mt=8&ct=" + ct);
-</script>
-<script type="module">
-  // Решта: Android — у Google Play, щойно його ввімкнено в js/poriad.js (PLAY_LIVE); поки ні, і на комп'ютері — лендинг.
-  import { playUrl } from "./js/poriad.js?v=11";
-  if (!ios) location.replace((/Android/.test(ua) && playUrl(ct)) || "./#download");
-</script>
+<script src="js/app.js?v=11"></script>
 <link rel="stylesheet" href="tokens.css?v=11">
 <link rel="stylesheet" href="style.css?v=11">
 <link rel="icon" href="icon.png">
