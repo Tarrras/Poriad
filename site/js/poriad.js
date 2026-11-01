@@ -267,14 +267,19 @@ function calendarPlace(card) {
   return parts.filter((v, i) => !parts.some((w, j) => j !== i && inside(v, w) && (w.length > v.length || j < i))).join(", ");
 }
 
-/** Файл .ics (RFC 5545): рядки через CRLF, текст екрановано, рядки довші за 75 байтів згорнуто. */
-export function icsFile(card, now = new Date()) {
-  const text = (value) => value.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\r?\n/g, "\\n");
+/**
+ * Файл .ics (RFC 5545): рядки через CRLF, текст екрановано, рядки довші за 75 байтів згорнуто. `before` — нагадування
+ * (тривалість ISO 8601): сайт — за годину, запис з вебу (`/e/{id}.ics`) — за 3 години, бо листа-нагадування нема.
+ */
+export function icsFile(card, now = new Date(), before = "PT1H") {
+  // Будь-який розрив рядка (і одиночний \r) — «\n», решта керівних символів геть: інакше назва з \r додала б файлу
+  // свою властивість (URL:, BEGIN:VALARM).
+  const text = (value) => value.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\r\n|\r|\n/g, "\\n").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
   const title = text(displayTitle(card.title));
   return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Poriad//poriad.app//UK", "METHOD:PUBLISH", "BEGIN:VEVENT",
     `UID:${card.id}@poriad.app`, `DTSTAMP:${calendarTime(now)}`, `DTSTART:${calendarTime(new Date(card.starts_at))}`, `DTEND:${calendarTime(calendarEnd(card))}`,
     `SUMMARY:${title}`, `LOCATION:${text(calendarPlace(card))}`, `URL:${eventUrl(card)}`, `DESCRIPTION:${eventUrl(card)}`,
-    "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${title}`, "TRIGGER:-PT1H", "END:VALARM", "END:VEVENT", "END:VCALENDAR",
+    "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${title}`, `TRIGGER:-${before}`, "END:VALARM", "END:VEVENT", "END:VCALENDAR",
   ].map(foldLine).join("\r\n") + "\r\n";
 }
 function foldLine(line) {

@@ -15,11 +15,27 @@ routes = [
 SUPABASE_URL = "https://tzdogzdvctlumsqlqskr.supabase.co"
 SUPABASE_KEY = "sb_publishable_RoY0wFzTOcXlmOIYC0UE-w_fOt5rXPq"
 
+# Підказки адрес кабінету (/api/geocode, worker/kabinet.mjs): 30 запитів повз кеш за хвилину з однієї адреси. Ліміт —
+# у межах локації Cloudflare й приблизний; namespace_id — свій лічильник (у dev — інший, щоб не ділити з prod).
+[[ratelimits]]
+name = "GEOCODE_LIMIT"
+namespace_id = "1501"
+  [ratelimits.simple]
+  limit = 30
+  period = 60
+
 # Локальна перевірка: `npx wrangler dev --env dev` → http://localhost:8787. Сайт — тека site/ замість Pages, дані — dev.
 # Без маршрутів: випадковий `wrangler deploy --env dev` не перехопить poriad.app.
 [env.dev]
 routes = []
 assets = { directory = "../site", binding = "ASSETS", run_worker_first = true }
+
+[[env.dev.ratelimits]]
+name = "GEOCODE_LIMIT"
+namespace_id = "1502"
+  [env.dev.ratelimits.simple]
+  limit = 30
+  period = 60
 
 [env.dev.vars]
 SUPABASE_URL = "https://ojadoyxeahepycpmjuvf.supabase.co"
