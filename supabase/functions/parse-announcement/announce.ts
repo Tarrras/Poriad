@@ -7,10 +7,11 @@ const API = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-haiku-5-5";
 const TIMEOUT_MS = 20_000;
 const TITLE_MAX = 120;
-// Ключі `EventCategory` з KMP (core/domain/.../EventCategory.kt) і їхні назви в застосунку.
+// Ключі `EventCategory` з KMP (core/domain/.../EventCategory.kt) і їхні назви в застосунку. Без `cinema`: її показують
+// лише сеансам кінотеатрів з імпорту (cinema_shown за source_id), тож спільнотна подія з нею зникла б з видачі.
 const CATEGORIES: Record<string, string> = {
   music: "Музика", sport: "Спорт", art: "Мистецтво", food: "Їжа", games: "Ігри", outdoors: "На природі",
-  social: "Зустрічі", comedy: "Стендап", kids: "Дітям", tours: "Екскурсії", conference: "Конференції", cinema: "Кіно",
+  social: "Зустрічі", comedy: "Стендап", kids: "Дітям", tours: "Екскурсії", conference: "Конференції",
 };
 const CONTACT_HOSTS = ["t.me", "instagram.com", "www.instagram.com"];
 const LOCAL = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
@@ -109,7 +110,7 @@ export function fields(answer: unknown, input: Input, now: Date): Fields | null 
 
   const title = typeof o.title === "string" ? plain(o.title) : "";
   const out: Fields = { title: clip(title.length >= 3 ? title : firstLine(input.text)), description: describe(input.text) };
-  if (typeof o.category === "string" && o.category in CATEGORIES) out.category = o.category;
+  if (typeof o.category === "string" && Object.hasOwn(CATEGORIES, o.category)) out.category = o.category;
   const nowLocal = localNow(input.tz, now);
   if (typeof o.starts_at === "string" && validLocal(o.starts_at) && o.starts_at > nowLocal) {
     out.starts_at = o.starts_at;

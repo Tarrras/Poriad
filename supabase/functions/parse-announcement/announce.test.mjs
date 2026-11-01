@@ -53,6 +53,8 @@ assert.equal(f({ starts_at: "2026-11-31T09:00" }).starts_at, undefined, "no such
 assert.equal(f({ starts_at: "8 листопада о 9" }).starts_at, undefined, "not the local format");
 assert.equal(f({ ends_at: "2026-11-08T10:00" }).ends_at, undefined, "an end without a start");
 assert.equal(f({ capacity: 2.5 }).capacity, undefined);
+assert.equal(f({ category: "cinema" }).category, undefined, "cinema is for imported screenings only");
+assert.equal(f({ category: "toString" }).category, undefined, "not an inherited key");
 assert.equal(f({ contact_url: "https://instagram.com/club.kyiv/?igsh=abc" }, "Пишіть: www.instagram.com/club.kyiv").contact_url,
   "https://instagram.com/club.kyiv", "instagram link from the text, tracking stripped");
 assert.equal(f({ contact_url: "https://t.me.evil.com/run_together" }).contact_url, undefined, "only t.me and instagram");
@@ -80,7 +82,7 @@ assert.equal(sent.body.model, "claude-haiku-5-5");
 assert.deepEqual(sent.body.tool_choice, { type: "tool", name: "fill_event" });
 assert.equal(sent.body.temperature, undefined);
 assert.deepEqual(sent.body.tools[0].input_schema.properties.category.enum,
-  ["music", "sport", "art", "food", "games", "outdoors", "social", "comedy", "kids", "tours", "conference", "cinema"]);
+  ["music", "sport", "art", "food", "games", "outdoors", "social", "comedy", "kids", "tours", "conference"]);
 assert.ok(sent.body.messages[0].content.includes(`<announcement>\n${text}\n</announcement>`));
 assert.ok(sent.body.messages[0].content.includes("Сьогодні: 2026-11-01, неділя"));
 assert.deepEqual(request(input), sent.body);
