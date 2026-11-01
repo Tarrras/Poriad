@@ -72,8 +72,8 @@ supabase secrets set APNS_KEY="$(cat ~/.keys/AuthKey_85C6JXDXN2.p8)" APNS_KEY_ID
 ## 5. Листи тим, у кого нема застосунку (1.5)
 
 Хто не має жодного токена, отримує замість пуша лист через Resend (docs/organizers-1.5.md, «Листи»): `request`,
-`question` (лише організатору), `approved`, `declined`, `promoted`, `moved` і `cancelled` спільнотної події, `organizer`.
-Лише на підтверджену пошту з `auth.users`. Тексти — `supabase/functions/push/mail_text.ts`.
+`question` (лише організатору, фіксованим текстом і не частіше за раз на годину на розмову), `approved`, `declined`, `promoted`, `moved` і `cancelled` спільнотної події, `organizer`.
+Лише на підтверджену пошту з `auth.users`. Кому й що — `supabase/functions/push/mail.ts`.
 
 ```bash
 supabase secrets set RESEND_API_KEY='re_…' MAIL_FROM='«Поряд» <noreply@poriad.app>' --project-ref ojadoyxeahepycpmjuvf

@@ -418,6 +418,11 @@ R6–R7).
   service role (не більше 20 на годину з адреси, замок на адресу), cron `forget-announce-calls` (`23 * * * *`).
 - Функція `parse-announcement`: деплой з `--no-verify-jwt` (гість кличе публікованим ключем), секрет
   `ANTHROPIC_API_KEY`. Адреса — перша в `x-forwarded-for`: на dev підроблений заголовок клієнта її не змінив.
-- `tests/member_decision_push.sql`, `tests/announce_calls.sql` — PASS на dev 2026-11-01; там само PASS `waitlist`,
-  `contact_and_requests`, `companions`, `company_intents`, `push`, `safety`, `chat`, `access_and_transactions`,
-  `account_deletion`.
+- `20261120130000_question_mail_and_limits.sql` (правки з рев'ю): блокування того, хто просився, — не `declined`;
+  анонс рахує IPv6 за мережею /64 і має стелю 1000 викликів на годину на всіх; `public.question_mail_due(event, thread)`
+  для service role — лист організатору про питання не частіше за раз на годину на розмову (`private.question_mails`).
+- `delete-account`: акаунт з поштою підтверджує видалення паролем або входом не старшим за 10 хв (claim `amr`,
+  `reauth.ts`) — так видаляється акаунт, створений кодом з пошти, у якого пароля нема.
+- `tests/member_decision_push.sql`, `tests/announce_calls.sql`, `tests/question_mails.sql` — PASS на dev 2026-11-01,
+  разом з усіма `tests/*.sql`, крім `winback.sql` (падав і до 1.5: з `cinema` інтересів законно 12, а тест чекає
+  відмови на 12).
