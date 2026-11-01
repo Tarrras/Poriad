@@ -797,3 +797,112 @@ a.row:hover { background: var(--surface-muted); }
   .join-sheet { margin: auto 0 0; width: 100%; }
   .join-sheet .install-box { max-height: 92svh; border-radius: var(--r-xl) var(--r-xl) 0 0; padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
 }
+
+/* ================= Кабінет організатора (kabinet.html) ================= */
+/* Форма на поверхні квитка: поля — тоном полотна, без рамок удень; заголовки розділів — вузьким голосом квитка. */
+.kab-main { padding-top: 24px; min-height: 60vh; }
+.kab-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; margin: 8px 0 28px; }
+.kab-head h1 { font-size: clamp(36px, 4vw, 52px); line-height: 1; letter-spacing: -.02em; }
+.kab-head.small { margin: 0 0 14px; align-items: center; }
+.kab-head.small h2 { font-size: 28px; line-height: 32px; }
+.kab-sub { font-size: 28px; line-height: 32px; margin: 40px 0 14px; }
+.kab-back { display: inline-block; margin-top: 4px; font: 500 15px/20px var(--font); color: var(--ink-secondary); }
+.kab-back:hover { color: var(--ink); }
+.kab-place { margin-top: 8px; font: 400 17px/24px var(--font); color: var(--ink-secondary); }
+.kab-hint, .kab-note { font: 400 14px/20px var(--font); color: var(--ink-secondary); }
+.kab-note:empty, .kab-error:empty { display: none; }
+.kab-error { font: 500 15px/21px var(--font); color: var(--danger); }
+.kab-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.kab-danger { color: var(--danger); }
+.kab-wide { width: 100%; }
+
+/* Мої події: рядок — малий корінець і назва, лічильники під нею. */
+[data-upcoming], [data-past] { display: flex; flex-direction: column; gap: 10px; }
+.kab-event { display: flex; align-items: center; gap: 16px; padding: 12px 16px 12px 12px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--edge); transition: transform .28s var(--spring); }
+.kab-event:hover { transform: translateY(-1px); }
+.kab-event .kab-text { flex: 1; min-width: 0; }
+.kab-event h3 { font-size: 22px; line-height: 25px; }
+.kab-event p { font: 400 15px/21px var(--font); color: var(--ink-secondary); margin-top: 2px; }
+.kab-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+.kab-stats span:not(.stamp) { color: var(--ink); }
+.kab-stats .kab-waiting { color: var(--accent-text); font-weight: 600; }
+.kab-go { transform: rotate(-90deg); color: var(--ink-tertiary); }
+
+/* Подія: дії, «опубліковано», учасники таблицею. */
+.kab-done { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 16px 0 0; padding: 14px 18px; border-radius: var(--r-md); background: var(--success-container); color: var(--on-success-container); font: 400 15px/21px var(--font); }
+.kab-done b { font: 700 20px/24px var(--cond); }
+.kab-tools { display: flex; flex-wrap: wrap; gap: 10px; }
+.kab-people { margin-top: 44px; }
+.kab-table-wrap { overflow-x: auto; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--edge); }
+.kab-table { width: 100%; border-collapse: collapse; font: 400 15px/21px var(--font); }
+.kab-table th, .kab-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--hairline); white-space: nowrap; }
+.kab-table thead th { font: 600 11px/14px var(--font); letter-spacing: 1px; text-transform: uppercase; color: var(--ink-tertiary); }
+.kab-table tbody tr:last-child > * { border-bottom: 0; }
+.kab-table tbody th { font-weight: 600; }
+.kab-table .kab-act { text-align: right; }
+.kab-act .btn + .btn { margin-left: 8px; }
+.kab-people .kab-hint { margin-top: 12px; }
+
+/* Редактор: форма зліва, квиток-чернетка справа (на телефоні — лише форма). */
+.kab-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; align-items: start; }
+.kab-form { display: flex; flex-direction: column; gap: 16px; }
+.kab-card { margin: 0; padding: 22px 24px 24px; border: 1px solid var(--edge); border-radius: var(--r-lg); background: var(--surface); display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.kab-card > legend { float: left; width: 100%; padding: 0; font: 800 26px/30px var(--cond); letter-spacing: -.01em; }
+.kab-card > legend + * { clear: both; }
+.kab-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.kab-field > span:first-child, .kab-field > label { font: 600 14px/18px var(--font); color: var(--ink-secondary); }
+.kab-field small { font-weight: 400; color: var(--ink-tertiary); }
+.kab input:not([type=checkbox]):not([type=file]), .kab textarea, .kab select { width: 100%; min-height: 48px; padding: 0 14px; border: 1px solid var(--edge); border-radius: var(--r-sm);
+  background: var(--canvas); color: var(--ink); font: 400 16px/22px var(--font); transition: box-shadow .2s; }
+.kab textarea { padding: 12px 14px; resize: vertical; }
+.kab input:focus, .kab textarea:focus, .kab select:focus { outline: none; box-shadow: 0 0 0 2px var(--ink); }
+.kab input::placeholder, .kab textarea::placeholder { color: var(--ink-tertiary); }
+.kab-when { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.kab-chips { flex-wrap: wrap; overflow: visible; align-items: center; }
+.kab-check { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+.kab-check input { width: 22px; height: 22px; margin: 1px 0 0; flex: none; accent-color: var(--ink); }
+.kab-check span { display: flex; flex-direction: column; font: 400 16px/22px var(--font); }
+.kab-check small { font: 400 14px/20px var(--font); color: var(--ink-secondary); }
+.kab-or { text-align: center; font: 400 14px/20px var(--font); color: var(--ink-tertiary); }
+.kab-preview { position: sticky; top: 96px; display: flex; flex-direction: column; gap: 12px; }
+.kab-preview .poster { width: 100%; }
+
+/* Фото й відео: плитки 4:5, перша — обкладинка. */
+.kab-media { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; border-radius: var(--r-md); }
+.kab-media.drop { outline: 2px dashed var(--ink); outline-offset: 4px; }
+.kab-tile { position: relative; aspect-ratio: 4 / 5; border-radius: var(--r-sm); overflow: hidden; background: var(--canvas-tint); }
+.kab-tile img { width: 100%; height: 100%; object-fit: cover; }
+.kab-tile .stamp { position: absolute; left: 8px; bottom: 8px; }
+.kab-play { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 26px; text-shadow: 0 1px 6px rgba(0,0,0,.5); pointer-events: none; }
+.kab-x { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.5); color: #fff; }
+.kab-x .ico { width: 16px; height: 16px; }
+.kab-chip-btn { position: absolute; left: 6px; bottom: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: rgba(0,0,0,.5); color: #fff; font: 600 13px/16px var(--font); }
+.kab-add { width: 100%; aspect-ratio: 4 / 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 10px; border: 1.5px dashed var(--ink-tertiary); border-radius: var(--r-sm);
+  color: var(--ink); font: 600 14px/18px var(--font); text-align: center; transition: background .2s; }
+.kab-add:hover { background: var(--surface-muted); }
+.kab-add small { font: 400 12px/16px var(--font); color: var(--ink-tertiary); }
+
+/* Адреса з підказками й мапа з крапкою. */
+.kab-suggest { position: relative; }
+.kab-places { position: absolute; z-index: 10; top: 100%; left: 0; right: 0; margin: 6px 0 0; padding: 6px; list-style: none; border-radius: var(--r-md); background: var(--surface-raised); box-shadow: var(--shadow-overlay); }
+.kab-places li { display: flex; flex-direction: column; padding: 10px 12px; border-radius: var(--r-xs); cursor: pointer; }
+.kab-places li:hover, .kab-places li[aria-selected="true"] { background: var(--surface-muted); }
+.kab-places b { font: 600 15px/20px var(--font); }
+.kab-places small { font: 400 13px/18px var(--font); color: var(--ink-secondary); }
+.kab-map { height: 340px; border-radius: var(--r-md); overflow: hidden; background: var(--canvas-tint); }
+.kab-map .maplibregl-ctrl-attrib { font: 400 11px/16px var(--font); }
+
+.kab-auth > div { display: flex; flex-direction: column; gap: 14px; }
+.kab-auth .kab-row .btn { flex: 1; }
+
+@media (max-width: 900px) {
+  .kab-grid { grid-template-columns: minmax(0, 1fr); }
+  .kab-preview { display: none; }
+}
+@media (max-width: 640px) {
+  .kab-card { padding: 18px 16px 20px; }
+  .kab-event { gap: 12px; padding: 10px 12px 10px 10px; }
+  .kab-event h3 { font-size: 19px; line-height: 22px; }
+  .kab-tools .btn { flex: 1 1 auto; }
+  .kab-map { height: 300px; }
+}
