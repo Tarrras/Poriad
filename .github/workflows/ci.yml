@@ -1,4 +1,4 @@
-# Тести на кожен push і PR: конвеєр імпорту (без мережі й бази) і спільний KMP-код на JVM.
+# Тести на кожен push і PR: конвеєр імпорту (без мережі й бази), спільний KMP-код на JVM, воркер і сайт (Node з образу).
 # Android SDK для конфігурації :androidApp уже є на ubuntu-latest (ANDROID_HOME), google-services.json у git.
 name: ci
 on:
@@ -12,6 +12,12 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - run: python3 -m unittest discover -s tools/ingest -p 'test_*.py' -t .
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # --test запускає кожен файл окремим процесом: `node worker/*.test.mjs` прогнав би лише перший.
+      - run: node --test worker/*.test.mjs tools/site_test.mjs tools/auth_test.mjs
   kmp:
     runs-on: ubuntu-latest
     steps:

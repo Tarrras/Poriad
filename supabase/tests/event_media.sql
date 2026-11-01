@@ -69,7 +69,7 @@ end $$;
 set local role authenticated;
 do $$ begin
  perform set_config('request.jwt.claim.sub',current_setting('test.host'),true);
- -- Лише відео: обкладинка — його постер. Порожній список — обкладинка як передали.
+ -- Лише відео: обкладинка — його постер. Порожній список — без обкладинки, навіть якщо клієнт передав стару.
  perform public.update_event(current_setting('test.event')::uuid,'Media','Video only','social','Kyiv','Podil',50.46,30.52,
   now()+interval '2 days',now()+interval '2 days 3 hours','Europe/Kyiv',10,null,18,null,false,null,
   jsonb_build_array(jsonb_build_object('kind','video','url',current_setting('test.vdir')||'clip.mp4','poster',current_setting('test.dir')||'clip.jpg')));
@@ -83,7 +83,7 @@ set local role authenticated;
 do $$ begin
  perform set_config('request.jwt.claim.sub',current_setting('test.host'),true);
  perform public.update_event(current_setting('test.event')::uuid,'Media','Media cleared','social','Kyiv','Podil',50.46,30.52,
-  now()+interval '2 days',now()+interval '2 days 3 hours','Europe/Kyiv',10,null,18,null,false,null,'[]'::jsonb);
+  now()+interval '2 days',now()+interval '2 days 3 hours','Europe/Kyiv',10,current_setting('test.dir')||'clip.jpg',18,null,false,null,'[]'::jsonb);
 end $$;
 reset role;
 do $$ begin

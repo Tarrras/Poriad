@@ -69,6 +69,19 @@ supabase secrets set APNS_KEY="$(cat ~/.keys/AuthKey_85C6JXDXN2.p8)" APNS_KEY_ID
 - Написати в чат з іншого акаунта: у Dashboard → Edge Functions → push → Logs має бути виклик зі `sent: 1`.
 - Без секретів провайдера в логах буде `FCM_SERVICE_ACCOUNT is not set` або `APNS_* are not set`, і це очікувано.
 
+## 5. Листи тим, у кого нема застосунку (1.5)
+
+Хто не має жодного токена, отримує замість пуша лист через Resend (docs/organizers-1.5.md, «Листи»): `request`,
+`question` (лише організатору, не частіше за раз на годину на розмову; він і `request` — фіксованим текстом без імені запитувача), `approved`, `declined`, `promoted`, `moved` і `cancelled` спільнотної події, `organizer`.
+Лише на підтверджену пошту з `auth.users`. Кому й що — `supabase/functions/push/mail.ts`.
+
+```bash
+supabase secrets set RESEND_API_KEY='re_…' MAIL_FROM='«Поряд» <noreply@poriad.app>' --project-ref ojadoyxeahepycpmjuvf
+```
+
+Без ключа функція відповідає `mail_error: "RESEND_API_KEY is not set"` і листів не шле. `MAIL_FROM` можна не ставити —
+тоді `«Поряд» <noreply@poriad.app>`; домен має бути підтверджений у Resend.
+
 ## Як це працює
 
 - Пристрій реєструє токен через `register_push_token` при кожному вході; при виході знімає через `unregister_push_token`. Токен переходить до нового акаунта на тому ж телефоні.

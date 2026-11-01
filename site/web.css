@@ -176,6 +176,8 @@ p { margin: 0; text-wrap: pretty; }
 /* ---- Поява під час прокрутки: ховаємо лише коли JS живий (клас .js з <head>), збій скрипта не лишить сторінку порожньою. */
 .js .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s var(--ease), transform .7s var(--ease); transition-delay: var(--d, 0s); }
 .js .reveal.in { opacity: 1; transform: none; }
+/* Затримки появи в розмітці — класами: CSP сторінок не пускає style="…". */
+.d06 { --d: .06s; } .d08 { --d: .08s; } .d10 { --d: .1s; } .d12 { --d: .12s; } .d16 { --d: .16s; }
 
 /* ================= Шапка й підвал ================= */
 .nav { position: sticky; top: 0; z-index: 50; background: var(--canvas); transition: box-shadow .3s; }
@@ -411,6 +413,7 @@ dialog[open]::backdrop { animation: fade .3s ease; }
 @keyframes slide { from { transform: translateX(60px); opacity: 0; } }
 .sheet-box { position: relative; height: 100%; border-radius: var(--r-xl); background: var(--canvas); overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow-overlay); }
 .sheet-scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+.sheet-scroll > .detail.lost { padding-top: 72px; }
 .round { position: absolute; z-index: 3; top: 14px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--surface); color: var(--ink);
   box-shadow: 0 2px 6px rgba(0,0,0,.22); transition: transform .28s var(--spring); }
 .round:hover { transform: scale(1.06); }
@@ -596,6 +599,7 @@ a.row:hover { background: var(--surface-muted); }
 .afisha-main h2 small { font: 500 16px/20px var(--font); color: var(--ink-tertiary); letter-spacing: 0; }
 .load-more { display: flex; justify-content: center; margin-top: 48px; }
 .map-view { position: relative; height: calc(100svh - 72px - 190px); min-height: 520px; border-radius: var(--r-lg); overflow: hidden; background: var(--canvas-tint); }
+.map-view > .empty { height: 100%; justify-content: center; }
 .map-view .maplibregl-ctrl-attrib { font: 400 11px/16px var(--font); }
 .map-view .hint { position: absolute; left: 16px; top: 16px; z-index: 2; max-width: calc(100% - 88px); min-height: 44px; padding: 0 18px; border-radius: 999px; font: 600 15px/18px var(--font);
   background: var(--surface-raised); color: var(--ink); box-shadow: var(--shadow-raised); text-align: left; transition: transform .28s var(--spring); }
