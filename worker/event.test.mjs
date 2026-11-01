@@ -5,7 +5,7 @@ import { base, now, shelters, env, detailsOk } from "./fixtures.mjs";
 
 const community = eventPage(base, now);
 assert.ok(!community.includes("<script>alert"), "назва екранується");
-assert.ok(community.includes("Учасників: 5 з 8"));
+assert.ok(community.includes("<small>Учасники</small><span>5 з 8</span>"), "місця — під міткою, як ціна: поруч коротке «Йду»");
 assert.ok(community.includes("19:00"), "час у зоні події, а не UTC");
 assert.ok(!community.includes('src="javascript:'), "лише https-зображення");
 assert.ok(community.includes('content="https://poriad.app/img/og.png"'), "запасне прев'ю");
@@ -31,7 +31,7 @@ assert.ok(!eventPage({ ...base, companion_of: "javascript:alert(1)" }, now).incl
 assert.ok(!community.includes("Разом на"), "звичайна подія без рядка");
 assert.ok(eventPage({ ...base, title: "СТЕНДАП \"ПЕРЕВІРКА\"" }, now).includes("<h1>Стендап «Перевірка»</h1>"), "назва — як у застосунку");
 assert.ok(imported.includes("Квитки на Concert.ua"), "головна дія афіші — квитки в джерела");
-assert.ok(community.includes('href="/app?from=event">Приєднатися в застосунку'), "кімната людей — у застосунок");
+assert.ok(community.includes("data-join>Йду</button>") && !community.includes("Приєднатися в застосунку"), "зустріч людей — запис просто на сторінці (1.5)");
 // База без фази 4: знята — «не знайшли в продажу», без тривоги й без кнопки квитків.
 const withdrawn = eventPage({ ...base, origin: "import", canonical_url: "https://concert.ua/x", source_name: "Concert.ua", import_status: "withdrawn" }, now, shelters);
 assert.ok(withdrawn.includes('class="notice calm">Не знайшли в продажу'), "знята з афіші — нейтрально");

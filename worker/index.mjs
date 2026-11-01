@@ -5,7 +5,7 @@
 
 // Назви, дати й ціна — ті самі правила, що на сайті (site/js/poriad.js, порт TitleRules і формату застосунку).
 // wrangler збирає цей імпорт у воркер; той самий файл сайт віддає браузеру.
-import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS } from "../site/js/poriad.js";
+import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS, icsFile } from "../site/js/poriad.js";
 export { esc };
 
 // Мітка ct: завантаження зі сторінок подій (event) і з запрошень (invite) окремо від сайту (site/js/poriad.js).
@@ -71,6 +71,7 @@ const ROUTES = [
   [/^\/\.well-known\/apple-app-site-association$/, () => json(appleAssociation())],
   [/^\/\.well-known\/assetlinks\.json$/, () => json(androidAssociation())],
   [/^\/afisha\//, readOnly(cityRoute)],
+  [/^\/e\/([^/]+)\.ics$/, readOnly(icsRoute)],
   [/^\/e\/([^/]+)\/?$/, readOnly(eventRoute)],
 ];
 
@@ -132,15 +133,31 @@ async function inviterOf(token, id, env) {
   }
 }
 
+const eventRpc = (name, id, env) => fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${name}`, {
+  method: "POST",
+  headers: { apikey: env.SUPABASE_KEY, "content-type": "application/json" },
+  body: JSON.stringify({ p_event_id: id }),
+});
+
+/** «Додати в календар» після запису з вебу: нагадування за 3 години — листа-нагадування нема (docs/organizers-1.5.md, 1.1). */
+async function icsRoute(request, env, ctx, match) {
+  const lost = () => new Response("Подію не знайдено", { status: 404, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=60" } });
+  if (!UUID.test(match[1])) return lost();
+  const upstream = await eventRpc("event_details", match[1], env);
+  if (!upstream.ok) return new Response(null, { status: 503, headers: { "cache-control": "no-store" } });
+  const [event] = await upstream.json();
+  if (!event) return lost();
+  return new Response(icsFile(event, new Date(), "PT3H"), {
+    headers: { "content-type": "text/calendar; charset=utf-8", "content-disposition": `attachment; filename="poriad-${event.id}.ics"`,
+      "cache-control": `public, max-age=${CACHE_SECONDS}`, "x-content-type-options": "nosniff" },
+  });
+}
+
 /** [invite] — `{ by, name }` запрошення, що вже пройшло перевірку: сторінка особиста й не кешується спільно. */
 export async function eventResponse(id, env, invite = null) {
   const policy = CSP.event(env);
   if (!UUID.test(id)) return html(notFoundPage(), 404, policy);
-  const rpc = (name) => fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${name}`, {
-    method: "POST",
-    headers: { apikey: env.SUPABASE_KEY, "content-type": "application/json" },
-    body: JSON.stringify({ p_event_id: id }),
-  });
+  const rpc = (name) => eventRpc(name, id, env);
   const [upstream, safety] = await Promise.all([rpc("event_details"), rpc("event_safety").catch(() => null)]);
   // Помилку бази не кешуємо й не видаємо за «подію не знайдено».
   if (!upstream.ok) return html(notFoundPage("Не вдалося завантажити подію. Спробуйте ще раз за хвилину."), 503, policy);
@@ -174,7 +191,13 @@ export function eventPage(e, now, shelters = [], invite = null) {
   const withdrawn = state === "postponed" || state === "unknown";
   const moved = state === "scheduled" && e.previous_starts_at ? longDate(e.previous_starts_at, e.time_zone) : null;
   const past = new Date(e.ends_at || e.starts_at) < now;
+  // Запис з вебу — на спільнотну подію, що ще не почалась; база каже те саме (EVENT_STARTED, EVENT_CANCELLED).
+  const open = !imported && !cancelled && !past && new Date(e.starts_at) > now;
   const image = httpsOrNull(e.image_url);
+  // Фото й відео організатора (docs/organizers-1.5.md, 1.3) замість обкладинки; лише https, як і обкладинка.
+  const media = (Array.isArray(e.media) ? e.media : [])
+    .map((m) => ({ kind: m?.kind, url: httpsOrNull(m?.url), poster: httpsOrNull(m?.poster) }))
+    .filter((m) => m.url && (m.kind === "photo" || m.kind === "video")).slice(0, 5);
   const ticketUrl = imported ? httpsOrNull(e.canonical_url) : null;
   const category = CATEGORIES[e.category] ? e.category : "social";
   const when = overline(e, now);
@@ -214,7 +237,7 @@ export function eventPage(e, now, shelters = [], invite = null) {
 <meta name="apple-itunes-app" content="app-id=6813543772, affiliate-data=ct=${ct}&amp;pt=129478154, app-argument=${link}${by}">
 ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     body: `<article class="sheet-box">
-  <header class="cover-big cat-${category}"><div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img src="${esc(image)}" alt="">` : ""}</div>
+  <header class="cover-big cat-${category}">${media.length ? mediaCarousel(media, category) : `<div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img src="${esc(image)}" alt="">` : ""}</div>`}
     ${invite ? `<p class="quiet"><b>${esc(invite.name)}</b> кличе тебе</p>` : ""}<p class="quiet"><span class="genre-word">${esc(CATEGORIES[category])}</span> · ${esc(imported ? `Афіша${sellers ? ` · ${sellers}` : ""}` : "Від людей")}${e.min_age ? ` · ${Number(e.min_age)}+` : ""}</p><h1>${esc(title)}</h1>
   </header>
   <div class="detail">
@@ -232,15 +255,20 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     ${imported && !past ? sellersSection(live ? liveOffers : offers, !live, e.checked_at, e.time_zone) : ""}
     ${e.description ? `<div class="block"><h2>Опис</h2><p class="description">${esc(e.description)}</p></div>` : ""}
     ${live ? sheltersSection(shelters) : ""}
-    <div class="app-only"><b>${imported ? "Підете? Не забудьте" : "Приєднатися — в застосунку"}</b>
+    <div class="app-only"><b>${imported ? "Підете? Не забудьте" : "У застосунку ще зручніше"}</b>
       <ul><li>${icon("bell")}Нагадування за годину до початку</li><li>${icon("people")}«Шукаю компанію» — знайдіть, з ким піти</li><li>${icon("map")}Що ще відбувається поряд — на мапі</li></ul>
       <div class="stores">${storeButtons(ct)}</div></div>
   </div>
-  <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${spots ? "" : "<small>Ціна</small>"}<span>${esc(cost || spots || "Вхід уточнюйте")}</span></div>
+  <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${spots && !cost ? `<small>Учасники</small><span>${esc(spots.replace("Учасників: ", ""))}</span>`
+      : `${spots ? "" : "<small>Ціна</small>"}<span>${esc(cost || spots || "Вхід уточнюйте")}</span>`}</div>
     ${ticketUrl && live ? `<a class="btn primary" href="${esc(ticketHref(ticketUrl))}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
-      : `<a class="btn primary" href="/app?from=${ct}">${imported ? "Завантажити «Поряд»" : "Приєднатися в застосунку"}</a>`}</div></div>
+      : imported ? `<a class="btn primary" href="/app?from=${ct}">Завантажити «Поряд»</a>`
+      : open ? `<button class="btn primary" type="button" data-join>Йду</button>` : `<p class="closed">Запис на цю подію закрито</p>`}</div>
+    ${open ? `<a class="open-app" href="poriad://event/${e.id}${by}">Уже є застосунок? Відкрити</a>` : ""}</div>
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
-</article>`,
+</article>
+${imported ? "" : `${joinSheet(e, ct)}
+<script type="module" src="/js/join.js?v=12"></script>`}`,
   });
 }
 
@@ -286,6 +314,71 @@ function sheltersSection(shelters) {
       <i>${icon("shield")}</i><div class="txt"><small>${esc(SHELTER_KINDS[s.kind] || "Укриття")} · ${Number(s.distance_m)} м${extras ? ` · ${extras}` : ""}</small><b>${esc(s.address)}</b></div></a>`;
   }).join("");
   return `<div class="block"><h2>Укриття поруч</h2><div class="rows">${rows}</div><p class="fine">За відкритими даними КМДА (CC BY).</p></div>`;
+}
+
+/**
+ * Карусель — прокрутка зі снепом, без скрипта. Відео — наш платний трафік Storage (docs/organizers-1.5.md, 1.3): лише
+ * постер і ▶, `preload="none"`, без автозапуску.
+ */
+function mediaCarousel(media, category) {
+  const slides = media.map((m) => m.kind === "video"
+    ? `<video src="${esc(m.url)}"${m.poster ? ` poster="${esc(m.poster)}"` : ""} controls playsinline preload="none"></video>`
+    : `<img src="${esc(m.url)}" alt="">`).join("");
+  return `<div class="art media${media.length > 1 ? " many" : ""} cat-${category}"><div class="slides" tabindex="0" aria-label="Фото й відео від організатора">${slides}</div></div>`;
+}
+
+/**
+ * Шторка «Йду» (docs/organizers-1.5.md, 1.1): розмітка однакова для всіх і кешується зі сторінкою, а вхід, стан запису
+ * й «Після запису» вмикає site/js/join.js. Він же робить `?unfollow` з листа, тож шторка є й на закритій події.
+ */
+function joinSheet(e, ct) {
+  const organizer = UUID.test(e.organizer_id ?? "") ? e.organizer_id : "";
+  const name = e.organizer_name || "Організатор";
+  const city = Object.entries(CITY_PAGES).find(([, [n]]) => n === e.city);
+  const ages = `${e.min_age ? ` data-min-age="${Number(e.min_age)}"` : ""}${e.max_age ? ` data-max-age="${Number(e.max_age)}"` : ""}`;
+  return `<dialog class="install join-sheet" aria-label="Запис на подію" data-event="${e.id}" data-organizer="${organizer}" data-organizer-name="${esc(name)}" data-city="${esc(e.city ?? "")}"${ages}>
+<div class="install-box">
+  <button class="round" type="button" data-close aria-label="Закрити">${icon("close")}</button>
+  <section data-step="start">
+    <h2 data-head>Записатися</h2>
+    <button class="btn secondary" type="button" data-google>${icon("google")}Продовжити з Google</button>
+    <p class="in-app" data-in-app hidden>Вхід через Google — у Safari чи Chrome. <a data-browser href="/e/${e.id}">Відкрити в браузері</a><small>Не відкрилось? ⋯ → «Відкрити в браузері».</small></p>
+    <p class="or"><span>або поштою</span></p>
+    <form data-form="email"><label class="field"><span>Ваша пошта</span><input type="email" name="email" autocomplete="email" required></label>
+      <button class="btn primary" type="submit">Надіслати код</button></form>
+    <p class="fine">Надішлемо код для входу. Пароль не потрібен.</p>
+  </section>
+  <section data-step="code" hidden>
+    <h2>Код з листа</h2>
+    <p class="lead">Надіслали на <b data-email></b>.</p>
+    <form data-form="code"><label class="field"><span>Код з листа</span><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,8}" maxlength="8" required></label>
+      <button class="btn primary" type="submit">Підтвердити</button></form>
+    <p class="links"><button class="link" type="button" data-resend disabled>Надіслати ще раз</button><button class="link" type="button" data-back>Інша пошта</button></p>
+  </section>
+  <section data-step="profile" hidden>
+    <h2>Як вас звати?</h2>
+    <form data-form="profile"><label class="field"><span>Імʼя</span><input name="name" autocomplete="name" maxlength="80" required></label>
+      <label class="field" data-birth hidden><span>Дата народження</span><input type="date" name="birth"></label>
+      <label class="check"><input type="checkbox" name="adult" required><span>Мені вже є 18</span></label>
+      <button class="btn primary" type="submit">Записатися</button></form>
+    <p class="fine">Імʼя побачить організатор.</p>
+  </section>
+  <section data-step="status" hidden>
+    <h2 data-title></h2>
+    <p class="lead" data-text hidden></p>
+    <button class="btn primary" type="button" data-waitlist hidden>Стати в чергу</button>
+    <a class="btn secondary" href="/e/${e.id}.ics" data-ics hidden>${icon("calendar")}Додати в календар</a>
+    <button class="link" type="button" data-leave hidden></button>
+    <div class="after" data-after hidden>
+      ${organizer ? `<div class="rows"><div class="row"><i>${icon("bell")}</i><div class="txt"><b>${esc(name)}</b><small>Скажемо, коли організатор додасть нову подію</small></div><button class="act" type="button" data-follow>Стежити</button></div></div>` : ""}
+      <button class="btn secondary" type="button" data-invite>${icon("share")}Покликати з собою</button>
+      <div class="app-pitch"><b>Нагадаємо за день і скажемо першим, коли звільниться місце</b><p class="fine" data-google-hint hidden>У застосунку увійдіть через Google — цей запис уже буде там.</p><div class="stores">${storeButtons(ct)}</div></div>
+    </div>
+    ${city ? `<div class="block week" data-week hidden><h2>Цього тижня ${esc(city[1][1])}</h2><div class="rows" data-cards></div><a class="link" href="/afisha/${city[0]}">Уся афіша ${esc(cityOf(city[1][0]).of)}</a></div>` : ""}
+  </section>
+  <p class="error" data-error role="alert" hidden></p>
+</div>
+</dialog>`;
 }
 
 export function notFoundPage(message = "Подію не знайдено: її могли приховати або посилання неповне.") {
