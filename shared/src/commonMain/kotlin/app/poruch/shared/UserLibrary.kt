@@ -262,13 +262,13 @@ internal class UserLibrary(
         if (openEventId == id) detail { copy(company = teaser, companyPeople = people) }
     }
 
+    /** Ставить [PoruchApp]: публікація, яку гість відклав до входу ([EventUseCases.publishPending]). */
+    var afterAccountLoad: (() -> Unit)? = null
+
     /**
      * Намір, який гість поставив до входу ([AppState.pendingCompany]). Без дати народження чекає на неї: кличе ще й
      * [SafetyUseCases.declareBirthDate].
      */
-    /** Ставить [PoruchApp]: публікація, яку гість відклав до входу ([EventUseCases.publishPending]). */
-    var afterAccountLoad: (() -> Unit)? = null
-
     fun consumePendingCompany() {
         val id = store.value.pendingCompany ?: return
         if (!store.value.signedIn) return
