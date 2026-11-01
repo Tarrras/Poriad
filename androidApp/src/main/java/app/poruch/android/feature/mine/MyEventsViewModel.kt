@@ -90,6 +90,8 @@ class MyEventsViewModel(private val app: PoruchApp) :
             is MyEventsIntent.Unsave -> app.toggleSaved(intent.id)
             MyEventsIntent.SignIn -> send(MyEventsEffect.SignIn)
             MyEventsIntent.CreateEvent -> { app.createStarted("mine"); send(MyEventsEffect.CreateEvent) }
+            is MyEventsIntent.Repeat -> send(MyEventsEffect.Repeat(intent.event.id))
+            is MyEventsIntent.ThreadsPost -> send(MyEventsEffect.ThreadsPost(intent.event, app.threadsPost(intent.event)))
         }
     }
 

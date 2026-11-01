@@ -151,6 +151,8 @@ fun ExploreRoute(focusId: String, navigator: Navigator) {
 @Composable
 fun MyEventsRoute(navigator: Navigator) {
     val model = koinViewModel<MyEventsViewModel>(viewModelStoreOwner = activityStoreOwner())
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     model.effects.handle { effect ->
         when (effect) {
             is MyEventsEffect.OpenDetail -> navigator.openDetail(effect.id)
@@ -158,6 +160,8 @@ fun MyEventsRoute(navigator: Navigator) {
             MyEventsEffect.OpenMap -> navigator.open(Explore())
             MyEventsEffect.SignIn -> navigator.open(Auth())
             MyEventsEffect.CreateEvent -> navigator.createEvent()
+            is MyEventsEffect.Repeat -> navigator.open(Editor(repeatOf = effect.id))
+            is MyEventsEffect.ThreadsPost -> scope.launch { context.shareThreadsPost(effect.event, effect.text) }
         }
     }
     // Щойно доданий квиток лежить у «Квитках» — туди й перемикаємо, навіть якщо людина стояла в іншому розрізі.
@@ -211,6 +215,7 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
             is DetailEffect.OpenChat -> navigator.open(Chat(effect.id, effect.thread))
             is DetailEffect.OpenEvent -> navigator.openDetail(effect.id)
             is DetailEffect.OpenArtist -> navigator.open(ArtistPage(effect.id))
+            is DetailEffect.ThreadsPost -> scope.launch { context.shareThreadsPost(effect.event, effect.text) }
         }
     }
     // Після повернення з іншого екрана деталей слот відкритої події треба забрати назад. На ON_RESUME, не на

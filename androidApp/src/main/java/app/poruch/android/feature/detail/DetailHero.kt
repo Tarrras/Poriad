@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.rememberScrollState
@@ -81,9 +82,13 @@ import app.poruch.domain.ShelterKind
 @Composable
 internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onIntent: (DetailIntent) -> Unit) {
     val room = state.screen.room
+    // Фото й відео від організатора — каруселлю замість обкладинки; без них — та сама афіша, що й на головній.
+    val media = event.media
+    val pager = rememberPagerState { media.size }
     Box(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth().height(heroHeight())) {
-            EventArt(event, Modifier.fillMaxSize(), glyph = 260.dp, glyphDrop = 120.dp)
+            if (media.isNotEmpty()) MediaCarousel(media, pager, Modifier.fillMaxSize())
+            else EventArt(event, Modifier.fillMaxSize(), glyph = 260.dp, glyphDrop = 120.dp)
             // Обкладинка довільна, тож тонка тінь зверху тримає смугу статусу читабельною.
             Box(
                 Modifier.fillMaxWidth().align(Alignment.TopCenter)
@@ -94,7 +99,7 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
         }
         Row(Modifier.fillMaxWidth().statusBarsPadding().padding(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
             ScrimButton(PoruchIcons.arrowLeft, stringResource(R.string.back)) { onIntent(DetailIntent.Back) }
-            Spacer(Modifier.weight(1f))
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { if (media.size > 1) PagerDots(pager) }
             ScrimButton(
                 if (state.screen.saved) PoruchIcons.bookmarkFilled else PoruchIcons.bookmark,
                 stringResource(if (state.screen.saved) R.string.unsave else R.string.save)

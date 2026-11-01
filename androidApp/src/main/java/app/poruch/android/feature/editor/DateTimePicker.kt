@@ -121,7 +121,12 @@ private fun poruchTimePickerColors() = Poruch.colors.let { colors ->
 /** Дата народження. Відкривається на році, коли народився той, кому щойно 18, і пізніше не дає обрати. Сервер перевіряє ще раз. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BirthDateSheet(initial: LocalDate?, onDismiss: () -> Unit, onPicked: (LocalDate) -> Unit) {
+fun BirthDateSheet(
+    initial: LocalDate?, onDismiss: () -> Unit,
+    /** Заголовок, пояснення й кнопка: подія з віковими межами каже, навіщо дата саме тут. */
+    title: String = stringResource(R.string.birth_date), body: String? = null, confirm: String = stringResource(R.string.apply),
+    onPicked: (LocalDate) -> Unit
+) {
     val colors = Poruch.colors
     val zone = ZoneOffset.UTC
     val latest = LocalDate.now().minusYears(SafetyRules.MIN_SIGNUP_AGE.toLong())
@@ -142,12 +147,13 @@ fun BirthDateSheet(initial: LocalDate?, onDismiss: () -> Unit, onPicked: (LocalD
             Modifier.verticalScroll(rememberScrollState()).padding(bottom = Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.birth_date), style = PoruchType.brandTitle2, color = colors.ink, modifier = Gutter)
+            Text(title, style = PoruchType.brandTitle2, color = colors.ink, modifier = Gutter)
+            body?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, modifier = Gutter) }
             DatePicker(state, title = null, showModeToggle = false, colors = poruchDatePickerColors())
             Row(Gutter, verticalAlignment = Alignment.CenterVertically) {
                 GhostButton(stringResource(R.string.close), { sheet.close() }, tone = colors.inkSecondary)
                 Spacer(Modifier.weight(1f))
-                PrimaryButton(stringResource(R.string.apply), {
+                PrimaryButton(confirm, {
                     val picked = state.selectedDateMillis?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalDate() }
                     if (picked != null) sheet.close { onPicked(picked) } else sheet.close()
                 })

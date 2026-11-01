@@ -29,7 +29,9 @@ data class DetailState(
     /** Шторка часу збору (R7б): з якого часу почати — пропозиція R7а чи поточний. Null — закрита. */
     val movingMeet: String? = null,
     /** «Покликати» чекає посилання від сервера. */
-    val inviting: Boolean = false
+    val inviting: Boolean = false,
+    /** Подія з віком від 19 чи верхньою межею, а дати нема (`AGE_REQUIRED`): шторка дати, після неї — запис. */
+    val askingBirthDate: Boolean = false
 )
 
 /** На що скарга: на подію, на того, хто її опублікував, чи на людину з картки. */
@@ -112,6 +114,10 @@ sealed interface DetailIntent {
     data object CancelEvent : DetailIntent
     /** [follow] — що показував перемикач «Стежити за організатором»; null — перемикача не було. */
     data class Rate(val score: Int, val comment: String, val tags: List<RatingTag>, val follow: Boolean? = null) : DetailIntent
+    /** Дата зі шторки `AGE_REQUIRED`; null — закрили без неї. */
+    data class DeclareBirthDate(val date: java.time.LocalDate?) : DetailIntent
+    /** «Пост для Threads» організатора. */
+    data object ThreadsPost : DetailIntent
 }
 
 sealed interface DetailEffect {
@@ -137,4 +143,6 @@ sealed interface DetailEffect {
     data class OpenChat(val id: String, val thread: String? = null) : DetailEffect
     data class OpenEvent(val id: String) : DetailEffect
     data class OpenArtist(val id: String) : DetailEffect
+    /** Системне меню з текстом і фото й відео події, текст ще й у буфер. */
+    data class ThreadsPost(val event: Event, val text: String) : DetailEffect
 }

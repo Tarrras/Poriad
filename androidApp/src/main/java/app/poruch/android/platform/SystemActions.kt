@@ -11,7 +11,16 @@ import androidx.annotation.StringRes
 import app.poruch.android.R
 import app.poruch.android.ui.dateWords
 import app.poruch.android.ui.eventTime
+import android.content.ClipData
+import androidx.core.content.FileProvider
 import app.poruch.domain.Event
+import app.poruch.domain.EventMedia
+import app.poruch.domain.MediaKind
+import app.poruch.domain.PoruchLog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.net.URL
 import app.poruch.domain.EventLinks
 import app.poruch.domain.StoreLinks
 import app.poruch.shared.PoruchApp
@@ -51,6 +60,35 @@ fun Context.shareCompanion(parent: Event, companionId: String) {
         putExtra(Intent.EXTRA_TEXT, text)
     }
     startActivity(Intent.createChooser(intent, getString(R.string.companion_share_chooser)))
+}
+
+/**
+ * «Пост для Threads» (docs/organizers-1.5.md, 1.5): системне меню з текстом і всіма фото й відео події. Threads з меню
+ * бере лише медіа, тож текст ще й у буфері — людина вставляє його сама. Файли — копіями в кеші для FileProvider.
+ */
+suspend fun Context.shareThreadsPost(event: Event, text: String) {
+    copyText(text)
+    toast(R.string.threads_copied)
+    val media = event.media.ifEmpty { listOfNotNull(event.imageUrl?.let { EventMedia(MediaKind.PHOTO, it) }) }
+    val files = withContext(Dispatchers.IO) {
+        val folder = File(cacheDir, "send/threads").apply { deleteRecursively(); mkdirs() }
+        media.mapIndexedNotNull { index, item ->
+            val file = File(folder, "${index + 1}.${if (item.kind == MediaKind.VIDEO) "mp4" else "jpg"}")
+            // Без файлу — пост без нього, а не без меню: текст однаково в буфері.
+            runCatching { URL(item.url).openStream().use { input -> file.outputStream().use(input::copyTo) }; item.kind to file }
+                .onFailure { PoruchLog.w("share") { "threads media skipped: ${it.javaClass.simpleName}" } }.getOrNull()
+        }
+    }
+    val uris = files.map { (_, file) -> FileProvider.getUriForFile(this, "$packageName.files", file) }
+    val intent = if (uris.isEmpty()) Intent(Intent.ACTION_SEND).setType("text/plain")
+    else Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+        type = files.map { it.first }.distinct().singleOrNull()?.let { if (it == MediaKind.VIDEO) "video/mp4" else "image/jpeg" } ?: "*/*"
+        putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+        clipData = ClipData.newRawUri(null, uris.first()).apply { uris.drop(1).forEach { addItem(ClipData.Item(it)) } }
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    intent.putExtra(Intent.EXTRA_TEXT, text)
+    startActivity(Intent.createChooser(intent, getString(R.string.threads_post)))
 }
 
 /** «Поділитися застосунком» з профілю: готовий текст із посиланням на сайт, де обидва стори. */

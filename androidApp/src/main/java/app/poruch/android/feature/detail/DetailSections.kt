@@ -893,6 +893,10 @@ internal fun OrganizerActions(state: DetailState, onIntent: (DetailIntent) -> Un
             Modifier.fillMaxWidth(), enabled = !state.screen.mutating, icon = PoruchIcons.clock
         )
     }
+    // Окремо від «Поділитися»: там на своїй події «Покликати». Текст з посиланням і всі фото й відео — для свого посту.
+    if (state.screen.companionOf == null) SecondaryButton(
+        stringResource(R.string.threads_post), { onIntent(DetailIntent.ThreadsPost) }, Modifier.fillMaxWidth(), icon = PoruchIcons.doc
+    )
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
         if (editable) SecondaryButton(stringResource(R.string.edit), { onIntent(DetailIntent.Edit) }, Modifier.weight(1f), icon = PoruchIcons.edit)
         SecondaryButton(

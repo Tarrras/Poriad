@@ -68,6 +68,8 @@ class PushService : FirebaseMessagingService() {
             "request" -> eventId?.let { alerts.notify(listOf(RequestAlert(it, title, 1))) }
             "joined" -> eventId?.let { alerts.notifyJoined(it, title, body) }
             "moved", "cancelled" -> eventId?.let { alerts.notifyEventChange(it, title, body, kind) }
+            // Рішення організатора про мою участь. Сервер шле їх лише з `decision` у features пристрою.
+            "approved", "declined", "promoted" -> eventId?.let { alerts.notifyDecision(it, title, body, kind) }
             // Нова подія організатора чи закладу, за якими стежить людина: тап веде на подію або на стос закладу.
             "organizer" -> eventId?.let { alerts.notifyFollowed(kind, it, null, title, body) }
             "place" -> placeId?.let { alerts.notifyFollowed(kind, eventId, it, title, body) }
