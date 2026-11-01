@@ -1258,4 +1258,7 @@
   <string name="repeat_event">Повторити</string>
   <string name="threads_post">Пост для Threads</string>
   <string name="threads_copied">Текст скопійовано</string>
+  <!-- 1.5 M1-ios -->
+  <!-- Картка віку в профілі: галочка «Мені вже є 18» замість дати. -->
+  <string name="confirm_age_adult_action">Підтвердити</string>
 </resources>
