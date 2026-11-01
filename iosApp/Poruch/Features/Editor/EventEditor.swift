@@ -338,7 +338,8 @@ private struct PublishingOverlay: View {
                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).monospacedDigit()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Palette.canvas.opacity(0.97).ignoresSafeArea())
+        // Непрозоро: крізь накладку просвічував той самий лічильник у нижній панелі редактора.
+        .background(Palette.canvas.ignoresSafeArea())
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.updatesFrequently)
         .transition(.opacity)

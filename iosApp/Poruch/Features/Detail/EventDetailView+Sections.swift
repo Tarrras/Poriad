@@ -260,7 +260,8 @@ extension EventDetailView {
 
     /// Ряд круглих дій із підписами, як панель під картою дня в Moonly.
     func externalActions(_ event: Event, _ view: DetailScreenState) -> some View {
-        HStack(spacing: Space.sm) {
+        // За верхом: підпис у два рядки не зсуває свого кола вище за сусідні.
+        HStack(alignment: .top, spacing: Space.sm) {
             Button { actions.openCalendar() } label: {
                 RoundAction(title: Copy.calendar_short, enabled: !view.cancelled) { PoruchIcon(glyph: PoruchIcons.calendar, size: 20) }
             }.buttonStyle(PressableStyle()).disabled(view.cancelled)

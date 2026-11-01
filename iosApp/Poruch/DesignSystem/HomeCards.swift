@@ -206,8 +206,10 @@ struct RoundAction<Label: View>: View {
         VStack(spacing: Space.sm) {
             label.font(.system(size: 19, weight: .semibold)).foregroundStyle(enabled ? Palette.ink : Palette.inkTertiary)
                 .frame(width: 56, height: 56).background(Palette.surface, in: Circle())
-            // На великому шрифті підпис стискається, а не обрізається посеред слова.
-            Text(title).font(PoruchFont.label).foregroundStyle(enabled ? Palette.ink : Palette.inkTertiary).lineLimit(1).minimumScaleFactor(0.75)
+            // Кілька слів — до двох рядків («Поширити анонс», «Поділитися з другом»); одне слово стискається, а не
+            // переноситься з дефісом («Поділити-ся»). На великому шрифті — так само, без обрізання.
+            Text(title).font(PoruchFont.label).foregroundStyle(enabled ? Palette.ink : Palette.inkTertiary)
+                .multilineTextAlignment(.center).lineLimit(title.contains(" ") ? 2 : 1).minimumScaleFactor(0.75)
         }.frame(maxWidth: .infinity)
     }
 }
