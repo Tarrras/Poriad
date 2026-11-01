@@ -258,6 +258,7 @@ fun EditorRoute(route: Editor, navigator: Navigator) {
     model.effects.handle { effect ->
         when (effect) {
             EditorEffect.Close -> navigator.back()
+            EditorEffect.SignIn -> navigator.open(Auth(AuthReason.CREATE))
             EditorEffect.AskNotificationPermission -> notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
@@ -282,8 +283,8 @@ fun AuthRoute(route: Auth, navigator: Navigator) {
                 }
             }
             AuthEffect.Close -> navigator.back()
-            // Увійшли: гість, що тапнув «Створити», не лишається на головній, а потрапляє в редактор.
-            AuthEffect.SignedIn -> { navigator.back(); if (route.reason == AuthReason.CREATE) navigator.open(Editor()) }
+            // Увійшли. З «Опублікувати» під входом той самий редактор: подія там публікується сама.
+            AuthEffect.SignedIn -> navigator.back()
             AuthEffect.OpenMail -> context.openMailApp()
             is AuthEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
         }

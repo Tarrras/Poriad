@@ -31,6 +31,7 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 mutating = shared.mutating,
                 passwordRecovery = shared.session.passwordRecovery,
                 passwordless = shared.session.passwordless,
+                viaCode = shared.session.viaCode,
                 providers = shared.session.providers,
                 // Після відновлення чи зміни поле чистимо, щоб пароль не висів.
                 newPassword = if (shared.session.passwordRecovery || changingPassword) newPassword else "",
@@ -43,6 +44,7 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 // Акаунта більше нема — шторка видалення зникає разом із паролем.
                 deleting = deleting && shared.signedIn,
                 deletePassword = if (shared.signedIn) deletePassword else "",
+                deleteCode = if (shared.signedIn) deleteCode else "",
                 deleteError = (shared.notice as? AppNotice.Failed)?.error?.takeIf { deleting && shared.signedIn }
             ).permissions(shared)
         }
@@ -68,11 +70,8 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
             is ProfileIntent.ToggleInterest -> app.toggleInterest(intent.category)
             ProfileIntent.TuneRecommendations -> app.restartOnboarding()
             ProfileIntent.CreateEvent -> { app.createStarted("profile"); send(ProfileEffect.CreateEvent) }
-            is ProfileIntent.ShowBirthDatePicker -> reduce { copy(pickingBirthDate = intent.show) }
-            is ProfileIntent.SetBirthDate -> {
-                reduce { copy(pickingBirthDate = false) }
-                app.declareBirthDate(intent.value.toString())
-            }
+            is ProfileIntent.SetAdult -> reduce { copy(adult = intent.value) }
+            ProfileIntent.ConfirmAdult -> app.confirmAdult()
             is ProfileIntent.Unblock -> app.unblockUser(intent.userId)
             ProfileIntent.OpenFollows -> send(ProfileEffect.OpenFollows)
             ProfileIntent.OpenPlaces -> send(ProfileEffect.OpenPlaces)
@@ -108,11 +107,20 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
             ProfileIntent.RateApp -> { app.rateAppOpened(); send(ProfileEffect.OpenStorePage) }
             is ProfileIntent.ShowDeleteAccount -> {
                 if (!intent.show) app.clearNotice()
-                reduce { copy(deleting = intent.show, deletePassword = "", deleteError = null) }
+                reduce { copy(deleting = intent.show, deletePassword = "", deleteCode = "", deleteCodeSent = false, deleteError = null) }
             }
             is ProfileIntent.SetDeletePassword -> reduce { copy(deletePassword = intent.value, deleteError = null) }
+            ProfileIntent.SendDeletionCode -> {
+                app.sendDeletionCode()
+                reduce { copy(deleteCodeSent = true, deleteError = null) }
+            }
+            is ProfileIntent.SetDeleteCode ->
+                reduce { copy(deleteCode = intent.value.filter(Char::isDigit).take(AuthState.CODE_LENGTH.last), deleteError = null) }
             // Акаунт Apple, видалений з Android, токенів Apple не відкликає: свіжого коду тут не взяти.
-            ProfileIntent.ConfirmDeleteAccount -> state.value.let { app.deleteAccount(if (it.passwordless) null else it.deletePassword, null) }
+            ProfileIntent.ConfirmDeleteAccount -> state.value.let {
+                if (it.viaCode) app.deleteAccountWithCode(it.deleteCode)
+                else app.deleteAccount(if (it.passwordless) null else it.deletePassword, null)
+            }
             is ProfileIntent.ShowChangePassword -> {
                 if (!intent.show) app.clearNotice()
                 reduce { copy(changingPassword = intent.show, currentPassword = "", newPassword = "", changeError = null) }

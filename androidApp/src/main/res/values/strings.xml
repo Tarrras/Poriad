@@ -1258,4 +1258,8 @@
   <string name="repeat_event">Повторити</string>
   <string name="threads_post">Пост для Threads</string>
   <string name="threads_copied">Текст скопійовано</string>
+
+  <!-- 1.5 M2-android -->
+  <!-- TalkBack: перетягування плиток пальцем не дістати, тож обкладинку роблять дією. -->
+  <string name="media_make_cover_a11y">Зробити обкладинкою</string>
 </resources>

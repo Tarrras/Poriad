@@ -3,9 +3,15 @@ package app.poruch.android.feature.editor
 import app.poruch.domain.EventCategory
 import android.content.Context
 import androidx.core.content.edit
+import app.poruch.domain.DraftMedia
+import app.poruch.domain.EventMedia
+import app.poruch.domain.MediaKind
 
-/** Тримає неопубліковану чернетку після смерті процесу. Лише нові події: редагування має запис на сервері. */
-class DraftStore(context: Context) {
+/**
+ * Тримає неопубліковану чернетку після смерті процесу. Лише нові події: редагування має запис на сервері. Фото й відео —
+ * файлами в [files], тут лише їхній порядок.
+ */
+class DraftStore(context: Context, private val files: DraftMediaFiles) {
     private val store = context.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
     /** Місто підставляємо, координати — ні: центр міста як крапка дозволяв опублікувати подію, не торкнувшись мапи. */
@@ -29,8 +35,12 @@ class DraftStore(context: Context) {
             minAge = store.read(MIN_AGE).ifEmpty { EditorForm.DEFAULT_MIN_AGE },
             maxAge = store.read(MAX_AGE),
             approvalRequired = store.getBoolean(APPROVAL, false),
-            contactUrl = store.read(CONTACT)
-        )
+            contactUrl = store.read(CONTACT),
+            media = store.read(MEDIA).lines().mapNotNull(::media)
+        ).also { form ->
+            // Файли прибраних і опублікованих чернеток: редагування своїх файлів не лишає (їх прибирає модель).
+            files.prune(form.media.filterIsInstance<DraftMedia.Local>().mapTo(HashSet()) { it.key })
+        }
     }
 
     fun save(form: EditorForm) = store.edit {
@@ -41,9 +51,33 @@ class DraftStore(context: Context) {
         putString(CAPACITY, form.capacity)
         putString(MIN_AGE, form.minAge); putString(MAX_AGE, form.maxAge); putBoolean(APPROVAL, form.approvalRequired)
         putString(CONTACT, form.contactUrl)
+        putString(MEDIA, form.media.joinToString("\n", transform = ::line))
     }
 
-    fun clear() = store.edit { clear() }
+    fun clear() {
+        store.edit { clear() }
+        files.prune(emptySet())
+    }
+
+    /** Рядок на файл: вид запису, вид файлу, ключ чи адреса й постер. Адреси без табуляцій і переносів. */
+    private fun line(media: DraftMedia) = when (media) {
+        is DraftMedia.Local -> "L\t${media.kind.key}\t${media.key}"
+        is DraftMedia.Remote -> "R\t${media.kind.key}\t${media.media.url}\t${media.media.poster.orEmpty()}"
+        is DraftMedia.Copied -> "C\t${media.kind.key}\t${media.media.url}\t${media.media.poster.orEmpty()}"
+    }
+
+    private fun media(line: String): DraftMedia? {
+        val parts = line.split('\t')
+        val kind = MediaKind.fromKey(parts.getOrNull(1)) ?: return null
+        val value = parts.getOrNull(2)?.takeIf { it.isNotEmpty() } ?: return null
+        val remote by lazy { EventMedia(kind, value, parts.getOrNull(3)?.takeIf { it.isNotEmpty() }) }
+        return when (parts[0]) {
+            "L" -> files.local(value, kind).takeIf { files.file(value, kind).exists() }
+            "R" -> DraftMedia.Remote(remote)
+            "C" -> DraftMedia.Copied(remote)
+            else -> null
+        }
+    }
 
     private fun android.content.SharedPreferences.read(key: String) = getString(key, "").orEmpty()
 
@@ -64,5 +98,6 @@ class DraftStore(context: Context) {
         const val MAX_AGE = "max_age"
         const val APPROVAL = "approval"
         const val CONTACT = "contact"
+        const val MEDIA = "media"
     }
 }

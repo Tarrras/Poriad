@@ -114,6 +114,10 @@ dependencies {
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     // Коди квитка на сторінці (QR, Aztec, DataMatrix, PDF417), щоб показати їх великими: офлайн, без Play services.
     implementation("com.google.zxing:core:3.5.3")
+    // Відео в редакторі: H.264 720p, перші 30 с, до 8 МБ (docs/organizers-1.5.md, погоджено 01.11). ExoPlayer
+    // transformer і так тягне — ним же граємо відео на деталях.
+    implementation("androidx.media3:media3-transformer:1.11.1")
+    implementation("androidx.media3:media3-exoplayer:1.11.1")
     // Системне вікно відгуку Google Play (після доброї оцінки події).
     implementation("com.google.android.play:review-ktx:2.0.2")
     // Вхід через Google: Credential Manager дає ID-токен, далі — Supabase Auth.

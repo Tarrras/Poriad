@@ -886,7 +886,6 @@ internal fun OrganizerActions(state: DetailState, onIntent: (DetailIntent) -> Un
     HairLine()
     // Час, місце й місткість супутника тримає сервер; після початку сервер не приймає правок. Лишається скасувати.
     val editable = state.screen.companionOf == null && !state.screen.started
-    if (editable) PhotoPickerButton(state.screen.mutating) { bytes, mime -> onIntent(DetailIntent.AttachPhoto(bytes, mime)) }
     // Збір: організатор міняє лише час (R7б).
     state.screen.event?.takeIf { state.screen.canMoveMeet }?.let { event ->
         SecondaryButton(

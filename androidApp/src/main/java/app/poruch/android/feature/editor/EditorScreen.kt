@@ -102,6 +102,13 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit) {
             Modifier.fillMaxWidth().background(colors.surface).navigationBarsPadding().padding(Spacing.page),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
+            // Публікація вантажить файли по черзі: без рядка спінер на кнопці висів би мовчки.
+            state.upload?.let {
+                Text(
+                    stringResource(R.string.media_uploading, it.current, it.total), style = MaterialTheme.typography.bodyMedium,
+                    color = colors.inkSecondary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                )
+            }
             // Над кнопкою, бо поле з помилкою може бути за краєм або під клавіатурою.
             (state.failure?.text() ?: state.stepProblems.firstOrNull()?.takeIf { state.showProblems }?.rule())?.let {
                 // Червоний рядок TalkBack сам не помітить: кажемо його, щойно він з'явився чи змінився.
@@ -219,6 +226,8 @@ private fun WizardHeaderRow(state: EditorState, onIntent: (EditorIntent) -> Unit
 private fun AboutStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     val form = state.form
     val description = form.description.trim().length
+    // Порядок як у пості Threads: готовий текст, назва, опис, фото й відео, а жанр наприкінці.
+    if (!state.editing) AnnounceCard(state, onIntent)
     LabelledField(
         stringResource(R.string.title), form.title,
         { value -> onIntent(EditorIntent.Edit { copy(title = value.take(EventRules.titleLength.last)) }) },
@@ -236,6 +245,7 @@ private fun AboutStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         },
         error = state.problem(DraftField.DESCRIPTION)
     )
+    MediaSection(state, onIntent)
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Text(
             stringResource(R.string.category_single).uppercase(), style = MaterialTheme.typography.labelSmall,
@@ -528,7 +538,6 @@ private fun PeopleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         )
         if (form.contactUrl.isNotBlank() && !ContactRules.isContactUrl(form.contactUrl)) FieldError(DraftField.CONTACT_URL.rule())
     }
-    Text(stringResource(R.string.photo_after_publish), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
 }
 
 /**

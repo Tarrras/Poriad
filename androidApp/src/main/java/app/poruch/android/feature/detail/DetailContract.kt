@@ -112,12 +112,6 @@ sealed interface DetailIntent {
     data object CancelEvent : DetailIntent
     /** [follow] — що показував перемикач «Стежити за організатором»; null — перемикача не було. */
     data class Rate(val score: Int, val comment: String, val tags: List<RatingTag>, val follow: Boolean? = null) : DetailIntent
-    data class AttachPhoto(val bytes: ByteArray, val contentType: String) : DetailIntent {
-        // Масиви байтів порівнюються за посиланням: два вибори того самого файлу — різні інтенти.
-        override fun equals(other: Any?) = this === other ||
-            (other is AttachPhoto && contentType == other.contentType && bytes.contentEquals(other.bytes))
-        override fun hashCode() = 31 * bytes.contentHashCode() + contentType.hashCode()
-    }
 }
 
 sealed interface DetailEffect {

@@ -205,12 +205,6 @@ class DetailViewModel(
                 app.cancelEvent(eventId)
             }
 
-            is DetailIntent.AttachPhoto -> app.uploadEventImage(
-                eventId,
-                intent.bytes,
-                intent.contentType
-            )
-
             is DetailIntent.ShowReport -> if (intent.target != null && !screen.signedIn) {
                 send(DetailEffect.RequireSignIn())
             } else reduce { copy(reporting = intent.target) }

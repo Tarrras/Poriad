@@ -1,6 +1,5 @@
 package app.poruch.android.feature.detail
 
-import app.poruch.android.ui.PoruchIcons
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -11,19 +10,9 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.exifinterface.media.ExifInterface
-import app.poruch.android.R
-import app.poruch.android.ui.Poruch
-import app.poruch.android.ui.SecondaryButton
-import app.poruch.android.ui.Spacing
 import app.poruch.domain.ImageRules
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -52,28 +41,13 @@ fun rememberImagePicker(maxSide: Int = MAX_SIDE, onPicked: (ByteArray, String) -
     return ImagePicker(reading, error) { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
 }
 
-/** Кнопка фото події: той самий вибір, з прогресом і помилкою під нею. */
-@Composable
-fun PhotoPickerButton(busy: Boolean, onPicked: (ByteArray, String) -> Unit) {
-    val colors = Poruch.colors
-    val picker = rememberImagePicker(onPicked = onPicked)
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        SecondaryButton(
-            stringResource(R.string.add_photo), picker.open,
-            Modifier.fillMaxWidth(), enabled = !busy && !picker.reading, icon = PoruchIcons.camera
-        )
-        if (picker.reading) LinearProgressIndicator(Modifier.fillMaxWidth(), color = colors.brand, trackColor = colors.brandContainer)
-        if (picker.failed) Text(stringResource(R.string.photo_error), style = MaterialTheme.typography.bodySmall, color = colors.danger)
-    }
-}
-
 /**
  * Файл із галереї не йде на сервер як є: бакет публічний, а EXIF несе GPS і модель телефона.
  * Перекодування через bitmap лишає лише пікселі; заодно вкорочує довшу сторону до [MAX_SIDE].
  * Джерело — будь-яке зображення, яке декодує система (HEIC, AVIF з камери теж): на сервер однаково
  * йде JPEG. Ліміт розміру — до вже перекодованих байтів.
  */
-private fun Context.readImage(uri: Uri, maxSide: Int): Pair<ByteArray, String> {
+internal fun Context.readImage(uri: Uri, maxSide: Int = MAX_SIDE): Pair<ByteArray, String> {
     require(contentResolver.getType(uri).orEmpty().startsWith("image/")) { "not an image" }
     val bitmap = decodeBounded(uri, maxSide) ?: error("undecodable")
     val output = ByteArrayOutputStream()

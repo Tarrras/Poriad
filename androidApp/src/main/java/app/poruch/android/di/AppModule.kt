@@ -8,6 +8,7 @@ import app.poruch.android.feature.account.FollowsViewModel
 import app.poruch.android.feature.account.MyPlacesViewModel
 import app.poruch.android.feature.account.ProfileViewModel
 import app.poruch.android.feature.detail.DetailViewModel
+import app.poruch.android.feature.editor.DraftMediaFiles
 import app.poruch.android.feature.editor.DraftStore
 import app.poruch.android.feature.editor.EditorViewModel
 import app.poruch.android.feature.explore.ExploreViewModel
@@ -48,7 +49,8 @@ val appModule = module {
         )
     } onClose { it?.close() }
     single { get<AppGraph>().app }
-    single { DraftStore(androidContext()) }
+    single { DraftMediaFiles(androidContext()) }
+    single { DraftStore(androidContext(), get()) }
     single { NotificationPermission(androidContext()) }
 
     viewModelOf(::HomeViewModel)
@@ -60,7 +62,7 @@ val appModule = module {
     viewModelOf(::OnboardingViewModel)
     viewModel { (route: Auth) -> AuthViewModel(get(), route.reason) }
     viewModel { (route: Detail) -> DetailViewModel(get(), get(), route.eventId) }
-    viewModel { (route: Editor) -> EditorViewModel(get(), get(), get(), route.editingId) }
+    viewModel { (route: Editor) -> EditorViewModel(get(), get(), get(), get(), route.editingId, route.repeatOf) }
     viewModel { (route: Chat) -> ChatViewModel(get(), route.eventId, route.thread) }
     viewModel { (route: ArtistPage) -> ArtistViewModel(get(), route.artistId) }
 }

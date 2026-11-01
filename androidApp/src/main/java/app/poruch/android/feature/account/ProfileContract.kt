@@ -6,7 +6,6 @@ import app.poruch.domain.AppError
 import app.poruch.domain.Attendee
 import app.poruch.domain.Follow
 import app.poruch.domain.Profile
-import java.time.LocalDate
 
 data class ProfileState(
     val signedIn: Boolean = false,
@@ -16,9 +15,9 @@ data class ProfileState(
     val editing: Boolean = false,
     val editError: AppError? = null,
     val interests: List<EventCategory> = emptyList(),
-    /** Акаунт без віку має його вказати, перш ніж приєднуватись. */
+    /** Акаунт без віку: картка з галочкою «Мені вже є 18», перш ніж приєднуватись. */
     val needsAge: Boolean = false,
-    val pickingBirthDate: Boolean = false,
+    val adult: Boolean = false,
     val blocked: List<Attendee> = emptyList(),
     val mutating: Boolean = false,
     val passwordRecovery: Boolean = false,
@@ -41,6 +40,11 @@ data class ProfileState(
     /** Чим входить акаунт (`email`, `google`, `apple`): шторка видалення каже, що це один акаунт. */
     val providers: Set<String> = emptySet(),
     val deletePassword: String = "",
+    /** Сесію відкрито кодом з пошти: пароля може й не бути, видалення підтверджує новий код. */
+    val viaCode: Boolean = false,
+    /** Код на видалення надіслано: шторка питає його. */
+    val deleteCodeSent: Boolean = false,
+    val deleteCode: String = "",
     /** Помилка видалення показується в шторці: банер під нею не видно. */
     val deleteError: AppError? = null,
     /** Шторка зміни пароля: поточний і новий живуть лише в ній. */
@@ -63,7 +67,10 @@ data class ProfileState(
     val passwordsMismatch get() = newPasswordConfirm.isNotEmpty() && newPasswordConfirm != newPassword
     val canSetNewPassword get() = canSavePassword && newPasswordConfirm == newPassword
     val canChangePassword get() = canSavePassword && currentPassword.isNotEmpty()
-    val canDelete get() = passwordless || AccountRules.isPassword(deletePassword)
+    val canDelete get() = when {
+        viaCode -> deleteCodeSent && deleteCode.length in AuthState.CODE_LENGTH
+        else -> passwordless || AccountRules.isPassword(deletePassword)
+    }
 }
 
 sealed interface ProfileIntent {
@@ -76,8 +83,8 @@ sealed interface ProfileIntent {
     data object TuneRecommendations : ProfileIntent
     /** Ні організованих, ні відвіданих: «Організувати подію» замість двох нулів. */
     data object CreateEvent : ProfileIntent
-    data class ShowBirthDatePicker(val show: Boolean) : ProfileIntent
-    data class SetBirthDate(val value: LocalDate) : ProfileIntent
+    data class SetAdult(val value: Boolean) : ProfileIntent
+    data object ConfirmAdult : ProfileIntent
     data class Unblock(val userId: String) : ProfileIntent
     data class SetNewPassword(val value: String) : ProfileIntent
     data object SavePassword : ProfileIntent
@@ -103,6 +110,9 @@ sealed interface ProfileIntent {
     data object RateApp : ProfileIntent
     data class ShowDeleteAccount(val show: Boolean) : ProfileIntent
     data class SetDeletePassword(val value: String) : ProfileIntent
+    /** Акаунт з коду: код на пошту профілю, далі — він замість пароля. */
+    data object SendDeletionCode : ProfileIntent
+    data class SetDeleteCode(val value: String) : ProfileIntent
     data object ConfirmDeleteAccount : ProfileIntent
     data class ShowChangePassword(val show: Boolean) : ProfileIntent
     data class SetCurrentPassword(val value: String) : ProfileIntent

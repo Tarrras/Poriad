@@ -27,7 +27,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
 import app.poruch.android.ui.*
-import app.poruch.android.feature.editor.BirthDateSheet
 import app.poruch.android.feature.detail.rememberImagePicker
 import app.poruch.domain.AccountRules
 import app.poruch.domain.CompanyRules
@@ -60,16 +59,13 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                         Modifier.fillMaxWidth(), enabled = state.canSavePassword
                     )
                 }
-                // Старий акаунт без віку питаємо тут, раз, і кажемо чому.
-                if (state.needsAge) Column(
-                    Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
-                ) {
+                // Акаунт без віку (старий чи закритий крок після входу) питаємо тут тією самою галочкою.
+                if (state.needsAge) Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Text(stringResource(R.string.confirm_age_title), style = MaterialTheme.typography.titleSmall, color = colors.ink)
-                    Text(stringResource(R.string.confirm_age_body), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+                    AdultCheck(state.adult) { onIntent(ProfileIntent.SetAdult(it)) }
                     PrimaryButton(
-                        stringResource(R.string.confirm_age_action),
-                        { onIntent(ProfileIntent.ShowBirthDatePicker(true)) }, Modifier.fillMaxWidth()
+                        stringResource(R.string.auth_code_confirm), { onIntent(ProfileIntent.ConfirmAdult) }, Modifier.fillMaxWidth(),
+                        enabled = state.adult, loading = state.mutating
                     )
                 }
                 // Ні організованих, ні відвіданих: замість двох нулів у шапці — перша дія.
@@ -159,9 +155,6 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
         }
         StatusBarBand()
     }
-    if (state.pickingBirthDate) BirthDateSheet(
-        null, { onIntent(ProfileIntent.ShowBirthDatePicker(false)) }
-    ) { onIntent(ProfileIntent.SetBirthDate(it)) }
     if (state.deleting) DeleteAccountSheet(state, onIntent)
     if (state.changingPassword) ChangePasswordSheet(state, onIntent)
     if (state.editing) state.profile?.let { EditProfileSheet(it, state, onIntent) }
@@ -373,8 +366,23 @@ private fun DeleteAccountSheet(state: ProfileState, onIntent: (ProfileIntent) ->
             Text(stringResource(R.string.delete_account_body), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary)
             // Google чи Apple з тією ж поштою привʼязуються до наявного акаунта: людина має бачити, що видаляє саме його.
             DeleteAccountWho(state)
+            // Акаунт з коду (запис з вебу) пароля може не мати: телефон у руках власника доводить новий код з пошти.
+            if (state.viaCode) {
+                if (state.deleteCodeSent) {
+                    state.profile?.email?.let {
+                        Text(stringResource(R.string.auth_code_sent, it), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+                    }
+                    LabelledField(
+                        stringResource(R.string.auth_code_field), state.deleteCode, { onIntent(ProfileIntent.SetDeleteCode(it)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
+                    )
+                } else SecondaryButton(
+                    stringResource(R.string.auth_code_send), { onIntent(ProfileIntent.SendDeletionCode) }, Modifier.fillMaxWidth(),
+                    icon = PoruchIcons.mail, enabled = !state.mutating
+                )
+            }
             // Пароль доводить, що телефон у руках власника; в акаунта Google/Apple його нема — підтверджує кнопка.
-            if (!state.passwordless) LabelledField(
+            else if (!state.passwordless) LabelledField(
                 stringResource(R.string.password_label), state.deletePassword,
                 { onIntent(ProfileIntent.SetDeletePassword(it)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),

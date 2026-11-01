@@ -45,10 +45,8 @@ class Navigator(private val app: PoruchApp) {
         PoruchLog.d("nav") { "stack now ${describe()}" }
     }
 
-    /** «Створити»: гість замість редактора бачить реєстрацію, після якої редактор відкриється сам. */
-    fun createEvent() {
-        if (app.state.value.signedIn) open(Editor()) else open(Auth(AuthReason.CREATE))
-    }
+    /** «Створити» відкриває редактор усім: гість входить лише на «Опублікувати» (docs/organizers-1.5.md). */
+    fun createEvent() = open(Editor())
 
     private fun describe() = stack.joinToString { it.label() }
     private fun NavKey.label() = when (this) {
