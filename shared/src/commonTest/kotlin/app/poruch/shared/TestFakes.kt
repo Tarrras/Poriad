@@ -193,6 +193,13 @@ internal class Events: EventDiscovery, SavedEvents, EventAuthoring, EventPartici
     override suspend fun uploadVideo(eventId:String,bytes:ByteArray)=stored("video:${bytes.decodeToString()}",eventId)
     override suspend fun copyMedia(url:String,eventId:String)=stored("copy:$url",eventId)
     override suspend fun deleteImage(url:String) { deletedFiles+=url }
+    /** Що відповідає `parse-announcement`; [announceError] — чим падає. */
+    var announced=AnnouncementFill("Клуб","Читаємо разом",EventCategory.SOCIAL)
+    var announceError:AppError?=null
+    val announceCalls=mutableListOf<List<String>>()
+    override suspend fun announcement(text:String,city:String,today:String,timeZone:String):AnnouncementFill {
+        announceCalls+=listOf(text,city,today,timeZone); announceError?.let { fail(it) }; return announced
+    }
     override suspend fun join(id:String) {}
     override suspend fun leave(id:String) {}
     override suspend fun waitlistIds()=emptyList<String>()

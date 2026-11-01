@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
+import kotlin.time.TimeSource
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -219,6 +220,37 @@ internal class EventUseCases(
                 completedEventId = created,
                 publishAfterSignIn = false
             )
+        }
+    }
+
+    /**
+     * «Вставити анонс»: поля з тексту, і гостю (вхід — лише на «Опублікувати»). Не розібрали — запасні назва й опис з
+     * тексту ([AnnouncementRules.fallback]) і причина: банер «Текст уже в описі — допишіть назву» показує платформа.
+     * Не через [AppStore.mutate]: це не дія над подією, і чернетку з редактора вона не блокує.
+     */
+    suspend fun announce(text: String, city: String, timeZone: String): AnnouncementFill {
+        val body = text.trim().take(AnnouncementRules.TEXT_MAX)
+        if (body.isEmpty()) return AnnouncementFill(null, null, failure = AnnounceFailure.ERROR)
+        val zone = runCatching { TimeZone.of(timeZone) }.getOrDefault(TimeZone.currentSystemDefault())
+        val started = TimeSource.Monotonic.markNow()
+        return try {
+            authoring.announcement(body, city.trim(), Clock.System.now().toLocalDateTime(zone).date.toString(), zone.id).also {
+                PoruchAnalytics.track(
+                    "announce_fill", "filled" to it.filled.joinToString(",") { field -> field.key },
+                    "ms" to started.elapsedNow().inWholeMilliseconds
+                )
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val failure = when (e.asAppError()) {
+                AppError.TooManyAttempts -> AnnounceFailure.LIMIT
+                AppError.Network -> AnnounceFailure.NETWORK
+                else -> AnnounceFailure.ERROR
+            }
+            PoruchLog.w("action") { "announcement not parsed: ${failure.key}" }
+            PoruchAnalytics.track("announce_failed", "reason" to failure.key)
+            AnnouncementRules.fallback(body, failure)
         }
     }
 

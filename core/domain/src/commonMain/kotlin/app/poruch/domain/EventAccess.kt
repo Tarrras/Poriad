@@ -119,6 +119,12 @@ interface EventAuthoring {
     suspend fun copyMedia(url: String, eventId: String): String
     /** Прибирає завантажений файл (фото чи відео), який так і не став частиною події. За замовчуванням нічого. */
     suspend fun deleteImage(url: String) {}
+    /**
+     * Поля з тексту анонсу (`parse-announcement`), і гостю. [today] — `YYYY-MM-DD` у [timeZone] форми: від нього функція
+     * рахує «у суботу». Ліміт викликів — [AppError.TooManyAttempts], збій функції чи моделі — інша [AppFailure].
+     */
+    suspend fun announcement(text: String, city: String, today: String, timeZone: String): AnnouncementFill =
+        fail(AppError.ServiceUnavailable)
     /** Скільки людей стежать за зоною з цією точкою (docs/my-places.md); null — менше трьох. */
     suspend fun zoneAudience(latitude: Double, longitude: Double): Int? = null
 }

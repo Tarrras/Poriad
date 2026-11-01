@@ -66,6 +66,15 @@ internal class SupabaseEventAuthoring(
         storage.delete(url, auth.accessToken() ?: fail(AppError.SessionRequired))
     }
 
+    override suspend fun announcement(text: String, city: String, today: String, timeZone: String): AnnouncementFill {
+        val answer = rpc.function("parse-announcement", buildJsonObject {
+            put("text", text); put("city", city); put("today", today); put("tz", timeZone)
+        })
+        // Відповідь не за схемою — той самий збій, що й 502: клієнт бере перший рядок сам.
+        val dto = runCatching { rpc.json.decodeFromJsonElement<AnnouncementDto>(answer) }.getOrNull() ?: fail(AppError.ServiceUnavailable)
+        return dto.domain(timeZone)
+    }
+
     override suspend fun zoneAudience(latitude: Double, longitude: Double): Int? =
         rpc.call("zone_audience", buildJsonObject { put("p_lat", latitude); put("p_lon", longitude) }).jsonPrimitive.intOrNull
 

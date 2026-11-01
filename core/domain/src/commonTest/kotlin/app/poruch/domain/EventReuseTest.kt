@@ -1,0 +1,57 @@
+package app.poruch.domain
+
+import kotlin.test.*
+import kotlin.time.Instant
+
+/** «Повторити», «Пост для Threads» і запасний «Вставити анонс» (docs/organizers-1.5.md, 1.4–1.5). */
+class EventReuseTest {
+    private val club = Event(
+        "e1", "Книжковий клуб", "Читаємо «Тигролови» й говоримо про них за чаєм.", EventCategory.SOCIAL, "Київ", "Пекарня Протісто, Академмістечко",
+        "2026-10-20T16:00:00Z", "2026-10-20T18:00:00Z", "Europe/Kyiv", EventStatus.PUBLISHED, 50.46, 30.36, "https://s/e1/cover.jpg",
+        Gathering("me", "Я", 12, 3, false, minAge = 21, approvalRequired = true, contactUrl = "https://t.me/club")
+    )
+
+    /** Тиждень за тижнем, поки не в майбутньому; 25.10 Київ перейшов на зимовий час — година лишається 19:00. */
+    @Test fun aRepeatLandsOnTheSameLocalTimeInTheFuture() {
+        val draft = EventRepeat.draft(club, Instant.parse("2026-11-01T12:00:00Z"))!!
+        assertEquals("2026-11-03T17:00:00Z", draft.startsAt, "вт 03.11, 19:00 за Києвом")
+        assertEquals("2026-11-03T19:00:00Z", draft.endsAt)
+        assertEquals(listOf(DraftMedia.Copied(EventMedia(MediaKind.PHOTO, "https://s/e1/cover.jpg"))), draft.media, "the old cover is copied too")
+        assertNull(draft.imageUrl)
+        assertEquals(listOf(12, 21), listOf(draft.capacity, draft.minAge))
+        assertTrue(draft.approvalRequired); assertEquals("https://t.me/club", draft.contactUrl)
+        assertEquals(emptyList(), draft.validate("2026-11-01T12:00:00Z"))
+    }
+
+    /** Майбутня подія — на тиждень пізніше, а не та сама дата. */
+    @Test fun aFutureEventRepeatsNextWeek() {
+        val draft = EventRepeat.draft(club, Instant.parse("2026-10-01T12:00:00Z"))!!
+        assertEquals("2026-10-27T17:00:00Z", draft.startsAt)
+    }
+
+    @Test fun mediaAreCopiedInOrderAndListingsDoNotRepeat() {
+        val media = listOf(EventMedia(MediaKind.VIDEO, "https://s/v.mp4", "https://s/p.jpg"), EventMedia(MediaKind.PHOTO, "https://s/1.jpg"))
+        assertEquals(media.map { DraftMedia.Copied(it) }, EventRepeat.draft(club.copy(media = media), Instant.parse("2026-11-01T12:00:00Z"))!!.media)
+        assertNull(EventRepeat.draft(club.copy(gathering = null, listing = Listing("Karabas")), Instant.parse("2026-11-01T12:00:00Z")))
+    }
+
+    @Test fun theThreadsPostFollowsTheTemplate() {
+        assertEquals(
+            "Книжковий клуб\nвт, 20 жовтня, 19:00 · Пекарня Протісто, Академмістечко\n\n" +
+                "Читаємо «Тигролови» й говоримо про них за чаєм.\n\nЗапис: poriad.app/e/e1",
+            ThreadsPost.text(club)
+        )
+        val long = ThreadsPost.text(club.copy(description = "а".repeat(250)))
+        assertTrue("а".repeat(200) + "…\n\n" in long)
+        assertFalse("\n\n\n" in ThreadsPost.text(club.copy(description = "")), "no empty paragraph")
+    }
+
+    @Test fun aFailedAnnouncementStillFillsTitleAndDescription() {
+        val fill = AnnouncementRules.fallback("\n🔥✨ Книжковий  клуб ✨\nЧитаємо разом у суботу\n#книги #київ", AnnounceFailure.LIMIT)
+        assertEquals("Книжковий клуб", fill.title)
+        assertEquals("🔥✨ Книжковий  клуб ✨\nЧитаємо разом у суботу", fill.description)
+        assertEquals(listOf(AnnounceField.TITLE, AnnounceField.DESCRIPTION), fill.filled)
+        assertEquals(AnnounceFailure.LIMIT, fill.failure)
+        assertEquals(120, AnnouncementRules.fallback("б".repeat(300), AnnounceFailure.ERROR).title!!.length)
+    }
+}

@@ -429,6 +429,35 @@ class PoruchApp internal constructor(
     /** Вхід, відкритий через «Опублікувати», закрили без входу: гість лишається в редакторі, сама публікація скасована. */
     fun cancelPendingPublish() = eventUseCases.cancelPendingPublish()
 
+    /**
+     * «Заповнити» на картці «Є готовий анонс?» (крок 1, і гостю). [city] і [timeZone] — з форми. Поля, яких у тексті нема,
+     * — null: у формі лишається як було. Адреса — рядок для поля «Адреса» з підказками ([searchAddress]); крапку ставить
+     * людина. Не розібрали — [AnnouncementFill.failure], а назва й опис — з самого тексту. Сам рахує `announce_fill` чи
+     * `announce_failed`.
+     */
+    suspend fun fillFromAnnouncement(text: String, city: String, timeZone: String): AnnouncementFill =
+        eventUseCases.announce(text, city, timeZone)
+
+    /**
+     * «Повторити» в «Моїх подіях»: чернетка з власної спільнотної події — усі поля, фото й відео, на тиждень пізніше, поки
+     * не в майбутньому. Медіа копіюються в нову подію з публікацією ([createEvent]). Чужа подія чи афіша — null.
+     */
+    fun repeatDraft(event: Event): EventDraft? {
+        if (!state.value.organizes(event)) return null
+        return EventRepeat.draft(event, Clock.System.now())?.also {
+            PoruchAnalytics.track("repeat_event", "media" to it.media.size)
+        }
+    }
+
+    /**
+     * Текст «Пост для Threads» для власної події (дія організатора на деталях і в «Моїх подіях»): платформа відкриває з ним
+     * системне меню з фото й відео події, кладе його в буфер і каже «Текст скопійовано». Сам рахує `share` з `kind=threads`.
+     */
+    fun threadsPost(event: Event): String {
+        PoruchAnalytics.track("share", "kind" to "threads")
+        return ThreadsPost.text(event)
+    }
+
     /** «Шукаю компанію» на відкриту афішу. [meetAt] — з [CompanionRules.meetTimes], ISO-8601. */
     /** Новий час збору (R7б); «Перенести на …» і «Інший час» з питання R7а. «Скасувати збір» — [cancelEvent]. */
     fun moveCompanion(id: String, meetAt: String) = eventUseCases.moveCompanion(id, meetAt)
