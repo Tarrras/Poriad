@@ -2,8 +2,8 @@
 // кешує зі сторінкою, а цей скрипт входить (auth.js), записує, показує стан запису й «Після запису». Він же робить
 // `?unfollow` з листа. На сторінці без шторки (афіша) нічого не робить. Правила без DOM — експорти, перевірка —
 // `node tools/join_test.mjs`.
-import { session, sendCode, verifyCode, google, completeRedirect, rpc, inAppBrowser, browserLinks } from "./auth.js?v=12";
-import { SUPABASE, discover, fold, cardsByIds, esc, displayTitle, stubParts, timeOf, CATEGORIES, price } from "./poriad.js?v=12";
+import { session, sendCode, verifyCode, google, completeRedirect, rpc, signOut, inAppBrowser, browserLinks } from "./auth.js?v=12";
+import { SUPABASE, discover, fold, cardsByIds, esc, displayTitle, stubParts, timeOf, CATEGORIES, price, threadsPost, threadsIntent } from "./poriad.js?v=12";
 
 /** Відповідь бази на запис → стан шторки (таблиця «Інші відповіді на запис»). Невідома — null: показуємо помилку. */
 const OUTCOMES = {
@@ -27,7 +27,9 @@ export const STATUS = {
   rate: { title: "Записатися не вийшло.", text: "Забагато записів за годину. Спробуйте пізніше." },
   own: { title: "Це ваша подія." },
   left: { title: "Запис скасовано" }, withdrawn: { title: "Заявку скасовано" }, unqueued: { title: "Ви вийшли з черги" },
+  unfollowAsk: { title: "", text: "Листів про нові події цього організатора більше не буде.", unfollow: true }, // unfollowTitle
   unfollowed: { title: "Ви більше не стежите", text: "Листів про нові події цього організатора не буде." },
+  signedOut: { title: "Ви вийшли", text: "На цьому пристрої сторінка більше не памʼятає вашого акаунта." },
 };
 /** Напис на кнопці внизу сторінки. */
 const LABELS = { none: "Йду", approved: "Ви в списку", requested: "Заявку надіслано", waitlist: "Ви в черзі" };
@@ -43,6 +45,20 @@ const MESSAGES = {
   INVALID_BIRTH_DATE: "Перевірте дату народження.",
   FOLLOW_UNAVAILABLE: "Стежити за цим організатором зараз не можна.", TOO_MANY_FOLLOWS: "Ви вже стежите за 200 організаторами й місцями.",
 };
+
+/**
+ * Хто чим ділиться (docs/organizers-1.5.md, 1.6) — та сама умова, що `ShareRules.mode` у застосунку: «Поширити анонс»
+ * (promote) — лише організатор власної звичайної спільнотної події без companion_of, не скасованої й не завершеної.
+ * Решта — «Поділитися з другом» (friend). `event` — рядок event_details, `me` — id акаунта (null — гість).
+ */
+export function shareMode(event, me, now = Date.now()) {
+  const ended = event?.ends_at ? Date.parse(event.ends_at) <= now : false;
+  return me && event?.origin === "community" && !event.companion_of && event.organizer_id === me && event.status !== "cancelled" && !ended
+    ? "promote" : "friend";
+}
+
+/** Питання перед відпискою з листа: імʼя — прикладкою, щоб не відмінювати («за організатором Марта»). */
+export const unfollowTitle = (name) => (name ? `Не стежити за організатором ${name}?` : "Не стежити за організатором?");
 
 /** «Ця подія для 21+.» чи «…для 18–35.» — з меж події. */
 export const ageLimit = (min, max) => `Ця подія для ${max ? `${min || 18}–${max}` : `${min || 18}+`}.`;
@@ -112,6 +128,15 @@ export function start(sheet) {
     $("[data-error]").hidden = true;
     if (step === "start") $("[data-head]").textContent = action === "unfollow" ? "Не стежити за організатором" : "Записатися";
     if (!sheet.open) sheet.showModal();
+    signedInAs(step).catch(() => {});
+  }
+  /** «Ви ввійшли як … · Вийти» під кроками після входу: за спільним компʼютером видно, чий акаунт, і є як вийти. */
+  async function signedInAs(step) {
+    const line = $("[data-account]");
+    if (!line) return;
+    const current = step === "start" || step === "code" ? null : await session();
+    line.hidden = !current;
+    $("[data-account-email]").textContent = current?.user?.email ?? ""; // після виходу пошти в сторінці не лишаємо
   }
   function error(text) {
     const el = $("[data-error]");
@@ -135,12 +160,15 @@ export function start(sheet) {
   function show(kind) {
     const s = STATUS[kind];
     shown = kind;
-    $("[data-title]").textContent = kind === "age" ? ageLimit(Number(data.minAge), Number(data.maxAge)) : s.title;
+    $("[data-title]").textContent = kind === "age" ? ageLimit(Number(data.minAge), Number(data.maxAge))
+      : kind === "unfollowAsk" ? unfollowTitle(data.organizer ? data.organizerName : "") : s.title;
     const text = $("[data-text]");
     text.textContent = s.text ?? "";
     text.hidden = !s.text;
     $("[data-waitlist]").hidden = !s.waitlist;
     $("[data-ics]").hidden = !s.ics;
+    const unfollowButton = $("[data-unfollow]"); // сторінка з кешу могла прийти ще без цієї кнопки
+    if (unfollowButton) unfollowButton.hidden = !s.unfollow;
     const leave = $("[data-leave]");
     leave.textContent = s.leave ?? "";
     leave.hidden = !s.leave;
@@ -155,7 +183,12 @@ export function start(sheet) {
   // ---- Запис
   async function proceed() {
     if (!(await session())) return open("start");
-    return action === "unfollow" ? unfollow() : join();
+    return action === "unfollow" ? askUnfollow() : join();
+  }
+  /** «Не стежити» з листа — лише після підтвердження: посилання могли відкрити випадково чи підсунути. */
+  function askUnfollow() {
+    show("unfollowAsk");
+    refresh().catch(() => {}); // кнопка внизу має знати, що людина записана
   }
   async function join(waitlist = false) {
     try {
@@ -176,6 +209,7 @@ export function start(sheet) {
   async function refresh(quiet = false) {
     const seen = version;
     const [event] = (await rpc("event_details", { p_event_id: id })) ?? [];
+    await claimShare(event);
     const spots = document.querySelector("[data-spots]");
     if (spots && Number.isInteger(event?.attendee_count)) spots.textContent = event.capacity ? `${event.attendee_count} з ${event.capacity}` : `${event.attendee_count}`;
     let next = ["approved", "requested"].includes(event?.membership) ? event.membership : "none";
@@ -192,8 +226,26 @@ export function start(sheet) {
   }
   async function unfollow() {
     if (data.organizer) await rpc("unfollow", { p_kind: "organizer", p_target: data.organizer });
+    follows = null;
     show("unfollowed");
-    await refresh().catch(() => {}); // з листа: кнопка внизу має знати, що людина записана
+  }
+  /** Вихід: сесію забуває auth.js, а сторінка — усе особисте (стан, запрошення, «Стежити», «Поширити анонс»). */
+  async function leaveAccount() {
+    await signOut();
+    sessionStorage.removeItem(PENDING);
+    invite = null;
+    details = null;
+    follows = null;
+    mode = "friend";
+    if (shareButton) shareButton.lastChild.textContent = "Поділитися з другом";
+    const copyLink = document.querySelector("[data-copy-link]");
+    if (copyLink) copyLink.hidden = true;
+    const afisha = document.querySelector("[data-afisha]");
+    if (afisha) afisha.hidden = false;
+    const follow = $("[data-follow]");
+    if (follow) Object.assign(follow, { textContent: "Стежити", disabled: false });
+    setState("none");
+    show("signedOut");
   }
 
   // ---- Вхід
@@ -258,16 +310,60 @@ export function start(sheet) {
     button.textContent = "Ви стежите";
     button.disabled = true;
   }
-  async function invite(button) {
-    const url = location.origin + location.pathname;
-    if (navigator.share) { try { await navigator.share({ title: document.querySelector("h1")?.textContent || document.title, url }); } catch {} return; }
+
+  // ---- Хто чим ділиться (1.6). Сторінка однакова для всіх: «Поділитися з другом» угорі гостю веде вбудований скрипт
+  // сторінки (адреса без запрошення), а з входом кнопку бере цей скрипт — особисте посилання чи «Поширити анонс».
+  const plain = () => location.origin + location.pathname;
+  let details = null; // останній event_details: текст анонсу
+  let mode = "friend";
+  let invite = null; // особисте ?by= — готуємо заздалегідь: Safari не дає navigator.share після очікування мережі
+  let shareButton = null;
+  async function claimShare(event) {
+    const me = (await session().catch(() => null))?.user?.id;
+    if (!event || !me) return;
+    details = event;
+    mode = shareMode(event, me);
+    if (!shareButton) {
+      const original = document.querySelector("[data-share]");
+      if (!original) return;
+      // Копія без обробника вбудованого скрипта: інакше один тап ділився б двічі.
+      shareButton = original.cloneNode(true);
+      original.replaceWith(shareButton);
+      shareButton.addEventListener("click", () => (mode === "promote" ? promote() : shareWithFriend(shareButton)));
+    }
+    shareButton.lastChild.textContent = mode === "promote" ? "Поширити анонс" : "Поділитися з другом";
+    const copyLink = document.querySelector("[data-copy-link]");
+    if (copyLink) copyLink.hidden = mode !== "promote";
+    // Чотири дії в ряд на телефоні: організатору на своїй сторінці «Скопіювати посилання» замість «Афіші».
+    const afisha = document.querySelector("[data-afisha]");
+    if (afisha) afisha.hidden = mode === "promote";
+    if (mode === "friend") prepareInvite();
+  }
+  /** Токен запрошення; збій (мережа, ліміт, подія минула) лише знеособлює посилання, як у застосунку. */
+  async function prepareInvite() {
+    if (invite) return;
     try {
-      await navigator.clipboard.writeText(url);
-      const label = button.lastChild;
-      const was = label.textContent;
-      label.textContent = "Посилання скопійовано";
-      setTimeout(() => { label.textContent = was; }, 2000);
-    } catch { prompt("Посилання на подію", url); }
+      const token = await rpc("create_invite", { p_event_id: id });
+      if (typeof token === "string" && /^[A-Za-z0-9_-]{22}$/.test(token)) invite = `${plain()}?by=${token}`;
+    } catch {}
+  }
+  const copy = (text) => navigator.clipboard?.writeText(text).then(() => true, () => false) ?? Promise.resolve(false);
+  function flash(button, text) {
+    const label = button.lastChild;
+    const was = label.textContent;
+    label.textContent = text;
+    setTimeout(() => { label.textContent = was; }, 2000);
+  }
+  async function shareWithFriend(button) {
+    const url = invite ?? plain();
+    if (navigator.share) { try { await navigator.share({ title: document.querySelector("h1")?.textContent || document.title, url }); } catch {} return; }
+    if (await copy(url)) flash(button, "Посилання скопійовано"); else prompt("Посилання на подію", url);
+  }
+  /** «Пост для Threads»: вкладку — першою й без await (Safari блокує window.open після очікування), текст — і в буфер. */
+  function promote() {
+    const text = threadsPost(details);
+    window.open(threadsIntent(text), "_blank", "noopener");
+    copy(text).then((ok) => { if (ok) flash(shareButton, "Текст скопійовано"); });
   }
   async function thisWeek() {
     const week = $("[data-week]");
@@ -331,12 +427,18 @@ export function start(sheet) {
   }));
   $("[data-waitlist]").addEventListener("click", task(() => join(true)));
   $("[data-leave]").addEventListener("click", task(leave));
+  $("[data-unfollow]")?.addEventListener("click", task(unfollow));
+  $("[data-signout]")?.addEventListener("click", task(leaveAccount));
   $("[data-follow]")?.addEventListener("click", task(async () => {
     await rpc("follow", { p_kind: "organizer", p_target: data.organizer });
     follows = null;
     followed($("[data-follow]"));
   }));
-  $("[data-invite]").addEventListener("click", (event) => invite(event.currentTarget));
+  $("[data-invite]").addEventListener("click", (event) => shareWithFriend(event.currentTarget));
+  document.querySelector("[data-copy-link]")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    if (await copy(plain())) flash(button, "Посилання скопійовано"); else prompt("Посилання на подію", plain());
+  });
 
   // Вбудований браузер Threads чи Instagram: Google туди вхід не пускає — кличемо в Safari чи Chrome.
   if (inAppBrowser()) {
@@ -360,7 +462,7 @@ export function start(sheet) {
       url.searchParams.delete("unfollow");
       history.replaceState(history.state, "", url);
       action = "unfollow";
-      if (await session()) { await unfollow(); return true; }
+      if (await session()) { askUnfollow(); return true; }
     }
     const p = pending();
     if (p?.event === id) {

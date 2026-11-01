@@ -2,7 +2,7 @@
 // комп'ютера. Маршрути в #: «#/» — мої події, «#/new», «#/e/{id}» — дії й учасники, «#/e/{id}/edit». Вхід — auth.js, дані —
 // ті самі функції бази, що в застосунку; сторінка перевіряє лише очевидне, решту каже сервер. Чисті правила вгорі (дати,
 // тривалість, медіа, текст для Threads) перевіряє `node tools/kabinet_test.mjs`; DOM — нижче, лише в браузері.
-import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle } from "./poriad.js?v=12";
+import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent } from "./poriad.js?v=12";
 import { session, sendCode, verifyCode, google, completeRedirect, rpc, upload, signOut, inAppBrowser } from "./auth.js?v=12";
 
 // ---- Дати. Усі п'ять міст в одному поясі; подія з іншим поясом (з застосунку) редагується у своєму.
@@ -77,22 +77,8 @@ export function fit(width, height, max = MEDIA.side) {
   return [Math.round(width * k), Math.round(height * k)];
 }
 
-// ---- «Пост для Threads» (1.5) — той самий текст, що `ThreadsPost` у застосунку.
-const WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "нд"];
-const MONTHS = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
-export const ABOUT_MAX = 200;
-export function threadsPost(event) {
-  const { date, time } = local(event.starts_at, event.time_zone || TZ);
-  const [y, m, d] = date.split("-").map(Number);
-  const when = `${WEEKDAYS[(new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7]}, ${d} ${MONTHS[m - 1]}, ${time}`;
-  const place = event.place_name || event.address || event.city || "";
-  const description = (event.description ?? "").trim();
-  const about = event.blurb?.trim() || (description.length <= ABOUT_MAX ? description : description.slice(0, ABOUT_MAX).trimEnd() + "…");
-  return [`${displayTitle(event.title)}\n${[when, place].filter(Boolean).join(" · ")}`, about, `Запис: poriad.app/e/${event.id}`]
-    .filter(Boolean).join("\n\n");
-}
-/** Інтент Threads приймає лише текст; фото організатор перетягує сам. */
-export const threadsIntent = (text) => `https://www.threads.net/intent/post?text=${encodeURIComponent(text)}`;
+// ---- «Пост для Threads» (1.5) — у poriad.js: той самий текст ділить і сторінка події (1.6).
+export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=12";
 
 /** Анонс не розібрали: перший непорожній рядок без емодзі й хештегів — назва (до 120). */
 export function firstLine(text) {
