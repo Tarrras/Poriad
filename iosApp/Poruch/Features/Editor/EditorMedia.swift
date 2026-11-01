@@ -63,12 +63,8 @@ final class FileBytes: NSObject, MediaBytes {
     func read() -> KotlinByteArray { kotlinBytes((try? Data(contentsOf: file)) ?? Data()) }
 }
 
-/// Мосту Data → ByteArray у shared нема: копіюємо побайтово. Кличуть не з головного потоку.
-func kotlinBytes(_ data: Data) -> KotlinByteArray {
-    let bytes = KotlinByteArray(size: Int32(data.count))
-    for (index, byte) in data.enumerated() { bytes.set(index: Int32(index), value: Int8(bitPattern: byte)) }
-    return bytes
-}
+/// Data → ByteArray одним memcpy у спільному шарі (`bytesOf`). Кличуть не з головного потоку.
+func kotlinBytes(_ data: Data) -> KotlinByteArray { Bytes_iosKt.bytesOf(data: data) }
 
 /// Тека файлів чернеток. Одна на телефон: чернетки належать людині й зникають з виходом (`EventEditorModel.clearDrafts`).
 enum DraftFiles {
@@ -132,8 +128,12 @@ enum DraftMediaPicker {
         defer { try? FileManager.default.removeItem(at: picked.url) }
         let name = "\(UUID().uuidString).mp4"
         let output = DraftFiles.url(name)
+        // Згорнули застосунок посеред стиснення: дотискаємо у фоні, а вийшов час — зупиняємось, а не висимо.
+        let stop = CompressionStop()
+        let background = await MainActor.run { BackgroundWork(stop) }
+        defer { Task { @MainActor in background.end() } }
         do {
-            let trimmed = try await VideoCompressor.compress(picked.url, to: output)
+            let trimmed = try await VideoCompressor.compress(picked.url, to: output, stop: stop)
             let poster = try await VideoCompressor.poster(of: output)
             return DraftItem(origin: .local, video: true, url: name, poster: try DraftFiles.write(poster, ext: "jpg"), trimmed: trimmed)
         } catch {
@@ -151,6 +151,30 @@ enum DraftMediaPicker {
     }
 }
 
+/// Стиснення зупиняють ззовні: час фонової задачі вийшов. Перевіряє вартовий у `VideoCompressor`.
+final class CompressionStop: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stopped = false
+    var isStopped: Bool { lock.lock(); defer { lock.unlock() }; return stopped }
+    func stop() { lock.lock(); stopped = true; lock.unlock() }
+}
+
+/// Фонова задача на час стиснення: без неї система зупиняє кодер, щойно застосунок згорнули.
+@MainActor private final class BackgroundWork {
+    private var id = UIBackgroundTaskIdentifier.invalid
+    init(_ stop: CompressionStop) {
+        id = UIApplication.shared.beginBackgroundTask(withName: "poruch.video") { [weak self] in
+            stop.stop()
+            self?.end()
+        }
+    }
+    func end() {
+        guard id != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(id)
+        id = .invalid
+    }
+}
+
 /// Довша сторона фото події: та сама, що в старої обкладинки.
 let mediaPhotoMaxPixel: CGFloat = 2048
 
@@ -165,7 +189,7 @@ enum VideoCompressor {
     struct Failure: Error {}
 
     /// Повертає, чи обрізали до перших 30 с.
-    static func compress(_ source: URL, to output: URL) async throws -> Bool {
+    static func compress(_ source: URL, to output: URL, stop: CompressionStop) async throws -> Bool {
         let asset = AVURLAsset(url: source)
         let duration = try await asset.load(.duration)
         let limit = CMTime(seconds: Double(MediaRules.shared.VIDEO_MAX_SECONDS), preferredTimescale: 600)
@@ -176,7 +200,7 @@ enum VideoCompressor {
         var bitrate = min(Double(maxVideoBitrate), budget * 8 * 0.9 / max(range.duration.seconds, 1) - Double(audioBitrate))
         // ponytail: дві спроби з меншим бітрейтом, далі «Не вдалося додати цей файл». Підбирати точніше — якщо впиратимуться.
         for _ in 0..<2 {
-            try await transcode(asset, range: range, to: output, bitrate: Int(bitrate))
+            try await transcode(asset, range: range, to: output, bitrate: Int(bitrate), stop: stop)
             let size = (try? output.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? .max
             if size <= Int(budget) { return trimmed }
             bitrate *= 0.6
@@ -194,7 +218,14 @@ enum VideoCompressor {
         return jpeg
     }
 
-    private static func transcode(_ asset: AVURLAsset, range: CMTimeRange, to output: URL, bitrate: Int) async throws {
+    /// SDR Rec.709 і в читанні, і в записі: HDR з iPhone 12+ (HLG, Dolby Vision) інакше на вебі й Android вицвітає.
+    private static let rec709: [String: Any] = [
+        AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_709_2,
+        AVVideoTransferFunctionKey: AVVideoTransferFunction_ITU_R_709_2,
+        AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2
+    ]
+
+    private static func transcode(_ asset: AVURLAsset, range: CMTimeRange, to output: URL, bitrate: Int, stop: CompressionStop) async throws {
         try? FileManager.default.removeItem(at: output)
         guard let video = try await asset.loadTracks(withMediaType: .video).first else { throw Failure() }
         let audio = try await asset.loadTracks(withMediaType: .audio).first
@@ -209,7 +240,8 @@ enum VideoCompressor {
         let scale = min(1, 1280 / max(natural.width, natural.height), 720 / max(min(natural.width, natural.height), 1))
         func even(_ value: CGFloat) -> Int { max(2, Int((value * scale / 2).rounded()) * 2) }
         let videoOut = AVAssetReaderTrackOutput(track: video, outputSettings: [
-            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+            AVVideoColorPropertiesKey: rec709
         ])
         videoOut.alwaysCopiesSampleData = false
         reader.add(videoOut)
@@ -217,6 +249,7 @@ enum VideoCompressor {
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: even(natural.width), AVVideoHeightKey: even(natural.height),
             AVVideoScalingModeKey: AVVideoScalingModeResizeAspectFill,
+            AVVideoColorPropertiesKey: rec709,
             AVVideoCompressionPropertiesKey: [
                 AVVideoAverageBitRateKey: bitrate,
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
@@ -248,29 +281,73 @@ enum VideoCompressor {
 
         guard reader.startReading(), writer.startWriting() else { throw reader.error ?? writer.error ?? Failure() }
         writer.startSession(atSourceTime: range.start)
-        await withTaskGroup(of: Void.self) { group in
-            for (index, pair) in pairs.enumerated() {
-                group.addTask { await pump(pair.0, into: pair.1, queue: DispatchQueue(label: "poruch.video.\(index)")) }
-            }
-        }
-        if reader.status == .failed { writer.cancelWriting(); throw reader.error ?? Failure() }
-        await writer.finishWriting()
-        guard writer.status == .completed else { throw writer.error ?? Failure() }
-    }
-
-    /// Доріжка з читача в записувач, поки записувач приймає; кінець доріжки закриває вхід.
-    private static func pump(_ output: AVAssetReaderOutput, into input: AVAssetWriterInput, queue: DispatchQueue) async {
-        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
-            var finished = false
-            input.requestMediaDataWhenReady(on: queue) {
-                while input.isReadyForMoreMediaData, !finished {
-                    if let sample = output.copyNextSampleBuffer(), input.append(sample) { continue }
-                    finished = true
-                    input.markAsFinished()
-                    done.resume()
+        let pumps = pairs.map { _ in Pump() }
+        // Записувач, що впав, може більше не кликати `requestMediaDataWhenReady`: тоді доріжки чекали б вічно. Вартовий
+        // бачить збій чи зупинку ззовні й відпускає всі доріжки.
+        let watchdog = Task.detached {
+            while !pumps.allSatisfy(\.finished) {
+                try? await Task.sleep(for: .milliseconds(250))
+                if stop.isStopped || reader.status == .failed || writer.status == .failed || writer.status == .cancelled {
+                    reader.cancelReading()
+                    pumps.forEach { $0.finish() }
                 }
             }
         }
+        await withTaskGroup(of: Void.self) { group in
+            for (index, (output, input)) in pairs.enumerated() {
+                let pump = pumps[index]
+                let queue = DispatchQueue(label: "poruch.video.\(index)")
+                group.addTask {
+                    await pump.wait {
+                        input.requestMediaDataWhenReady(on: queue) {
+                            while input.isReadyForMoreMediaData, !pump.finished {
+                                guard writer.status == .writing, reader.status != .failed, !stop.isStopped else { return pump.finish() }
+                                guard let sample = output.copyNextSampleBuffer() else {
+                                    input.markAsFinished()
+                                    return pump.finish()
+                                }
+                                if !input.append(sample) { return pump.finish() }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        watchdog.cancel()
+        guard !stop.isStopped, reader.status != .failed, writer.status == .writing else {
+            writer.cancelWriting()
+            throw reader.error ?? writer.error ?? Failure()
+        }
+        await writer.finishWriting()
+        guard writer.status == .completed else { throw writer.error ?? Failure() }
+    }
+}
+
+/// Одна доріжка стиснення: чекання, яке відпускають рівно раз — кінець доріжки, збій чи вартовий.
+private final class Pump: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var done = false
+
+    var finished: Bool { lock.lock(); defer { lock.unlock() }; return done }
+
+    func wait(_ start: () -> Void) async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            lock.lock()
+            let already = done
+            if !already { self.continuation = continuation }
+            lock.unlock()
+            if already { continuation.resume() } else { start() }
+        }
+    }
+
+    func finish() {
+        lock.lock()
+        let waiting = done ? nil : continuation
+        done = true
+        continuation = nil
+        lock.unlock()
+        waiting?.resume()
     }
 }
 
