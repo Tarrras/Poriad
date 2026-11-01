@@ -182,8 +182,12 @@ fun RoundAction(
             if (loading) CircularProgressIndicator(Modifier.size(20.dp), color = ink, strokeWidth = 2.dp)
             else Icon(icon, null, Modifier.size(22.dp), tint = ink)
         }
-        // На великому шрифті — трикрапка, а не підпис, обрізаний посеред слова.
-        Text(title, style = MaterialTheme.typography.labelMedium, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        // Два рядки: «Поширити анонс», «Поділитися з другом» (1.6) в один не вміщались. Далі — трикрапка, а не підпис,
+        // обрізаний посеред слова.
+        Text(
+            title, style = MaterialTheme.typography.labelMedium, color = ink, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
