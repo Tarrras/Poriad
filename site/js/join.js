@@ -26,7 +26,7 @@ export const STATUS = {
   denied: { title: "Записатися не вийшло." },
   rate: { title: "Записатися не вийшло.", text: "Забагато записів за годину. Спробуйте пізніше." },
   own: { title: "Це ваша подія." },
-  left: { title: "Запис скасовано" },
+  left: { title: "Запис скасовано" }, withdrawn: { title: "Заявку скасовано" }, unqueued: { title: "Ви вийшли з черги" },
   unfollowed: { title: "Ви більше не стежите", text: "Листів про нові події цього організатора не буде." },
 };
 /** Напис на кнопці внизу сторінки. */
@@ -160,22 +160,29 @@ function start(sheet) {
     if (!(await refresh())) throw new Error("not joined");
     show(state);
   }
-  /** Стан людини на цій події з бази: власний рядок учасника, інакше черга. Повертає, чи вона десь у списку. */
+  /**
+   * Стан людини на цій події з бази: власний рядок учасника, інакше черга. Повертає, чи вона десь у списку. Заразом
+   * свіжі місця в панелі: сторінка з кешу могла показати «0 з 6» тому, хто вже записаний.
+   */
   async function refresh() {
     const [event] = (await rpc("event_details", { p_event_id: id })) ?? [];
+    const spots = document.querySelector("[data-spots]");
+    if (spots && Number.isInteger(event?.attendee_count)) spots.textContent = event.capacity ? `${event.attendee_count} з ${event.capacity}` : `${event.attendee_count}`;
     let next = ["approved", "requested"].includes(event?.membership) ? event.membership : "none";
     if (next === "none" && event?.capacity && ((await rpc("my_waitlist")) ?? []).includes(id)) next = "waitlist";
     setState(next);
     return next !== "none";
   }
   async function leave() {
-    await rpc(state === "waitlist" ? "leave_waitlist" : "leave_event", { p_event_id: id });
+    const was = state;
+    await rpc(was === "waitlist" ? "leave_waitlist" : "leave_event", { p_event_id: id });
     setState("none");
-    show("left");
+    show({ approved: "left", requested: "withdrawn", waitlist: "unqueued" }[was]);
   }
   async function unfollow() {
     if (data.organizer) await rpc("unfollow", { p_kind: "organizer", p_target: data.organizer });
     show("unfollowed");
+    await refresh().catch(() => {}); // з листа: кнопка внизу має знати, що людина записана
   }
 
   // ---- Вхід

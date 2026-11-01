@@ -5,7 +5,7 @@ import { base, now, shelters, env, detailsOk } from "./fixtures.mjs";
 
 const community = eventPage(base, now);
 assert.ok(!community.includes("<script>alert"), "назва екранується");
-assert.ok(community.includes("<small>Учасники</small><span>5 з 8</span>"), "місця — під міткою, як ціна: поруч коротке «Йду»");
+assert.ok(community.includes("<small>Учасники</small><span data-spots>5 з 8</span>"), "місця — під міткою, як ціна: поруч коротке «Йду»");
 assert.ok(community.includes("19:00"), "час у зоні події, а не UTC");
 assert.ok(!community.includes('src="javascript:'), "лише https-зображення");
 assert.ok(community.includes('content="https://poriad.app/img/og.png"'), "запасне прев'ю");

@@ -15,6 +15,7 @@ assert.equal(STATUS.closed.title, "Запис на цю подію закрит�
 assert.equal(STATUS.denied.title, "Записатися не вийшло.");
 assert.equal(STATUS.requested.text, "Відповідь організатора прийде на пошту.");
 assert.ok(STATUS.approved.ics && STATUS.approved.leave === "Скасувати запис" && STATUS.requested.leave === "Скасувати заявку");
+assert.deepEqual([STATUS.left.title, STATUS.withdrawn.title, STATUS.unqueued.title], ["Запис скасовано", "Заявку скасовано", "Ви вийшли з черги"]);
 assert.ok(STATUS.full.week && STATUS.waitlist.week && !STATUS.approved.week, "«Цього тижня» — лише коли місць нема");
 assert.ok(!STATUS.closed.after && STATUS.approved.after && STATUS.full.after, "«Після запису» — після «Йду» чи коли місць нема");
 

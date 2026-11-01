@@ -259,7 +259,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
       <ul><li>${icon("bell")}Нагадування за годину до початку</li><li>${icon("people")}«Шукаю компанію» — знайдіть, з ким піти</li><li>${icon("map")}Що ще відбувається поряд — на мапі</li></ul>
       <div class="stores">${storeButtons(ct)}</div></div>
   </div>
-  <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${spots && !cost ? `<small>Учасники</small><span>${esc(spots.replace("Учасників: ", ""))}</span>`
+  <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${spots && !cost ? `<small>Учасники</small><span data-spots>${esc(spots.replace("Учасників: ", ""))}</span>`
       : `${spots ? "" : "<small>Ціна</small>"}<span>${esc(cost || spots || "Вхід уточнюйте")}</span>`}</div>
     ${ticketUrl && live ? `<a class="btn primary" href="${esc(ticketHref(ticketUrl))}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
       : imported ? `<a class="btn primary" href="/app?from=${ct}">Завантажити «Поряд»</a>`
