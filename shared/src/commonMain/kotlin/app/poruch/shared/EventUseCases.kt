@@ -11,6 +11,7 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlin.time.TimeSource
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -236,9 +237,26 @@ internal class EventUseCases(
             it.copy(
                 notice = if (failed == 0) AppNotice.Told(AppMessage.EVENT_PUBLISHED) else AppNotice.MediaFailed(failed),
                 completedEventId = created,
+                published = published(created, draft),
                 publishAfterSignIn = false
             )
         }
+    }
+
+    /** «Подію створено» з чернетки: картка події ще їде, а екран потрібен одразу. */
+    private fun published(id: String, draft: EventDraft): PublishedEvent {
+        val place = listOf(draft.address.trim(), draft.city.trim()).filter { it.isNotEmpty() }.distinct()
+            .let { parts -> if (parts.size == 2 && parts[1] in parts[0]) parts.take(1) else parts }.joinToString(", ")
+        return PublishedEvent(
+            id = id, link = EventLinks.url(id),
+            post = ThreadsPost.text(id, TitleRules.display(draft.title.trim()), draft.startsAt, draft.timeZone, draft.address.trim(), null, draft.description),
+            // Звичайна подія свого організатора: саме вона щойно опублікована, тож завжди анонс.
+            shareMode = ShareMode.PROMOTE,
+            title = draft.title.trim(),
+            startMillis = Instant.parse(draft.startsAt).toEpochMilliseconds(),
+            endMillis = Instant.parse(draft.endsAt).toEpochMilliseconds(),
+            timeZone = draft.timeZone, location = place
+        )
     }
 
     /**

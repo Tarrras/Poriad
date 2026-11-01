@@ -46,6 +46,16 @@ class EventReuseTest {
         assertFalse("\n\n\n" in ThreadsPost.text(club.copy(description = "")), "no empty paragraph")
     }
 
+    /** «За подією і роллю» (1.6): анонс — лише організатор своєї звичайної спільнотної події; решта ділиться з другом. */
+    @Test fun whoPromotesAndWhoSharesWithAFriend() {
+        assertEquals(ShareMode.PROMOTE, ShareRules.mode(club, "me"), "my own community event")
+        assertEquals(ShareMode.FRIEND, ShareRules.mode(club, "someone"), "a guest on someone else's event")
+        assertEquals(ShareMode.FRIEND, ShareRules.mode(club, null), "not signed in")
+        val companion = club.copy(gathering = club.gathering!!.copy(companionOf = CompanionParent("p1", "Концерт", null)))
+        assertEquals(ShareMode.FRIEND, ShareRules.mode(companion, "me"), "my «Шукаю компанію» is about someone else's listing")
+        assertEquals(ShareMode.FRIEND, ShareRules.mode(club.copy(gathering = null, listing = Listing("Karabas")), "me"), "a listing")
+    }
+
     @Test fun aFailedAnnouncementStillFillsTitleAndDescription() {
         val fill = AnnouncementRules.fallback("\n🔥✨ Книжковий  клуб ✨\nЧитаємо разом у суботу\n#книги #київ", AnnounceFailure.LIMIT)
         assertEquals("Книжковий клуб", fill.title)

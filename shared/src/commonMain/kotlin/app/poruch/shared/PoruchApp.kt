@@ -890,6 +890,17 @@ class PoruchApp internal constructor(
         store.update { it.copy(reviewMoment = false) }
     }
 
+    /**
+     * Дія на «Подію створено»: [PublishAction.SHARE] — «Поширити анонс» з [PublishedEvent.post] (рахується й як `share`
+     * з `kind=threads`), [PublishAction.COPY] — посилання в буфер і «Посилання скопійовано», [PublishAction.CALENDAR] —
+     * системний календар, [PublishAction.DONE] — «Готово» чи закриття жестом: екран зникає, далі деталі події.
+     */
+    fun publishDone(action: PublishAction) {
+        PoruchAnalytics.track("publish_done", "action" to action.key)
+        if (action == PublishAction.SHARE) PoruchAnalytics.track("share", "kind" to "threads")
+        if (action == PublishAction.DONE) store.update { it.copy(published = null) }
+    }
+
     fun clearCompletedEvent() {
         store.update { it.copy(completedEventId = null) }
     }

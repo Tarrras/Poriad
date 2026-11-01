@@ -36,6 +36,24 @@ object EventRepeat {
     }
 }
 
+/**
+ * Що робить «Поширити» (docs/organizers-1.5.md, 1.6, рішення власника 02.11 «за подією і роллю»): [PROMOTE] — «Поширити
+ * анонс», «Пост для Threads» з посиланням для запису; [FRIEND] — «Поділитися з другом», особисте посилання `?by=`, як
+ * «Покликати з собою». Сайт повторює ту саму умову.
+ */
+enum class ShareMode { PROMOTE, FRIEND }
+
+object ShareRules {
+    /**
+     * Анонс поширює лише організатор власної звичайної спільнотної події. Усі інші діляться з другом: творець «Шукаю
+     * компанію» (його збір — про чужу афішу), гість на чужій події, афіша. [me] — id акаунта, null — гість.
+     */
+    fun mode(event: Event, me: String?): ShareMode {
+        val room = event.gathering
+        return if (me != null && room != null && room.companionOf == null && room.organizerId == me) ShareMode.PROMOTE else ShareMode.FRIEND
+    }
+}
+
 /** «Пост для Threads» (docs/organizers-1.5.md, 1.5): той самий текст, що в кабінеті на вебі. */
 object ThreadsPost {
     /** Скільки опису беремо, коли нема речення «що це». */
@@ -52,20 +70,24 @@ object ThreadsPost {
      * ```
      * Час — у поясі події. Порожній опис — без абзацу.
      */
-    fun text(event: Event): String {
-        val zone = runCatching { TimeZone.of(event.timeZone) }.getOrDefault(TimeZone.UTC)
-        val start = event.startInstant?.toLocalDateTime(zone)
+    fun text(event: Event): String =
+        text(event.id, event.displayTitle, event.startsAt, event.timeZone, event.placeLabel, event.blurb, event.description)
+
+    /** Те саме з полів: щойно опублікована подія ([EventDraft]) ще не має картки. */
+    fun text(id: String, title: String, startsAt: String, timeZone: String, place: String, blurb: String?, description: String): String {
+        val zone = runCatching { TimeZone.of(timeZone) }.getOrDefault(TimeZone.UTC)
+        val start = runCatching { Instant.parse(startsAt) }.getOrNull()?.toLocalDateTime(zone)
         val date = start?.let {
             "${WEEKDAYS[it.dayOfWeek.isoDayNumber - 1]}, ${it.dayOfMonth} ${MONTHS[it.monthNumber - 1]}, " +
                 "${it.hour.toString().padStart(2, '0')}:${it.minute.toString().padStart(2, '0')}"
         }
-        val description = event.description.trim()
-        val about = event.blurb?.trim()?.takeIf { it.isNotEmpty() }
-            ?: if (description.length <= ABOUT_MAX) description else description.take(ABOUT_MAX).trimEnd() + "…"
+        val text = description.trim()
+        val about = blurb?.trim()?.takeIf { it.isNotEmpty() }
+            ?: if (text.length <= ABOUT_MAX) text else text.take(ABOUT_MAX).trimEnd() + "…"
         return listOfNotNull(
-            event.displayTitle + "\n" + listOfNotNull(date, event.placeLabel.takeIf { it.isNotBlank() }).joinToString(" · "),
+            title + "\n" + listOfNotNull(date, place.takeIf { it.isNotBlank() }).joinToString(" · "),
             about.takeIf { it.isNotEmpty() },
-            "Запис: " + EventLinks.url(event.id).removePrefix("https://")
+            "Запис: " + EventLinks.url(id).removePrefix("https://")
         ).joinToString("\n\n")
     }
 
