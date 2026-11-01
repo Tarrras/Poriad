@@ -9,6 +9,8 @@ import app.poruch.domain.RadarEvent
 import app.poruch.domain.ArtistKind
 import app.poruch.domain.ArtistRole
 import app.poruch.domain.EventCategory
+import app.poruch.domain.EventMedia
+import app.poruch.domain.MediaKind
 import app.poruch.domain.CompanionCard
 import app.poruch.domain.CompanionParent
 import app.poruch.domain.CompanyPerson
@@ -93,7 +95,9 @@ internal data class EventDto(
     val state: String? = null,
     @SerialName("previous_starts_at") val previousStartsAt: String? = null,
     @SerialName("checked_at") val checkedAt: String? = null,
-    val offers: List<OfferDto> = emptyList()
+    val offers: List<OfferDto> = emptyList(),
+    // Міграція 20261118120000: фото й відео від організатора. Картки з `discover_events` і кеш до неї поля не несуть.
+    val media: List<MediaDto> = emptyList()
 ) {
     fun domain() = Event(
         id = id, title = title, description = description, category = EventCategory.fromKey(category),
@@ -101,7 +105,7 @@ internal data class EventDto(
         startsAt = startsAt, endsAt = endsAt, timeZone = timeZone, status = EventStatus.fromKey(status),
         latitude = latitude, longitude = longitude, imageUrl = imageUrl,
         gathering = gathering(), listing = listing(),
-        artists = artists.map { it.domain() }, blurb = blurb, pitch = pitch
+        artists = artists.map { it.domain() }, blurb = blurb, pitch = pitch, media = media.mapNotNull { it.domain() }
     )
 
     /**
@@ -147,6 +151,18 @@ internal data class EventDto(
             checkedAt = checkedAt,
             offers = offers.mapNotNull { it.domain() }
         )
+    }
+}
+
+/** Файл з `events.media`. Невідомий вид, адреса не https чи відео без постера — не показуємо. */
+@Serializable
+internal data class MediaDto(val kind: String? = null, val url: String? = null, val poster: String? = null) {
+    fun domain(): EventMedia? {
+        val kind = MediaKind.fromKey(kind) ?: return null
+        val url = url?.takeIf { it.startsWith("https://") } ?: return null
+        val poster = poster?.takeIf { it.startsWith("https://") }
+        if (kind == MediaKind.VIDEO && poster == null) return null
+        return EventMedia(kind, url, poster.takeIf { kind == MediaKind.VIDEO })
     }
 }
 

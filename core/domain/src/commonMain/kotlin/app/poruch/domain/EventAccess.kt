@@ -111,8 +111,13 @@ interface EventAuthoring {
     suspend fun createCompanion(parentId: String, meetAt: String, note: String?, capacity: Int): String
     /** Новий час збору [id] (R7б); відповідає й на питання після переносу афіші (R7а). */
     suspend fun moveCompanion(id: String, meetAt: String)
+    /** Фото чи постер відео в теку події [eventId] (`event-images`). Повертає публічну адресу. */
     suspend fun uploadImage(eventId: String, bytes: ByteArray, contentType: String): String
-    /** Прибирає завантажене фото, яке так і не стало фото події. За замовчуванням нічого. */
+    /** Відео mp4 у теку події [eventId] (`event-videos`), до [MediaRules.VIDEO_MAX_BYTES]. */
+    suspend fun uploadVideo(eventId: String, bytes: ByteArray): String
+    /** Копія свого файлу [url] з іншої події в теку [eventId] («Повторити»). Повертає адресу копії. */
+    suspend fun copyMedia(url: String, eventId: String): String
+    /** Прибирає завантажений файл (фото чи відео), який так і не став частиною події. За замовчуванням нічого. */
     suspend fun deleteImage(url: String) {}
     /** Скільки людей стежать за зоною з цією точкою (docs/my-places.md); null — менше трьох. */
     suspend fun zoneAudience(latitude: Double, longitude: Double): Int? = null

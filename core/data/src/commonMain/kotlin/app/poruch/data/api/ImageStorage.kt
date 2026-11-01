@@ -6,35 +6,69 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
-/** Завантаження в Supabase Storage. Окремо від [ApiClient]: інший шлях, публічний URL і помилки. */
+/**
+ * Завантаження в Supabase Storage. Окремо від [ApiClient]: інший шлях, публічний URL і помилки. Бакети: [IMAGES] — фото,
+ * постери відео й аватари, [VIDEOS] — відео подій (mp4).
+ */
 class ImageStorage(private val client: HttpClient, private val baseUrl: String, private val key: String) {
-    suspend fun upload(path: String, bytes: ByteArray, mime: String, token: String): String {
+    suspend fun upload(path: String, bytes: ByteArray, mime: String, token: String, bucket: String = IMAGES): String {
         if (key.isBlank()) fail(AppError.NotConfigured)
         try {
-            val response = client.post(baseUrl.trimEnd('/') + BUCKET + path) {
+            val response = client.post(base() + OBJECT + "$bucket/$path") {
                 header("apikey", key); bearerAuth(token); contentType(ContentType.parse(mime)); setBody(bytes)
             }
             // У шляху файлу — id власника: у звіт іде лише дія.
             if (!response.status.isSuccess()) throw apiFailure(response.status.value, response.bodyAsText(), "storage upload")
-            return baseUrl.trimEnd('/') + PUBLIC + path
+            return base() + PUBLIC + "$bucket/$path"
         } catch (e: CancellationException) { throw e }
         catch (e: AppFailure) { throw e }
         catch (e: Exception) { fail(AppError.ImageUploadFailed) }
     }
 
-    /** Видаляє файл за публічною адресою, яку повернув [upload]. Чуже посилання — нічого. */
+    /**
+     * Копія нашого файлу [url] у [path] того самого бакета («Повторити»): нова подія тримає власні файли, тож перевірка
+     * теки в `assert_media` лишається суворою. Повертає публічну адресу копії. Чуже посилання — [AppError.ImageUploadFailed].
+     */
+    suspend fun copy(url: String, path: String, token: String): String {
+        val (bucket, source) = located(url) ?: fail(AppError.ImageUploadFailed)
+        try {
+            val response = client.post(base() + OBJECT + "copy") {
+                header("apikey", key); bearerAuth(token); contentType(ContentType.Application.Json)
+                setBody(buildJsonObject { put("bucketId", bucket); put("sourceKey", source); put("destinationKey", path) }.toString())
+            }
+            if (!response.status.isSuccess()) throw apiFailure(response.status.value, response.bodyAsText(), "storage copy")
+            return base() + PUBLIC + "$bucket/$path"
+        } catch (e: CancellationException) { throw e }
+        catch (e: AppFailure) { throw e }
+        catch (e: Exception) { fail(AppError.ImageUploadFailed) }
+    }
+
+    /** Видаляє файл за публічною адресою, яку повернули [upload] чи [copy]. Чуже посилання — нічого. */
     suspend fun delete(url: String, token: String) {
-        val prefix = baseUrl.trimEnd('/') + PUBLIC
-        if (!url.startsWith(prefix)) return
-        val response = client.delete(baseUrl.trimEnd('/') + BUCKET + url.removePrefix(prefix)) {
+        val (bucket, path) = located(url) ?: return
+        val response = client.delete(base() + OBJECT + "$bucket/$path") {
             header("apikey", key); bearerAuth(token)
         }
         if (!response.status.isSuccess()) throw apiFailure(response.status.value, response.bodyAsText(), "storage delete")
     }
 
-    private companion object {
-        const val BUCKET = "/storage/v1/object/event-images/"
-        const val PUBLIC = "/storage/v1/object/public/event-images/"
+    /** Бакет і шлях нашого публічного файлу; чужий сервер чи бакет — null. */
+    private fun located(url: String): Pair<String, String>? {
+        val rest = url.takeIf { it.startsWith(base() + PUBLIC) }?.removePrefix(base() + PUBLIC) ?: return null
+        val bucket = rest.substringBefore('/')
+        return if (bucket in BUCKETS && '/' in rest) bucket to rest.substringAfter('/') else null
+    }
+
+    private fun base() = baseUrl.trimEnd('/')
+
+    companion object {
+        const val IMAGES = "event-images"
+        const val VIDEOS = "event-videos"
+        private val BUCKETS = setOf(IMAGES, VIDEOS)
+        private const val OBJECT = "/storage/v1/object/"
+        private const val PUBLIC = "/storage/v1/object/public/"
     }
 }

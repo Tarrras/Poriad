@@ -67,7 +67,7 @@ struct EditorForm: Codable, Equatable {
             startsAt: iso.string(from: starts), endsAt: iso.string(from: ends),
             timeZone: timeZone, capacity: Int32(capacity), imageUrl: imageUrl,
             minAge: Int32(minAge), maxAge: maxAge.map { KotlinInt(int: Int32($0)) },
-            approvalRequired: approvalRequired, contactUrl: contactLink
+            approvalRequired: approvalRequired, contactUrl: contactLink, media: []
         )
     }
 }

@@ -103,7 +103,15 @@ internal class Events: EventDiscovery, SavedEvents, EventAuthoring, EventPartici
     /** Запит на мертвому з'єднанні: висить, доки його не скасують. */
     var hangDetails=false
     var detailsCalls=0
-    override suspend fun details(id:String):Event? { detailsCalls++; if(hangDetails) awaitCancellation(); if(failDetails) fail(detailsError); return detailsById[id] }
+    /** Деталі щойно створеної події: без них відкриття після публікації каже «подія недоступна» і перебиває банер. */
+    var detailsOfCreated=false
+    override suspend fun details(id:String):Event? {
+        detailsCalls++; if(hangDetails) awaitCancellation(); if(failDetails) fail(detailsError)
+        return detailsById[id] ?: createdDrafts.lastOrNull()?.takeIf { detailsOfCreated && id in createIds }?.let { d ->
+            Event(id,d.title,d.description,d.category!!,d.city,d.address,d.startsAt,d.endsAt,d.timeZone,EventStatus.PUBLISHED,d.latitude,d.longitude,
+                gathering=Gathering("user","Я",d.capacity,0,false))
+        }
+    }
     var detailsError:AppError=AppError.ServiceUnavailable
     var places=emptyList<Place>()
     val placeQueries=mutableListOf<Pair<String,EventQuery?>>()
@@ -160,10 +168,31 @@ internal class Events: EventDiscovery, SavedEvents, EventAuthoring, EventPartici
     override suspend fun savedIds()=emptyList<String>()
     override suspend fun save(id:String) { delay(100); saves+=id; if(failSave) fail(AppError.Network) }
     override suspend fun unsave(id:String) { delay(100); unsaves+=id; if(failSave) fail(AppError.Network) }
-    override suspend fun create(id:String,draft:EventDraft):String { createIds+=id; if(failCreate) fail(AppError.Network); return id }
-    override suspend fun update(id:String,draft:EventDraft)=id
+    /** Чернетки, з якими пішли `create_event` і `update_event`, по черзі. */
+    val createdDrafts=mutableListOf<EventDraft>()
+    val updatedDrafts=mutableListOf<EventDraft>()
+    var failUpdate=false
+    /** Чим відмовляє `create_event`; null — не відмовляє. */
+    var createError:AppError?=null
+    override suspend fun create(id:String,draft:EventDraft):String { createIds+=id; createdDrafts+=draft; if(failCreate) fail(AppError.Network); createError?.let { fail(it) }; return id }
+    override suspend fun update(id:String,draft:EventDraft):String { updatedDrafts+=draft; if(failUpdate) fail(AppError.Network); return id }
     override suspend fun cancel(id:String) {}
-    override suspend fun uploadImage(eventId:String,bytes:ByteArray,contentType:String)="https://test.invalid/image.jpg"
+    /** Що й куди вантажили (`photo:…`, `video:…`, `copy:…`), по черзі; [failUploads] — ключі, на яких сховище падає. */
+    val uploads=mutableListOf<String>()
+    var failUploads=emptySet<String>()
+    val deletedFiles=mutableListOf<String>()
+    /** Прогрес, який бачила кожна завантажка: [AppState.mediaUpload] на її початку. */
+    var progress:(()->MediaUpload?)?=null
+    val progressSeen=mutableListOf<MediaUpload?>()
+    private fun stored(key:String,eventId:String):String {
+        progressSeen+=progress?.invoke(); uploads+=key
+        if(key in failUploads) fail(AppError.ImageUploadFailed)
+        return "https://test.invalid/$eventId/${uploads.size}-${key.substringBefore(':')}"
+    }
+    override suspend fun uploadImage(eventId:String,bytes:ByteArray,contentType:String)=stored("photo:${bytes.decodeToString()}",eventId)
+    override suspend fun uploadVideo(eventId:String,bytes:ByteArray)=stored("video:${bytes.decodeToString()}",eventId)
+    override suspend fun copyMedia(url:String,eventId:String)=stored("copy:$url",eventId)
+    override suspend fun deleteImage(url:String) { deletedFiles+=url }
     override suspend fun join(id:String) {}
     override suspend fun leave(id:String) {}
     override suspend fun waitlistIds()=emptyList<String>()

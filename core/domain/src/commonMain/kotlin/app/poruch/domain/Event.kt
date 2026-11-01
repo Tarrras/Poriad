@@ -40,7 +40,9 @@ data class Event(
     /** Одне речення «що це» від агента імпорту (`events.blurb`). Null — ще не написано чи подія від людей. */
     val blurb: String? = null,
     /** Опис, що чіпляє, від того самого агента (`events.pitch`, docs/return-hooks.md): наш текст, тож показуємо повністю. */
-    val pitch: String? = null
+    val pitch: String? = null,
+    /** Фото й відео від організатора, у його порядку (`events.media`). Порожньо — лише обкладинка [imageUrl]. */
+    val media: List<EventMedia> = emptyList()
 ) : Rankable {
     override val isCancelled get() = status == EventStatus.CANCELLED || status == EventStatus.HIDDEN ||
         listing?.state == ListingState.CANCELLED
@@ -431,7 +433,9 @@ data class EventDraft(
     /** Приєднання — запит організатору, а не відкриті двері. */
     val approvalRequired: Boolean = false,
     /** Чат учасників. Null — без чату. Формат перевіряє [ContactRules], вміст — ніхто. */
-    val contactUrl: String? = null
+    val contactUrl: String? = null,
+    /** Фото й відео в порядку показу, перше — обкладинка. Нове вантажиться з публікацією ([DraftMedia]). */
+    val media: List<DraftMedia> = emptyList()
 ) {
     fun validate(now: String): List<DraftField> = buildList {
         if (title.trim().length !in EventRules.titleLength) add(DraftField.TITLE)
@@ -449,5 +453,7 @@ data class EventDraft(
         if (imageUrl != null && !imageUrl.startsWith("https://")) add(DraftField.IMAGE_URL)
         if (!SafetyRules.isAgeLimit(minAge, maxAge)) add(DraftField.AGE_LIMITS)
         if (!ContactRules.isContactUrl(contactUrl)) add(DraftField.CONTACT_URL)
+        // Окремого поля нема: платформи вже мають текст для IMAGE_URL, а вибір і так не дає більше п'яти.
+        if (media.size > MediaRules.MAX_ITEMS) add(DraftField.IMAGE_URL)
     }
 }

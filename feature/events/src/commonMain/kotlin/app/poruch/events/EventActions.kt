@@ -16,7 +16,8 @@ class EventActions(
     suspend fun leave(id: String) { requireUser(); participation.leave(id) }
     suspend fun cancel(id: String) { requireUser(); authoring.cancel(id) }
 
-    private fun validate(draft: EventDraft) {
+    /** Публічна, бо спільний шар перевіряє правку до завантаження файлів: інакше вантажив би їх до відмови. */
+    fun validate(draft: EventDraft) {
         val invalid = draft.validate(Clock.System.now().toString())
         if (invalid.isNotEmpty()) fail(AppError.InvalidDraft(invalid))
     }

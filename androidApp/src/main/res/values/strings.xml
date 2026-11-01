@@ -43,6 +43,13 @@
   <string name="underway_until">до %1$s</string>
   <!-- Решта сеансів прокату на картці. Число, а не проміжок «22–30 грудня»: прокат буває з
        розривами («Хор Гомін» 5, 12 і 27 жовтня), і проміжок збрехав би про дні між ними. -->
+  <plurals name="media_failed">
+    <item quantity="one">Не вдалося додати %d файл. Спробуйте ще раз у редагуванні.</item>
+    <item quantity="few">Не вдалося додати %d файли. Спробуйте ще раз у редагуванні.</item>
+    <item quantity="many">Не вдалося додати %d файлів. Спробуйте ще раз у редагуванні.</item>
+    <item quantity="other">Не вдалося додати %d файлу. Спробуйте ще раз у редагуванні.</item>
+  </plurals>
+
   <plurals name="series_more_dates">
     <item quantity="one">ще %d дата</item>
     <item quantity="few">ще %d дати</item>

@@ -137,12 +137,58 @@ internal class EventUseCases(
         }
     }
 
-    @OptIn(ExperimentalUuidApi::class)
+    /** Чернетка гостя, що чекає на вхід: після нього публікується сама ([publishPending]). */
+    private var awaitingSignIn: EventDraft? = null
+
+    /**
+     * «Опублікувати». Гість проходить редактор до кінця, а вхід — тут (docs/organizers-1.5.md, «Редактор без входу»):
+     * чернетку перевіряємо, як для всіх, і ставимо [AppState.publishAfterSignIn] — платформа відкриває вхід з причиною
+     * `create`, а подія публікується сама після входу. Фото й відео гостя досі лише на телефоні: вантажаться з публікацією.
+     */
     fun create(draft: EventDraft) = store.mutate {
+        if (!store.value.signedIn) {
+            actions.validate(draft)
+            PoruchLog.i("action") { "createEvent waits for sign-in, media=${draft.media.size}" }
+            awaitingSignIn = draft
+            PoruchAnalytics.track("auth_wall", "action" to "create")
+            store.update { it.copy(publishAfterSignIn = true) }
+            return@mutate
+        }
+        publish(draft)
+    }
+
+    /**
+     * Відкладена гостем публікація — після входу ([UserLibrary.afterAccountLoad]) чи галочки віку. Новий акаунт без віку
+     * ще на кроці галочки: чекаємо на неї, сервер однаково відмовив би (`AGE_REQUIRED`). Повтор — той самий id чернетки.
+     */
+    fun publishPending() {
+        if (awaitingSignIn == null || !store.value.signedIn) return
+        store.mutate(queued = true) {
+            val draft = awaitingSignIn ?: return@mutate
+            if (!store.value.signedIn || store.value.session.askBirthDate) return@mutate
+            try {
+                publish(draft)
+            } catch (e: AppFailure) {
+                // Вік не дізнались до входу: галочка ще попереду, публікація — після неї.
+                if (e.error == AppError.AgeRequired) return@mutate
+                awaitingSignIn = null; store.update { it.copy(publishAfterSignIn = false) }
+                throw e
+            }
+        }
+    }
+
+    /** Вхід закрили без входу: гість лишається в редакторі з тією самою чернеткою, а сама публікація вже не чекає. */
+    fun cancelPendingPublish() {
+        awaitingSignIn = null
+        store.update { it.copy(publishAfterSignIn = false) }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private suspend fun publish(draft: EventDraft) {
         val id = creationIdentity?.idFor(draft)
             ?: pendingCreation?.takeIf { it.first == draft }?.second
             ?: Uuid.random().toString().also { pendingCreation = draft to it }
-        PoruchLog.i("action") { "createEvent ${id.shortId()} category=${draft.category?.key} capacity=${draft.capacity}" }
+        PoruchLog.i("action") { "createEvent ${id.shortId()} category=${draft.category?.key} capacity=${draft.capacity} media=${draft.media.size}" }
         val created = try {
             actions.create(id, draft)
         } catch (e: Exception) {
@@ -151,17 +197,95 @@ internal class EventUseCases(
             throw e
         }
         pendingCreation = null; creationIdentity?.clear()
+        awaitingSignIn = null
         PoruchAnalytics.track(
             "event_create",
             "category" to draft.category?.key,
             "approval" to draft.approvalRequired
         )
+        // Подія вже опублікована: файли далі, і збій котрогось її не скасовує.
+        val failed = attach(created, draft)?.let { attached ->
+            try { authoring.update(created, attached.draft); attached.failed }
+            catch (e: CancellationException) { discard(attached.uploaded); throw e }
+            catch (e: Exception) {
+                PoruchLog.w("action") { "media not saved for ${created.shortId()}: ${e.asAppError()}" }
+                discard(attached.uploaded); attached.total
+            }
+        } ?: 0
         reloader.changed(created, index = true); library.select(created)
         store.update {
             it.copy(
-                notice = AppNotice.Told(AppMessage.EVENT_PUBLISHED),
-                completedEventId = created
+                notice = if (failed == 0) AppNotice.Told(AppMessage.EVENT_PUBLISHED) else AppNotice.MediaFailed(failed),
+                completedEventId = created,
+                publishAfterSignIn = false
             )
+        }
+    }
+
+    /** Нові файли вже в теці події: [draft] — з ними як [DraftMedia.Remote]; [uploaded] — що прибрати, якщо подія їх не візьме. */
+    private class Attached(val draft: EventDraft, val uploaded: List<String>, val failed: Int, val total: Int)
+
+    /**
+     * Нові фото й відео чернетки — у теку наявної події [id], по черзі, з «Завантажуємо N з M» ([AppState.mediaUpload]).
+     * Файл, що не вантажиться, пропускаємо: подія лишається без нього, а [Attached.failed] каже скільки. Null — нового нема.
+     */
+    private suspend fun attach(id: String, draft: EventDraft): Attached? {
+        val total = draft.media.count { it !is DraftMedia.Remote }
+        if (total == 0) return null
+        val uploaded = mutableListOf<String>()
+        var current = 0
+        var failed = 0
+        val media = try {
+            draft.media.mapNotNull { item ->
+                if (item is DraftMedia.Remote) return@mapNotNull item
+                current++
+                store.update { it.copy(mediaUpload = MediaUpload(current, total)) }
+                try {
+                    DraftMedia.Remote(upload(id, item).also { uploaded += listOfNotNull(it.url, it.poster) })
+                } catch (e: CancellationException) {
+                    discard(uploaded); throw e
+                } catch (e: Exception) {
+                    PoruchLog.w("action") { "media ${item.kind.key} $current/$total not added to ${id.shortId()}: ${e.asAppError()}" }
+                    failed++
+                    null
+                }
+            }
+        } finally {
+            store.update { it.copy(mediaUpload = null) }
+        }
+        return Attached(draft.copy(media = media), uploaded, failed, total)
+    }
+
+    /** Один файл у теку події [id]. Відео — спершу постер: без нього сервер відео не прийме. */
+    private suspend fun upload(id: String, item: DraftMedia): EventMedia = when (item) {
+        is DraftMedia.Remote -> item.media
+        is DraftMedia.Copied -> {
+            val poster = item.media.poster?.takeIf { item.kind == MediaKind.VIDEO }?.let { authoring.copyMedia(it, id) }
+            EventMedia(item.kind, discardingOnFailure(poster) { authoring.copyMedia(item.media.url, id) }, poster)
+        }
+        is DraftMedia.Local -> when (item.kind) {
+            MediaKind.PHOTO -> EventMedia(MediaKind.PHOTO, authoring.uploadImage(id, item.bytes, JPEG))
+            MediaKind.VIDEO -> {
+                val poster = authoring.uploadImage(id, item.poster ?: fail(AppError.InvalidDraft(listOf(DraftField.IMAGE_URL))), JPEG)
+                EventMedia(MediaKind.VIDEO, discardingOnFailure(poster) { authoring.uploadVideo(id, item.bytes) }, poster)
+            }
+        }
+    }
+
+    /** Постер без свого відео нікому не потрібен. */
+    private suspend fun <T> discardingOnFailure(url: String?, block: suspend () -> T): T = try {
+        block()
+    } catch (e: Exception) {
+        discard(listOfNotNull(url)); throw e
+    }
+
+    /**
+     * Файли, які подія так і не взяла: інакше лишились би сиротами за прямим посиланням. `NonCancellable` — прибирати
+     * треба й тоді, коли дію скасовано. Збій — лише запис у журнал.
+     */
+    private suspend fun discard(urls: List<String>) = withContext(NonCancellable) {
+        urls.forEach { url ->
+            try { authoring.deleteImage(url) } catch (e: Exception) { PoruchLog.w("action") { "orphan file not removed: ${e.asAppError()}" } }
         }
     }
 
@@ -223,17 +347,28 @@ internal class EventUseCases(
         store.update { it.copy(notice = AppNotice.Told(AppMessage.CHANGES_SAVED)) }
     }
 
+    /** Правка: нові фото й відео вантажаться до збереження, і все йде одним `update_event`. */
     fun update(id: String, draft: EventDraft) = store.mutate {
-        PoruchLog.i("action") { "updateEvent ${id.shortId()} capacity=${draft.capacity}" }
-        actions.update(id, draft); reloader.changed(id, index = true)
+        PoruchLog.i("action") { "updateEvent ${id.shortId()} capacity=${draft.capacity} media=${draft.media.size}" }
+        // До файлів: відмова чернетки після завантаження лишила б їх сиротами.
+        actions.validate(draft)
+        val attached = attach(id, draft)
+        try {
+            actions.update(id, attached?.draft ?: draft)
+        } catch (e: Exception) {
+            discard(attached?.uploaded.orEmpty()); throw e
+        }
+        reloader.changed(id, index = true)
+        val failed = attached?.failed ?: 0
         store.update {
             it.copy(
-                notice = AppNotice.Told(AppMessage.CHANGES_SAVED),
+                notice = if (failed == 0) AppNotice.Told(AppMessage.CHANGES_SAVED) else AppNotice.MediaFailed(failed),
                 completedEventId = id
             )
         }
     }
 
+    /** Стара обкладинка з деталей (до 1.5): нове фото стає першим у медіа, тож і обкладинкою. Хвиля 2 цей вибір прибирає. */
     fun uploadImage(eventId: String, bytes: ByteArray, contentType: String) = store.mutate {
         val event = events.details(eventId) ?: fail(AppError.EventUnavailable)
         // Фото має лише кімната: в афіші нема власника.
@@ -246,15 +381,14 @@ internal class EventUseCases(
                 EventDraft(
                     event.title, event.description, event.category, event.city, event.address,
                     event.latitude, event.longitude, event.startsAt, event.endsAt, event.timeZone,
-                    room.capacity, url, room.minAge, room.maxAge, room.approvalRequired, room.contactUrl
+                    room.capacity, url, room.minAge, room.maxAge, room.approvalRequired, room.contactUrl,
+                    // Решту медіа лишаємо: новий клієнт завжди шле `p_media`, і порожній список стер би фото з кабінету.
+                    (listOf(EventMedia(MediaKind.PHOTO, url)) + event.media).take(MediaRules.MAX_ITEMS).map { DraftMedia.Remote(it) }
                 )
             )
         } catch (e: Exception) {
             // Подія фото не отримала: файл у Storage лишився б сиротою, видимою за прямим посиланням.
-            // `NonCancellable`, бо прибирати треба і тоді, коли дію скасовано.
-            withContext(NonCancellable) {
-                try { authoring.deleteImage(url) } catch (cleanup: Exception) { PoruchLog.w("action") { "orphan photo not removed: ${cleanup.asAppError()}" } }
-            }
+            discard(listOf(url))
             throw e
         }
         reloader.changed(eventId); store.tell(AppMessage.PHOTO_ADDED)
@@ -268,5 +402,10 @@ internal class EventUseCases(
     fun declineMember(eventId: String, userId: String) = store.mutate {
         PoruchLog.i("safety") { "decline ${userId.shortId()} for ${eventId.shortId()}" }
         requests.declineMember(eventId, userId); reloader.changed(eventId)
+    }
+
+    private companion object {
+        /** Фото й постери платформи вже перекодували в JPEG без метаданих (`pickedJPEG`, `PhotoPicker`). */
+        const val JPEG = "image/jpeg"
     }
 }

@@ -6,7 +6,7 @@ import kotlinx.serialization.json.*
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-/** Свої події: створити, змінити, скасувати, додати фото. Лише організатор і лише `origin = 'community'`. */
+/** Свої події: створити, змінити, скасувати, фото й відео. Лише організатор і лише `origin = 'community'`. */
 internal class SupabaseEventAuthoring(
     private val rpc: EventRpc,
     private val auth: AuthRepository,
@@ -45,6 +45,23 @@ internal class SupabaseEventAuthoring(
         return storage.upload("$uid/$eventId/${Uuid.random()}.$extension", bytes, contentType, token)
     }
 
+    @OptIn(ExperimentalUuidApi::class)
+    override suspend fun uploadVideo(eventId: String, bytes: ByteArray): String {
+        if (bytes.isEmpty() || bytes.size > MediaRules.VIDEO_MAX_BYTES) fail(AppError.InvalidDraft(listOf(DraftField.IMAGE_URL)))
+        val uid = auth.session.value?.userId ?: fail(AppError.SessionRequired)
+        val token = auth.accessToken() ?: fail(AppError.SessionRequired)
+        return storage.upload("$uid/$eventId/${Uuid.random()}.mp4", bytes, "video/mp4", token, ImageStorage.VIDEOS)
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    override suspend fun copyMedia(url: String, eventId: String): String {
+        val uid = auth.session.value?.userId ?: fail(AppError.SessionRequired)
+        val token = auth.accessToken() ?: fail(AppError.SessionRequired)
+        // Нове ім'я, а не старе: повтор публікації тієї ж події не впирається в «файл уже є».
+        val extension = url.substringAfterLast('/').substringAfterLast('.', "jpg")
+        return storage.copy(url, "$uid/$eventId/${Uuid.random()}.$extension", token)
+    }
+
     override suspend fun deleteImage(url: String) {
         storage.delete(url, auth.accessToken() ?: fail(AppError.SessionRequired))
     }
@@ -61,6 +78,11 @@ internal class SupabaseEventAuthoring(
         put("p_min_age", d.minAge); d.maxAge?.let { put("p_max_age", it) } ?: put("p_max_age", JsonNull)
         put("p_approval_required", d.approvalRequired)
         put("p_image_url", d.imageUrl?.let(::JsonPrimitive) ?: JsonNull)
+        // Завжди, навіть порожнім: так сервер сам ставить обкладинку з медіа. Лише те, що вже в теці цієї події, — нове
+        // спільний шар вантажить після створення й шле наступним `update_event`.
+        put("p_media", JsonArray(d.media.mapNotNull { (it as? DraftMedia.Remote)?.media }.map { m ->
+            buildJsonObject { put("kind", m.kind.key); put("url", m.url); m.poster?.let { put("poster", it) } }
+        }))
         // Лише коли є: сервер без міграції чату не знає цього параметра, а відсутній означає «без чату».
         ContactRules.normalize(d.contactUrl)?.let { put("p_contact_url", it) }
     }

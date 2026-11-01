@@ -18,6 +18,7 @@ import app.poruch.shared.AppNotice
 fun AppNotice.text(): String = when (this) {
     is AppNotice.Failed -> error.text()
     is AppNotice.Told -> stringResource(message.resource)
+    is AppNotice.MediaFailed -> pluralStringResource(R.plurals.media_failed, count, count)
 }
 
 @Composable

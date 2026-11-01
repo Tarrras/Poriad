@@ -151,6 +151,8 @@ class PoruchApp internal constructor(
         // Перемикач збору — до першої події: `first_open` не має піти, якщо людина відмовилась.
         PoruchAnalytics.enabled = state.value.analyticsEnabled
         discovery.onQueryChanged = library::dismiss
+        library.afterAccountLoad = eventUseCases::publishPending
+        safetyUseCases.onAgeDeclared = eventUseCases::publishPending
         identity.start()
         pushSync.retryPending()
         pushSync.start()
@@ -323,8 +325,17 @@ class PoruchApp internal constructor(
     /**
      * Редактор нової події: відкрито (`about`) чи пройдено «Далі» на крок `place`, `schedule`, `people` — воронка між
      * `create_start` і `event_create`, котрий крок губить людей. [draft] — форма з незакінченої чернетки: чи повертаються до неї.
+     * [mediaCount] — скільки фото й відео вже в чернетці. `guest` — гість: редактор відкритий і йому, вхід — на «Опублікувати».
      */
-    fun createStep(step: String, draft: Boolean) = PoruchAnalytics.track("create_step", "step" to step, "draft" to draft)
+    fun createStep(step: String, draft: Boolean, mediaCount: Int) = PoruchAnalytics.track(
+        "create_step", "step" to step, "draft" to draft, "guest" to !state.value.signedIn, "media_count" to mediaCount
+    )
+
+    /** Збірки до фото й відео в редакторі. */
+    fun createStep(step: String, draft: Boolean) = createStep(step, draft, 0)
+
+    /** До чернетки додали фото чи відео (кожен файл): чи додають організатори медіа, і що саме. */
+    fun mediaAdded(kind: MediaKind) = PoruchAnalytics.track("media_add", "kind" to kind.key)
 
     /** «Далі» чи «Опублікувати» спинило правило: яке поле на якому кроці заважає найчастіше. */
     fun createBlocked(step: String, field: DraftField) =
@@ -408,7 +419,15 @@ class PoruchApp internal constructor(
 
     /** Закладка спрацьовує одразу, запит іде окремо; при збої повертається як було. */
     fun toggleSaved(id: String) = eventUseCases.toggleSaved(id)
+    /**
+     * «Опублікувати». Подія створюється, далі нові фото й відео вантажаться по черзі ([AppState.mediaUpload]) і стають
+     * її `media` одним запитом; файл не завантажився — подія лишається, а [AppNotice.MediaFailed] каже скільки. Гість:
+     * чернетку перевіряємо й чекаємо на вхід ([AppState.publishAfterSignIn]), після нього подія публікується сама.
+     */
     fun createEvent(draft: EventDraft) = eventUseCases.create(draft)
+
+    /** Вхід, відкритий через «Опублікувати», закрили без входу: гість лишається в редакторі, сама публікація скасована. */
+    fun cancelPendingPublish() = eventUseCases.cancelPendingPublish()
 
     /** «Шукаю компанію» на відкриту афішу. [meetAt] — з [CompanionRules.meetTimes], ISO-8601. */
     /** Новий час збору (R7б); «Перенести на …» і «Інший час» з питання R7а. «Скасувати збір» — [cancelEvent]. */
@@ -423,7 +442,13 @@ class PoruchApp internal constructor(
     fun dropCompany() = eventUseCases.setCompanyIntent(false)
     /** «Піти разом» з людиною з наміром на відкриту афішу. */
     fun sayCompanyYes(userId: String) = eventUseCases.sayCompanyYes(userId)
+    /**
+     * Збереження правки. Чернетка правки бере медіа події як `event.media.map { DraftMedia.Remote(it) }`: новий клієнт
+     * завжди шле `p_media`, і порожній список прибрав би з події фото й відео.
+     */
     fun updateEvent(id: String, draft: EventDraft) = eventUseCases.update(id, draft)
+
+    /** Стара обкладинка з деталей; хвиля 2 прибирає цей вибір, фото й відео — у редакторі ([EventDraft.media]). */
     fun uploadEventImage(eventId: String, bytes: ByteArray, contentType: String) =
         eventUseCases.uploadImage(eventId, bytes, contentType)
 

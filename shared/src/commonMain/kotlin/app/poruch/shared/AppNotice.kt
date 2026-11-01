@@ -14,6 +14,11 @@ sealed interface AppNotice {
     data class Told(val message: AppMessage) : AppNotice {
         override val isError get() = false
     }
+
+    /** Подію опубліковано чи збережено, а [count] файлів не додали: «Спробуйте ще раз у редагуванні». */
+    data class MediaFailed(val count: Int) : AppNotice {
+        override val isError get() = true
+    }
 }
 
 /** Усе, що застосунок каже, коли все гаразд. */

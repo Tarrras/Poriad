@@ -266,6 +266,9 @@ internal class UserLibrary(
      * Намір, який гість поставив до входу ([AppState.pendingCompany]). Без дати народження чекає на неї: кличе ще й
      * [SafetyUseCases.declareBirthDate].
      */
+    /** Ставить [PoruchApp]: публікація, яку гість відклав до входу ([EventUseCases.publishPending]). */
+    var afterAccountLoad: (() -> Unit)? = null
+
     fun consumePendingCompany() {
         val id = store.value.pendingCompany ?: return
         if (!store.value.signedIn) return
@@ -383,8 +386,9 @@ internal class UserLibrary(
                         ).rankedIfTasteChanged(it.taste)
                     }
                 }
-                // Гість натиснув «Хочу піти з компанією» і через це ввійшов: намір — тепер.
+                // Гість натиснув «Хочу піти з компанією» чи «Опублікувати» і через це ввійшов: тепер.
                 consumePendingCompany()
+                afterAccountLoad?.invoke()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

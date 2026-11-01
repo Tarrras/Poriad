@@ -43,6 +43,8 @@ data class AppState(
     /** Людина дозволила продуктову аналітику. Прапорець пристрою, за замовчуванням так. Див. [PoruchAnalytics.enabled]. */
     val analyticsEnabled: Boolean = true,
     val mutating: Boolean = false,
+    /** Публікація чи правка вантажить фото й відео: «Завантажуємо 2 з 4». Null — не вантажить. */
+    val mediaUpload: MediaUpload? = null,
     val notice: AppNotice? = null,
     val completedEventId: String? = null,
     /** Щойно створений супутник «Йдемо разом»: платформа відкриває «Поділитися» і кличе [PoruchApp.clearCreatedCompanion]. */
@@ -54,6 +56,11 @@ data class AppState(
      * Переживає зміну акаунта, бо вхід — саме вона.
      */
     val pendingCompany: String? = null,
+    /**
+     * Гість натиснув «Опублікувати»: платформа відкриває вхід з причиною `create`, а подія публікується сама після входу
+     * (і галочки віку, якщо акаунт новий). Закрили вхід без входу — [PoruchApp.cancelPendingPublish].
+     */
+    val publishAfterSignIn: Boolean = false,
     /**
      * Подія й хто на неї кличе, якщо її відкрили з посилання-запрошення (docs/invites.md). Окремо від [detail]: деталі
      * тієї ж події перевідкриваються по-різному (новий екран, той самий, вхід), а «… кличе тебе» має лишатись.
@@ -162,6 +169,9 @@ data class AppState(
     private fun runOf(id: String) = map.index.firstOrNull { run -> run.sessions.any { it.id == id } }
         ?: home.index.firstOrNull { run -> run.sessions.any { it.id == id } }
 }
+
+/** Котрий файл зараз іде ([current], від 1) з [total] нових у чернетці. */
+data class MediaUpload(val current: Int, val total: Int)
 
 /** Відкрита подія з тим, що бачить лише вона. Порожньо — нічого не відкрито. */
 data class DetailState(
