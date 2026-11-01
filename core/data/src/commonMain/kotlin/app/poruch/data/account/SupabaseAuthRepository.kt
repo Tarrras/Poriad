@@ -53,14 +53,21 @@ class SupabaseAuthRepository(
         val expiresAt = value["expires_in"]?.jsonPrimitive?.longOrNull?.let { Clock.System.now().epochSeconds + it }
             ?: value["expires_at"]?.jsonPrimitive?.longOrNull ?: (Clock.System.now().epochSeconds + 3600)
         val token = value.string("access_token")
-        return UserSession(uid, token, value.string("refresh_token"), expiresAt, providers(token))
+        val claims = claims(token)
+        return UserSession(uid, token, value.string("refresh_token"), expiresAt, providers(claims), methods(claims))
     }
-    /** `app_metadata.providers` з JWT доступу: так знаємо і про сесію, збережену до цієї версії. */
     @OptIn(ExperimentalEncodingApi::class)
-    private fun providers(token: String): Set<String> = runCatching {
+    private fun claims(token: String): JsonObject? = runCatching {
         val payload = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT_OPTIONAL).decode(token.split('.')[1])
-        api.json.parseToJsonElement(payload.decodeToString()).jsonObject["app_metadata"]!!.jsonObject["providers"]!!
-            .jsonArray.map { it.jsonPrimitive.content }.toSet()
+        api.json.parseToJsonElement(payload.decodeToString()).jsonObject
+    }.getOrNull()
+    /** `app_metadata.providers` з JWT доступу: так знаємо і про сесію, збережену до цієї версії. */
+    private fun providers(claims: JsonObject?): Set<String> = runCatching {
+        claims!!["app_metadata"]!!.jsonObject["providers"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet()
+    }.getOrDefault(emptySet())
+    /** `amr` з JWT: як відкрито цю сесію. Оновлення токена його не міняє. */
+    private fun methods(claims: JsonObject?): Set<String> = runCatching {
+        claims!!["amr"]!!.jsonArray.map { it.jsonObject.string("method") }.filter { it.isNotEmpty() }.toSet()
     }.getOrDefault(emptySet())
     /** Пише сесію. Verifier-и інших потоків лишаються: [dropVerifier] — той, що щойно обміняли. */
     private fun persist(value: JsonObject, dropVerifier: String? = null) {

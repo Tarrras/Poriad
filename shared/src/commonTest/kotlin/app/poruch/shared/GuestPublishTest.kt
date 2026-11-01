@@ -67,21 +67,74 @@ class GuestPublishTest {
         app.close()
     }
 
-    /** Сервер не знав віку (факти не прочитались): AGE_REQUIRED тихо чекає на галочку. */
-    @Test fun anUnknownAgeWaitsQuietly()=runTest {
+    /**
+     * Сервер не знайшов віку, хоч факти акаунта не прочитались і галочку ми не питали: тепер питаємо її, а не висимо мовчки.
+     * Це не `create_failed`: попереду крок, а не відмова.
+     */
+    @Test fun anUnknownAgeAsksForTheCheckbox()=runTest {
+        val tracked=mutableListOf<String>()
+        PoruchAnalytics.sink={ name,_ -> tracked+=name }
+        try {
+            val events=Events(); val auth=Auth(); auth.session.value=null
+            val app=testApp(events,backgroundScope,auth)
+            events.createError=AppError.AgeRequired
+            runCurrent(); app.createEvent(walk); runCurrent()
+            auth.session.value=UserSession("user","token","refresh",9999999999); advanceTimeBy(1000); runCurrent()
+            assertEquals(1,events.createIds.size)
+            assertTrue(app.state.value.session.askBirthDate,"the sign-in screen shows the checkbox")
+            assertTrue(app.state.value.publishAfterSignIn,"still waiting")
+            assertNull((app.state.value.notice as? AppNotice.Failed)?.error)
+            assertFalse("create_failed" in tracked)
+
+            events.createError=null
+            app.confirmAdult(); advanceTimeBy(1000); runCurrent()
+            assertEquals(2,events.createIds.size)
+            assertEquals(events.createIds.first(),events.createIds.last(),"the same id")
+            assertEquals(events.createIds.last(),app.state.value.completedEventId)
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
+    }
+
+    /** Закрили крок галочки — публікація не чекає: інакше галочка з профілю згодом опублікувала б несподівано. */
+    @Test fun closingTheCheckboxStepCancels()=runTest {
+        val events=Events(); val auth=Auth(); auth.session.value=null
+        val app=testApp(events,backgroundScope,auth,safety=Safety(AccountFacts()))
+        runCurrent(); app.createEvent(walk); runCurrent()
+        app.verifySignInCode("web@poriad.app","123456"); advanceTimeBy(1000); runCurrent()
+        assertTrue(app.state.value.session.askBirthDate)
+        app.dismissConfirmationStep()
+        assertFalse(app.state.value.publishAfterSignIn)
+        app.confirmAdult(); advanceTimeBy(1000); runCurrent()
+        assertTrue(events.createIds.isEmpty())
+        app.close()
+    }
+
+    /** Екран входу зникає сам після входу (iOS кличе dismissConfirmationStep на onDisappear) — публікація йде далі. */
+    @Test fun theSheetClosingAfterSignInKeepsThePublish()=runTest {
+        val events=Events(); val auth=Auth(); auth.session.value=null
+        val app=testApp(events,backgroundScope,auth)
+        runCurrent(); app.createEvent(walk); runCurrent()
+        auth.session.value=UserSession("user","token","refresh",9999999999); runCurrent()
+        app.dismissConfirmationStep(); app.cancelPendingPublish()
+        advanceTimeBy(1000); runCurrent()
+        assertEquals(1,events.createIds.size)
+        app.close()
+    }
+
+    /** Вихід з акаунта: чужа вже чернетка не публікується з наступним входом. */
+    @Test fun signingOutDropsThePendingPublish()=runTest {
         val events=Events(); val auth=Auth(); auth.session.value=null
         val app=testApp(events,backgroundScope,auth)
         events.createError=AppError.AgeRequired
         runCurrent(); app.createEvent(walk); runCurrent()
         auth.session.value=UserSession("user","token","refresh",9999999999); advanceTimeBy(1000); runCurrent()
-        assertEquals(1,events.createIds.size)
-        assertNull((app.state.value.notice as? AppNotice.Failed)?.error)
-        assertTrue(app.state.value.publishAfterSignIn,"still waiting")
-
+        assertTrue(app.state.value.publishAfterSignIn,"waits for the age")
+        app.signOut(); advanceTimeBy(1000); runCurrent()
+        assertFalse(app.state.value.publishAfterSignIn)
         events.createError=null
+        auth.session.value=UserSession("other","token","refresh",9999999999); advanceTimeBy(1000); runCurrent()
         app.confirmAdult(); advanceTimeBy(1000); runCurrent()
-        assertEquals(2,events.createIds.size)
-        assertEquals(events.createIds.first(),events.createIds.last(),"the same id")
+        assertEquals(1,events.createIds.size,"only the attempt before the sign-out")
         app.close()
     }
 

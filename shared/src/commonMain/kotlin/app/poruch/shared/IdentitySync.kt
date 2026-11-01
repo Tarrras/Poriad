@@ -24,9 +24,13 @@ internal class IdentitySync(
                 last?.takeIf { it.userId != session?.userId }?.let(push::accountLeft)
                 last = session
                 synchronize(session?.userId)
-                // Той самий акаунт, новий токен: провайдери могли змінитися (привʼязали пошту до Apple).
+                // Той самий акаунт, новий токен: провайдери могли змінитися (привʼязали пошту до Apple), а вхід кодом перед
+                // видаленням — новий `amr`.
                 val providers = session?.providers.orEmpty()
-                if (store.value.session.providers != providers) store.update { it.copy(session = it.session.copy(providers = providers)) }
+                val methods = session?.methods.orEmpty()
+                if (store.value.session.providers != providers || store.value.session.methods != methods) {
+                    store.update { it.copy(session = it.session.copy(providers = providers, methods = methods)) }
+                }
             }
         }
     }
@@ -36,8 +40,10 @@ internal class IdentitySync(
         if (store.value.session.userId == uid) return
         PoruchLog.i("session") { "identity → ${uid.shortId()}, clearing private state" }
         events.forgetPendingCreation()
+        if (uid == null) events.dropPendingPublish()
         library.clear(); chat.close(); discovery.reset()
-        store.update { it.forAccount(uid, auth.session.value?.takeIf { it.userId == uid }?.providers.orEmpty()) }
+        val session = auth.session.value?.takeIf { it.userId == uid }
+        store.update { it.forAccount(uid, session?.providers.orEmpty(), session?.methods.orEmpty()) }
         discovery.refresh()
         // Гість теж: його закладки живуть на телефоні (docs/guest-saves.md).
         library.load()

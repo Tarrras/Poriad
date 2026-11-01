@@ -82,7 +82,10 @@ class PoruchApp internal constructor(
     // Відповіді читаємо синхронно: від них залежить, чи перший кадр — онбординг чи застосунок.
     private val store = AppStore(
         AppState(
-            session = SessionState(userId = auth.session.value?.userId, providers = auth.session.value?.providers.orEmpty()),
+            session = SessionState(
+                userId = auth.session.value?.userId, providers = auth.session.value?.providers.orEmpty(),
+                methods = auth.session.value?.methods.orEmpty()
+            ),
             taste = tasteStore?.read() ?: Taste(),
             remindersEnabled = reminderStore?.enabled() ?: false,
             digestEnabled = reminderStore?.digestEnabled() ?: true,
@@ -137,7 +140,8 @@ class PoruchApp internal constructor(
         library,
         reloader,
         followUseCases,
-        goodDays
+        goodDays,
+        compute
     )
     private val identity =
         IdentitySync(auth, store, discovery, library, chatEngine, pushSync, eventUseCases)
@@ -445,7 +449,7 @@ class PoruchApp internal constructor(
     fun repeatDraft(event: Event): EventDraft? {
         if (!state.value.organizes(event)) return null
         return EventRepeat.draft(event, Clock.System.now())?.also {
-            PoruchAnalytics.track("repeat_event", "media" to it.media.size)
+            PoruchAnalytics.track("repeat_event", "media" to it.media?.size)
         }
     }
 
@@ -472,8 +476,8 @@ class PoruchApp internal constructor(
     /** «Піти разом» з людиною з наміром на відкриту афішу. */
     fun sayCompanyYes(userId: String) = eventUseCases.sayCompanyYes(userId)
     /**
-     * Збереження правки. Чернетка правки бере медіа події як `event.media.map { DraftMedia.Remote(it) }`: новий клієнт
-     * завжди шле `p_media`, і порожній список прибрав би з події фото й відео.
+     * Збереження правки. [EventDraft.media] null — медіа не чіпаємо (редактор без розділу «Фото й відео»). З розділом —
+     * чернетка бере медіа події як `event.media.map { DraftMedia.Remote(it) }`, а прибрані файли зникають і зі сховища.
      */
     fun updateEvent(id: String, draft: EventDraft) = eventUseCases.update(id, draft)
 
@@ -833,7 +837,11 @@ class PoruchApp internal constructor(
     fun verifySignInCode(email: String, code: String) = sessionUseCases.verifySignInCode(email, code)
 
     /** Людина повернулась до форми або закрила екран: крок «перевірте пошту» більше не показуємо. */
-    fun dismissConfirmationStep() = sessionUseCases.dismissConfirmationStep()
+    fun dismissConfirmationStep() {
+        // Спершу публікація: вона дивиться, чи закрили саме крок галочки.
+        eventUseCases.cancelPendingPublish()
+        sessionUseCases.dismissConfirmationStep()
+    }
     fun signOut() = sessionUseCases.signOut()
 
     /**
@@ -843,6 +851,14 @@ class PoruchApp internal constructor(
      */
     fun deleteAccount(password: String? = null, appleAuthorizationCode: String? = null) =
         sessionUseCases.deleteAccount(password, appleAuthorizationCode)
+    /**
+     * Видалення акаунта, що входить кодом ([SessionState.viaCode], пароля може не бути): «Надіслати код» → [sendDeletionCode],
+     * код з листа → [deleteAccountWithCode]. [deleteAccount] без пароля для нього працює лише хвилин 10 після входу:
+     * далі сервер відповідає [AppError.InvalidCredentials], і саме тоді — код.
+     */
+    fun sendDeletionCode() = sessionUseCases.sendDeletionCode()
+    fun deleteAccountWithCode(code: String) = sessionUseCases.deleteAccountWithCode(code)
+
     fun requestPasswordReset(email: String) = sessionUseCases.requestPasswordReset(email)
     fun updatePassword(password: String) = sessionUseCases.updatePassword(password)
 

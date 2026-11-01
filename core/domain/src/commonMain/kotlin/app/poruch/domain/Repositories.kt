@@ -7,10 +7,13 @@ interface SecureSessionStore {
     fun write(value: String)
     fun clear()
 }
-/** [providers] — чим входить акаунт (`email`, `google`, `apple`), з токена доступу. Порожньо — невідомо. */
+/**
+ * [providers] — чим входить акаунт (`email`, `google`, `apple`), з токена доступу. [methods] — чим відкрито саме цю сесію
+ * (`amr` токена: `password`, `otp`, `oauth`…). Порожньо — невідомо.
+ */
 data class UserSession(
     val userId: String, val accessToken: String, val refreshToken: String, val expiresAt: Long,
-    val providers: Set<String> = emptySet()
+    val providers: Set<String> = emptySet(), val methods: Set<String> = emptySet()
 )
 
 /** Вхід ID-токеном Google чи Apple: [key] — назва провайдера в Supabase Auth. */

@@ -35,14 +35,23 @@ sealed interface DraftMedia {
 
     /**
      * На телефоні, уже стиснене платформою: фото — JPEG без метаданих до [ImageRules.MAX_BYTES], відео — mp4 H.264 до
-     * [MediaRules.VIDEO_MAX_BYTES] з [poster] (перший кадр, JPEG). [key] дає платформа (імʼя файлу, uuid): за ним
-     * порівнюємо, бо відбиток чернетки ([CreationIdentityStore]) не має залежати від байтів.
+     * [MediaRules.VIDEO_MAX_BYTES] з [poster] (перший кадр, JPEG). Байти — на вимогу ([MediaBytes]), тож у пам'яті лише
+     * файл, що вантажиться. [key] дає платформа (імʼя файлу, uuid): за ним порівнюємо, бо відбиток чернетки
+     * ([CreationIdentityStore]) не має залежати від байтів.
      */
-    class Local(val key: String, override val kind: MediaKind, val bytes: ByteArray, val poster: ByteArray? = null) : DraftMedia {
+    class Local(val key: String, override val kind: MediaKind, val bytes: MediaBytes, val poster: MediaBytes? = null) : DraftMedia {
         override fun equals(other: Any?) = other is Local && other.key == key && other.kind == kind
         override fun hashCode() = key.hashCode()
         override fun toString() = "Local(${kind.key} $key)"
     }
+}
+
+/**
+ * Байти файлу чернетки, коли їх вантажать: платформа читає стиснений файл з диска. Кличеться не на головному потоці.
+ * На iOS — клас, що реалізує протокол `MediaBytes`; на Android — `MediaBytes { file.readBytes() }`.
+ */
+fun interface MediaBytes {
+    fun read(): ByteArray
 }
 
 object MediaRules {

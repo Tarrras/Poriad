@@ -27,11 +27,11 @@ class EventMediaTest {
     private val draft = EventDraft("Прогулянка", "Зустріч у центрі міста", EventCategory.OUTDOORS, "Київ", "Поділ", 50.45, 30.5,
         "2090-01-01T10:00:00Z", "2090-01-01T12:00:00Z", "Europe/Kyiv", 10)
 
-    /** `p_media` завжди, і лише те, що вже в теці події: нове вантажиться після створення. */
+    /** Список — лише те, що вже в теці події: нове вантажиться після створення. Null — не чіпати, і так і йде. */
     @Test fun createSendsOnlyRemoteMedia() = runTest {
         val video = EventMedia(MediaKind.VIDEO, "$base/storage/v1/object/public/event-videos/u1/e1/v.mp4", "$base/storage/v1/object/public/event-images/u1/e1/p.jpg")
         authoring().create("e1", draft.copy(media = listOf(
-            DraftMedia.Local("a", MediaKind.PHOTO, byteArrayOf(1)), DraftMedia.Remote(video),
+            DraftMedia.Local("a", MediaKind.PHOTO, { byteArrayOf(1) }), DraftMedia.Remote(video),
             DraftMedia.Copied(EventMedia(MediaKind.PHOTO, "$base/x.jpg"))
         )))
         val media = Json.parseToJsonElement(requests.single().second).jsonObject["p_media"]!!.jsonArray
@@ -39,8 +39,10 @@ class EventMediaTest {
         assertEquals("video", media[0].jsonObject["kind"]!!.jsonPrimitive.content)
         assertEquals(video.poster, media[0].jsonObject["poster"]!!.jsonPrimitive.content)
 
-        authoring().create("e2", draft)
-        assertEquals(JsonArray(emptyList()), Json.parseToJsonElement(requests.last().second).jsonObject["p_media"], "empty, not missing")
+        authoring().update("e2", draft)
+        assertEquals(JsonNull, Json.parseToJsonElement(requests.last().second).jsonObject["p_media"], "an editor without media leaves them alone")
+        authoring().update("e2", draft.copy(media = emptyList()))
+        assertEquals(JsonArray(emptyList()), Json.parseToJsonElement(requests.last().second).jsonObject["p_media"], "an emptied list is sent as such")
     }
 
     @Test fun videosGoToTheirOwnBucket() = runTest {

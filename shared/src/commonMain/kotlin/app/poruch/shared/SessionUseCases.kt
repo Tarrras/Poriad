@@ -134,9 +134,37 @@ internal class SessionUseCases(
             if (password == null || !AccountRules.isPassword(password)) fail(AppError.InvalidCredentials)
             auth.verifyPassword(password)
         }
+        delete(password.takeUnless { passwordless }, appleAuthorizationCode)
+    }
+
+    /**
+     * Код на пошту акаунта перед видаленням: акаунт з коду (запис з вебу) пароля не має, а сервер без пароля видаляє лише
+     * одразу після входу. Пошта — з профілю, тож код підтвердить саме цей акаунт.
+     */
+    fun sendDeletionCode() = store.mutate {
+        PoruchLog.i("auth") { "deletion code requested" }
+        account.sendCode(accountEmail())
+    }
+
+    /** Код з листа — свіжий вхід (`amr` не старший за 10 хв), і сервер видаляє акаунт без пароля. Хибний код — нічого не видаляє. */
+    fun deleteAccountWithCode(code: String) = store.mutate {
+        PoruchLog.i("auth") { "account deletion with a code requested" }
+        val uid = auth.session.value?.userId ?: fail(AppError.SessionRequired)
+        account.verifyCode(accountEmail(), code)
+        // Та сама пошта — той самий акаунт; інший тут означав би, що профіль показував чужу пошту.
+        if (auth.session.value?.userId != uid) fail(AppError.Rejected)
+        delete(null, null)
+    }
+
+    private suspend fun accountEmail(): String {
+        val uid = auth.session.value?.userId ?: fail(AppError.SessionRequired)
+        return (store.value.library.profile ?: profiles?.profile(uid))?.email?.takeIf { it.isNotBlank() } ?: fail(AppError.ServiceUnavailable)
+    }
+
+    private suspend fun delete(password: String?, appleAuthorizationCode: String?) {
         push.unregister(auth.session.value)
         try {
-            auth.deleteAccount(password.takeUnless { passwordless }, appleAuthorizationCode)
+            auth.deleteAccount(password, appleAuthorizationCode)
         } catch (e: Exception) {
             // 401 — сесії вже нема, акаунт вийшов разом з нею. Інакше повертаємо пуші, які щойно зняли.
             if (e.asAppError() == AppError.SessionRequired) identity.synchronize(null) else push.register()

@@ -42,6 +42,39 @@ class SessionCodeTest {
         } finally { PoruchAnalytics.sink=null }
     }
 
+    /**
+     * Акаунт з коду (запис з вебу) пароля може не мати: пароль не питаємо. Видалення — через новий код на пошту з профілю,
+     * без пароля; хибний код нічого не видаляє.
+     */
+    @Test fun aCodeAccountDeletesWithACode()=runTest {
+        val auth=Auth(); auth.session.value=null
+        val app=testApp(Events(),backgroundScope,auth,safety=Safety(AccountFacts(adultConfirmedAt="2026-11-01T10:00:00Z")),
+            profiles=Profiles().apply { mine=mine.copy(userId="code-user",email="web@poriad.app") })
+        runCurrent(); app.verifySignInCode("web@poriad.app","123456"); advanceTimeBy(1000); runCurrent()
+        assertTrue(app.state.value.session.viaCode)
+        assertTrue(app.state.value.session.passwordless,"no password field")
+
+        app.sendDeletionCode(); runCurrent()
+        assertEquals("web@poriad.app",auth.codesSent.single())
+        app.deleteAccountWithCode("000000"); runCurrent()
+        assertFalse(auth.deleted)
+        assertTrue(app.state.value.signedIn)
+        assertEquals(AppNotice.Failed(AppError.InvalidCode),app.state.value.notice)
+
+        app.deleteAccountWithCode("123456"); runCurrent()
+        assertNull(auth.deletedWithPassword)
+        assertTrue(auth.deleted)
+        assertFalse(app.state.value.signedIn)
+        assertEquals(AppNotice.Told(AppMessage.ACCOUNT_DELETED),app.state.value.notice)
+        app.close()
+    }
+
+    /** Пароль і пошта — як і було: пароль питаємо. */
+    @Test fun aPasswordSessionStillAsksForThePassword() {
+        assertFalse(SessionState(userId="u",providers=setOf("email"),methods=setOf("password")).passwordless)
+        assertTrue(SessionState(userId="u",providers=setOf("google"),methods=setOf("oauth")).passwordless)
+    }
+
     /** Закрили екран на кроці коду — наступного разу форма, а не код. */
     @Test fun closingTheScreenForgetsTheCode()=runTest {
         val auth=Auth(); auth.session.value=null

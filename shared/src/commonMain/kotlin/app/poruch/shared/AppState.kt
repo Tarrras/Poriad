@@ -57,8 +57,9 @@ data class AppState(
      */
     val pendingCompany: String? = null,
     /**
-     * Гість натиснув «Опублікувати»: платформа відкриває вхід з причиною `create`, а подія публікується сама після входу
-     * (і галочки віку, якщо акаунт новий). Закрили вхід без входу — [PoruchApp.cancelPendingPublish].
+     * Гість натиснув «Опублікувати»: подія публікується сама після входу (і галочки віку, якщо акаунт новий). Платформа
+     * тримає вхід з причиною `create` відкритим, поки `publishAfterSignIn && (!signedIn || session.askBirthDate)`: крок
+     * галочки може зʼявитись і після входу, коли сервер не знайшов віку. Закрили вхід — [PoruchApp.cancelPendingPublish].
      */
     val publishAfterSignIn: Boolean = false,
     /**
@@ -291,6 +292,8 @@ data class SessionState(
     val pushRegistered: Boolean = false,
     /** Чим входить акаунт: `email`, `google`, `apple` (з токена). Порожньо — невідомо, вважаємо, що пароль є. */
     val providers: Set<String> = emptySet(),
+    /** Чим відкрито цю сесію (`amr` токена): `password`, `otp`… Порожньо — невідомо. */
+    val methods: Set<String> = emptySet(),
     /**
      * Щойно увійшли через Google, Apple чи код з пошти, а віку в акаунта нема: екран входу не закривається, а питає
      * галочку «Мені вже є 18» ([PoruchApp.confirmAdult]; стара збірка — дату, [PoruchApp.declareBirthDate]). Зникає
@@ -299,7 +302,14 @@ data class SessionState(
     val askBirthDate: Boolean = false
 ) {
     /** Акаунт без пароля (лише Google/Apple): ні зміни пароля, ні пароля при видаленні. */
-    val passwordless get() = providers.isNotEmpty() && "email" !in providers
+    val passwordless get() = (providers.isNotEmpty() && "email" !in providers) || viaCode
+
+    /**
+     * Сесію відкрито кодом з пошти. Пароля в такого акаунта може й не бути (запис з вебу), тож його не питаємо: видалення —
+     * без пароля одразу після входу або через новий код ([PoruchApp.deleteAccountWithCode]). ponytail: назви методів —
+     * з `amr` GoTrue (`otp`, `magiclink`); з новою назвою акаунт знову проситиме пароль, якого нема.
+     */
+    val viaCode get() = methods.any { it == "otp" || it == "magiclink" }
     /** Акаунт входить через Apple: при видаленні відкликаємо його токени. */
     val viaApple get() = IdProvider.APPLE.key in providers
 }
@@ -309,10 +319,11 @@ data class SessionState(
  * акаунту, для входу, виходу й зміни акаунта. Відповіді онбордингу й місто належать телефону і лишаються.
  * Картки теж: у них членство («Ви йдете»), тож їх перечитує новий акаунт. Індекси — публічні й лишаються.
  */
-internal fun AppState.forAccount(uid: String?, providers: Set<String> = emptySet()): AppState = copy(
+internal fun AppState.forAccount(uid: String?, providers: Set<String> = emptySet(), methods: Set<String> = emptySet()): AppState = copy(
     session = SessionState(
         userId = uid,
         providers = providers,
+        methods = methods,
         // Вхід або підтвердження з листа: наступний крок реєстрації вже не потрібен.
         awaitingConfirmation = if (uid != null) null else session.awaitingConfirmation
     ),
@@ -323,5 +334,7 @@ internal fun AppState.forAccount(uid: String?, providers: Set<String> = emptySet
     person = null,
     completedEventId = null,
     createdCompanion = null,
-    matchedCompanion = null
+    matchedCompanion = null,
+    // Вихід: чернетка гостя вже нічия. Вхід — саме те, чого вона чекала.
+    publishAfterSignIn = publishAfterSignIn && uid != null
 ).materialized()

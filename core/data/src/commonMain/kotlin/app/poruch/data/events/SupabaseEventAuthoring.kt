@@ -87,11 +87,14 @@ internal class SupabaseEventAuthoring(
         put("p_min_age", d.minAge); d.maxAge?.let { put("p_max_age", it) } ?: put("p_max_age", JsonNull)
         put("p_approval_required", d.approvalRequired)
         put("p_image_url", d.imageUrl?.let(::JsonPrimitive) ?: JsonNull)
-        // Завжди, навіть порожнім: так сервер сам ставить обкладинку з медіа. Лише те, що вже в теці цієї події, — нове
-        // спільний шар вантажить після створення й шле наступним `update_event`.
-        put("p_media", JsonArray(d.media.mapNotNull { (it as? DraftMedia.Remote)?.media }.map { m ->
-            buildJsonObject { put("kind", m.kind.key); put("url", m.url); m.poster?.let { put("poster", it) } }
-        }))
+        // Null — не чіпати: `update_event` лишає медіа й бере обкладинку з `p_image_url`, `create_event` ставить `[]`.
+        // Список — лише те, що вже в теці цієї події: нове спільний шар вантажить після створення й шле наступним
+        // `update_event`, і тоді обкладинку сервер ставить сам.
+        put("p_media", d.media?.let { media ->
+            JsonArray(media.mapNotNull { (it as? DraftMedia.Remote)?.media }.map { m ->
+                buildJsonObject { put("kind", m.kind.key); put("url", m.url); m.poster?.let { put("poster", it) } }
+            })
+        } ?: JsonNull)
         // Лише коли є: сервер без міграції чату не знає цього параметра, а відсутній означає «без чату».
         ContactRules.normalize(d.contactUrl)?.let { put("p_contact_url", it) }
     }

@@ -27,7 +27,7 @@ internal class Auth: AuthRepository {
     var codeUser="code-user"
     override suspend fun verifyCode(email:String,code:String) {
         if(code!=validCode) fail(AppError.InvalidCode)
-        session.value=UserSession(codeUser,"token","refresh",9999999999,setOf("email"))
+        session.value=UserSession(codeUser,"token","refresh",9999999999,setOf("email"),setOf("otp"))
     }
     /** Сервер не впізнав прострочений токен: локально вихід усе одно відбувся. */
     var signOutRefused=false
@@ -44,7 +44,8 @@ internal class Auth: AuthRepository {
     override suspend fun verifyPassword(password: String) { if(currentPassword!=null&&password!=currentPassword) fail(AppError.InvalidCredentials) }
     var deletedWithAppleCode:String?=null
     var deletedWithPassword:String?=null
-    override suspend fun deleteAccount(password:String?,appleAuthorizationCode:String?) { deletedWithPassword=password; deletedWithAppleCode=appleAuthorizationCode; session.value = null }
+    var deleted=false
+    override suspend fun deleteAccount(password:String?,appleAuthorizationCode:String?) { deleted=true; deletedWithPassword=password; deletedWithAppleCode=appleAuthorizationCode; session.value = null }
     override fun idTokenNonce()="hashed-nonce"
     /** Сесія, яку дасть вхід ID-токеном: провайдер — з неї. */
     var idTokenUser="oauth-user"
@@ -172,10 +173,12 @@ internal class Events: EventDiscovery, SavedEvents, EventAuthoring, EventPartici
     val createdDrafts=mutableListOf<EventDraft>()
     val updatedDrafts=mutableListOf<EventDraft>()
     var failUpdate=false
+    /** Чим відмовляє `update_event`, коли [failUpdate]: мережа — відповіді не дочекались, інше — явна відмова. */
+    var updateError:AppError=AppError.Network
     /** Чим відмовляє `create_event`; null — не відмовляє. */
     var createError:AppError?=null
     override suspend fun create(id:String,draft:EventDraft):String { createIds+=id; createdDrafts+=draft; if(failCreate) fail(AppError.Network); createError?.let { fail(it) }; return id }
-    override suspend fun update(id:String,draft:EventDraft):String { updatedDrafts+=draft; if(failUpdate) fail(AppError.Network); return id }
+    override suspend fun update(id:String,draft:EventDraft):String { updatedDrafts+=draft; if(failUpdate) fail(updateError); return id }
     override suspend fun cancel(id:String) {}
     /** Що й куди вантажили (`photo:…`, `video:…`, `copy:…`), по черзі; [failUploads] — ключі, на яких сховище падає. */
     val uploads=mutableListOf<String>()
@@ -316,7 +319,7 @@ internal class Tickets(var stored:List<WalletTicket> = emptyList()): TicketStore
 
 /** [PoruchApp] на підробках. Безпека, профілі, смак і нагадування — свої на кожен виклик, якщо тест не дав власних. */
 internal fun testApp(
-    events:Events, scope:CoroutineScope, auth:Auth=Auth(),
+    events:Events, scope:CoroutineScope, auth:Auth=Auth(), creationIdentity:CreationIdentityStore?=null,
     safety:SafetyRepository?=Safety(), profiles:ProfileRepository?=Profiles(), taste:TasteStore?=Answers(), reminders:ReminderPreferenceStore?=Reminders(),
     cities:CityStore?=null, follows:Follows?=null, bought:SeenRequestStore?=null, guestSaves:GuestSavedStore?=null, goodDays:SeenRequestStore?=null,
     tickets:TicketStore?=null, guestArtists:GuestArtistStore?=null, zones:ZoneStore?=null
@@ -325,8 +328,19 @@ internal fun testApp(
     auth=auth, cityStore=cities, follows=follows, boughtAsked=bought, guestSaves=guestSaves, goodDays=goodDays, tickets=tickets, guestArtists=guestArtists, zoneStore=zones,
     geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
     eventActions=EventActions(events,events,auth), accountActions=AccountActions(auth),
-    safety=safety, profiles=profiles, tasteStore=taste, reminderStore=reminders, scope=scope
+    safety=safety, profiles=profiles, tasteStore=taste, reminderStore=reminders, creationIdentity=creationIdentity, scope=scope
 )
+
+/** Ключ ідемпотентності в пам'яті, як `PersistentCreationIdentity`: той самий відбиток — той самий id, доки не [clear]. */
+internal class Identities: CreationIdentityStore {
+    private var pending:Pair<String,String>?=null
+    var clears=0
+    override fun idFor(draft:EventDraft):String {
+        pending?.takeIf { it.first==draft.toString() }?.let { return it.second }
+        return "id-${clears}-${draft.title.length}".also { pending=draft.toString() to it }
+    }
+    override fun clear() { clears++; pending=null }
+}
 
 /** Підробка віддає індекс і перші картки однією відповіддю, як сервер. */
 internal fun page(events: List<Event>, inlineCards: Int = Int.MAX_VALUE) = DiscoveryPage(

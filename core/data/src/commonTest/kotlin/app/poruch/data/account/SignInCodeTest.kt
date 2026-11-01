@@ -50,6 +50,30 @@ class SignInCodeTest {
         assertTrue(store.value!!.contains("refresh")); api.close()
     }
 
+    /**
+     * Сесія з коду знає, що вона з коду (`amr` токена): так застосунок не питає пароля, якого в акаунта з вебу нема. Видалення
+     * без пароля — тіло без поля `password`.
+     */
+    @Test fun aCodeSessionKnowsItsMethodAndDeletesWithoutAPassword()=runTest {
+        val payload=kotlin.io.encoding.Base64.UrlSafe.encode(
+            """{"sub":"u1","amr":[{"method":"otp","timestamp":1793520000}],"app_metadata":{"providers":["email"]}}""".encodeToByteArray()
+        ).trimEnd('=')
+        val bodies=mutableListOf<String>()
+        val api=ApiClient(HttpClient(MockEngine { request ->
+            bodies+=request.body.toByteArray().decodeToString()
+            if (request.url.encodedPath.endsWith("/verify")) respond("""{"access_token":"h.$payload.s","refresh_token":"r","expires_in":3600,"user":{"id":"u1"}}""",HttpStatusCode.OK)
+            else respond("""{"deleted":true}""",HttpStatusCode.OK)
+        }),"https://test.invalid","public")
+        val store=Store()
+        val auth=SupabaseAuthRepository(api,store)
+        auth.verifyCode("a@b.co","123456")
+        assertEquals(setOf("otp"),auth.session.value?.methods)
+        assertEquals(setOf("otp"),SupabaseAuthRepository(api,store).session.value?.methods,"survives a restart")
+        auth.deleteAccount(null,null)
+        assertEquals("{}",bodies.last())
+        assertNull(auth.session.value); api.close()
+    }
+
     /** GoTrue каже про хибний код `otp_expired`, як про старе посилання: людині — «код не підійшов». */
     @Test fun aWrongCodeIsNotAnExpiredLink()=runTest {
         val api=ApiClient(HttpClient(MockEngine {
