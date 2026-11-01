@@ -6,6 +6,7 @@
 // Назви, дати й ціна — ті самі правила, що на сайті (site/js/poriad.js, порт TitleRules і формату застосунку).
 // wrangler збирає цей імпорт у воркер; той самий файл сайт віддає браузеру.
 import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS } from "../site/js/poriad.js";
+import { kabinetPage, geocode } from "./kabinet.mjs";
 export { esc };
 
 // Мітка ct: завантаження зі сторінок подій (event) і з запрошень (invite) окремо від сайту (site/js/poriad.js).
@@ -54,6 +55,9 @@ const CSP = {
   event: (env) => csp(BASE, SHARE, supabase(env), storage(env)),
   city: () => csp(BASE, SHARE),
   pages: (env) => csp(BASE, MAP, supabase(env), storage(env), LOCAL_MEDIA),
+  // Кабінет (worker/kabinet.mjs) тримає токен організатора: картинки — лише свої, сховище й прев'ю з blob:, а не будь-який https.
+  kabinet: (env) => csp({ ...BASE, "img-src": "'self' data:" }, MAP, supabase(env), storage(env), LOCAL_MEDIA,
+    { "img-src": env.SUPABASE_URL && `${env.SUPABASE_URL}/storage/v1/object/public/` }),
 };
 
 const securityHeaders = (policy) => ({
@@ -72,6 +76,8 @@ const ROUTES = [
   [/^\/\.well-known\/assetlinks\.json$/, () => json(androidAssociation())],
   [/^\/afisha\//, readOnly(cityRoute)],
   [/^\/e\/([^/]+)\/?$/, readOnly(eventRoute)],
+  [/^\/kabinet(?:\.html)?$/, readOnly(async (request, env) => kabinetPage(await pages(request, env, CSP.kabinet(env))))],
+  [/^\/api\/geocode$/, readOnly(geocode)],
 ];
 
 export default {
@@ -90,11 +96,11 @@ export default {
  * (не вмикати global_fetch_strictly_public — тоді він піде через інтернет назад сюди). У `wrangler dev --env dev`
  * origin — локальна тека site/ (assets). До HTML додаємо заголовки безпеки, решту (js, css, шрифти) не чіпаємо.
  */
-async function pages(request, env) {
+async function pages(request, env, policy = CSP.pages(env)) {
   const response = await (env.ASSETS ? env.ASSETS.fetch(request) : fetch(request));
   if (!response.headers.get("content-type")?.startsWith("text/html")) return response;
   const out = new Response(response.body, response);
-  for (const [name, value] of Object.entries(securityHeaders(CSP.pages(env)))) out.headers.set(name, value);
+  for (const [name, value] of Object.entries(securityHeaders(policy))) out.headers.set(name, value);
   return out;
 }
 
@@ -465,7 +471,7 @@ ${head}
 </head>
 <body class="event-page">
 <header class="nav scrolled"><div class="wrap"><a class="brand" href="/"><img src="/icon.png" alt="">Поряд</a>
-  <nav class="links" aria-label="Розділи"><a href="/afisha.html">Афіша</a><a class="btn primary small" href="/app?from=event">Завантажити</a></nav></div></header>
+  <nav class="links" aria-label="Розділи"><a href="/afisha.html">Афіша</a><a href="/kabinet">Організаторам</a><a class="btn primary small" href="/app?from=event">Завантажити</a></nav></div></header>
 <main class="event-shell">${body}</main>
 <footer class="site"><div class="wrap"><span>Питання й скарги: <a href="mailto:hello@poriad.app">hello@poriad.app</a></span>
   <nav aria-label="Афіша міст">${Object.entries(CITY_PAGES).map(([s, [n]]) => `<a href="/afisha/${s}">${n}</a>`).join("")}</nav>
