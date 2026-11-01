@@ -252,9 +252,10 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     ${parent ? `<p class="note">Разом на: <a href="/e/${parent.id}">${esc(parent.title)}</a></p>` : ""}
     <div class="actions">
       <a href="${maps}" rel="noopener"><i>${icon("pin")}</i>Маршрут</a>
-      <button type="button" data-share><i>${icon("share")}</i>Поділитися</button>
+      <button type="button" data-share><i>${icon("share")}</i>Поділитися з другом</button>
+      ${imported ? "" : `<button type="button" data-copy-link hidden><i>${icon("link")}</i>Скопіювати посилання</button>`}
       <a href="poriad://event/${e.id}${by}"><i>${icon("bookmark")}</i>У «Поряд»</a>
-      <a href="/afisha.html${e.city && e.city !== "Київ" ? `?city=${encodeURIComponent(e.city)}` : ""}"><i>${icon("map")}</i>Афіша</a>
+      <a href="/afisha.html${e.city && e.city !== "Київ" ? `?city=${encodeURIComponent(e.city)}` : ""}" data-afisha><i>${icon("map")}</i>Афіша</a>
     </div>
     <div class="facts">${facts.map(([label, value, sub]) => `<div><span class="overline">${label}</span><b>${esc(value)}</b>${sub && sub !== value ? `<small>${esc(sub)}</small>` : ""}</div>`).join("")}</div>
     ${!imported && e.approval_required ? `<p class="fine">Участь за підтвердженням організатора.</p>` : ""}
@@ -378,7 +379,7 @@ function joinSheet(e, ct) {
     <button class="link" type="button" data-leave hidden></button>
     <div class="after" data-after hidden>
       ${organizer ? `<div class="rows"><div class="row"><i>${icon("bell")}</i><div class="txt"><b>${esc(name)}</b><small>Скажемо, коли організатор додасть нову подію</small></div><button class="act" type="button" data-follow>Стежити</button></div></div>` : ""}
-      <button class="btn secondary" type="button" data-invite>${icon("share")}Покликати з собою</button>
+      <button class="btn secondary" type="button" data-invite>${icon("share")}Поділитися з другом</button>
       <div class="app-pitch"><b>Нагадаємо за день і скажемо першим, коли звільниться місце</b><p class="fine" data-google-hint hidden>У застосунку увійдіть через Google — цей запис уже буде там.</p><div class="stores">${storeButtons(ct)}</div></div>
     </div>
     ${city ? `<div class="block week" data-week hidden><h2>Цього тижня ${esc(city[1][1])}</h2><div class="rows" data-cards></div><a class="link" href="/afisha/${city[0]}">Уся афіша ${esc(cityOf(city[1][0]).of)}</a></div>` : ""}

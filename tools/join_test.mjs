@@ -1,6 +1,6 @@
 // Правила шторки «Йду» (site/js/join.js) без браузера: node tools/join_test.mjs
 import assert from "node:assert/strict";
-import { outcome, STATUS, ageLimit, needsBirthDate, weekPool, weekPicks, weekRow } from "../site/js/join.js";
+import { outcome, STATUS, ageLimit, needsBirthDate, weekPool, weekPicks, weekRow, shareMode } from "../site/js/join.js";
 
 // Таблиця «Інші відповіді на запис» (docs/organizers-1.5.md, 1.1).
 for (const [code, kind] of [
@@ -48,5 +48,19 @@ const row = weekRow(card("x\"><img>", { title: "КОНЦЕРТ <b>", place_name:
 assert.ok(row.includes('href="/e/x&quot;&gt;&lt;img&gt;"') && row.includes("<b>КОНЦЕРТ &lt;b&gt;</b>"), "id і назва екрановані");
 assert.ok(row.includes("19:00 · Музика · Атлас · Безкоштовно"), "час у поясі події, жанр, місце, ціна");
 assert.ok(weekRow(card("y", { origin: "community" }), new Date(now)).includes("Від людей"));
+
+// Хто чим ділиться (1.6) — та сама умова, що ShareRules.mode у застосунку.
+const at = Date.parse("2026-11-02T12:00:00Z");
+const mine = { origin: "community", organizer_id: "me", status: "published", starts_at: "2026-11-04T17:00:00Z", ends_at: "2026-11-04T20:00:00Z" };
+assert.equal(shareMode(mine, "me", at), "promote", "організатор своєї події");
+assert.equal(shareMode(mine, null, at), "friend", "гість");
+assert.equal(shareMode(mine, "other", at), "friend", "інший акаунт");
+assert.equal(shareMode({ ...mine, companion_of: "x" }, "me", at), "friend", "творець «Шукаю компанію»");
+assert.equal(shareMode({ ...mine, status: "cancelled" }, "me", at), "friend", "скасована");
+assert.equal(shareMode(mine, "me", Date.parse("2026-11-04T20:00:00Z")), "friend", "завершилась — кінець уже настав");
+assert.equal(shareMode(mine, "me", Date.parse("2026-11-04T18:00:00Z")), "promote", "триває — ще можна кликати");
+assert.equal(shareMode({ ...mine, ends_at: null }, "me", at), "promote", "без кінця — не завершена");
+assert.equal(shareMode({ ...mine, origin: "import", organizer_id: null }, "me", at), "friend", "афіша");
+assert.equal(shareMode(null, "me", at), "friend");
 
 console.log("join rules ok");

@@ -753,7 +753,7 @@ a.row:hover { background: var(--surface-muted); }
 
 /* ================= «Йду» з вебу (site/js/join.js; розмітка — worker/index.mjs, joinSheet) ================= */
 /* hidden перемагає display у .btn, .block, .rows: шторка ховає кроки й дії атрибутом. */
-.join-sheet [hidden] { display: none; }
+.join-sheet [hidden], .actions [hidden] { display: none; }
 .join-sheet .install-box { max-height: calc(100svh - 32px); overflow-y: auto; overscroll-behavior: contain; }
 .join-sheet section { display: flex; flex-direction: column; gap: 14px; }
 .join-sheet form { display: flex; flex-direction: column; gap: 12px; }

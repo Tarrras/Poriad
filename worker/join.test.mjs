@@ -42,6 +42,12 @@ const imported = eventPage({ ...base, origin: "import", canonical_url: "https://
 assert.ok(imported.includes("Квитки на Concert.ua") && imported.includes("Підете? Не забудьте"));
 assert.ok(!imported.includes("join-sheet") && !imported.includes("join.js") && !imported.includes("data-join"));
 
+// Хто чим ділиться (1.6): сторінка однакова для всіх — «Поділитися з другом»; «Поширити анонс» і «Скопіювати посилання»
+// організатору вмикає скрипт після входу, тож друга кнопка в розмітці прихована, а на афіші її нема.
+assert.ok(open.includes("</i>Поділитися з другом</button>") && open.includes("data-copy-link hidden>") && open.includes("Скопіювати посилання"));
+assert.ok(open.includes("data-invite>") && !open.includes("Покликати з собою"), "після запису — теж «Поділитися з другом»");
+assert.ok(imported.includes("</i>Поділитися з другом</button>") && !imported.includes("data-copy-link"));
+
 // Запрошення несе токен і в «Відкрити».
 assert.ok(eventPage(base, now, [], { by: "AbCdEfGhIjKlMnOpQrSt_-", name: "Тарас" }).includes(`poriad://event/${base.id}?by=AbCdEfGhIjKlMnOpQrSt_-">Уже є застосунок?`));
 
