@@ -118,7 +118,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
 
 /// Форма редактора, крок і чернетка. View лише малює й передає правки; тестується без SwiftUI.
 @MainActor final class EventEditorModel: ObservableObject {
-    @Published var form = EditorForm() { didSet { issues = form.issues(imageUrl: event?.imageUrl) } }
+    @Published var form = EditorForm() { didSet { issues = form.issues(imageUrl: event?.imageUrl); syncOrphans() } }
     @Published var step = EditorStep.about
     /// Порушені правила всієї форми. Рахуються раз на правку, а не на кожне поле в тілі.
     @Published private(set) var issues: [DraftField] = []
@@ -127,9 +127,9 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     /// Поле, до якого прокрутити, і лічильник-сигнал: той самий збій двічі має прокрутити двічі.
     @Published private(set) var focus: DraftField?
     @Published private(set) var jump = 0
-    @Published private(set) var submitted = false
+    @Published private(set) var submitted = false { didSet { syncOrphans() } }
     /// Подію збережено, чернетку стерто: більше нічого не пишемо.
-    private var finished = false
+    private var finished = false { didSet { syncOrphans() } }
     /// Підказки адрес: людина набирає вулицю й будинок, крапку ставить застосунок.
     @Published private(set) var addressSuggestions: [PlaceResult] = []
     /// Крапку поставлено з підказки: координати вже не здогад.
@@ -258,6 +258,8 @@ enum EditorStep: Int, CaseIterable, Identifiable {
                 // Редактор закрили, поки стискалось: файл нікому не належить.
                 guard !finished else { DraftFiles.delete([prepared]); continue }
                 form.media = (form.media ?? []) + [prepared]
+                // Шторку могли закрити, поки стискалось: чернетка нової події має знати про файл і без `onChange` екрана.
+                persist()
                 app.mediaAdded(kind: prepared.kind)
             }
         }
@@ -478,6 +480,8 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     func retreat() { if let previous = EditorStep(rawValue: step.rawValue - 1) { step = previous; revealed = false } }
 
     func submit() {
+        // Файл, що ще стискається, інакше мовчки випав би з публікації: кнопка й так неактивна, це запобіжник.
+        guard preparing == 0 else { return }
         // Свіжа перевірка: поки людина дивилась на форму, початок міг стати минулим.
         issues = form.issues(imageUrl: event?.imageUrl)
         if let field = issues.first { blocked(by: field); return show(field) }
@@ -530,12 +534,10 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         UserDefaults.standard.set(data, forKey: storageKey)
     }
 
-    /// Редактор закрито. Правка й повтор чернетки не пишуть, тож нове з них лишилося б на диску нічиїм.
-    func close() {
-        persist()
-        guard event != nil || repeated != nil, !submitted, !finished else { return }
-        finished = true
-        DraftFiles.delete(form.media ?? [])
+    /// Нове з правки чи повтору, якщо шторку закриють без збереження: стирається разом з моделлю (`OrphanFiles`).
+    private let orphans = OrphanFiles()
+    private func syncOrphans() {
+        orphans.items = (event != nil || repeated != nil) && !submitted && !finished ? form.media ?? [] : []
     }
 
     private func restore() {
@@ -568,9 +570,8 @@ enum EditorStep: Int, CaseIterable, Identifiable {
                 timeZone: event.timeZone, capacity: Int(room.capacity),
                 minAge: Int(room.minAge), maxAge: room.maxAge.map { Int(truncating: $0) },
                 approvalRequired: room.approvalRequired, contactUrl: room.contactUrl,
-                // Подія до 1.5 — лише обкладинка: показуємо її першою плиткою, інакше нове відео тихо стало б обкладинкою.
-                media: (event.media.isEmpty ? event.imageUrl.map { [EventMedia(kind: .photo, url: $0, poster: nil)] } ?? [] : event.media)
-                    .map { DraftItem($0, origin: .remote) }
+                // Лише справжні `media` події (деталі, а не картка — «Редагувати» чекає на них). Не чіпали — `null`.
+                media: event.media.map { DraftItem($0, origin: .remote) }
             )
             form.placed = true
             original = form
@@ -582,6 +583,13 @@ enum EditorStep: Int, CaseIterable, Identifiable {
             form.longitude = home?.city.longitude ?? HomeLocation.companion.Kyiv.longitude
         }
     }
+}
+
+/// Файли нового з правки чи повтору: чернетки вони не пишуть, тож коли модель редактора зникає (шторку закрили), зникають
+/// і файли. Не в `onDisappear`: той спрацьовує й під `fullScreenCover` вибору точки, коли редактор ще живий.
+private final class OrphanFiles {
+    var items: [DraftItem] = []
+    deinit { DraftFiles.delete(items) }
 }
 
 extension EditorForm {

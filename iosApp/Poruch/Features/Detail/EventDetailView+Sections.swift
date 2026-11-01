@@ -614,14 +614,15 @@ extension EventDetailView {
             // Фото й відео — у редакторі. Тут — пост, яким організатор кличе людей у Threads; «Поділитися» на своїй події
             // зайняте «Покликати».
             if view.companionOf == nil, let event = view.event {
-                SecondaryButton(title: Copy.threads_post, glyph: PoruchIcons.copy, enabled: threadsEvent == nil) { threadsEvent = event }
+                SecondaryButton(title: Copy.threads_post, glyph: PoruchIcons.copy, enabled: threadsEvent == nil && screen.detailsLoaded) { threadsEvent = event }
             }
             // Збір: організатор міняє лише час (R7б).
             if view.canMoveMeet, let event = view.event {
                 SecondaryButton(title: Copy.meet_change, glyph: PoruchIcons.clock) { movingMeet = MeetTarget(at: event.startsAt) }
             }
             HStack(spacing: Space.md) {
-                if editable { SecondaryButton(title: Copy.edit, glyph: PoruchIcons.edit) { editing = true } }
+                // Лише з повними деталями: з картки (media = []) правка стерла б фото й відео. Не доїхали — теж неактивна.
+                if editable { SecondaryButton(title: Copy.edit, glyph: PoruchIcons.edit, enabled: screen.detailsLoaded) { editing = true } }
                 SecondaryButton(title: Copy.delete_account_cancel, glyph: PoruchIcons.close, tone: Palette.danger) { cancelling = true }
             }
         }

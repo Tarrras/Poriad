@@ -85,7 +85,7 @@ struct EventEditor: View {
         }
         // При згортанні застосунку аркуш не зникає, тож відкладений запис дожимаємо самі.
         .onChange(of: scenePhase) { _, phase in if phase != .active { editor.persist() } }
-        .onDisappear { editor.close() }
+        .onDisappear { editor.persist() }
         // Зміна закінчилась без підтвердженого запису — відмова: форма лишається редагованою й зберігається. Гість, що
         // чекає на вхід, — не відмова: подія опублікується сама, щойно він увійде.
         .onChange(of: model.state?.mutating) { _, mutating in
@@ -167,14 +167,17 @@ struct EventEditor: View {
             if let upload = model.state?.mediaUpload {
                 Text(Copy.media_uploading("\(upload.current)", "\(upload.total)"))
                     .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).monospacedDigit()
+            } else if editor.preparing > 0 && editor.step != .about {
+                // На першому кроці те саме каже секція «Фото й відео»; тут — чому «Опублікувати» чекає.
+                Text(Copy.media_compressing).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
             }
             layout {
             if editor.step != .about { SecondaryButton(title: Copy.back) { editor.retreat() } }
             PrimaryButton(
                 title: !editor.step.isLast ? Copy.next : editor.editing ? Copy.save_changes : Copy.publish,
                 loading: model.state?.mutating == true,
-                // Не вимкнена, поки крок не заповнено: натискання показує, що саме не так.
-                enabled: model.state?.mutating != true
+                // Не вимкнена, поки крок не заповнено: натискання показує, що саме не так. Чекає лише на стиснення відео.
+                enabled: model.state?.mutating != true && !(editor.step.isLast && editor.preparing > 0)
             ) { if editor.step.isLast { editor.submit() } else { editor.advance() } }
             }
         }

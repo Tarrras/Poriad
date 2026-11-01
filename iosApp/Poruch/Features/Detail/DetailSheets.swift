@@ -24,21 +24,29 @@ private struct ThreadsShare: ViewModifier {
     @Binding var event: Event?
     @Environment(\.appModel) private var model
     @State private var share: ShareItems?
+    /// Тимчасова тека файлів меню: прибираємо, щойно меню закрили.
+    @State private var folder: URL?
     @State private var copied = false
 
     func body(content: Content) -> some View {
         content
             .task(id: event?.id) {
                 guard let model, let picked = event else { return }
-                let full = await model.withMedia(picked)
+                // Деталі не доїхали — без меню: пост без фото й відео був би не тим, що організатор просив. Збій каже банер.
+                guard let full = await model.withMedia(picked) else { event = nil; return }
                 let text = model.app.threadsPost(event: full)
                 UIPasteboard.general.string = text
                 copied = true
-                let files = await SystemActions.download(full.media.isEmpty ? full.imageUrl.map { [$0] } ?? [] : full.media.map(\.url))
-                share = ShareItems(items: [text] + files)
+                let files = FileManager.default.temporaryDirectory.appendingPathComponent("threads-\(UUID().uuidString)", isDirectory: true)
+                let downloaded = await SystemActions.download(full.media.isEmpty ? full.imageUrl.map { [$0] } ?? [] : full.media.map(\.url), into: files)
+                folder = files
+                share = ShareItems(items: [text] + downloaded)
                 event = nil
             }
-            .sheet(item: $share) { ActivitySheet(items: $0.items).presentationDetents([.medium, .large]) }
+            .sheet(item: $share, onDismiss: {
+                if let folder { try? FileManager.default.removeItem(at: folder) }
+                folder = nil
+            }) { ActivitySheet(items: $0.items).presentationDetents([.medium, .large]) }
             .notice(copied ? Notice(text: Copy.threads_copied, isError: false) : nil) { copied = false }
     }
 }

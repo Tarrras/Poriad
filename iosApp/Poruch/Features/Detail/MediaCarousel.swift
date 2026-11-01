@@ -10,12 +10,17 @@ struct MediaCarousel: View {
     let media: [EventMedia]
     let scroll: DetailScroll
     @State private var playing: PlayingVideo?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Без автозапуску (Reduce Motion чи вимкнений «Автовідтворення відео») — лише постер; тап однаково відкриває відео.
+    private var autoplay: Bool { !reduceMotion && UIAccessibility.isVideoAutoplayEnabled }
 
     var body: some View {
         ScrollView(.horizontal) {
             LazyHStack(spacing: 0) {
                 ForEach(Array(media.enumerated()), id: \.offset) { index, item in
-                    page(item)
+                    // Грає й вантажить лише поточна сторінка: сусідні LazyHStack створює наперед, а кожен перегляд — трафік Storage.
+                    page(item, playing: autoplay && index == scroll.mediaPage)
                         .containerRelativeFrame(.horizontal)
                         .frame(height: heroHeight).clipped()
                         .id(index)
@@ -31,12 +36,12 @@ struct MediaCarousel: View {
         .fullScreenCover(item: $playing) { FullScreenVideo(url: $0.url) }
     }
 
-    @ViewBuilder private func page(_ item: EventMedia) -> some View {
+    @ViewBuilder private func page(_ item: EventMedia, playing live: Bool) -> some View {
         if item.kind == .video, let url = URL(string: item.url) {
             // Постер під відео: перші кадри ще в дорозі, а чорна сторінка виглядала б зламаною.
             ZStack {
                 if let poster = item.poster.flatMap(URL.init(string:)) { CachedImage(url: poster, maxDimension: heroHeight, fill: true) }
-                LoopingVideo(url: url)
+                if live { LoopingVideo(url: url) }
             }
                 .contentShape(Rectangle())
                 .onTapGesture { playing = PlayingVideo(url: url) }
@@ -108,16 +113,12 @@ struct LoopingVideo: UIViewRepresentable {
     }
 }
 
-/// Відео на весь екран зі звуком: системний плеєр і «закрити». Сесія `playback`, щоб звук був і з вимкненим дзвінком.
+/// Відео на весь екран зі звуком: системний плеєр і «закрити». Сесія `playback`, щоб звук був і з вимкненим дзвінком;
+/// після — сесію віддаємо, і музика людини грає далі. Плеєр — з появою екрана, а не в `init`, який SwiftUI кличе часто.
 private struct FullScreenVideo: View {
     let url: URL
     @Environment(\.dismiss) private var dismiss
-    @State private var player: AVPlayer
-
-    init(url: URL) {
-        self.url = url
-        _player = State(initialValue: AVPlayer(url: url))
-    }
+    @State private var player: AVPlayer?
 
     var body: some View {
         VideoPlayer(player: player)
@@ -128,11 +129,16 @@ private struct FullScreenVideo: View {
             }
             .onAppear {
                 try? AVAudioSession.sharedInstance().setCategory(.playback)
+                let player = AVPlayer(url: url)
+                self.player = player
                 player.play()
             }
             .onDisappear {
-                player.pause()
-                try? AVAudioSession.sharedInstance().setCategory(.ambient, options: [.mixWithOthers])
+                player?.pause()
+                player = nil
+                let session = AVAudioSession.sharedInstance()
+                try? session.setActive(false, options: .notifyOthersOnDeactivation)
+                try? session.setCategory(.ambient, options: [.mixWithOthers])
             }
     }
 }

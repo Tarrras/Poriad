@@ -410,7 +410,7 @@ struct MyEventsView: View, Equatable {
         Task {
             let full = await model.withMedia(event)
             preparingRepeat = nil
-            if let draft = model.app.repeatDraft(event: full) { repeating = RepeatDraft(draft: draft) }
+            if let full, let draft = model.app.repeatDraft(event: full) { repeating = RepeatDraft(draft: draft) }
         }
     }
 
