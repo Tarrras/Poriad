@@ -84,5 +84,9 @@ class EventMediaTest {
             {"kind":"gif","url":"https://s/g.gif"},{"kind":"video","url":"https://s/nop.mp4"}]}"""
         val event = Json { ignoreUnknownKeys = true }.decodeFromString<EventDto>(row).domain()
         assertEquals(listOf(EventMedia(MediaKind.VIDEO, "https://s/v.mp4", "https://s/p.jpg"), EventMedia(MediaKind.PHOTO, "https://s/1.jpg")), event.media)
+        assertTrue(event.mediaLoaded)
+        val card = Json { ignoreUnknownKeys = true }.decodeFromString<EventDto>(row.replace(Regex(",\\s*\"media\":\\[[\\s\\S]*\\]\\}$"), "}")).domain()
+        assertFalse(card.mediaLoaded, "a card without the field says nothing about media")
+        assertTrue(card.media.isEmpty())
     }
 }

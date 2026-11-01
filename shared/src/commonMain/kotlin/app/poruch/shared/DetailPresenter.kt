@@ -1,6 +1,8 @@
 package app.poruch.shared
 
 import app.poruch.domain.WalletTicket
+import app.poruch.domain.ShareMode
+import app.poruch.domain.ShareRules
 import app.poruch.domain.AppError
 import app.poruch.domain.Artist
 import app.poruch.domain.ArtistRole
@@ -153,6 +155,11 @@ data class DetailScreenState(
     val canAddTicket: Boolean get() = event?.listing != null && myTickets.isEmpty() && !ended && !cancelled
     /** «Покликати» замість «Поділитися» (docs/invites.md): подія ще попереду й відбудеться. Скасованою чи минулою — ділимось. */
     val canInvite: Boolean get() = event?.isCalledOff == false && !ended
+    /**
+     * Підпис і зміст «Поширити» (docs/organizers-1.5.md, 1.6): організатор своєї звичайної спільнотної події — «Поширити
+     * анонс» ([PoruchApp.threadsPost]); усі інші — «Поділитися з другом», механіка [canInvite] (особисте `?by=`).
+     */
+    val shareMode: ShareMode get() = event?.takeIf { !ended }?.let { ShareRules.mode(it, userId, Clock.System.now()) } ?: ShareMode.FRIEND
     /** Кімната, якщо це кімната. Місця й участь лише в неї. */
     val room: Gathering? get() = event?.gathering
     /** Оголошення, якщо це афіша. Тоді дія одна: вийти на джерело. */

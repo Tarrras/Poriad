@@ -47,6 +47,11 @@ data class AppState(
     val mediaUpload: MediaUpload? = null,
     val notice: AppNotice? = null,
     val completedEventId: String? = null,
+    /**
+     * Щойно опубліковану подію показує екран «Подію створено» (docs/organizers-1.5.md, 1.6): і після входу гостя, і після
+     * файлів. Правка його не відкриває. Платформа закриває екран через [PoruchApp.publishDone] з [PublishAction.DONE].
+     */
+    val published: PublishedEvent? = null,
     /** Щойно створений супутник «Йдемо разом»: платформа відкриває «Поділитися» і кличе [PoruchApp.clearCreatedCompanion]. */
     val createdCompanion: String? = null,
     /** Збіг «Піти разом»: супутник, куди сервер записав обох. Платформа відкриває його і кличе [PoruchApp.clearMatchedCompanion]. */
@@ -170,6 +175,26 @@ data class AppState(
     private fun runOf(id: String) = map.index.firstOrNull { run -> run.sessions.any { it.id == id } }
         ?: home.index.firstOrNull { run -> run.sessions.any { it.id == id } }
 }
+
+/**
+ * Що потрібно екрану «Подію створено»: [link] — `https://poriad.app/e/{id}` для «Скопіювати посилання», [post] — текст
+ * «Поширити анонс» (той самий, що [PoruchApp.threadsPost]), а для «Додати в календар» — назва, початок і кінець в
+ * epoch-мілісекундах (так їх беруть EventKit і `CalendarContract`), пояс події й місце одним рядком.
+ */
+data class PublishedEvent(
+    val id: String,
+    val link: String,
+    val post: String,
+    val shareMode: ShareMode,
+    val title: String,
+    val startMillis: Long,
+    val endMillis: Long,
+    val timeZone: String,
+    val location: String
+)
+
+/** Дія на «Подію створено» для `publish_done {action}`: [DONE] ще й закриває екран. */
+enum class PublishAction(val key: String) { SHARE("share"), COPY("copy"), CALENDAR("calendar"), DONE("done") }
 
 /** Котрий файл зараз іде ([current], від 1) з [total] нових у чернетці. */
 data class MediaUpload(val current: Int, val total: Int)
@@ -333,6 +358,7 @@ internal fun AppState.forAccount(uid: String?, providers: Set<String> = emptySet
     chatUnread = emptyList(),
     person = null,
     completedEventId = null,
+    published = null,
     createdCompanion = null,
     matchedCompanion = null,
     // Вихід: чернетка гостя вже нічия. Вхід — саме те, чого вона чекала.

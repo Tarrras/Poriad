@@ -11,6 +11,7 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlin.time.TimeSource
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -236,9 +237,26 @@ internal class EventUseCases(
             it.copy(
                 notice = if (failed == 0) AppNotice.Told(AppMessage.EVENT_PUBLISHED) else AppNotice.MediaFailed(failed),
                 completedEventId = created,
+                published = published(created, draft),
                 publishAfterSignIn = false
             )
         }
+    }
+
+    /** «Подію створено» з чернетки: картка події ще їде, а екран потрібен одразу. */
+    private fun published(id: String, draft: EventDraft): PublishedEvent {
+        val place = listOf(draft.address.trim(), draft.city.trim()).filter { it.isNotEmpty() }.distinct()
+            .let { parts -> if (parts.size == 2 && parts[1] in parts[0]) parts.take(1) else parts }.joinToString(", ")
+        return PublishedEvent(
+            id = id, link = EventLinks.url(id),
+            post = ThreadsPost.text(id, TitleRules.display(draft.title.trim()), draft.startsAt, draft.timeZone, draft.address.trim(), null, draft.description),
+            // Звичайна подія свого організатора: саме вона щойно опублікована, тож завжди анонс.
+            shareMode = ShareMode.PROMOTE,
+            title = draft.title.trim(),
+            startMillis = Instant.parse(draft.startsAt).toEpochMilliseconds(),
+            endMillis = Instant.parse(draft.endsAt).toEpochMilliseconds(),
+            timeZone = draft.timeZone, location = place
+        )
     }
 
     /**
@@ -341,15 +359,36 @@ internal class EventUseCases(
     /** Файл з диска платформи — поза головним потоком: відео до 8 МБ, а на iOS ще й копія в `KotlinByteArray`. */
     private suspend fun read(bytes: MediaBytes): ByteArray = withContext(compute) { bytes.read() }
 
-    /** Файли, яких у події після правки вже нема: [before] — медіа до неї, з того, що застосунок уже бачив. */
-    private fun removed(before: List<EventMedia>, after: List<DraftMedia>): List<String> {
-        val kept = after.mapNotNull { (it as? DraftMedia.Remote)?.media }.flatMap { listOfNotNull(it.url, it.poster) }.toSet()
-        return before.flatMap { listOfNotNull(it.url, it.poster) }.filterNot { it in kept }
-    }
-
-    /** Медіа події [id], яку застосунок уже бачив: відкрита, «Мої події» чи картки. Картки стрічки медіа не несуть — тоді порожньо. */
-    private fun knownMedia(id: String): List<EventMedia> = store.value.let { state ->
-        (state.detail.event?.takeIf { it.id == id } ?: state.library.myEvents.firstOrNull { it.id == id } ?: state.cards[id])?.media.orEmpty()
+    /**
+     * Медіа правки проти медіа події на сервері (`event_details`, щойно прочитаних): що зберегти і які файли видалити.
+     * - Видаляємо лише файли, з якими редактор відкрився ([EventDraft.mediaBase]) і яких у чернетці вже нема: те, чого
+     *   редактор не бачив, не зникне.
+     * - Файли сервера, яких редактор не бачив (додали в кабінеті, поки він був відкритий), — у кінець. Редактор з картки
+     *   (бази нема) не бачив нічого: серверні медіа лишаються першими, нове — за ними.
+     * - Файли з чернетки, яких на сервері вже нема (прибрали в кабінеті), викидаємо: інакше лишилось би мертве посилання.
+     *   Крім старої обкладинки без медіа — вона стає першим фото.
+     * Порівнюємо адреси й постери: обкладинка події з самими відео — постер першого, і редактор з картки не має її
+     * дублювати фото. Деталі не прочитались чи файлів стало б понад 5 — помилка до вивантаження, без запису.
+     */
+    private suspend fun reconcile(id: String, draft: EventDraft, media: List<DraftMedia>): Pair<EventDraft, List<String>> {
+        val full = events.details(id) ?: fail(AppError.EventUnavailable)
+        val server = full.media.takeIf { full.mediaLoaded }.orEmpty()
+        fun files(m: EventMedia) = listOfNotNull(m.url, m.poster)
+        val onServer = server.flatMap(::files).toSet() + listOfNotNull(full.imageUrl)
+        val base = draft.mediaBase
+        val alive = media.filter { it !is DraftMedia.Remote || it.media.url in onServer }
+        val (merged, removed) = if (base == null) {
+            val known = server.flatMap(::files).toSet()
+            server.map { DraftMedia.Remote(it) } + alive.filterNot { it is DraftMedia.Remote && files(it.media).any { f -> f in known } } to emptyList()
+        } else {
+            val kept = alive.mapNotNull { (it as? DraftMedia.Remote)?.media }.flatMap(::files).toSet()
+            val unseen = server.filter { m -> files(m).none { it in base || it in kept } }
+            alive + unseen.map { DraftMedia.Remote(it) } to (onServer intersect base).filterNot { it in kept }
+        }
+        // До вивантаження: інакше файли лягли б у теку, а `update_event` відмовив би.
+        if (merged.size > MediaRules.MAX_ITEMS) fail(AppError.InvalidDraft(listOf(DraftField.IMAGE_URL)))
+        // Обкладинку з медіа ставить сервер; запасна — лише для редактора з картки, коли медіа без фото й відео.
+        return draft.copy(media = merged, imageUrl = if (base == null) full.imageUrl else null) to removed
     }
 
     /** Постер без свого відео нікому не потрібен. */
@@ -428,23 +467,24 @@ internal class EventUseCases(
     }
 
     /**
-     * Правка: нові фото й відео вантажаться до збереження, і все йде одним `update_event`. Файли, які з події прибрали,
-     * після збереження видаляємо зі сховища: інакше вони й далі відкривались би за прямим посиланням.
+     * Правка: нові фото й відео вантажаться до збереження, і все йде одним `update_event`. Медіа звіряємо з повними
+     * деталями ([reconcile]); файли, які з події справді прибрали, після збереження видаляємо зі сховища: інакше вони й далі
+     * відкривались би за прямим посиланням.
      */
     fun update(id: String, draft: EventDraft) = store.mutate {
         PoruchLog.i("action") { "updateEvent ${id.shortId()} capacity=${draft.capacity} media=${draft.media?.size}" }
         // До файлів: відмова чернетки після завантаження лишила б їх сиротами.
         actions.validate(draft)
-        val before = draft.media?.let { knownMedia(id) }.orEmpty()
-        val attached = attach(id, draft)
+        val (reconciled, removed) = draft.media?.let { reconcile(id, draft, it) } ?: (draft to emptyList())
+        val attached = attach(id, reconciled)
         try {
-            actions.update(id, attached?.draft ?: draft)
+            actions.update(id, attached?.draft ?: reconciled)
         } catch (e: Exception) {
             // Відповіді не дочекались — сервер міг зберегти: тоді ці файли вже в події.
             if (e !is CancellationException && e.asAppError() != AppError.Network) discard(attached?.uploaded.orEmpty())
             throw e
         }
-        (attached?.draft ?: draft).media?.let { after -> discard(removed(before, after)) }
+        discard(removed)
         reloader.changed(id, index = true)
         val failed = attached?.failed ?: 0
         store.update {

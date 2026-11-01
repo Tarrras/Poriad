@@ -476,8 +476,15 @@ class PoruchApp internal constructor(
     /** «Піти разом» з людиною з наміром на відкриту афішу. */
     fun sayCompanyYes(userId: String) = eventUseCases.sayCompanyYes(userId)
     /**
-     * Збереження правки. [EventDraft.media] null — медіа не чіпаємо (редактор без розділу «Фото й відео»). З розділом —
-     * чернетка бере медіа події як `event.media.map { DraftMedia.Remote(it) }`, а прибрані файли зникають і зі сховища.
+     * Чернетка правки власної події для редактора ([EventEdit.draft]): усі поля, медіа й [EventDraft.mediaBase] — файли, з
+     * якими редактор відкрився. Редактор міняє лише поля й [EventDraft.media]; не чіпав медіа — шле `media = null`. Чужа
+     * подія чи афіша — null.
+     */
+    fun editDraft(event: Event): EventDraft? = if (state.value.organizes(event)) EventEdit.draft(event) else null
+
+    /**
+     * Збереження правки з [editDraft]. [EventDraft.media] null — медіа не чіпаємо. Зі списком — звіряємо з сервером:
+     * видаляються лише файли, з якими редактор відкрився і які з нього прибрали; додане в кабінеті тим часом лишається.
      */
     fun updateEvent(id: String, draft: EventDraft) = eventUseCases.update(id, draft)
 
@@ -888,6 +895,17 @@ class PoruchApp internal constructor(
     fun reviewMomentHandled(prompted: Boolean) {
         if (prompted) PoruchAnalytics.track("review_prompt")
         store.update { it.copy(reviewMoment = false) }
+    }
+
+    /**
+     * Дія на «Подію створено»: [PublishAction.SHARE] — «Поширити анонс» з [PublishedEvent.post] (рахується й як `share`
+     * з `kind=threads`), [PublishAction.COPY] — посилання в буфер і «Посилання скопійовано», [PublishAction.CALENDAR] —
+     * системний календар, [PublishAction.DONE] — «Готово» чи закриття жестом: екран зникає, далі деталі події.
+     */
+    fun publishDone(action: PublishAction) {
+        PoruchAnalytics.track("publish_done", "action" to action.key)
+        if (action == PublishAction.SHARE) PoruchAnalytics.track("share", "kind" to "threads")
+        if (action == PublishAction.DONE) store.update { it.copy(published = null) }
     }
 
     fun clearCompletedEvent() {
