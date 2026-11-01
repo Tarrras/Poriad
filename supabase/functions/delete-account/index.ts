@@ -9,18 +9,16 @@
 // (claim `amr` токена, reauth.ts) теж підтверджує.
 //   200 {"deleted":true} · 401 без/з недійсним токеном · 403 {"error":"password"} · 500 {"error":…}
 //
-// Порядок: спершу фото користувача в бакеті event-images (<uid>/…), потім auth.admin.deleteUser.
-// Каскади FK у базі прибирають решту (профіль, участь, власні події з чатом, оцінки, токени, скарги).
-// Якщо фото не видалились — акаунт не чіпаємо: повтор запиту доробить.
+// Порядок: спершу фото й відео користувача в бакетах event-images і event-videos (<uid>/…, files.ts), потім
+// auth.admin.deleteUser. Каскади FK у базі прибирають решту (профіль, участь, власні події з чатом, оцінки, токени,
+// скарги). Якщо файли не видалились — акаунт не чіпаємо: повтор запиту доробить.
 // SUPABASE_URL і SUPABASE_SERVICE_ROLE_KEY середовище дає саме; верифікація JWT на шлюзі увімкнена,
 // а користувача все одно перевіряємо getUser — токен міг бути відкликаний.
 
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { revokeApple } from "./apple.ts";
+import { removeUserFiles } from "./files.ts";
 import { freshLogin, needsReauth } from "./reauth.ts";
-
-const BUCKET = "event-images";
-const PAGE = 1000;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
@@ -44,7 +42,7 @@ Deno.serve(async (req) => {
 
   try {
     if (appleCode && user.app_metadata?.providers?.includes("apple")) await revokeAppleTokens(user.id, appleCode);
-    await removeFiles(admin, user.id);
+    await removeUserFiles((bucket) => admin.storage.from(bucket), user.id);
     const { error } = await admin.auth.admin.deleteUser(user.id);
     if (error) throw error;
     return json({ deleted: true });
@@ -63,33 +61,6 @@ async function passwordOk(email: string, password: string): Promise<boolean> {
   });
   await res.body?.cancel();
   return res.ok;
-}
-
-// Шляхи — <uid>/<event_id>/<file>: list не рекурсивний, тож обходимо папки подій.
-async function removeFiles(admin: ReturnType<typeof createClient>, uid: string) {
-  const storage = admin.storage.from(BUCKET);
-  const paths: string[] = [];
-  for (const folder of await listAll(storage, uid)) {
-    // Папка в list має id=null; файл просто в <uid>/ теж можливий — видаляємо і його.
-    if (folder.id) { paths.push(`${uid}/${folder.name}`); continue; }
-    for (const file of await listAll(storage, `${uid}/${folder.name}`)) {
-      if (file.id) paths.push(`${uid}/${folder.name}/${file.name}`);
-    }
-  }
-  for (let i = 0; i < paths.length; i += PAGE) {
-    const { error } = await storage.remove(paths.slice(i, i + PAGE));
-    if (error) throw error;
-  }
-}
-
-async function listAll(storage: ReturnType<ReturnType<typeof createClient>["storage"]["from"]>, prefix: string) {
-  const all: { name: string; id: string | null }[] = [];
-  for (let offset = 0; ; offset += PAGE) {
-    const { data, error } = await storage.list(prefix, { limit: PAGE, offset, sortBy: { column: "name", order: "asc" } });
-    if (error) throw error;
-    all.push(...(data ?? []));
-    if (!data || data.length < PAGE) return all;
-  }
 }
 
 // Відкликання не тримає людину в акаунті: прострочений код чи незаданий ключ — лише в лог.

@@ -1,6 +1,7 @@
 // Edge Function `parse-announcement` (docs/organizers-1.5.md, 1.4): «Вставити анонс» у кабінеті й редакторі.
 // POST {text ≤ 3000, city, today: YYYY-MM-DD, tz} → поля форми (announce.ts) або {error}; понад 20 викликів на годину з
-// однієї адреси — 429 (private.announce_calls, 20261120120000). Текст не зберігаємо й не пишемо в журнал.
+// однієї адреси (IPv6 — мережі /64) чи 300 на годину на всіх — 429 (private.announce_calls). Текст і адреси не
+// зберігаємо в журналі: там лише лічильники.
 //
 // Кличе й гість з публікованим ключем, а він не JWT, тож деплой без перевірки JWT:
 //   supabase functions deploy parse-announcement --no-verify-jwt
@@ -35,8 +36,9 @@ Deno.serve(async (req) => {
   if (!ip) return reply({ error: "no ip" }, 400);
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const { data: allowed, error } = await db.rpc("announce_call", { p_ip: ip });
-  if (error) { console.error("announce_call failed", error.message); return reply({ error: "failed" }, 500); }
-  if (!allowed) return reply({ error: "rate limited" }, 429);
+  // Повідомлення помилки бази може містити адресу (невдале приведення до inet), тож лише код.
+  if (error) { console.error("announce_call failed", error.code); return reply({ error: "failed" }, 500); }
+  if (!allowed) { console.warn("announce rate limited"); return reply({ error: "rate limited" }, 429); }
 
   const key = Deno.env.get("ANTHROPIC_API_KEY");
   if (!key) { console.warn("ANTHROPIC_API_KEY is not set"); return reply({ error: "not configured" }, 503); }

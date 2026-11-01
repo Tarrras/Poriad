@@ -423,6 +423,13 @@ R6–R7).
   для service role — лист організатору про питання не частіше за раз на годину на розмову (`private.question_mails`).
 - `delete-account`: акаунт з поштою підтверджує видалення паролем або входом не старшим за 10 хв (claim `amr`,
   `reauth.ts`) — так видаляється акаунт, створений кодом з пошти, у якого пароля нема.
+- `20261121120000_security_wave1.sql` (аудит хвилі 1, 02.11): `delete_my_account` і функція `delete-account`
+  (`files.ts`) прибирають теку `<uid>/` в обох бакетах, `event-images` і `event-videos`; тригер
+  `poruch_event_files_limit` на `storage.objects` — у теці події `<uid>/<event>/` не більше 12 фото й 6 відео
+  (`TOO_MANY_FILES`; upsert того самого файлу й аватари не рахуються, копія в теку нової події — свій ліміт); стеля
+  анонсу 300 на годину (у журнал Postgres — лише лічильник); назва спільнотної події без посилань і доменів
+  (`INVALID_TITLE` у `check_event_text`; супутник і незмінена стара назва — як були). `tests/security_wave1.sql`,
+  `tests/account_deletion.sql` — PASS на dev 2026-11-02, як і решта `tests/*.sql`.
 - `tests/member_decision_push.sql`, `tests/announce_calls.sql`, `tests/question_mails.sql` — PASS на dev 2026-11-01,
   разом з усіма `tests/*.sql`, крім `winback.sql` (падав і до 1.5: з `cinema` інтересів законно 12, а тест чекає
   відмови на 12).
