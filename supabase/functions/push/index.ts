@@ -18,7 +18,7 @@
 //   APNS_KEY_ID, APNS_TEAM_ID, APNS_BUNDLE_ID
 //   APNS_SANDBOX          — "true" лише для dev-збірок з Xcode; будь-що інше — production
 //   RESEND_API_KEY        — ключ Resend для листів тим, у кого нема застосунку
-//   MAIL_FROM             — відправник, за замовчуванням «Поряд» <hello@poriad.app>
+//   MAIL_FROM             — відправник, за замовчуванням «Поряд» <noreply@poriad.app>
 // SUPABASE_URL і SUPABASE_SERVICE_ROLE_KEY середовище дає саме.
 
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
@@ -551,7 +551,7 @@ async function sendApns(token: string, push: Push): Promise<boolean | "stale" | 
 async function sendMails(db: ReturnType<typeof createClient>, people: string[], push: Push): Promise<{ mailed: number; mail_error?: string }> {
   const key = Deno.env.get("RESEND_API_KEY");
   if (!key) { console.warn("RESEND_API_KEY is not set; skipping mail"); return { mailed: 0, mail_error: "RESEND_API_KEY is not set" }; }
-  const from = Deno.env.get("MAIL_FROM") || "«Поряд» <hello@poriad.app>";
+  const from = Deno.env.get("MAIL_FROM") || "«Поряд» <noreply@poriad.app>";
   // Лише підтверджена пошта: інакше лист піде на чужу адресу, яку хтось вписав при реєстрації.
   const emails: string[] = [];
   for (let i = 0; i < people.length; i += CONCURRENCY) {

@@ -76,11 +76,11 @@ supabase secrets set APNS_KEY="$(cat ~/.keys/AuthKey_85C6JXDXN2.p8)" APNS_KEY_ID
 Лише на підтверджену пошту з `auth.users`. Тексти — `supabase/functions/push/mail_text.ts`.
 
 ```bash
-supabase secrets set RESEND_API_KEY='re_…' MAIL_FROM='«Поряд» <hello@poriad.app>' --project-ref ojadoyxeahepycpmjuvf
+supabase secrets set RESEND_API_KEY='re_…' MAIL_FROM='«Поряд» <noreply@poriad.app>' --project-ref ojadoyxeahepycpmjuvf
 ```
 
 Без ключа функція відповідає `mail_error: "RESEND_API_KEY is not set"` і листів не шле. `MAIL_FROM` можна не ставити —
-тоді `«Поряд» <hello@poriad.app>`; домен має бути підтверджений у Resend.
+тоді `«Поряд» <noreply@poriad.app>`; домен має бути підтверджений у Resend.
 
 ## Як це працює
 
