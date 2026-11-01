@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       # --test запускає кожен файл окремим процесом: `node worker/*.test.mjs` прогнав би лише перший.
-      - run: node --test worker/*.test.mjs tools/site_test.mjs tools/auth_test.mjs
+      - run: node --test worker/*.test.mjs tools/*_test.mjs
   kmp:
     runs-on: ubuntu-latest
     steps:

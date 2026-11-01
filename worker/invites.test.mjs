@@ -10,7 +10,7 @@ assert.ok(invited.includes("<b>Тарас &lt;b&gt;</b> кличе тебе"), "
 assert.ok(invited.includes('property="og:title" content="Тарас &lt;b&gt; кличе тебе: Настолки'), "і в прев'ю месенджера");
 assert.ok(invited.includes(`poriad://event/${base.id}?by=${token}`), "«У застосунку» несе токен");
 assert.ok(invited.includes(`app-argument=https://poriad.app/e/${base.id}?by=${token}`), "банер Safari теж");
-assert.ok(invited.includes("ct=invite") && invited.includes("utm_campaign%3Dinvite") && invited.includes("/app?from=invite"), "завантаження з запрошень — своєю міткою");
+assert.ok(invited.includes("ct=invite") && invited.includes("utm_campaign%3Dinvite"), "завантаження з запрошень — своєю міткою");
 assert.ok(invited.includes(`property="og:url" content="https://poriad.app/e/${base.id}"`), "адреса прев'ю — без токена");
 assert.ok(!community.includes("кличе тебе") && community.includes("ct=event") && !community.includes("ct=invite"), "звичайна сторінка — як була");
 

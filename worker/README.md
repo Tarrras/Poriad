@@ -28,6 +28,22 @@
 кешується на краю на 5 хвилин. Усі сторінки `noindex`: події доступні лише за посиланням, доки політика
 конфіденційності не скаже інакше. Імпортовані — з `canonical` на джерело.
 
+## Кабінет організатора
+
+`poriad.app/kabinet` (`site/kabinet.html`, `site/js/kabinet.js`) воркер бере з Pages, як решту сайту, але зі своєю
+політикою `CSP.kabinet`: там лежить токен організатора, тож картинки — лише свої й зі сховища Supabase (а не будь-який
+https), плюс мапа й `blob:` для прев'ю фото й перевірки відео; заголовок `x-robots-tag: noindex`. Підказки адрес
+редактора — `/api/geocode?q=&city=` (`worker/kabinet.mjs`): Photon з User-Agent PoriadBot і центром міста форми, кеш
+на краю на добу, запит від 3 до 100 символів і лише п'ять міст сайту. Тести — `worker/kabinet.test.mjs`.
+
+Запити повз кеш обмежені: 30 на хвилину з однієї адреси (`GEOCODE_LIMIT`, Workers Rate Limiting у `wrangler.toml`,
+у dev — свій `namespace_id`), понад ліміт — 429, і кабінет просто не показує підказок. Інакше кожен новий рядок іде в
+komoot, а той за зловживання блокує наш User-Agent для всіх. Ліміт рахується окремо в кожній локації Cloudflare і
+приблизний. Документація binding-а не каже, чи він є на безкоштовному плані: якщо `npx wrangler deploy` відмовить через
+`ratelimits`, приберіть блок `[[ratelimits]]` (код без binding-а працює без ліміту) і додайте правило в панелі —
+Security → WAF → Rate limiting rules: `URI Path equals /api/geocode`, рахувати за IP, 30 запитів за 1 хвилину, дія Block
+на 1 хвилину.
+
 ## Сторінки міст для пошуковиків
 
 `poriad.app/afisha/{kyiv|lviv|odesa|dnipro|kharkiv}` і розділи `/sohodni`, `/vykhidni`, `/kontserty`, `/teatr`,
