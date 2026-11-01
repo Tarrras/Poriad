@@ -142,7 +142,9 @@ data class EditorState(
     /** Відео, обрізані до перших 30 с: «Перші 30 секунд» під мініатюрою. */
     val trimmed: Set<String> = emptySet(),
     /** «Завантажуємо 2 з 4» під час публікації. */
-    val upload: app.poruch.shared.MediaUpload? = null
+    val upload: app.poruch.shared.MediaUpload? = null,
+    /** Медіа відомі: нова подія — одразу, правка — коли приїхали повні деталі. До того розділ схований. */
+    val mediaReady: Boolean = true
 ) {
     val point get() = form.point
     val pointChosen get() = point != null

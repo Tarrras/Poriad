@@ -49,7 +49,9 @@ class DetailViewModel(
                 screen.matchedCompanion?.let { app.clearMatchedCompanion(); send(DetailEffect.OpenEvent(it)) }
                 // Записались (чи в черзі, чи запит пішов): повтор більше не потрібен.
                 if (screen.room?.joined == true || screen.room?.awaitingApproval == true || screen.waitlisted) join = null
-                reduce { copy(screen = screen) }
+                val detail = app.state.value.detail
+                val detailed = !screen.loading && detail.failure == null && detail.event?.id == screen.event?.id
+                reduce { copy(screen = screen, detailed = detailed) }
             }
         }
         viewModelScope.launch {
@@ -233,7 +235,7 @@ class DetailViewModel(
                 )
             }
 
-            DetailIntent.Edit -> send(DetailEffect.Edit(eventId))
+            DetailIntent.Edit -> if (state.value.detailed) send(DetailEffect.Edit(eventId))
             is DetailIntent.ConfirmCancel -> reduce { copy(confirmingCancel = intent.open) }
             DetailIntent.CancelEvent -> {
                 reduce { copy(confirmingCancel = false) }

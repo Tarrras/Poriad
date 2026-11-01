@@ -898,7 +898,9 @@ internal fun OrganizerActions(state: DetailState, onIntent: (DetailIntent) -> Un
         stringResource(R.string.threads_post), { onIntent(DetailIntent.ThreadsPost) }, Modifier.fillMaxWidth(), icon = PoruchIcons.doc
     )
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        if (editable) SecondaryButton(stringResource(R.string.edit), { onIntent(DetailIntent.Edit) }, Modifier.weight(1f), icon = PoruchIcons.edit)
+        if (editable) SecondaryButton(
+            stringResource(R.string.edit), { onIntent(DetailIntent.Edit) }, Modifier.weight(1f), enabled = state.detailed, icon = PoruchIcons.edit
+        )
         SecondaryButton(
             stringResource(R.string.cancel_event), { onIntent(DetailIntent.ConfirmCancel(true)) },
             Modifier.weight(1f), enabled = !state.screen.mutating, tone = colors.danger

@@ -31,7 +31,12 @@ data class DetailState(
     /** «Покликати» чекає посилання від сервера. */
     val inviting: Boolean = false,
     /** Подія з віком від 19 чи верхньою межею, а дати нема (`AGE_REQUIRED`): шторка дати, після неї — запис. */
-    val askingBirthDate: Boolean = false
+    val askingBirthDate: Boolean = false,
+    /**
+     * Повні деталі (`event_details`) приїхали. До того на екрані картка без фото й відео, і «Редагувати» з неї затерла б
+     * медіа події, тож вона неактивна.
+     */
+    val detailed: Boolean = false
 )
 
 /** На що скарга: на подію, на того, хто її опублікував, чи на людину з картки. */

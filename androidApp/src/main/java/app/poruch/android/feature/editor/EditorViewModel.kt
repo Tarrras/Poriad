@@ -41,6 +41,11 @@ class EditorViewModel(
     private var submitted = false
     /** Вхід відкрито поверх редактора й чекає: гість натиснув «Опублікувати». */
     private var awaitingSignIn = false
+    /**
+     * Медіа події в правці — лише з повних деталей (`event_details`): картки стрічки й мапи їх не несуть, і збереження з
+     * порожнього списку стерло б справжні файли. Null — ще не знаємо: розділ «Фото й відео» схований, правка шле null.
+     */
+    private var baselineMedia: List<DraftMedia>? = null
     /** Нову подію почали з незакінченої чернетки: параметр `draft` воронки створення. */
     private var resumed = false
 
@@ -65,7 +70,7 @@ class EditorViewModel(
             // Мапа відкривається на крапці, якщо вона вже є.
             val (latitude, longitude) = restored.point ?: (shared.city.latitude to shared.city.longitude)
             copy(
-                form = restored, mapLatitude = latitude, mapLongitude = longitude,
+                form = restored, mapLatitude = latitude, mapLongitude = longitude, mediaReady = editingId == null,
                 host = (event?.gathering?.organizerName ?: shared.library.profile?.name)?.takeIf { it.isNotBlank() },
                 taken = event?.gathering?.attendeeCount ?: 0
             )
@@ -83,6 +88,13 @@ class EditorViewModel(
         }
         track(EditorStep.ABOUT)
         observe(app) { latest ->
+            // Повні деталі приїхали: тепер медіа події відомі, і розділ відкривається з ними.
+            val full = editingId?.let { id -> latest.detail.takeIf { !it.loading && it.failure == null }?.event?.takeIf { it.id == id } }
+            if (full != null && baselineMedia == null) {
+                val media = full.media.map(DraftMedia::Remote)
+                baselineMedia = media
+                return@observe copy(form = form.copy(media = media), mediaReady = true, mutating = latest.mutating)
+            }
             // Редагування з deep link: запис може приїхати після екрана.
             val loaded = editingId?.let { id -> latest.detail.event?.takeIf { it.id == id } }
             if (loaded != null && original == null) {
@@ -204,7 +216,7 @@ class EditorViewModel(
                 // Під час публікації не закриваємось: відповідь сервера нікому було б прийняти,
                 // чернетка лишалась би, і наступне «+» публікувало б ту саму подію вдруге.
                 state.value.mutating -> Unit
-                editingId != null && original?.toForm() != state.value.form -> reduce { copy(discarding = Discard.CHANGES) }
+                editingId != null && edited() -> reduce { copy(discarding = Discard.CHANGES) }
                 else -> send(EditorEffect.Close)
             }
             is EditorIntent.AskDiscard -> reduce { copy(discarding = intent.what) }
@@ -297,6 +309,8 @@ class EditorViewModel(
     private fun dropLocalFiles() = state.value.form.media.filterIsInstance<DraftMedia.Local>().forEach { files.delete(it.key) }
 
     private fun submit() {
+        // Файл ще стискається: без нього подія вийшла б не з тими медіа, а він лишився б у закритому редакторі.
+        if (state.value.importing > 0) return
         // Уся форма, а не крок: поки людина дивилась на неї, початок міг стати минулим.
         state.value.form.problems().firstOrNull()?.let { field ->
             blocked(field)
@@ -304,8 +318,9 @@ class EditorViewModel(
         }
         val form = state.value.form
         // Правка без змін у файлах — null: сервер лишає медіа як є (старі клієнти так само).
-        val untouched = original?.let { event -> form.media == event.media.map(DraftMedia::Remote) } == true
-        val draft = form.toDraft(original?.imageUrl, form.media.takeUnless { untouched }) ?: return
+        // Правка: медіа шлемо лише змінені й лише відносно повних деталей; інакше null — сервер лишає як є.
+        val media = if (editingId == null) form.media else baselineMedia?.let { base -> form.media.takeIf { it != base } }
+        val draft = form.toDraft(original?.imageUrl, media) ?: return
         reduce { copy(failure = null) }
         app.clearCompletedEvent()
         submitted = true
@@ -418,9 +433,14 @@ class EditorViewModel(
             latitude = latitude.format(), longitude = longitude.format(), timeZone = timeZone,
             starts = startsAt.toLocal(timeZone), ends = endsAt.toLocal(timeZone), capacity = room.capacity.toString(),
             minAge = room.minAge.toString(), maxAge = room.maxAge?.toString().orEmpty(),
-            approvalRequired = room.approvalRequired, contactUrl = room.contactUrl.orEmpty(),
-            media = media.map(DraftMedia::Remote)
+            approvalRequired = room.approvalRequired, contactUrl = room.contactUrl.orEmpty()
         )
+    }
+
+    /** Правку змінено: поля — відносно події, файли — відносно повних деталей. */
+    private fun edited(): Boolean {
+        val form = state.value.form
+        return original?.toForm() != form.copy(media = emptyList()) || (baselineMedia != null && form.media != baselineMedia)
     }
 
     /** Чернетка «Повторити» у формі: дати вже на тиждень пізніше. */

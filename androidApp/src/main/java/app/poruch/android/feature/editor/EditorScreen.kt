@@ -102,6 +102,10 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit) {
             Modifier.fillMaxWidth().background(colors.surface).navigationBarsPadding().padding(Spacing.page),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
+            // Останній крок, а файл ще стискається: «Опублікувати» чекає на нього.
+            if (state.step.isLast && state.importing > 0) Text(
+                stringResource(R.string.media_compressing), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
+            )
             // Публікація вантажить файли по черзі: без рядка спінер на кнопці висів би мовчки.
             state.upload?.let {
                 Text(
@@ -125,7 +129,7 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit) {
                 PrimaryButton(
                     stringResource(if (!state.step.isLast) R.string.next else if (state.editing) R.string.apply else R.string.publish),
                     { onIntent(if (state.step.isLast) EditorIntent.Submit else EditorIntent.Next) },
-                    modifier, enabled = !state.mutating, loading = state.mutating
+                    modifier, enabled = !state.mutating && !(state.step.isLast && state.importing > 0), loading = state.mutating
                 )
             }
             // На великому шрифті дві кнопки поруч не вміщають напис — ставимо одна під одною.
@@ -245,7 +249,7 @@ private fun AboutStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         },
         error = state.problem(DraftField.DESCRIPTION)
     )
-    MediaSection(state, onIntent)
+    if (state.mediaReady) MediaSection(state, onIntent)
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Text(
             stringResource(R.string.category_single).uppercase(), style = MaterialTheme.typography.labelSmall,
