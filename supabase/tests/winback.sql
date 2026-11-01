@@ -180,8 +180,9 @@ begin
  assert pg_temp.rejected(ios, 'ios', 'Ocean', '{}') = 'INVALID_CITY', 'місто не з пʼяти';
  assert pg_temp.rejected(ios, 'ios', 'Київ', '{jazz}') = 'INVALID_INTERESTS', 'невідомий інтерес';
  assert pg_temp.rejected(ios, 'ios', 'Київ', array['music', null]) = 'INVALID_INTERESTS', 'null серед інтересів';
- assert pg_temp.rejected(ios, 'ios', 'Київ', array['music','sport','art','food','games','outdoors','social','comedy','kids','tours','conference','music'])
-  = 'INVALID_INTERESTS', 'більше 11';
+ -- З кіно (20261112120000) категорій 12, тож 12 — законно, відмова починається з 13.
+ assert pg_temp.rejected(ios, 'ios', 'Київ', array['music','sport','art','food','games','outdoors','social','comedy','kids','tours','conference','cinema','music'])
+  = 'INVALID_INTERESTS', 'більше 12';
  assert pg_temp.rejected(ios, 'ios', 'Київ', '{music,comedy}') is null, 'APNs з Києвом приймається';
  assert pg_temp.rejected(fcm, 'android', null, null) is null, 'FCM без міста й інтересів приймається';
 end $$;
