@@ -894,8 +894,10 @@ internal fun OrganizerActions(state: DetailState, onIntent: (DetailIntent) -> Un
         )
     }
     // Окремо від «Поділитися»: там на своїй події «Покликати». Текст з посиланням і всі фото й відео — для свого посту.
+    // Як і «Редагувати» — з повними деталями: у картці стрічки нема фото й відео події.
     if (state.screen.companionOf == null) SecondaryButton(
-        stringResource(R.string.threads_post), { onIntent(DetailIntent.ThreadsPost) }, Modifier.fillMaxWidth(), icon = PoruchIcons.doc
+        stringResource(R.string.threads_post), { onIntent(DetailIntent.ThreadsPost) }, Modifier.fillMaxWidth(),
+        enabled = state.detailed, icon = PoruchIcons.doc
     )
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
         if (editable) SecondaryButton(

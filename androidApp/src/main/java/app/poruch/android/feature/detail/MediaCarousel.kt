@@ -30,6 +30,14 @@ import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.database.StandaloneDatabaseProvider
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
+import androidx.media3.datasource.cache.SimpleCache
+import android.content.Context
+import java.io.File
 import app.poruch.android.R
 import app.poruch.android.ui.*
 import app.poruch.domain.EventMedia
@@ -43,7 +51,11 @@ import coil3.compose.AsyncImage
  * відкриває його на весь екран зі звуком. Зі зменшеним рухом — кадр і ▶, без автозапуску.
  */
 @Composable
-internal fun MediaCarousel(media: List<EventMedia>, pager: PagerState, modifier: Modifier = Modifier) {
+internal fun MediaCarousel(
+    media: List<EventMedia>, pager: PagerState, modifier: Modifier = Modifier,
+    /** Обкладинка ще на екрані: прокрутили під неї — відео стоїть. */
+    onScreen: Boolean = true
+) {
     var opened by remember { mutableStateOf<EventMedia?>(null) }
     val reduced = Poruch.reducedMotion
     val play = stringResource(R.string.media_play_a11y)
@@ -53,7 +65,7 @@ internal fun MediaCarousel(media: List<EventMedia>, pager: PagerState, modifier:
         else Box(Modifier.fillMaxSize().clickable(onClickLabel = play) { opened = item }) {
             AsyncImage(item.poster, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             // Відкрили на весь екран — обкладинка стоїть: два плеєри тягнули б той самий файл двічі.
-            if (!reduced && pager.settledPage == page && opened == null) VideoSurface(rememberVideoPlayer(item.url, muted = true), crop = true, Modifier.fillMaxSize())
+            if (!reduced && onScreen && pager.settledPage == page && opened == null) VideoSurface(rememberVideoPlayer(item.url, muted = true), crop = true, Modifier.fillMaxSize())
             else Icon(
                 PoruchIcons.play, null,
                 Modifier.align(Alignment.Center).size(56.dp).background(Color.Black.copy(alpha = 0.4f), CircleShape).padding(14.dp),
@@ -98,7 +110,7 @@ private fun FullScreenVideo(media: EventMedia, onClose: () -> Unit) {
 private fun rememberVideoPlayer(url: String, muted: Boolean): ExoPlayer {
     val context = LocalContext.current
     val player = remember(url, muted) {
-        ExoPlayer.Builder(context).build().apply {
+        ExoPlayer.Builder(context).setMediaSourceFactory(VideoCache.sources(context)).build().apply {
             setAudioAttributes(AudioAttributes.DEFAULT, !muted)
             volume = if (muted) 0f else 1f
             repeatMode = Player.REPEAT_MODE_ONE
@@ -111,6 +123,27 @@ private fun rememberVideoPlayer(url: String, muted: Boolean): ExoPlayer {
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { player.pause() }
     LifecycleEventEffect(Lifecycle.Event.ON_START) { player.play() }
     return player
+}
+
+/**
+ * Один кеш відео на застосунок (LRU, [MAX_BYTES]): цикл, гортання каруселі й повторні відкриття беруть файл з диска, а не
+ * зі Storage — це наш платний трафік (docs/organizers-1.5.md, 1.3), і перевищення спиняє весь проєкт.
+ */
+@OptIn(UnstableApi::class)
+private object VideoCache {
+    private const val MAX_BYTES = 200L * 1024 * 1024
+    private var cache: SimpleCache? = null
+
+    @Synchronized
+    fun sources(context: Context): DefaultMediaSourceFactory {
+        val app = context.applicationContext
+        val cache = cache ?: SimpleCache(File(app.cacheDir, "video"), LeastRecentlyUsedCacheEvictor(MAX_BYTES), StandaloneDatabaseProvider(app))
+            .also { cache = it }
+        return DefaultMediaSourceFactory(
+            CacheDataSource.Factory().setCache(cache).setUpstreamDataSourceFactory(DefaultDataSource.Factory(app))
+                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        )
+    }
 }
 
 /**

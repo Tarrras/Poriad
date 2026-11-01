@@ -4,6 +4,7 @@ import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.android.platform.NotificationPermission
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -46,6 +47,8 @@ class EditorViewModel(
      * порожнього списку стерло б справжні файли. Null — ще не знаємо: розділ «Фото й відео» схований, правка шле null.
      */
     private var baselineMedia: List<DraftMedia>? = null
+    /** Стиснення обраних файлів: «Стерти» скасовує їх разом, а з екраном вони йдуть самі (дочірні до viewModelScope). */
+    private var imports = Job(viewModelScope.coroutineContext.job)
     /** Нову подію почали з незакінченої чернетки: параметр `draft` воронки створення. */
     private var resumed = false
 
@@ -223,6 +226,7 @@ class EditorViewModel(
             is EditorIntent.ConfirmDiscard -> when (intent.what) {
                 Discard.CHANGES -> send(EditorEffect.Close)
                 Discard.DRAFT -> {
+                    imports.cancel(); imports = Job(viewModelScope.coroutineContext.job)
                     unsaved = false; saveJob?.cancel(); drafts.clear(); resumed = false
                     val city = app.state.value.city
                     reduce {
@@ -259,8 +263,15 @@ class EditorViewModel(
         val text = state.value.announce.trim()
         if (text.isEmpty() || state.value.announcing) return
         reduce { copy(announcing = true) }
+        val before = state.value.form
         viewModelScope.launch {
-            val fill = app.fillFromAnnouncement(text, state.value.form.city, state.value.form.timeZone)
+            val fill = app.fillFromAnnouncement(text, before.city, before.timeZone)
+            // Поки функція думала, людина вже публікує чи сама правила поля: пізня відповідь не затирає набране й не пише
+            // опубліковану подію знову в чернетку. Файли, що дотиснулись тим часом, — не правка.
+            if (submitted || state.value.form.copy(media = before.media) != before) {
+                reduce { copy(announcing = false) }
+                return@launch
+            }
             reduce { copy(announcing = false, announced = fill, form = form.filledFrom(fill)) }
             persist()
             // Крапку ставить людина з підказок адрес, як і для набраної адреси: на кроці «Де» вони вже чекатимуть.
@@ -290,13 +301,14 @@ class EditorViewModel(
         val picked = uris.take(state.value.mediaRoom)
         if (picked.isEmpty()) return
         reduce { copy(importing = importing + picked.size, mediaFailed = false) }
-        viewModelScope.launch {
+        viewModelScope.launch(imports) {
             picked.forEach { uri ->
                 val imported = files.import(uri)
                 reduce {
-                    if (imported == null) copy(importing = importing - 1, mediaFailed = true)
+                    val left = (importing - 1).coerceAtLeast(0)
+                    if (imported == null) copy(importing = left, mediaFailed = true)
                     else copy(
-                        importing = importing - 1, form = form.copy(media = form.media + imported.media),
+                        importing = left, form = form.copy(media = form.media + imported.media),
                         trimmed = if (imported.trimmed) trimmed + imported.media.key else trimmed
                     )
                 }

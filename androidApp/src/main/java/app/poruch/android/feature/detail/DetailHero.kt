@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -87,7 +88,10 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
     val pager = rememberPagerState { media.size }
     Box(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth().height(heroHeight())) {
-            if (media.isNotEmpty()) MediaCarousel(media, pager, Modifier.fillMaxSize())
+            // Відео грає, лише поки обкладинку видно: прокрутили під аркуш — стоїть.
+            val visibleUntil = with(LocalDensity.current) { (heroHeight() - HERO_OVERLAP).toPx() }
+            val onScreen by remember(visibleUntil) { derivedStateOf { scroll.value < visibleUntil } }
+            if (media.isNotEmpty()) MediaCarousel(media, pager, Modifier.fillMaxSize(), onScreen)
             else EventArt(event, Modifier.fillMaxSize(), glyph = 260.dp, glyphDrop = 120.dp)
             // Обкладинка довільна, тож тонка тінь зверху тримає смугу статусу читабельною.
             Box(

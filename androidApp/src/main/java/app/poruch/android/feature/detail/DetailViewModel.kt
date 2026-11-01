@@ -309,7 +309,7 @@ class DetailViewModel(
                 if (intent.date == null) join = null
                 else { declaring = true; app.declareBirthDate(intent.date.toString()) }
             }
-            DetailIntent.ThreadsPost -> event?.let { send(DetailEffect.ThreadsPost(it, app.threadsPost(it))) }
+            DetailIntent.ThreadsPost -> event?.takeIf { state.value.detailed }?.let { send(DetailEffect.ThreadsPost(it, app.threadsPost(it))) }
             is DetailIntent.Rate -> app.rateEvent(
                 eventId,
                 intent.score,

@@ -33,6 +33,8 @@ import app.poruch.domain.MediaRules
 import app.poruch.domain.PoruchLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -77,9 +79,9 @@ class DraftMediaFiles(private val context: Context) {
     class Imported(val media: DraftMedia.Local, val trimmed: Boolean)
 
     /** Обране в системному виборі → стиснений файл чернетки. Null — не вдалося: файл не читається чи відео не стиснулось. */
-    suspend fun import(uri: Uri): Imported? {
+    suspend fun import(uri: Uri): Imported? = oneAtATime.withLock {
         val key = UUID.randomUUID().toString()
-        return try {
+        try {
             if (context.contentResolver.getType(uri).orEmpty().startsWith("video/")) video(uri, key)
             else withContext(Dispatchers.IO) {
                 // Той самий шлях, що й аватар: JPEG без метаданих, довша сторона до 2048.
@@ -173,6 +175,8 @@ class DraftMediaFiles(private val context: Context) {
     }
 
     private companion object {
+        /** Два Transformer разом падають на слабких телефонах: файли стискаються по черзі, і з різних редакторів теж. */
+        val oneAtATime = Mutex()
         const val DIR = "draft_media"
         const val FRAME_RATE = 30f
         /** Коротша сторона й бітрейт: 30 с × (1,6 Мбіт/с + 96 кбіт/с звук) ≈ 6,4 МБ; запасний 540 — коли кодек перебрав. */

@@ -20,7 +20,9 @@ import app.poruch.domain.PoruchLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicBoolean
 import app.poruch.domain.EventLinks
 import app.poruch.domain.StoreLinks
 import app.poruch.shared.PoruchApp
@@ -67,16 +69,28 @@ fun Context.shareCompanion(parent: Event, companionId: String) {
  * бере лише медіа, тож текст ще й у буфері — людина вставляє його сама. Файли — копіями в кеші для FileProvider.
  */
 suspend fun Context.shareThreadsPost(event: Event, text: String) {
+    // Файли качаються кілька секунд: другий тап за цей час не починає ще одне завантаження й друге меню.
+    if (!preparingThreadsPost.compareAndSet(false, true)) return
+    try { prepareThreadsPost(event, text) } finally { preparingThreadsPost.set(false) }
+}
+
+private val preparingThreadsPost = AtomicBoolean(false)
+
+private suspend fun Context.prepareThreadsPost(event: Event, text: String) {
     copyText(text)
     toast(R.string.threads_copied)
     val media = event.media.ifEmpty { listOfNotNull(event.imageUrl?.let { EventMedia(MediaKind.PHOTO, it) }) }
     val files = withContext(Dispatchers.IO) {
-        val folder = File(cacheDir, "send/threads").apply { deleteRecursively(); mkdirs() }
+        // Своя тека на кожне поширення: застосунок, куди поділились, може ще читати файли попереднього. Старші за годину
+        // вже нікому не потрібні.
+        val root = File(cacheDir, "send/threads")
+        root.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > THREADS_FILES_TTL_MS }?.forEach { it.deleteRecursively() }
+        val folder = File(root, System.currentTimeMillis().toString()).apply { mkdirs() }
         media.mapIndexedNotNull { index, item ->
             val file = File(folder, "${index + 1}.${if (item.kind == MediaKind.VIDEO) "mp4" else "jpg"}")
             // Без файлу — пост без нього, а не без меню: текст однаково в буфері.
-            runCatching { URL(item.url).openStream().use { input -> file.outputStream().use(input::copyTo) }; item.kind to file }
-                .onFailure { PoruchLog.w("share") { "threads media skipped: ${it.javaClass.simpleName}" } }.getOrNull()
+            runCatching { download(item.url, file); item.kind to file }
+                .onFailure { file.delete(); PoruchLog.w("share") { "threads media skipped: ${it.javaClass.simpleName}" } }.getOrNull()
         }
     }
     val uris = files.map { (_, file) -> FileProvider.getUriForFile(this, "$packageName.files", file) }
@@ -90,6 +104,20 @@ suspend fun Context.shareThreadsPost(event: Event, text: String) {
     intent.putExtra(Intent.EXTRA_TEXT, text)
     startActivity(Intent.createChooser(intent, getString(R.string.threads_post)))
 }
+
+/** Файл зі Storage з таймаутами: без них повільна мережа тримала б «готуємо» безкінечно. */
+private fun download(url: String, file: File) {
+    val connection = URL(url).openConnection() as HttpURLConnection
+    connection.connectTimeout = DOWNLOAD_CONNECT_MS
+    connection.readTimeout = DOWNLOAD_READ_MS
+    try {
+        connection.inputStream.use { input -> file.outputStream().use(input::copyTo) }
+    } finally { connection.disconnect() }
+}
+
+private const val THREADS_FILES_TTL_MS = 3_600_000L
+private const val DOWNLOAD_CONNECT_MS = 10_000
+private const val DOWNLOAD_READ_MS = 20_000
 
 /** «Поділитися застосунком» з профілю: готовий текст із посиланням на сайт, де обидва стори. */
 fun Context.shareApp() {
