@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import {
   instant, local, repeatTimes, endAfter, durationLabel, DURATIONS, mediaProblem, videoTooLong, fit, MEDIA,
-  threadsPost, threadsIntent, firstLine, rosterText, errorText,
+  threadsPost, threadsIntent, firstLine, rosterText, errorText, publishPlan, writeDraft, forgetDraft,
 } from "../site/js/kabinet.js";
 
 // Місцевий час Києва ↔ UTC, і в обидва боки переходу на зимовий (25.10.2026, 04:00 → 03:00).
@@ -68,4 +68,27 @@ assert.equal(errorText({ status: 400, code: "SOMETHING_NEW" }), "Не вдало
 assert.equal(errorText({ status: 503 }), "Сервіс тимчасово недоступний. Спробуйте ще раз");
 assert.equal(errorText(new TypeError("Failed to fetch")), "Немає звʼязку. Перевірте інтернет і спробуйте ще раз");
 assert.equal(errorText({ status: 403, code: "otp_expired" }), "Код не підійшов або застарів. Надішліть новий");
+// Конвеєр публікації: p_media null (сервер медіа не чіпає) проти списку, навіть порожнього; update на повторі після збою.
+const photo = (url) => ({ kind: "photo", url });
+assert.deepEqual(publishPlan({ items: [] }), { create: true, upload: false, update: false }, "нова без медіа — один create_event");
+assert.deepEqual(publishPlan({ items: [{ kind: "photo", blob: {} }] }), { create: true, upload: true, update: true });
+assert.deepEqual(publishPlan({ existed: true, items: [] }), { create: true, upload: false, update: true }, "повтор після збою — update, щоб правки не загубились");
+assert.deepEqual(publishPlan({ existed: true, items: [photo("a")] }), { create: true, upload: true, update: true }, "уже вивантажене з минулої спроби — у p_media");
+assert.deepEqual(publishPlan({ items: [{ ...photo("a"), copied: true }] }), { create: true, upload: true, update: true }, "«Повторити» копіює файли");
+assert.deepEqual(publishPlan({ editing: true, items: [photo("a"), photo("b")], original: "a b" }), { create: false, upload: false, update: true }, "правка без медіа — p_media null");
+assert.deepEqual(publishPlan({ editing: true, items: [photo("b"), photo("a")], original: "a b" }).upload, true, "переставили — новий список");
+assert.deepEqual(publishPlan({ editing: true, items: [], original: "a b" }), { create: false, upload: true, update: true }, "прибрали всі — p_media [], обкладинка зникає");
+
+// Вихід з акаунта забуває чернетку й файли: на спільному комп'ютері наступний їх не побачить.
+const store = new Map();
+globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
+const deleted = [];
+globalThis.indexedDB = { deleteDatabase: (name) => deleted.push(name) };
+writeDraft({ title: "Настолки", contact: "https://t.me/x" });
+assert.ok(store.has("poriad.kabinet.draft"));
+forgetDraft();
+assert.equal(store.size, 0);
+assert.deepEqual(deleted, ["poriad.kabinet"]);
+globalThis.indexedDB = undefined;
+forgetDraft(); // без IndexedDB (приватне вікно) — без помилки
 console.log("kabinet ok");

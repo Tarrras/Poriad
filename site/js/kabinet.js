@@ -100,6 +100,26 @@ export function firstLine(text) {
   return line.slice(0, 120).trim();
 }
 
+/**
+ * Що робить «Опублікувати». Нову подію створює create_event. Файли вантажимо, коли список медіа змінився (нові,
+ * скопійовані, прибрані чи переставлені), і тоді p_media — новий список, навіть порожній; інакше p_media null, і сервер
+ * медіа не чіпає. update_event — при редагуванні, коли є що вантажити, і на повторі після збою (`existed`: create_event
+ * повертає вже створену подію, не оновлюючи полів, тож правки між спробами інакше загубились би).
+ */
+export function publishPlan({ editing = false, existed = false, items, original = "" }) {
+  const upload = items.some((m) => m.blob || m.copied) || items.map((m) => m.url).join(" ") !== original;
+  return { create: !editing, upload, update: editing || existed || upload };
+}
+
+const DRAFT = "poriad.kabinet.draft";
+const FILES = "poriad.kabinet";
+export function writeDraft(draft) { try { draft ? localStorage.setItem(DRAFT, JSON.stringify(draft)) : localStorage.removeItem(DRAFT); } catch { /* приватне вікно */ } }
+/** Вихід з акаунта: на спільному комп'ютері наступний не має побачити чужої чернетки (з чатом після «Повторити») і файлів. */
+export function forgetDraft() {
+  writeDraft(null);
+  try { indexedDB.deleteDatabase(FILES); } catch { /* приватне вікно */ }
+}
+
 /** Нумерований список для організатора («Скопіювати список»). */
 export const rosterText = (people) => people.map((p, i) => `${i + 1}. ${p.display_name || "Учасник"}`).join("\n");
 
@@ -141,7 +161,6 @@ export function errorText(error) {
 // ================= Сторінка =================
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const DRAFT = "poriad.kabinet.draft";
 const DEFAULT_NAME = "Учасник"; // так `handle_new_user` називає акаунт без імені: людина ще не назвалась
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -263,7 +282,14 @@ function setupAuth() {
     }
   });
 
-  $("[data-signout]").addEventListener("click", async () => { await signOut(); me = null; ready = null; route(); });
+  $("[data-signout]").addEventListener("click", async () => {
+    forgetDraft();
+    media = [];
+    await signOut();
+    me = null;
+    ready = null;
+    route();
+  });
 }
 
 // ---- Маршрути
@@ -411,14 +437,16 @@ function setupEvent() {
   });
   $("[data-threads]").addEventListener("click", async () => {
     const text = threadsPost(current);
-    const copied = await copyText(text);
-    // Вкладку відкриваємо одразу в обробнику кліку, інакше браузер її заблокує.
+    // Вкладку — першою й без await: Safari блокує window.open після очікування. Текст і так уже в інтенті.
     window.open(threadsIntent(text), "_blank", "noopener");
-    if (copied) ui.toast("Текст скопійовано");
+    if (await copyText(text)) ui.toast("Текст скопійовано");
   });
-  $("[data-repeat]").addEventListener("click", (event) => {
+  $("[data-repeat]").addEventListener("click", async (event) => {
     event.preventDefault();
     if (!current) return;
+    const old = readDraft();
+    const unsaved = Boolean(old?.title?.trim() || old?.description?.trim() || (await mediaStore())?.length);
+    if (unsaved && !confirm("Є незбережена чернетка нової події. Замінити її копією цієї події?")) return;
     startDraft(repeatDraft(current), repeatMedia(current));
     location.hash = "#/new";
   });
@@ -450,12 +478,11 @@ const blank = () => ({ title: "", description: "", category: null, city: ui.save
   startDate: "", startTime: "", endDate: "", endTime: "", capacity: 10, minAge: 18, maxAge: "", approval: false, contact: "", id: null });
 
 function readDraft() { try { return JSON.parse(localStorage.getItem(DRAFT)); } catch { return null; } }
-function writeDraft(draft) { try { draft ? localStorage.setItem(DRAFT, JSON.stringify(draft)) : localStorage.removeItem(DRAFT); } catch { /* приватне вікно */ } }
 
 function mediaStore(value) {
   return new Promise((resolve) => {
     let db;
-    try { db = indexedDB.open("poriad.kabinet", 1); } catch { return resolve(null); }
+    try { db = indexedDB.open(FILES, 1); } catch { return resolve(null); }
     db.addEventListener("upgradeneeded", () => db.result.createObjectStore("draft"));
     db.addEventListener("error", () => resolve(null));
     db.addEventListener("success", () => {
@@ -499,6 +526,7 @@ async function showEditor(id) {
     original = media.map((m) => m.url).join(" ");
   } else {
     fill(readDraft() ?? blank());
+    original = "";
     media = repeatFiles ?? (await mediaStore()) ?? [];
     repeatFiles = null;
   }
@@ -924,14 +952,15 @@ async function publish() {
   button.disabled = true;
   try {
     // id — у чернетці: повтор після збою не створить другу подію (create_event повертає наявну).
+    const existed = Boolean(form().dataset.id);
     const id = editing?.id ?? (form().dataset.id ||= crypto.randomUUID());
     if (!editing) writeDraft(draft());
     const args = params(d, id);
-    if (!editing) { progress.textContent = "Публікуємо…"; await rpc("create_event", { ...args, p_media: null, p_via: "web" }); }
-    const touched = media.some((m) => m.blob || m.copied) || media.map((m) => m.url).join(" ") !== original;
-    const { list, failed } = editing && !touched ? { list: null, failed: 0 } : await uploadMedia(id);
+    const plan = publishPlan({ editing: Boolean(editing), existed, items: media, original });
+    if (plan.create) { progress.textContent = "Публікуємо…"; await rpc("create_event", { ...args, p_media: null, p_via: "web" }); }
+    const { list, failed } = plan.upload ? await uploadMedia(id) : { list: null, failed: 0 };
     progress.textContent = "Зберігаємо…";
-    if (editing || list.length) await rpc("update_event", { ...args, p_media: list });
+    if (plan.update) await rpc("update_event", { ...args, p_media: list });
     if (editing && list) removeFiles(editing.media ?? [], list);
     if (!editing) { writeDraft(null); media = []; mediaStore([]); }
     published = { id, failed, edited: Boolean(editing) };
