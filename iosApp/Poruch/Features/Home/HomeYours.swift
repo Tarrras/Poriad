@@ -44,7 +44,9 @@ struct HomePersonalSection: View {
                 action: view.personal.isEmpty ? nil : openMyEvents
             )
             if let lead {
+                // Свій стан на кожен план: штамп падає раз, коли найближчим став інший план.
                 NextPlanCard(row: lead, open: { open(lead.event.id, "home_your") }, chat: { openChat(lead.event) })
+                    .id(lead.event.id)
                     .morphSource("home_your/\(lead.event.id)")
             }
             if !grouped.isEmpty {
@@ -231,53 +233,99 @@ private struct PlanButton: View {
     }
 }
 
-/// Найближчий план великою карткою, як посадковий талон: відлік, назва, місце й дії — маршрут, чат, запити.
+/// «Ваш наступний квиток» (вау головної, docs/design-wow-1.5.md): найближчий план — квитком «Корінця» з корінцем часу й
+/// дня кольору жанру, на ньому штамп ролі, як на деталях після запису. Під квитком дії — маршрут, чат, запити.
 private struct NextPlanCard: View {
     let row: PersonalRow
     let open: () -> Void
     let chat: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.homeCovered) private var covered
+    /// Системне питання (геолокація, сповіщення) робить застосунок неактивним: удар під ним не видно.
+    @Environment(\.scenePhase) private var phase
+    @ScaledMetric(relativeTo: .body) private var ticketHeight: CGFloat = 132
+    /// Штамп ще не впав: план новий для головної. Рух — раз на план, а не на кожне відкриття, інакше він читався б затримкою.
+    @State private var armed: Bool
+    @State private var hit = 0
+    /// Квиток над таббаром: удар, якого не видно, пішов би в порожнечу, а план уже вважався б показаним.
+    @State private var onScreen = false
+
+    init(row: PersonalRow, open: @escaping () -> Void, chat: @escaping () -> Void) {
+        self.row = row
+        self.open = open
+        self.chat = chat
+        // «Зменшити рух» — штамп одразу на місці, без удару.
+        _armed = State(initialValue: !PlanStamps.shown(row.event.id) && !UIAccessibility.isReduceMotionEnabled)
+    }
 
     private var event: Event { row.event }
 
     private var today: Bool { parseEventDate(event.startsAt).map(Calendar.current.isDateInToday) == true }
 
-    /// Відлік лише для сьогоднішнього: «через 25 год» про завтрашнє нічого не каже.
-    private var overline: String { today ? countdownOverline(event) : cardOverline(event) }
+    /// На великому шрифті квиток вертикальний, корінець знизу: праворуч він стискав назву до складів.
+    private var upright: Bool { typeSize.isAccessibilitySize }
 
-    /// Остання репліка чату, коли є нове; інакше моя роль і місце.
-    private var chatPreview: String? {
-        guard let unread = row.chat, !unread.lastBody.isEmpty else { return nil }
-        let author = unread.lastAuthorName.isEmpty ? Copy.chat_member : unread.lastAuthorName
-        return "\(author): «\(unread.lastBody.replacingOccurrences(of: "\n", with: " "))»"
+    /// Остання репліка чату, коли є нове; інакше місце.
+    private var subtitle: String {
+        if let unread = row.chat, !unread.lastBody.isEmpty {
+            let author = unread.lastAuthorName.isEmpty ? Copy.chat_member : unread.lastAuthorName
+            return "\(author): «\(unread.lastBody.replacingOccurrences(of: "\n", with: " "))»"
+        }
+        return event.placeLabel
     }
 
-    private var subtitle: String {
-        chatPreview ?? [row.organizing ? Copy.home_role_organizer : Copy.going, event.placeLabel].filter { !$0.isEmpty }.joined(separator: " · ")
+    /// Роль штампом, як на деталях: «Ваша подія», «Ви йдете»; запити, що чекають, важливіші. Скасованої тут не буває:
+    /// `HomeRules.isLead` її не пропускає.
+    private var stamp: TicketStamp {
+        if row.requests > 0 { return TicketStamp(text: Copy.home_requests_short("\(row.requests)"), tone: .accent, glyph: PoruchIcons.personAdd) }
+        return row.organizing
+            ? TicketStamp(text: Copy.home_role_organizer, tone: .brand)
+            : TicketStamp(text: Copy.going, tone: .success, glyph: PoruchIcons.check)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.lg) {
+        VStack(alignment: .leading, spacing: Space.md) {
             Button(action: open) {
-                HStack(alignment: .top, spacing: Space.lg) {
-                    VStack(alignment: .leading, spacing: Space.xs) {
-                        Text(overline).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accentText).lineLimit(1)
+                Ticket(vertical: upright, stubColor: ticketStub(event), stubLength: upright ? 64 : 80, radius: Corner.lg, surface: Palette.surfaceRaised) {
+                    VStack(alignment: .leading, spacing: Space.sm) {
+                        HStack(alignment: .top, spacing: Space.sm) {
+                            // Відлік лише сьогодні: «через 25 год» про завтрашнє нічого не каже, а день — на корінці.
+                            if today {
+                                Text(countdownOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accentText)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
+                            StampDrop(stamp: stamp, hit: hit, armed: armed)
+                        }
                         Text(event.cardTitle).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
-                            .multilineTextAlignment(.leading).lineLimit(3)
-                        // Місце в один рядок: повна адреса живе в «Маршруті», а не в підписі.
+                            .multilineTextAlignment(.leading).lineLimit(upright ? nil : 2)
                         Text(subtitle).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
-                            .multilineTextAlignment(.leading).lineLimit(chatPreview == nil ? 1 : 2)
+                            .multilineTextAlignment(.leading).lineLimit(upright ? 3 : (row.chat == nil ? 1 : 2))
+                        Spacer(minLength: 0)
                     }
-                    Spacer(minLength: 0)
-                    EventThumbnail(event: event, glyphSize: 30, maxDimension: 88)
-                        .frame(width: 88, height: 88)
-                        .clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
-                }.contentShape(Rectangle())
+                    .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+                    .frame(maxWidth: .infinity, minHeight: upright ? nil : ticketHeight, alignment: .topLeading)
+                } stub: {
+                    StubTime(event: event, row: upright)
+                }
+                .contentShape(Rectangle())
             }
             .buttonStyle(PressableStyle(pressedScale: 1))
-            .accessibilityElement(children: .combine)
+            .accessibilityElement(children: .ignore)
+            // Квиток — одне речення; відлік і нове в чаті — те, що на ньому видно понад звичайний квиток.
+            .accessibilityLabel(
+                [ticketA11yLabel(event, state: stamp.text), today ? countdownOverline(event) : nil, row.chat != nil ? subtitle : nil]
+                    .compactMap { $0 }.joined(separator: ", ")
+            )
+            .accessibilityAddTraits(.isButton)
+            // Видно — коли центр квитка над таббаром: цілком на SE він часто не вміщається під «З ким піти».
+            .onGeometryChange(for: Bool.self) { proxy in
+                let frame = proxy.frame(in: .scrollView)
+                let height = proxy.bounds(of: .scrollView)?.height ?? .infinity
+                return frame.midY > 0 && frame.midY < height - tabBarClearance
+            } action: { onScreen = $0 }
             // Великий шрифт: дії одна під одною, як у «Моїх подіях», — три в ряд обрізали б «Маршрут» до «Ма…».
-            let actions = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: Space.sm)) : AnyLayout(HStackLayout(spacing: Space.sm))
+            let actions = upright ? AnyLayout(VStackLayout(spacing: Space.sm)) : AnyLayout(HStackLayout(spacing: Space.sm))
             actions {
                 // Маршрут — головна дія, поки подія сьогодні й ще не почалась; далі — звичайна.
                 PlanButton(
@@ -293,12 +341,38 @@ private struct NextPlanCard: View {
                 }
             }
         }
-        .padding(Space.lg)
-        .cardSurface(radius: Corner.xl)
+        // Стрічка не лінива: `.task` спрацював би на вставці, поза екраном. Удар — коли квиток видно, а головну нічим не
+        // закрито; зникло посеред паузи — завдання скасовується, і план лишається новим.
+        .task(id: onScreen && !covered && phase == .active) {
+            guard onScreen, !covered, phase == .active, !PlanStamps.shown(event.id) else { return }
+            // Хай головна спершу ляже: удар у першому ж кадрі губився б у появі стрічки.
+            if armed { guard (try? await Task.sleep(for: .milliseconds(350))) != nil else { return } }
+            PlanStamps.remember(event.id)
+            if armed { armed = false; hit += 1 }
+        }
     }
 }
 
-/// Своя подія: категорія плиткою, час, назва. Праворуч — про що просять: нове в чаті, запити, або просто «Ви йдете».
+extension EnvironmentValues {
+    /// Головну закриває інший екран чи лист (`RootView`): рух на ній ніхто не побачить.
+    @Entry var homeCovered = false
+}
+
+/// Таббар плаває над низом стрічки: квиток під ним не видно.
+private let tabBarClearance: CGFloat = 92
+
+/// Плани, на які штамп уже падав: A → B → A — без другого удару. Останні 20, щоб список не ріс.
+private enum PlanStamps {
+    private static let key = "poruch.home.shownPlans"
+    static func shown(_ id: String) -> Bool { (UserDefaults.standard.stringArray(forKey: key) ?? []).contains(id) }
+    static func remember(_ id: String) {
+        let ids = (UserDefaults.standard.stringArray(forKey: key) ?? []).filter { $0 != id } + [id]
+        UserDefaults.standard.set(Array(ids.suffix(20)), forKey: key)
+    }
+}
+
+/// Своя подія: категорія плиткою, час, назва, роль першим словом підпису («Ваша подія · Будинок Актора»). Праворуч — лише
+/// лічильник чату чи шеврон: бейдж ролі з'їдав ~110 pt і рвав назву на SE.
 private struct PlanRow: View {
     let row: PersonalRow
     let open: () -> Void
@@ -306,24 +380,25 @@ private struct PlanRow: View {
 
     private var event: Event { row.event }
 
-    /// Моя роль у події; після кінця вона нічого не каже.
-    private var role: (String, BadgeTone)? {
-        if event.isCancelled { return (Copy.cancelled_short, .danger) }
-        if event.hasEnded(now: nowInstant()) { return nil }
-        return row.organizing ? (Copy.home_role_organizer, .brand) : (Copy.going, .success)
+    /// Моя роль у події; скасована чи минула — ролі вже нема.
+    private var role: String? {
+        if event.isCancelled || event.hasEnded(now: nowInstant()) { return nil }
+        return row.organizing ? Copy.home_role_organizer : Copy.going
     }
 
-    /// Праворуч зайнято лічильником чи запитами — роль переїжджає до дати.
-    private var overline: String {
-        guard row.chat != nil || row.requests > 0, let role else { return cardOverline(event) }
-        return cardOverline(event) + " · " + role.0.uppercased(with: Locale(identifier: "uk_UA"))
-    }
-
+    /// Роль першим словом, далі те, що чекає: запити, нове в чаті, інакше місце.
     private var subtitle: String? {
-        guard let chat = row.chat else { return event.placeLabel }
-        let author = chat.lastAuthorName.isEmpty ? Copy.chat_member : chat.lastAuthorName
-        let body = chat.lastBody.replacingOccurrences(of: "\n", with: " ")
-        return body.isEmpty ? Copy.new_messages_count("\(chat.unread)") : "\(author): «\(body)»"
+        let detail: String
+        if row.requests > 0 {
+            detail = Copy.requests_count(Int(row.requests))
+        } else if let chat = row.chat {
+            let author = chat.lastAuthorName.isEmpty ? Copy.chat_member : chat.lastAuthorName
+            let body = chat.lastBody.replacingOccurrences(of: "\n", with: " ")
+            detail = body.isEmpty ? Copy.new_messages_count("\(chat.unread)") : "\(author): «\(body)»"
+        } else {
+            detail = event.placeLabel
+        }
+        return [role, detail].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     /// Лічильник — кнопка в чат, поки праворуч не зайняли запити: на них теж чекає людина, і вони важливіші.
@@ -333,20 +408,16 @@ private struct PlanRow: View {
     }
 
     var body: some View {
-        YourRow(overline: overline, title: event.cardTitle, subtitle: subtitle, open: open, chat: chatButton, brandTitle: true) {
+        YourRow(overline: cardOverline(event), title: event.cardTitle, subtitle: subtitle, open: open, chat: chatButton, brandTitle: true) {
             EventThumbnail(event: event, glyphSize: 24, maxDimension: 52)
                 .frame(width: yourTile, height: yourTile)
                 .clipShape(RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
         } trailing: {
+            // Скасовану гасить штамп, як скрізь; решта — шеврон.
             if event.isCancelled {
                 TicketStamp(text: Copy.cancelled_short, tone: .danger)
-            } else if row.requests > 0 {
-                StatusBadge(
-                    text: Copy.requests_count(Int(row.requests)),
-                    tone: .accent, glyph: PoruchIcons.personAdd
-                )
-            } else if let role {
-                StatusBadge(text: role.0, tone: role.1)
+            } else {
+                PoruchIcon(glyph: PoruchIcons.chevronRight, size: 16).foregroundStyle(Palette.inkTertiary)
             }
         }
     }

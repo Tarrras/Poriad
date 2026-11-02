@@ -13,8 +13,11 @@ struct OnboardingView: View {
     @State private var artists: [String: PopularArtist] = [:]
     /// Райони того самого кроку: у «Мої місця» — теж на «Готово».
     @State private var places: Set<Int64> = []
-    /// Шторка міст з кроку «Про що сказати?»: місто ще типове (геолокацію питаємо після туру), а райони — його.
+    /// Шторка міст з кроку «Про що сказати?»: місто ще типове (геолокацію питаємо після «Готово»), а райони — його.
     @State private var citySearch = false
+    /// Невисокий екран (SE): артистів менше, щоб «Райони» з чипом міста були на першому екрані. Перший замір: клавіатура
+    /// поля «Знайти артиста» стискає корінь, і чипи інакше зникали б посеред вибору.
+    @State private var short: Bool?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -27,7 +30,6 @@ struct OnboardingView: View {
                         case .welcome: welcome
                         case .interests: interestsStep
                         case .times: timesStep
-                        case .crowd: crowdStep
                         case .follow: followStep
                         }
                     }
@@ -45,9 +47,10 @@ struct OnboardingView: View {
         }
         .padding(.horizontal, Space.page)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onGeometryChange(for: Bool.self) { $0.size.height <= 700 } action: { if short == nil { short = $0 } }
         .background(Palette.canvas.ignoresSafeArea())
         .motion(value: step)
-        // Місто ще не відоме (геолокацію питаємо після туру), тож артисти — ті, хто гастролює країною.
+        // Місто ще не відоме (геолокацію питаємо після «Готово»), тож артисти — ті, хто гастролює країною.
         .task { model.app.loadPopularArtists(everywhere: true) }
         .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }
         // Інше місто — інші райони: обрані в попередньому не переносимо.
@@ -55,7 +58,9 @@ struct OnboardingView: View {
         .onAppear {
             // Відкрито з профілю: починаємо з минулих відповідей і одразу з питань — знайомі вже знайомі.
             guard let taste = model.state?.taste else { return }
-            interests = taste.interests
+            // ponytail: «Кіно» сховане з вибору, поки вимкнений прапорець `cinema`, тож і зі збереженого смаку його знімаємо —
+            // інакше його не прибрати. Повернути разом з плиткою.
+            interests = taste.interests.filter { $0 != .cinema }
             times = taste.times
             crowd = taste.crowd
             if !interests.isEmpty || !times.isEmpty || crowd != .any { step = .interests }
@@ -105,7 +110,8 @@ struct OnboardingView: View {
         question(Copy.onboarding_interests_title, Copy.onboarding_interests_hint) {
             // Ті самі плитки й сітка, що в шторці категорій: чотири в ряд — усі одинадцять видно без прокрутки.
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 76), spacing: Space.sm)], spacing: Space.lg) {
-                ForEach(categories, id: \.0) { entry in
+                // ponytail: «Кіно» сховане, поки прапорець `cinema` вимкнений (1.5) — вибір нічого б не дав. Повернути з прапорцем.
+                ForEach(categories.filter { $0.0 != .cinema }, id: \.0) { entry in
                     CategoryTile(category: entry.0, selected: interests.contains(entry.0)) {
                         interests = interests.toggling(entry.0)
                     }
@@ -114,27 +120,28 @@ struct OnboardingView: View {
         }
     }
 
+    /// «Коли вам зручно?» і під ним «Який формат?» — один екран замість двох (рішення власника 02.11): відповіді й
+    /// ранжування ті самі. Формат — чипи одного вибору, за замовчуванням «Будь-який»; під ними — що він означає.
     private var timesStep: some View {
         question(Copy.onboarding_times_title, Copy.onboarding_times_hint) {
             GroupedRows {
                 ForEach(Array(timeSlots.enumerated()), id: \.element.slot) { index, option in
-                    ChoiceRow(title: option.title, hint: option.hint, selected: times.contains(option.slot), multiple: true) {
+                    ChoiceRow(title: option.title, hint: option.hint, selected: times.contains(option.slot)) {
                         times = times.toggling(option.slot)
                     }
                     if index < timeSlots.count - 1 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg) }
                 }
             }
-        }
-    }
-
-    private var crowdStep: some View {
-        question(Copy.onboarding_crowd_title, Copy.onboarding_crowd_hint) {
-            GroupedRows {
-                ForEach(Array(crowdOptions.enumerated()), id: \.element.value) { index, option in
-                    ChoiceRow(title: option.title, hint: option.hint, selected: crowd == option.value, multiple: false) {
-                        crowd = option.value
+            VStack(alignment: .leading, spacing: Space.sm) {
+                GroupLabel(title: Copy.onboarding_crowd_title)
+                FlowLayout(spacing: Space.sm) {
+                    ForEach(crowdOptions, id: \.value) { option in
+                        Chip(label: option.title, selected: crowd == option.value) { crowd = option.value }
+                            .accessibilityAddTraits(crowd == option.value ? .isSelected : [])
                     }
-                    if index < crowdOptions.count - 1 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg) }
+                }
+                if let hint = crowdOptions.first(where: { $0.value == crowd })?.hint {
+                    Text(hint).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                 }
             }
         }
@@ -158,12 +165,12 @@ struct OnboardingView: View {
                 if hasArtists {
                     VStack(alignment: .leading, spacing: Space.md) {
                         GroupLabel(title: Copy.onboarding_follow_artists)
-                        PopularArtistChips(picked: $artists, dates: false, limit: onboardingArtists)
+                        PopularArtistChips(picked: $artists, dates: false, limit: artistLimit)
                     }
                 }
                 if !districts.isEmpty {
                     VStack(alignment: .leading, spacing: Space.md) {
-                        // Місто ще може бути типовим (геолокацію питаємо після туру): чип каже, чиї це райони, і міняє місто.
+                        // Місто ще може бути типовим (геолокацію питаємо після «Готово»): чип каже, чиї це райони, і міняє місто.
                         ViewThatFits(in: .horizontal) {
                             HStack(spacing: Space.sm) { GroupLabel(title: Copy.onboarding_follow_places); cityChip }
                             VStack(alignment: .leading, spacing: Space.sm) { GroupLabel(title: Copy.onboarding_follow_places); cityChip }
@@ -183,6 +190,9 @@ struct OnboardingView: View {
             .padding(.top, Space.sm)
         }
     }
+
+    /// До 8 артистів на невисокому екрані, 12 — на решті: решту знаходить поле «Знайти артиста».
+    private var artistLimit: Int { short == true ? 8 : onboardingArtists }
 
     private var cityChip: some View {
         Chip(
@@ -223,7 +233,7 @@ struct OnboardingView: View {
         }
         if steps.contains(.follow) && hasArtists {
             model.app.followArtists(picked: Array(artists.values), from: "onboarding")
-            let shown = min(model.state?.popularArtists?.count ?? 0, onboardingArtists)
+            let shown = min(model.state?.popularArtists?.count ?? 0, artistLimit)
             model.app.radarPickerClosed(shown: Int32(shown), picked: Int32(artists.count), from: "onboarding")
         }
         // Перемикач: уже обрані з профілю лишаються, бо в `places` їх не буває.
@@ -237,18 +247,17 @@ struct OnboardingView: View {
 /// Кроки онбордингу: те, що читає ранжування, і одне «стежити» (артисти й райони) — привід повернутись. Кожен зайвий
 /// екран — привід піти.
 private enum OnboardingStep: Int, CaseIterable {
-    case welcome, interests, times, crowd, follow
+    case welcome, interests, times, follow
 }
 
 /// Скільки популярних артистів показати в онбордингу: під ними ще райони, решту знаходить поле.
 private let onboardingArtists = 12
 
-/// Одна відповідь рядком групового списку. Квадрат — можна кілька, коло — рівно одну.
+/// Одна відповідь рядком групового списку; квадрат — можна кілька. Один вибір («Формат») — чипами.
 private struct ChoiceRow: View {
     let title: String
     let hint: String
     let selected: Bool
-    let multiple: Bool
     let action: () -> Void
 
     var body: some View {
@@ -270,7 +279,7 @@ private struct ChoiceRow: View {
 
     @ViewBuilder private var mark: some View {
         // Радіус явний, не токен: `Corner.xs` = 12 робив із квадрата 24 pt коло, і «кілька» не відрізнялось від «одну».
-        let shape = RoundedRectangle(cornerRadius: multiple ? 7 : 12, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
         ZStack {
             // Невибране — контуром: тиха заливка вночі зливалась із рядком (1,2:1), і не було видно, що тут щось обирають.
             if selected { shape.fill(Palette.brand) } else { shape.strokeBorder(Palette.inkTertiary, lineWidth: 1.5) }
