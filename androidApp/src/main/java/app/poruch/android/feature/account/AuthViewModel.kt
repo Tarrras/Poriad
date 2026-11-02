@@ -48,28 +48,25 @@ class AuthViewModel(private val app: PoruchApp, reason: AuthReason = AuthReason.
         when (intent) {
             is AuthIntent.SetEmail -> reduce { copy(email = intent.value) }
             is AuthIntent.SetPassword -> reduce { copy(password = intent.value) }
-            is AuthIntent.SetAdult -> reduce { copy(adult = intent.value, adultMissing = adultMissing && !intent.value) }
+            is AuthIntent.SetAdult -> reduce { copy(adult = intent.value) }
             AuthIntent.TogglePasswordReveal -> reduce { copy(passwordRevealed = !passwordRevealed) }
             AuthIntent.Submit -> state.value.let {
                 dismissedConfirmation = null
                 app.signIn(it.email.trim(), it.password)
             }
-            AuthIntent.SignInWithGoogle ->
-                if (!state.value.adult) reduce { copy(adultMissing = true) } else send(AuthEffect.RequestGoogleToken(app.idTokenNonce()))
-            // Галочку з першого екрана новому акаунту ставить спільний шар сам, без окремого кроку.
-            is AuthIntent.GoogleToken -> app.signInWithIdToken(IdProvider.GOOGLE, intent.idToken, adult = state.value.adult)
+            AuthIntent.SignInWithGoogle -> send(AuthEffect.RequestGoogleToken(app.idTokenNonce()))
+            is AuthIntent.GoogleToken -> app.signInWithIdToken(IdProvider.GOOGLE, intent.idToken)
             AuthIntent.ConfirmAdult -> app.confirmAdult()
             // Пароль не переживає повернення до коду.
             is AuthIntent.ShowPassword -> reduce { copy(passwordMode = intent.show, password = "") }
             // Лише цифри: вставлений з листа код буває з пробілами.
             is AuthIntent.SetCode -> reduce { copy(code = intent.value.filter(Char::isDigit).take(AuthState.CODE_LENGTH.last)) }
-            // Галочку питає лише перший лист: повтор з кроку коду йде без неї, там її вже не видно.
-            AuthIntent.SendCode -> if (state.value.awaitingCode == null && !state.value.adult) reduce { copy(adultMissing = true) } else {
+            AuthIntent.SendCode -> {
                 dismissedCode = null
                 app.sendSignInCode(state.value.email.trim())
                 startCountdown()
             }
-            AuthIntent.VerifyCode -> state.value.let { app.verifySignInCode(it.awaitingCode ?: it.email.trim(), it.code, adult = it.adult) }
+            AuthIntent.VerifyCode -> state.value.let { app.verifySignInCode(it.awaitingCode ?: it.email.trim(), it.code) }
             AuthIntent.OtherEmail -> {
                 dismissedCode = state.value.awaitingCode
                 reduce { copy(awaitingCode = null, code = "") }

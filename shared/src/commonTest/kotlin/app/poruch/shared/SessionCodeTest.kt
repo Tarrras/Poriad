@@ -29,46 +29,18 @@ class SessionCodeTest {
             app.verifySignInCode("web@poriad.app","123456"); runCurrent()
             assertEquals("code-user",app.state.value.session.userId)
             assertNull(app.state.value.session.awaitingCode)
-            assertTrue(app.state.value.session.askBirthDate,"a new account confirms its age")
-            assertEquals("code",tracked.single { it.first=="login" }.second["method"])
-
-            app.confirmAdult(); runCurrent()
+            assertFalse(app.state.value.session.askBirthDate,"a new account's age comes from the consent line, quietly")
             assertEquals(1,safety.adultConfirmations)
-            assertFalse(app.state.value.session.askBirthDate)
             assertTrue(app.state.value.library.account.ageDeclared)
             assertFalse(app.state.value.needsAgeDeclaration)
+            assertEquals(AppNotice.Told(AppMessage.SIGNED_IN),app.state.value.notice,"no «age confirmed» toast")
+            assertEquals("code",tracked.single { it.first=="login" }.second["method"])
+
+            // Картка віку в профілі (старий акаунт) — вголос.
+            app.confirmAdult(); runCurrent()
             assertEquals(AppNotice.Told(AppMessage.AGE_CONFIRMED),app.state.value.notice)
             app.close()
         } finally { PoruchAnalytics.sink=null }
-    }
-
-    /**
-     * Галочку «Мені вже є 18» відмітили на першому екрані входу: новий акаунт її отримує сам — без кроку галочки й без
-     * «Вік підтверджено». Збій — крок, як раніше.
-     */
-    @Test fun theCheckboxOnTheFirstScreenConfirmsAgeQuietly()=runTest {
-        val auth=Auth(); auth.session.value=null
-        val safety=Safety(AccountFacts())
-        val app=testApp(Events(),backgroundScope,auth,safety=safety)
-        runCurrent()
-        app.verifySignInCode("web@poriad.app","123456",adult=true); runCurrent()
-        assertEquals("code-user",app.state.value.session.userId)
-        assertEquals(1,safety.adultConfirmations)
-        assertFalse(app.state.value.session.askBirthDate,"no separate step")
-        assertTrue(app.state.value.library.account.ageDeclared)
-        assertEquals(AppNotice.Told(AppMessage.SIGNED_IN),app.state.value.notice,"no «age confirmed» toast")
-        app.close()
-    }
-
-    @Test fun aCheckboxThatDidNotSaveFallsBackToTheStep()=runTest {
-        val auth=Auth(); auth.session.value=null
-        val safety=object: SafetyRepository by Safety(AccountFacts()) { override suspend fun confirmAdult() = fail(AppError.Network) }
-        val app=testApp(Events(),backgroundScope,auth,safety=safety)
-        runCurrent()
-        app.verifySignInCode("web@poriad.app","123456",adult=true); runCurrent()
-        assertTrue(app.state.value.signedIn)
-        assertTrue(app.state.value.session.askBirthDate)
-        app.close()
     }
 
     /**

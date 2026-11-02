@@ -39,12 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.autofill.ContentType
-import android.os.Build
-import android.view.HapticFeedbackConstants
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import app.poruch.android.R
 import app.poruch.android.ui.*
@@ -147,7 +142,6 @@ private fun EmailStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                 painterResource(R.drawable.ic_google), stringResource(R.string.continue_with_google),
                 { onIntent(AuthIntent.SignInWithGoogle) }, enabled = !state.mutating
             )
-            AdultCheck(state.adult, compact = true, missing = state.adultMissing) { onIntent(AuthIntent.SetAdult(it)) }
             ConsentNote(onIntent)
             OrDivider(stringResource(R.string.auth_or_email))
         }
@@ -158,7 +152,6 @@ private fun EmailStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false, imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { if (state.emailValid && !state.mutating) onIntent(AuthIntent.SendCode) })
         )
-        if (!state.googleAvailable) AdultCheck(state.adult, compact = true, missing = state.adultMissing) { onIntent(AuthIntent.SetAdult(it)) }
         PrimaryButton(
             stringResource(R.string.auth_code_send), { onIntent(AuthIntent.SendCode) },
             Modifier.fillMaxWidth(), icon = PoruchIcons.mail, enabled = state.emailValid, loading = state.mutating
@@ -255,41 +248,22 @@ private fun AdultStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     }
 }
 
-/**
- * «Мені вже є 18» з підписом, навіщо: увесь рядок — одна ціль, і TalkBack читає підпис разом зі станом. [compact] — на
- * першому екрані входу: один тихий рядок без картки й підпису, як згода під ним (власник 02.11: окремий крок про вік
- * лякає). [missing] — її пропустили й натиснули вхід: колір помилки, віддача й рядок, який TalkBack читає сам.
- */
+/** «Мені вже є 18» з підписом, навіщо: увесь рядок — одна ціль, і TalkBack читає підпис разом зі станом. */
 @Composable
-internal fun AdultCheck(checked: Boolean, compact: Boolean = false, missing: Boolean = false, onChange: (Boolean) -> Unit) {
+internal fun AdultCheck(checked: Boolean, onChange: (Boolean) -> Unit) {
     val colors = Poruch.colors
-    val view = LocalView.current
-    LaunchedEffect(missing) {
-        if (missing && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) view.performHapticFeedback(HapticFeedbackConstants.REJECT)
-    }
     Row(
-        Modifier.fillMaxWidth().then(if (compact) Modifier.heightIn(min = 48.dp) else Modifier.cardSurface())
-            .toggleable(checked, role = Role.Checkbox, onValueChange = onChange)
-            .then(if (compact) Modifier else Modifier.padding(Spacing.lg)),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) Spacing.sm else Spacing.md)
+        Modifier.fillMaxWidth().cardSurface().toggleable(checked, role = Role.Checkbox, onValueChange = onChange)
+            .padding(Spacing.lg),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         Checkbox(
             checked, null,
-            colors = CheckboxDefaults.colors(
-                checkedColor = colors.brand, checkmarkColor = colors.onBrand, uncheckedColor = if (missing) colors.danger else colors.inkTertiary
-            )
+            colors = CheckboxDefaults.colors(checkedColor = colors.brand, checkmarkColor = colors.onBrand, uncheckedColor = colors.inkTertiary)
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                stringResource(R.string.adult_confirm),
-                style = if (compact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleSmall,
-                color = if (missing) colors.danger else if (compact) colors.inkSecondary else colors.ink
-            )
-            if (!compact) Text(stringResource(R.string.adult_confirm_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
-            else if (missing) Text(
-                stringResource(R.string.adult_confirm_needed), Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                style = MaterialTheme.typography.bodySmall, color = colors.danger
-            )
+            Text(stringResource(R.string.adult_confirm), style = MaterialTheme.typography.titleSmall, color = colors.ink)
+            Text(stringResource(R.string.adult_confirm_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
         }
     }
 }

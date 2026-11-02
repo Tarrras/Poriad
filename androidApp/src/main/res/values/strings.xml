@@ -280,7 +280,7 @@
   <string name="sign_in_method_email">пошта</string>
   <string name="delete_account_cancel">Скасувати</string>
   <string name="msg_account_deleted">Обліковий запис видалено</string>
-  <string name="auth_consent">Продовжуючи, ви погоджуєтесь з %1$s та %2$s</string>
+  <string name="auth_consent">Продовжуючи, ви підтверджуєте, що вам уже є 18, і погоджуєтесь з %1$s та %2$s</string>
   <string name="auth_consent_terms">Умовами користування</string>
   <string name="auth_consent_privacy">Політикою конфіденційності</string>
   <string name="about_app_body">«Поряд» — події та люди у вашому місті. Мапа: MapLibre та OpenFreeMap.</string>
@@ -1154,7 +1154,7 @@
     <item quantity="other">%1$d нових повідомлення</item>
   </plurals>
   <string name="a11y_unread_chats">%1$s, непрочитаних чатів: %2$d</string>
-  <string name="auth_consent_prefix">"Продовжуючи, ви погоджуєтесь з "</string>
+  <string name="auth_consent_prefix">"Продовжуючи, ви підтверджуєте, що вам уже є 18, і погоджуєтесь з "</string>
   <string name="auth_consent_and">" та "</string>
   <!-- «Мої місця» (docs/my-places.md): район чи коло, пуш про нові події від людей поруч. -->
   <string name="places_title">Мої місця</string>
@@ -1225,7 +1225,6 @@
   <!-- Галочка замість дати: реєстрація, крок після Google, Apple чи коду, картка віку в профілі. -->
   <string name="adult_confirm">Мені вже є 18</string>
   <string name="adult_confirm_hint">«Поряд» — для повнолітніх. Дату народження спитаємо лише для подій з віковими межами.</string>
-  <string name="adult_confirm_needed">Позначте, що вам уже є 18.</string>
   <string name="auth_adult_subtitle">Підтвердьте, що вам уже є 18.</string>
   <!-- AGE_REQUIRED на події з віком від 19 чи верхньою межею: вибір дати на деталях. -->
   <string name="age_date_title">Подія з віковими межами</string>

@@ -273,7 +273,12 @@ internal class Safety(var facts: AccountFacts = AccountFacts("1990-01-01")): Saf
     override suspend fun account()=if(fail) fail(AppError.ServiceUnavailable) else facts
     override suspend fun declareBirthDate(date:String) { declared=date; facts=facts.copy(birthDate=date) }
     var adultConfirmations=0
-    override suspend fun confirmAdult() { adultConfirmations++; facts=facts.copy(adultConfirmedAt=facts.adultConfirmedAt?:"2026-11-01T10:00:00Z") }
+    /** Галочка не дійшла (мережа): лишається запасний крок. */
+    var adultFails=false
+    override suspend fun confirmAdult() {
+        if(adultFails) fail(AppError.Network)
+        adultConfirmations++; facts=facts.copy(adultConfirmedAt=facts.adultConfirmedAt?:"2026-11-01T10:00:00Z")
+    }
     override suspend fun reportEvent(eventId:String,reason:ReportReason,details:String?) { reports+=Triple(eventId,reason,details) }
     override suspend fun reportUser(userId:String,reason:ReportReason,details:String?) { reports+=Triple(userId,reason,details) }
     override suspend fun reportMessage(messageId:String,reason:ReportReason,details:String?) { reports+=Triple(messageId,reason,details) }

@@ -58,8 +58,6 @@ struct AuthView: View {
     /// «Я підтвердив — увійти»: форма входу, хоч `awaitingConfirmation` ще стоїть. Без `dismissConfirmationStep`, бо той
     /// скасував би й публікацію гостя з «Опублікувати»; крок зникне сам із входом.
     @State private var confirmedLogin = false
-    /// Галочку «Мені вже є 18» пропустили й натиснули вхід: вона червоніє, а вхід не починається.
-    @State private var adultMissing = false
 
     /// Встановлені поштовики; схеми перелічено в `LSApplicationQueriesSchemes`.
     private var mailApps: [(name: String, url: URL)] {
@@ -217,7 +215,7 @@ struct AuthView: View {
                 case .success(let authorization):
                     guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
                           let apple = SocialSignIn.appleToken(credential) else { return failed("Apple") }
-                    model.app.signInWithIdToken(provider: .apple, idToken: apple.token, name: apple.name, adult: form.adult)
+                    model.app.signInWithIdToken(provider: .apple, idToken: apple.token, name: apple.name)
                 case .failure(let error):
                     if !SocialSignIn.isCancel(error) { failed("Apple") }
                 }
@@ -225,9 +223,6 @@ struct AuthView: View {
             .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
             // Напис Apple росте з висотою кнопки: без цього поруч із більшим Google він лишався дрібним.
             .frame(height: providerHeight).clipShape(buttonShape)
-            // Аркуш Apple не спитаєш «можна?» до тапу: без галочки тап перехоплює прозорий шар. VoiceOver тисне саму
-            // кнопку — тоді галочку спитає запасний крок після входу.
-            .overlay { if !form.adult { Color.clear.contentShape(Rectangle()).onTapGesture { _ = adultSkipped() }.accessibilityHidden(true) } }
             .disabled(model.state?.mutating == true)
             if SocialSignIn.googleAvailable {
                 Button { signInWithGoogle() } label: {
@@ -248,11 +243,8 @@ struct AuthView: View {
                 Text(providerError).font(PoruchFont.caption).foregroundStyle(Palette.danger)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            // Галочка й згода одразу під Apple й Google: дотик до них уже створює профіль, тож їх видно до нього й на SE.
-            // Під «Надіслати код» вони йшли за згин.
-            AdultCheckbox(checked: $form.adult, compact: true, missing: adultMissing)
-                .onChange(of: form.adult) { _, checked in if checked { adultMissing = false } }
-                .sensoryFeedback(.warning, trigger: adultMissing) { _, missing in missing }
+            // Згода одразу під Apple й Google: дотик до них уже створює профіль, тож її видно до нього й на SE. Під
+            // «Надіслати код» вона йшла за згин.
             consent.frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: Space.md) {
                 Rectangle().fill(Palette.hairline).frame(height: 1)
@@ -262,22 +254,13 @@ struct AuthView: View {
         }
     }
 
-    /// Галочку пропустили: червона рамка, віддача й оголошення для VoiceOver, а вхід не починається.
-    private func adultSkipped() -> Bool {
-        guard !form.adult else { return false }
-        adultMissing = true
-        UIAccessibility.post(notification: .announcement, argument: Copy.adult_confirm_needed)
-        return true
-    }
-
     private func signInWithGoogle() {
-        guard !adultSkipped() else { return }
         providerError = nil
         let nonce = model.app.idTokenNonce()
         Task {
             do {
                 guard let token = try await SocialSignIn.googleIdToken(nonce: nonce) else { return }
-                model.app.signInWithIdToken(provider: .google, idToken: token, name: nil, adult: form.adult)
+                model.app.signInWithIdToken(provider: .google, idToken: token, name: nil)
             } catch {
                 PoruchLog.shared.w(tag: "auth") { "google sign-in failed: \((error as NSError).domain) \((error as NSError).code)" }
                 failed("Google")
@@ -319,10 +302,9 @@ struct AuthView: View {
             LabelledField(label: Copy.email, text: $form.email, placeholder: "you@example.com")
                 .textContentType(.emailAddress).keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never).autocorrectionDisabled()
-                .submitLabel(.send).onSubmit { if form.emailValid && !adultSkipped() { send(form.email) } }
-            // Галочку питає лише перший лист: повтор з кроку коду йде без неї, там її вже не видно.
+                .submitLabel(.send).onSubmit { if form.emailValid { send(form.email) } }
             PrimaryButton(title: Copy.auth_code_send, glyph: PoruchIcons.mail, loading: model.state?.mutating == true, enabled: form.emailValid) {
-                if !adultSkipped() { send(form.email) }
+                send(form.email)
             }
             Button(Copy.auth_password_link) { providerError = nil; passwordMode = true }
                 .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
@@ -334,7 +316,7 @@ struct AuthView: View {
     /// Код з листа: великими цифрами, як на сайті, з автозаповненням з «Пошти». Під «Увійти» — повтор і інша пошта.
     private func codeEntry(_ sent: String) -> some View {
         let mutating = model.state?.mutating == true
-        let submit = { model.app.verifySignInCode(email: sent, code: code.trimmingCharacters(in: .whitespaces), adult: form.adult) }
+        let submit = { model.app.verifySignInCode(email: sent, code: code.trimmingCharacters(in: .whitespaces)) }
         return VStack(alignment: .leading, spacing: Space.lg) {
             TextField(Copy.auth_code_field, text: $code, prompt: Text("000000").foregroundStyle(Palette.inkTertiary))
                 .font(.custom("SofiaSansExtraCondensed-ExtraBold", size: 28, relativeTo: .title2)).kerning(6).monospacedDigit()

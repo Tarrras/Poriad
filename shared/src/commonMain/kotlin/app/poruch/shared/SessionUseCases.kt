@@ -30,10 +30,10 @@ internal class SessionUseCases(
 
     /**
      * Вхід ID-токеном Google чи Apple, виданим з nonce від [AuthRepository.idTokenNonce]. Новий акаунт
-     * з'являється тут же (тригер бази бере імʼя з профілю Google). Провайдер не каже вік: [adult] — галочка «Мені вже є
-     * 18» на першому екрані входу; без неї акаунт без віку лишає екран входу на кроці галочки ([SessionState.askBirthDate]).
+     * з'являється тут же (тригер бази бере імʼя з профілю Google). Провайдер не каже вік — його підтверджує рядок згоди під
+     * кнопками входу ([askAgeIfMissing]).
      */
-    fun signInWithIdToken(provider: IdProvider, idToken: String, name: String?, adult: Boolean) = store.mutate {
+    fun signInWithIdToken(provider: IdProvider, idToken: String, name: String?) = store.mutate {
         PoruchLog.i("auth") { "sign in with ${provider.key} requested" }
         auth.signInWithIdToken(provider, idToken)
         PoruchAnalytics.track("login", "method" to provider.key)
@@ -49,29 +49,28 @@ internal class SessionUseCases(
                 PoruchLog.w("auth") { "provider name not saved: ${e.asAppError()}" }
             }
         }
-        askAgeIfMissing(adult)
+        askAgeIfMissing()
         store.tell(AppMessage.SIGNED_IN)
     }
 
-    /** Ставить [PoruchApp]: галочка без «Вік підтверджено» ([SafetyUseCases.confirmed]). */
+    /** Ставить [PoruchApp]: підтвердження віку без «Вік підтверджено» ([SafetyUseCases.confirmed]). */
     var confirmAdult: (suspend () -> Unit)? = null
 
     /**
-     * Акаунт без віку (новий через Google, Apple чи код з пошти). Галочку «Мені вже є 18» відмітили на першому екрані
-     * входу ([adult]) — ставимо її самі, без окремого кроку (власник 02.11: окремий крок про вік лякає). Ні, чи не
-     * вийшло — екран входу лишається на кроці галочки ([SessionState.askBirthDate]).
+     * Акаунт без віку (новий через Google, Apple чи код з пошти). Вік підтверджує рядок згоди під кнопками входу
+     * («Продовжуючи, ви підтверджуєте, що вам уже є 18…»), тож ставимо його мовчки, без окремого кроку й без галочки
+     * (власник 02.11: окремий крок про вік лякає). Не вийшло (мережа) — запасний крок галочки ([SessionState.askBirthDate]).
      */
-    private suspend fun askAgeIfMissing(adult: Boolean) {
+    private suspend fun askAgeIfMissing() {
         // Не вдалось дізнатись — не питаємо: картка віку в профілі й сервер при приєднанні підстрахують.
         val ageDeclared = try { safety?.account()?.ageDeclared } catch (e: CancellationException) { throw e } catch (e: Exception) { null } ?: true
-        if (!ageDeclared && adult) {
-            val confirm = confirmAdult
+        if (!ageDeclared) {
             try {
-                if (confirm != null) return confirm()
+                confirmAdult?.let { return it() }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                PoruchLog.w("auth") { "adult checkbox not saved: ${e.asAppError()}" }
+                PoruchLog.w("auth") { "age from consent not saved: ${e.asAppError()}" }
             }
         }
         store.update { it.copy(session = it.session.copy(askBirthDate = !ageDeclared)) }
@@ -85,15 +84,15 @@ internal class SessionUseCases(
     }
 
     /**
-     * Код з листа. Новий акаунт з'являється тут же, як на сайті, і без віку: тоді крок галочки, як після Google.
+     * Код з листа. Новий акаунт з'являється тут же, як на сайті; вік — з рядка згоди, як після Google.
      * Хибний чи прострочений код — [AppError.InvalidCode], крок коду лишається.
      */
-    fun verifySignInCode(email: String, code: String, adult: Boolean) = store.mutate {
+    fun verifySignInCode(email: String, code: String) = store.mutate {
         PoruchLog.i("auth") { "sign-in code entered" }
         account.verifyCode(email, code)
         PoruchAnalytics.track("login", "method" to "code")
         identity.synchronize(auth.session.value?.userId)
-        askAgeIfMissing(adult)
+        askAgeIfMissing()
         store.tell(AppMessage.SIGNED_IN)
     }
 

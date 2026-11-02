@@ -1698,8 +1698,8 @@ class PoruchAppTest {
         app.close()
     }
 
-    /** Вхід через Apple: імʼя з першого входу йде в профіль, а акаунт без віку лишає екран входу на кроці дати. */
-    @Test fun appleSignInSavesTheNameAndAsksForTheBirthDate()=runTest {
+    /** Вхід через Apple: імʼя з першого входу йде в профіль, а вік нового акаунта — з рядка згоди, без кроку. */
+    @Test fun appleSignInSavesTheNameAndConfirmsTheAgeFromConsent()=runTest {
         val auth=Auth().apply { session.value=null; idTokenUser="user" }
         safety=Safety(AccountFacts(null))
         profiles.mine=profiles.mine.copy(name=ProfileRules.DEFAULT_NAME)
@@ -1708,11 +1708,10 @@ class PoruchAppTest {
         val session=app.state.value.session
         assertEquals("user",session.userId)
         assertTrue(session.passwordless); assertTrue(session.viaApple)
-        assertTrue(session.askBirthDate,"the provider does not tell the age")
+        assertFalse(session.askBirthDate,"the consent line under the buttons confirms the age")
+        assertEquals(1,safety.adultConfirmations)
+        assertEquals(AppNotice.Told(AppMessage.SIGNED_IN),app.state.value.notice,"no «age confirmed» toast")
         assertEquals("Олена Коваль",profiles.mine.name)
-        app.declareBirthDate("1990-05-01"); advanceTimeBy(1000); runCurrent()
-        assertFalse(app.state.value.session.askBirthDate)
-        assertEquals("1990-05-01",safety.declared)
         app.close()
     }
 

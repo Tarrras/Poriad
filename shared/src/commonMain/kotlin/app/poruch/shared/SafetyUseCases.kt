@@ -49,8 +49,8 @@ internal class SafetyUseCases(
     fun confirmAdult() = store.mutate { confirmed(tell = true) }
 
     /**
-     * Сама галочка. [tell] — «Вік підтверджено»: так з картки віку в профілі й кроку після входу; вхід з галочкою на
-     * першому екрані ([SessionUseCases.confirmAdult]) — мовчки, щоб вік не ставав окремою подією.
+     * Сама галочка. [tell] — «Вік підтверджено»: так з картки віку в профілі й запасного кроку після входу; новий профіль
+     * ([SessionUseCases.confirmAdult]) — мовчки: вік він уже підтвердив рядком згоди під кнопками входу.
      */
     suspend fun confirmed(tell: Boolean) {
         repository().confirmAdult()

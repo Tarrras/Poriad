@@ -239,7 +239,7 @@ enum Copy {
     static let sign_in_method_email = "пошта"
     static let delete_account_cancel = "Скасувати"
     static let msg_account_deleted = "Обліковий запис видалено"
-    static func auth_consent(_ a0: String, _ a1: String) -> String { "Продовжуючи, ви погоджуєтесь з \(a0) та \(a1)" }
+    static func auth_consent(_ a0: String, _ a1: String) -> String { "Продовжуючи, ви підтверджуєте, що вам уже є 18, і погоджуєтесь з \(a0) та \(a1)" }
     static let auth_consent_terms = "Умовами користування"
     static let auth_consent_privacy = "Політикою конфіденційності"
     static let about_app_body = "«Поряд» — події та люди у вашому місті. Мапа: MapLibre та OpenFreeMap."
@@ -910,7 +910,7 @@ enum Copy {
     static let a11y_pick_district = "Район. Вибрати район міста"
     static func a11y_city(_ a0: String) -> String { "Місто \(a0)" }
     static func a11y_unread_chats(_ a0: String, _ a1: String) -> String { "\(a0), непрочитаних чатів: \(a1)" }
-    static let auth_consent_prefix = "Продовжуючи, ви погоджуєтесь з "
+    static let auth_consent_prefix = "Продовжуючи, ви підтверджуєте, що вам уже є 18, і погоджуєтесь з "
     static let auth_consent_and = " та "
     static let places_title = "Мої місця"
     static let places_hint = "Скажемо про нові зустрічі поруч"
@@ -960,7 +960,6 @@ enum Copy {
     static let auth_code_same_email = "Увійдіть тією самою поштою."
     static let adult_confirm = "Мені вже є 18"
     static let adult_confirm_hint = "«Поряд» — для повнолітніх. Дату народження спитаємо лише для подій з віковими межами."
-    static let adult_confirm_needed = "Позначте, що вам уже є 18."
     static let auth_adult_subtitle = "Підтвердьте, що вам уже є 18."
     static let age_date_title = "Подія з віковими межами"
     static let age_date_body = "Організатор обмежив вік, тож тут потрібна дата народження. Її ніхто не побачить."

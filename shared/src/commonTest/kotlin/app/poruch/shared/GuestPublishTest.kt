@@ -50,18 +50,16 @@ class GuestPublishTest {
         app.close()
     }
 
-    /** Новий акаунт з коду без віку: публікація чекає на галочку, а не падає з AGE_REQUIRED. */
-    @Test fun aNewAccountPublishesAfterTheCheckbox()=runTest {
+    /** Новий акаунт з коду без віку: вік з рядка згоди ставиться мовчки, і публікація йде одразу, без кроку галочки. */
+    @Test fun aNewAccountPublishesRightAfterSignIn()=runTest {
         val events=Events(); val auth=Auth(); auth.session.value=null
         val safety=Safety(AccountFacts())
         val app=testApp(events,backgroundScope,auth,safety=safety)
         runCurrent(); app.createEvent(walk); runCurrent()
         app.sendSignInCode("web@poriad.app"); runCurrent()
         app.verifySignInCode("web@poriad.app","123456"); advanceTimeBy(1000); runCurrent()
-        assertTrue(app.state.value.session.askBirthDate)
-        assertTrue(events.createIds.isEmpty())
-
-        app.confirmAdult(); advanceTimeBy(1000); runCurrent()
+        assertFalse(app.state.value.session.askBirthDate)
+        assertEquals(1,safety.adultConfirmations)
         assertEquals(1,events.createIds.size)
         assertEquals(events.createIds.single(),app.state.value.completedEventId)
         app.close()
@@ -95,14 +93,19 @@ class GuestPublishTest {
         } finally { PoruchAnalytics.sink=null }
     }
 
-    /** Закрили крок галочки — публікація не чекає: інакше галочка з профілю згодом опублікувала б несподівано. */
+    /**
+     * Вік з рядка згоди не дійшов (мережа) — запасний крок галочки. Закрили його — публікація не чекає: інакше галочка з
+     * профілю згодом опублікувала б несподівано.
+     */
     @Test fun closingTheCheckboxStepCancels()=runTest {
         val events=Events(); val auth=Auth(); auth.session.value=null
-        val app=testApp(events,backgroundScope,auth,safety=Safety(AccountFacts()))
+        val safety=Safety(AccountFacts()).apply { adultFails=true }
+        val app=testApp(events,backgroundScope,auth,safety=safety)
         runCurrent(); app.createEvent(walk); runCurrent()
         app.verifySignInCode("web@poriad.app","123456"); advanceTimeBy(1000); runCurrent()
-        assertTrue(app.state.value.session.askBirthDate)
+        assertTrue(app.state.value.session.askBirthDate,"the fallback step")
         app.dismissConfirmationStep()
+        safety.adultFails=false
         assertFalse(app.state.value.publishAfterSignIn)
         app.confirmAdult(); advanceTimeBy(1000); runCurrent()
         assertTrue(events.createIds.isEmpty())

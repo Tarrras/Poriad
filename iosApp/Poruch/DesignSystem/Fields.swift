@@ -86,33 +86,23 @@ struct BirthDateField: View {
     }
 }
 
-/// Галочка «Мені вже є 18» замість дати народження (docs/organizers-1.5.md, хвиля 2): перший екран входу, запасний крок
-/// після входу і картка віку в профілі. Дату питаємо лише для події з віком від 19 чи верхньою межею. [compact] — на
-/// першому екрані входу: один тихий рядок без підпису, як згода під ним (власник 02.11: окремий крок про вік лякає).
-/// [missing] — її пропустили й натиснули вхід: рамка й напис кольору помилки.
+/// Галочка «Мені вже є 18» замість дати народження (docs/organizers-1.5.md, хвиля 2): реєстрація, крок після входу
+/// через Google, Apple чи код і картка віку в профілі. Дату питаємо лише для події з віком від 19 чи верхньою межею.
 struct AdultCheckbox: View {
     @Binding var checked: Bool
-    var compact = false
-    var missing = false
     var body: some View {
         Button { checked.toggle() } label: {
             HStack(alignment: .top, spacing: Space.md) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 6, style: .continuous).fill(checked ? Palette.brand : Palette.surface)
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(checked ? Palette.brand : missing ? Palette.danger : Palette.inkTertiary, lineWidth: 2)
-                    if checked { PoruchIcon(glyph: PoruchIcons.check, size: compact ? 14 : 16).foregroundStyle(Palette.onBrand) }
+                    RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(checked ? Palette.brand : Palette.inkTertiary, lineWidth: 2)
+                    if checked { PoruchIcon(glyph: PoruchIcons.check, size: 16).foregroundStyle(Palette.onBrand) }
                 }
-                .frame(width: compact ? 20 : 24, height: compact ? 20 : 24)
+                .frame(width: 24, height: 24)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(Copy.adult_confirm).font(compact ? PoruchFont.subhead : PoruchFont.bodyText)
-                        .foregroundStyle(missing ? Palette.danger : compact ? Palette.inkSecondary : Palette.ink)
-                    if !compact {
-                        Text(Copy.adult_confirm_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    } else if missing {
-                        Text(Copy.adult_confirm_needed).font(PoruchFont.caption).foregroundStyle(Palette.danger)
-                    }
+                    Text(Copy.adult_confirm).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                    Text(Copy.adult_confirm_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
