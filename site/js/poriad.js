@@ -250,7 +250,11 @@ export function otherDays(sessions) {
   return new Set(sessions.map((s) => dayNumber(new Date(s.startsAt), s.tz))).size - 1;
 }
 
-export const price = (card) => card.is_free ? "Безкоштовно" : card.price_min > 0 ? `від ${Math.round(card.price_min)} ₴` : null;
+/** Афіша — «від 450 ₴» (найдешевший квиток продавця), подія від людей — точна ціна організатора «1 500 ₴» (1.7). */
+export const price = (card) => card.is_free ? "Безкоштовно"
+  : card.price_min > 0 ? (card.origin === "community" ? priceText(card.price_min) : `від ${Math.round(card.price_min)} ₴`) : null;
+/** «1 500 ₴». */
+export const priceText = (value) => `${new Intl.NumberFormat("uk-UA").format(Math.round(Number(value)))} ₴`;
 
 /** «Афіша · Concert.ua» або «Від людей». */
 export const sourceNote = (card) => card.origin === "import" ? `Афіша${card.source_name ? ` · ${card.source_name}` : ""}` : "Від людей";
@@ -306,7 +310,9 @@ export function threadsPost(event) {
   const place = event.place_name || event.address || event.city || "";
   const description = (event.description ?? "").trim();
   const about = event.blurb?.trim() || (description.length <= ABOUT_MAX ? description : description.slice(0, ABOUT_MAX).trimEnd() + "…");
-  return [`${displayTitle(event.title)}\n${[when, place].filter(Boolean).join(" · ")}`, about, `Запис: poriad.app/e/${event.id}`]
+  // Подія від людей з ціною (1.7) — рядок під датою; в афіші price_min — ціна продавця «від», її не пишемо.
+  const cost = event.origin !== "import" && Number(event.price_min) > 0 ? `Вхід — ${priceText(event.price_min)}` : null;
+  return [[displayTitle(event.title), [when, place].filter(Boolean).join(" · "), cost].filter(Boolean).join("\n"), about, `Запис: poriad.app/e/${event.id}`]
     .filter(Boolean).join("\n\n");
 }
 /** Інтент Threads приймає лише текст; фото організатор перетягує сам. */

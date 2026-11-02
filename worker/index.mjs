@@ -229,7 +229,9 @@ export function eventPage(e, now, shelters = [], invite = null) {
   const facts = [
     ["Коли", overline(e, now, true), null],
     ["Де", place.split(", ")[0] || e.city, place],
-    [spots ? "Учасники" : "Ціна", spots ? spots.replace("Учасників: ", "") : cost || "Уточнюйте", null],
+    ...(spots ? [["Учасники", spots.replace("Учасників: ", ""), null]] : []),
+    // Ціна від людей (1.7) — поруч з учасниками; як оплатити, людина домовляється з організатором.
+    ...(!spots || (!imported && cost) ? [["Ціна", cost || "Уточнюйте", !imported && cost ? "Оплата — напряму організатору" : null]] : []),
     [imported ? "Джерело" : "Організовує", imported ? sellers || "Афіша" : e.organizer_name || "Організатор", null],
   ];
 
@@ -248,7 +250,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     body: `<article class="sheet-box">
   <header class="cover-big ticket v cat-${category}">${media.length ? mediaCarousel(media, category) : `<div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img src="${esc(image)}" alt="">` : ""}</div>`}
     ${invite ? `<p class="quiet"><b>${esc(invite.name)}</b> кличе тебе</p>` : ""}<h1${title.length > 64 ? ` class="long"` : ""}>${esc(title)}</h1>
-    <div class="facts">${facts.map(([label, value, sub]) => `<div><span class="overline">${label}</span><b>${esc(value)}</b>${sub && sub !== value ? `<small>${esc(sub)}</small>` : ""}</div>`).join("")}</div>
+    <div class="facts">${facts.map(([label, value, sub]) => `<div><span class="overline">${label}</span><b${label === "Учасники" ? " data-spots" : ""}>${esc(value)}</b>${sub && sub !== value ? `<small>${esc(sub)}</small>` : ""}</div>`).join("")}</div>
     <p class="stub"><span class="kind">${icon(category)}${esc(CATEGORIES[category])}</span><small>${imported ? "Афіша" : "Від людей"}${e.min_age ? ` · ${Number(e.min_age)}+` : ""}</small></p>
   </header>
   <div class="detail">
@@ -270,7 +272,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
       <div class="stores">${storeButtons(ct)}</div></div>
   </div>
   <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${imported ? "" : `<b class="stamp" data-going hidden></b>`}${spots && !cost ? `<small>Учасники</small><span data-spots>${esc(spots.replace("Учасників: ", ""))}</span>`
-      : `${spots ? "" : "<small>Ціна</small>"}<span>${esc(cost || spots || "Вхід уточнюйте")}</span>`}</div>
+      : `${cost || !spots ? "<small>Ціна</small>" : ""}<span>${esc(cost || spots || "Вхід уточнюйте")}</span>`}</div>
     ${ticketUrl && live ? `<a class="btn primary" href="${esc(ticketHref(ticketUrl))}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
       : imported ? `<a class="btn primary" href="/app?from=${ct}">Завантажити «Поряд»</a>`
       : open ? `<button class="btn primary" type="button" data-join>Йду</button>` : `<p class="closed">Запис на цю подію закрито</p>`}</div>

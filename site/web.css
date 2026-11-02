@@ -919,6 +919,9 @@ a.row:hover { background: var(--surface-muted); }
 .kab-places small { font: 400 13px/18px var(--font); color: var(--ink-secondary); }
 .kab-map { height: 340px; border-radius: var(--r-md); overflow: hidden; background: var(--canvas-tint); }
 .kab-map .maplibregl-ctrl-attrib { font: 400 11px/16px var(--font); }
+/* Ціна (1.7) — коротке поле під «Хто»; на /e/ п'ятий факт («Ціна» поруч з «Учасники») не лишає порожньої клітинки. */
+.kab-price { max-width: 240px; }
+.event-shell .cover-big .facts > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
 .kab-auth > div { display: flex; flex-direction: column; gap: 14px; }
 .kab-auth .kab-row .btn { flex: 1; }

@@ -80,6 +80,8 @@ assert.equal(plural(21, EVENTS), "21 подія");
 assert.equal(plural(3, EVENTS), "3 події");
 assert.equal(price({ price_min: 449.6 }), "від 450 ₴");
 assert.equal(price({ is_free: true, price_min: 0 }), "Безкоштовно");
+assert.equal(price({ origin: "community", price_min: 1500 }), "1\u00a0500 ₴", "від людей — точна ціна (1.7)");
+assert.equal(price({ origin: "community" }), null);
 
 // Telegram-пост (tools/telegram_post.mjs): «Від людей» першими, решта порівну на два дні, у дні — різні категорії.
 {

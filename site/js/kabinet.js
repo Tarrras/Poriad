@@ -2,7 +2,7 @@
 // комп'ютера. Маршрути в #: «#/» — мої події, «#/new», «#/e/{id}» — дії й учасники, «#/e/{id}/edit». Вхід — auth.js, дані —
 // ті самі функції бази, що в застосунку; сторінка перевіряє лише очевидне, решту каже сервер. Чисті правила вгорі (дати,
 // тривалість, медіа, текст для Threads) перевіряє `node tools/kabinet_test.mjs`; DOM — нижче, лише в браузері.
-import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull } from "./poriad.js?v=12";
+import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText } from "./poriad.js?v=12";
 import { session, sendCode, verifyCode, google, completeRedirect, rpc, upload, signOut, inAppBrowser } from "./auth.js?v=12";
 
 // ---- Дати. Усі п'ять міст в одному поясі; подія з іншим поясом (з застосунку) редагується у своєму.
@@ -77,6 +77,17 @@ export function fit(width, height, max = MEDIA.side) {
   return [Math.round(width * k), Math.round(height * k)];
 }
 
+// ---- Ціна (1.7): лише ціна, гроші — з організатором напряму. Порожньо — безкоштовно.
+export const PRICE_TEXT = "Ціна — від 1 до 100 000 ₴";
+export function priceProblem(price) {
+  const text = String(price ?? "").trim();
+  if (!text) return null;
+  const value = Number(text);
+  return Number.isInteger(value) && value >= 1 && value <= 100000 ? null : PRICE_TEXT;
+}
+/** `p_price`: завжди явно — 0 прибирає ціну (null сервер читає як старий клієнт і ціну лишає). */
+export const priceParam = (price) => String(price ?? "").trim() ? Math.round(Number(price)) : 0;
+
 // ---- «Пост для Threads» (1.5) — у poriad.js: той самий текст ділить і сторінка події (1.6).
 export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=12";
 
@@ -150,6 +161,7 @@ const ERRORS = {
   INVALID_DESCRIPTION: "Опис — щонайменше 10 символів",
   INVALID_AGE_LIMIT: "Вік — від 18; «до» не менше за «від» і не більше 120",
   INVALID_CONTACT_URL: "Посилання на чат — лише https://, без пробілів",
+  INVALID_PRICE: PRICE_TEXT,
   START_MUST_BE_FUTURE: "Початок — дата й час у майбутньому",
   CAPACITY_BELOW_ATTENDANCE: "Не можна зменшити кількість місць нижче за тих, хто вже йде",
   EVENT_CANCELLED: "Подію скасовано",
@@ -397,7 +409,7 @@ async function showEvent(id) {
 
   $("[data-event-title]").textContent = displayTitle(event.title);
   $("[data-event-when]").textContent = overline(event, new Date(), true);
-  $("[data-event-place]").textContent = [event.address, event.city].filter(Boolean).join(", ");
+  $("[data-event-place]").textContent = [[event.address, event.city].filter(Boolean).join(", "), Number(event.price_min) > 0 ? priceText(event.price_min) : ""].filter(Boolean).join(" · ");
   $("[data-open]").href = `/e/${event.id}`;
   $("[data-edit]").href = `#/e/${event.id}/edit`;
   const live = event.status === "published" && Date.parse(event.starts_at) > Date.now();
@@ -570,8 +582,9 @@ let repeatFiles = null; // медіа «Повторити» — одразу в
 let map, marker, mapLoading;
 
 const form = () => $("[data-form]");
-const blank = () => ({ title: "", description: "", category: null, city: ui.savedCity.get() || CITIES[0].name, address: "", lat: null, lon: null, placed: false,
-  startDate: "", startTime: "", endDate: "", endTime: "", capacity: 10, minAge: 18, maxAge: "", approval: false, contact: "", id: null });
+const FIELDS = ["title", "description", "address", "startDate", "startTime", "endDate", "endTime", "capacity", "minAge", "maxAge", "contact", "price"];
+const blank = () => ({ title: "", description: "", category: null, city: ui?.savedCity.get() || CITIES[0].name, address: "", lat: null, lon: null, placed: false,
+  startDate: "", startTime: "", endDate: "", endTime: "", capacity: 10, minAge: 18, maxAge: "", approval: false, contact: "", price: "", id: null });
 
 function readDraft() { try { return JSON.parse(localStorage.getItem(DRAFT)); } catch { return null; } }
 
@@ -592,7 +605,7 @@ function mediaStore(value) {
 const saveMedia = () => { if (!editing) mediaStore(media.map(({ preview, ...item }) => item)); };
 
 /** Повтор: усі поля, дата +7 днів поки не в майбутньому; нова подія — новий id. */
-function repeatDraft(e) {
+export function repeatDraft(e) {
   const d = eventDraft(e);
   const { start, end } = repeatTimes(instant(d.startDate, d.startTime, d.tz), instant(d.endDate, d.endTime, d.tz), d.tz);
   return { ...d, startDate: start.date, startTime: start.time, endDate: end.date, endTime: end.time };
@@ -636,19 +649,21 @@ async function showEditor(id) {
   if (pendingPublish) { pendingPublish = false; publish(); }
 }
 
-function eventDraft(e) {
+/** Подія → чернетка редактора й «Повторити». Тест: ціна проходить її без втрат (інакше правка надіслала б 0). */
+export function eventDraft(e) {
   const tz = e.time_zone || TZ;
   const start = local(e.starts_at, tz);
   const end = local(e.ends_at ?? new Date(Date.parse(e.starts_at) + 2 * HOUR).toISOString(), tz);
   return { ...blank(), title: e.title, description: e.description ?? "", category: e.category, city: e.city, address: e.address ?? "",
     lat: e.latitude, lon: e.longitude, placed: true, startDate: start.date, startTime: start.time, endDate: end.date, endTime: end.time,
-    capacity: e.capacity ?? 10, minAge: e.min_age ?? 18, maxAge: e.max_age ?? "", approval: Boolean(e.approval_required), contact: e.contact_url ?? "", tz };
+    capacity: e.capacity ?? 10, minAge: e.min_age ?? 18, maxAge: e.max_age ?? "", approval: Boolean(e.approval_required), contact: e.contact_url ?? "", tz,
+    price: Number(e.price_min) > 0 ? String(Math.round(Number(e.price_min))) : "" };
 }
 
 /** Чернетка → форма. */
 function fill(d) {
   const f = form();
-  for (const name of ["title", "description", "address", "startDate", "startTime", "endDate", "endTime", "capacity", "minAge", "maxAge", "contact"]) f[name].value = d[name] ?? "";
+  for (const name of FIELDS) f[name].value = d[name] ?? "";
   f.city.value = CITIES.some((c) => c.name === d.city) ? d.city : CITIES[0].name;
   f.approval.checked = Boolean(d.approval);
   f.dataset.id = d.id ?? "";
@@ -665,7 +680,7 @@ function fill(d) {
 function draft() {
   const f = form();
   const d = { id: f.dataset.id || null, tz: f.dataset.tz || TZ, category: f.dataset.category || null, approval: f.approval.checked, city: f.city.value, ...place };
-  for (const name of ["title", "description", "address", "startDate", "startTime", "endDate", "endTime", "capacity", "minAge", "maxAge", "contact"]) d[name] = f[name].value;
+  for (const name of FIELDS) d[name] = f[name].value;
   return d;
 }
 
@@ -702,7 +717,8 @@ function preview() {
   const first = media[0];
   const cover = first && !first.blob ? (first.kind === "photo" ? first.url : first.poster) : null;
   const card = { id: "draft", title: d.title.trim() || "Назва події", category: d.category || "social", starts_at: startsAt, ends_at: instant(d.endDate, d.endTime, d.tz),
-    time_zone: d.tz, address: d.address.trim() || d.city, city: d.city, origin: "community", capacity: +d.capacity || null, attendee_count: 0, image_url: cover };
+    time_zone: d.tz, address: d.address.trim() || d.city, city: d.city, origin: "community", capacity: +d.capacity || null, attendee_count: 0, image_url: cover,
+    price_min: priceProblem(d.price) ? null : priceParam(d.price) || null };
   $("[data-preview]").innerHTML = ui.poster(card);
 }
 
@@ -981,6 +997,8 @@ function problems(d) {
   if (!start) out.push("Початок — дата й час у майбутньому");
   else if (!end || end <= start) out.push("Кінець — пізніше за початок");
   if (!(+d.capacity >= 1)) out.push("Кількість місць — від 1 до 10000");
+  const price = priceProblem(d.price);
+  if (price) out.push(price);
   return out;
 }
 
@@ -989,6 +1007,7 @@ const params = (d, id) => ({
   p_latitude: d.lat, p_longitude: d.lon, p_starts_at: instant(d.startDate, d.startTime, d.tz), p_ends_at: instant(d.endDate, d.endTime, d.tz),
   p_time_zone: d.tz, p_capacity: Math.round(+d.capacity), p_image_url: editing?.image_url ?? null, p_min_age: Math.round(+d.minAge || 18),
   p_max_age: d.maxAge === "" ? null : Math.round(+d.maxAge), p_approval_required: d.approval, p_contact_url: d.contact.trim() || null,
+  p_price: priceParam(d.price),
 });
 
 const PUBLIC = "/storage/v1/object/public/";

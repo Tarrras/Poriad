@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   instant, local, repeatTimes, endAfter, durationLabel, DURATIONS, mediaProblem, videoTooLong, fit, MEDIA,
   threadsPost, threadsIntent, firstLine, cleanText, rosterText, errorText, publishPlan, writeDraft, forgetDraft, recolorStub,
+  priceProblem, priceParam, PRICE_TEXT, eventDraft, repeatDraft,
 } from "../site/js/kabinet.js";
 import { readFileSync } from "node:fs";
 
@@ -111,4 +112,21 @@ assert.ok(colors(games, "Stub").includes(String(games_k[0])), "корінець 
 assert.equal(colors(games, "Body"), colors(music, "Body"), "квиток не чіпаємо");
 assert.ok(colors(music, "Stub").includes("0.376"), "вихідні дані не змінено");
 assert.equal(recolorStub(music, ""), music, "жанру нема (CSS-змінна порожня) — як є");
+// Ціна (1.7): лише ціна, порожньо — безкоштовно; p_price завжди явно (0 прибирає), правка й «Повторити» її не гублять.
+assert.equal(priceProblem(""), null);
+assert.equal(priceProblem("300"), null);
+assert.equal(priceProblem("100000"), null);
+assert.equal(priceProblem("0"), PRICE_TEXT);
+assert.equal(priceProblem("12.5"), PRICE_TEXT, "цілі гривні");
+assert.equal(priceProblem("100001"), PRICE_TEXT);
+assert.equal(priceParam(""), 0);
+assert.equal(priceParam(" 450 "), 450);
+const pricedEvent = { ...event, category: "games", latitude: 50.45, longitude: 30.52, ends_at: "2026-11-02T19:00:00Z", capacity: 8, min_age: 18, price_min: "450", origin: "community" };
+assert.equal(eventDraft(pricedEvent).price, "450", "PostgREST може віддати numeric рядком");
+assert.equal(priceParam(eventDraft(pricedEvent).price), 450, "правка шле ту саму ціну");
+assert.equal(priceParam(repeatDraft(pricedEvent).price), 450, "«Повторити» теж");
+assert.equal(eventDraft({ ...pricedEvent, price_min: null }).price, "");
+assert.equal(errorText({ status: 400, code: "INVALID_PRICE" }), PRICE_TEXT);
+assert.equal(threadsPost(pricedEvent), "Настолки «Каркасон»\nпн, 2 листопада, 19:00 · Хрещатик, 22\nВхід — 450 ₴\n\nГраємо в Каркасон і Колонізаторів. Правила пояснимо.\n\nЗапис: poriad.app/e/e1");
+assert.ok(!threadsPost({ ...pricedEvent, origin: "import" }).includes("Вхід"), "ціна продавця в афіші — «від», не пишемо");
 console.log("kabinet ok");

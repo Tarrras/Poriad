@@ -48,7 +48,7 @@ function page({ minAge = 18, maxAge = "", search = "", share = false } = {}) {
   });
   const bar = element({ textContent: "Йду" });
   const spots = element({ textContent: "0 з 6" });
-  const doc = { "[data-join]": bar, "[data-spots]": spots };
+  const doc = { "[data-join]": bar, ".bar [data-spots]": spots };
   if (share) {
     const original = element({ lastChild: { textContent: "Поділитися з другом" } });
     original.cloneNode = () => element({ lastChild: { textContent: original.lastChild.textContent } });

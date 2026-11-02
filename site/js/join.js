@@ -225,8 +225,10 @@ export function start(sheet) {
     const seen = version;
     const [event] = (await rpc("event_details", { p_event_id: id })) ?? [];
     await claimShare(event);
-    const spots = document.querySelector("[data-spots]");
-    if (spots && Number.isInteger(event?.attendee_count)) spots.textContent = event.capacity ? `${event.attendee_count} з ${event.capacity}` : `${event.attendee_count}`;
+    // Учасники — у факті квитка й на панелі (з ціною на панелі — ціна, тож лише у факті).
+    for (const spots of [document.querySelector(".facts [data-spots]"), document.querySelector(".bar [data-spots]")]) {
+      if (spots && Number.isInteger(event?.attendee_count)) spots.textContent = event.capacity ? `${event.attendee_count} з ${event.capacity}` : `${event.attendee_count}`;
+    }
     let next = ["approved", "requested"].includes(event?.membership) ? event.membership : "none";
     if (next === "none" && event?.capacity && ((await rpc("my_waitlist")) ?? []).includes(id)) next = "waitlist";
     if (quiet && (working || version !== seen)) return state !== "none";
