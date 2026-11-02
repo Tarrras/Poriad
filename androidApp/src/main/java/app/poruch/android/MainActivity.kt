@@ -2,6 +2,11 @@
 
 package app.poruch.android
 
+import androidx.compose.runtime.mutableLongStateOf
+import android.os.SystemClock
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.withTimeoutOrNull
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationManager
@@ -120,6 +125,8 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) handle(intent)
+        // Нова активність без збереженого стану (процес живий, «Назад» на API ≤ 30) знову показує сплеш.
+        if (savedInstanceState == null) LaunchSplash.gone = false
         // Записи стека збираємо зі скоупу Activity один раз, до композиції.
         val entryProvider = getEntryProvider<NavKey>()
         val navigator = scope.get<Navigator>()
@@ -284,9 +291,12 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     // Перший-другий запуск: лише новим показуємо, де що на головній (docs/coach-marks.md). Читаємо до того,
     // як ефект дайджесту нижче порахує цей запуск, тож на першому тут 0.
     val newcomer = remember { context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE).getInt(LAUNCHES, 0) < 2 }
-    // Нового спершу вітаємо туром по головній, а про геолокацію питаємо вже після нього.
-    var tourDone by rememberSaveable { mutableStateOf(!newcomer) }
-    LocationPrompt(app, appState, tourDone)
+    // Геолокацію питаємо одразу після питань, у першому кадрі головної: місто відоме до стосу й туру (рішення власника
+    // 02.11). [answeredAt] — коли людина відповіла про дозвіл (чи питати вже не треба), [located] — місто з відповіді вже
+    // поставлено (чи його не буде). Обидва переживають поворот і зміну теми: інакше стос і тур губились до кінця сесії.
+    var answeredAt by rememberSaveable { mutableLongStateOf(0L) }
+    var located by rememberSaveable { mutableStateOf(false) }
+    LocationPrompt(app, appState, onAnswered = { if (answeredAt == 0L) answeredAt = SystemClock.elapsedRealtime() }) { located = true }
     var digestAsk by remember { mutableStateOf(false) }
     DigestPrompt(app, appState, navigator, digestAsk) { digestAsk = it }
     NotificationPromptAfter(appState, FOLLOW_ASKED) { it.library.followsMade }
@@ -296,18 +306,33 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     NotificationPromptAfter(appState, TICKET_ASKED) { if (it.remindersEnabled) it.tickets.size else 0 }
     ReviewPrompt(app, appState)
     PasswordRecoveryEffect(navigator, appState)
-    // Стос «Ваш тиждень»: раз, у першій сесії після онбордингу, до туру. Видача їде паралельно з онбордингом; за секунду
-    // її вже досить, не встигла — стосу нема, лишається рядок на головній. ponytail: одна перевірка, а не очікування.
-    // Картки живуть у [FirstDeck], а не в `remember`: поворот перестворює активність, і стос не зникає. «Показано»
-    // пишемо, коли стос справді закрили.
+    // Стос «Ваш тиждень» на 5 карток (`DeckRules.FIRST`): раз, у першій сесії, після відповіді про геолокацію й першої
+    // видачі вже для визначеного міста. [DECK_PATIENCE_MS] рахуємо від відповіді про дозвіл (геокодер і свіже положення
+    // можуть думати десятки секунд); не встигли — стосу нема, лишається рядок на головній. Те саме, якщо людина вже пішла з
+    // головної (деталі, редактор): стос поверх них був би чужим. Картки живуть у [FirstDeck], а не в `remember`: поворот
+    // перестворює активність, і стос не зникає. «Показано» пишемо, коли стос справді закрили. [deckDecided] — стос
+    // показали й закрили чи його не буде: лише тоді тур.
     val deck = FirstDeck.cards
     val onboarding by remember { derivedStateOf { appState.value.needsOnboarding } }
-    LaunchedEffect(onboarding) {
+    var deckDecided by rememberSaveable { mutableStateOf(!newcomer) }
+    LaunchedEffect(onboarding, answeredAt) {
         val prompts = context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE)
-        if (!newcomer || onboarding || prompts.getBoolean(DECK_DONE, false) || FirstDeck.cards != null) return@LaunchedEffect
-        delay(1000)
-        val cards = app.deckCards()
-        if (cards.size < DeckRules.MIN) return@LaunchedEffect prompts.edit { putBoolean(DECK_DONE, true) }
+        if (!newcomer || onboarding || FirstDeck.cards != null) return@LaunchedEffect
+        if (prompts.getBoolean(DECK_DONE, false)) return@LaunchedEffect run { deckDecided = true }
+        if (answeredAt == 0L) return@LaunchedEffect
+        val left = DECK_PATIENCE_MS - (SystemClock.elapsedRealtime() - answeredAt)
+        val cards = withTimeoutOrNull(left.coerceAtLeast(1)) {
+            snapshotFlow { located }.first { it }
+            // Зі спільного стану, а не з `appState`: та копія збирається з життєвим циклом і на кадр відстає зі старим
+            // «завантажено» попереднього міста.
+            app.state.first { it.home.loaded && !it.home.loading }
+            app.deckCards()
+        }
+        if (cards == null || cards.size < DeckRules.MIN || navigator.current != Home) {
+            prompts.edit { putBoolean(DECK_DONE, true) }
+            deckDecided = true
+            return@LaunchedEffect
+        }
         // Про сповіщення питає кінець стосу, а не перша закладка в ньому.
         prompts.edit { putString(DECK_WEEK, app.deckWeek()); putBoolean(SAVE_ASKED, true) }
         FirstDeck.cards = cards
@@ -315,6 +340,7 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     val closeDeck = {
         context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE).edit { putBoolean(DECK_DONE, true) }
         FirstDeck.cards = null
+        deckDecided = true
     }
 
     // Без провайдера вкладка «Мапа» будувала нову MapView на кожен вхід.
@@ -323,7 +349,7 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
             // Під квитком на весь екран застосунок для TalkBack мовчить, як було під окремим вікном.
             val covered = WalletUi.shown != null
             Box(Modifier.fillMaxSize().then(if (covered) Modifier.clearAndSetSemantics { } else Modifier)) {
-                RootLayout(navigator, entryProvider, app, appState, tourAllowed = newcomer && !digestAsk && deck == null && !covered) { tourDone = true }
+                RootLayout(navigator, entryProvider, app, appState, tourAllowed = newcomer && deckDecided && !digestAsk && deck == null && !covered)
             }
             // Окреме вікно, як стос із головної: шаром у Box TalkBack гортав головну під ним.
             deck?.let { cards ->
@@ -342,40 +368,35 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
 
 /**
  * Стартове місто — те, де людина зараз, а не Київ за замовчуванням. Приблизне положення, без
- * підписки: відмову мовчки приймаємо, «Поруч» на мапі лишається ручним шляхом.
+ * підписки: відмову мовчки приймаємо, «Поруч» на мапі лишається ручним шляхом. Питаємо одразу, щойно скінчились питання
+ * онбордингу (рішення власника 02.11). [onSettled] — відповідь є й місто з неї поставлено, або його не буде.
  */
 @Composable
-private fun LocationPrompt(app: PoruchApp, appState: State<AppState>, tourDone: Boolean) {
+private fun LocationPrompt(app: PoruchApp, appState: State<AppState>, onAnswered: () -> Unit, onSettled: () -> Unit) {
     val context = LocalContext.current
     val state by appState
     val nearby = stringResource(R.string.nearby)
+    val answered by rememberUpdatedState(onAnswered)
+    val settled by rememberUpdatedState(onSettled)
     val locate = {
         context.lastKnownPosition({ lat, lon, _ ->
-            context.cityAt(
-                lat,
-                lon,
-                nearby,
-                app::locatedCity
-            )
-        }, {})
+            context.cityAt(lat, lon, nearby) { city -> app.locatedCity(city); settled() }
+        }, { settled() })
     }
     val locationPermission =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { if (it) locate() }
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { answered(); if (it) locate() else settled() }
     // Один раз на запуск, а не на кожен поворот. Обране руками місто спільний код не перебиває.
-    var located by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(state.needsOnboarding, tourDone) {
-        if (state.needsOnboarding || located) return@LaunchedEffect
+    var asked by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.needsOnboarding) {
+        if (state.needsOnboarding || asked) return@LaunchedEffect
+        asked = true
         if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            located = true
+            answered()
             return@LaunchedEffect locate()
         }
-        if (!tourDone) return@LaunchedEffect
-        // Питаємо раз, після онбордингу й туру; далі — лише кнопкою «Поруч» на мапі. Пауза — щоб системне вікно
-        // не наклалось на згасання підказки.
-        delay(400)
-        located = true
+        // Питаємо раз; далі — лише кнопкою «Поруч» на мапі.
         val prompts = context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE)
-        if (prompts.getBoolean(LOCATION_ASKED, false)) return@LaunchedEffect
+        if (prompts.getBoolean(LOCATION_ASKED, false)) return@LaunchedEffect run { answered(); settled() }
         prompts.edit { putBoolean(LOCATION_ASKED, true) }
         locationPermission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
     }
@@ -509,8 +530,7 @@ private fun RootLayout(
     app: PoruchApp,
     appState: State<AppState>,
     /** Тур першого знайомства можна показати: новачок, і лист дайджесту не відкритий. */
-    tourAllowed: Boolean,
-    onTourDone: () -> Unit
+    tourAllowed: Boolean
 ) {
     val state by appState
     val current = navigator.current
@@ -556,7 +576,8 @@ private fun RootLayout(
             )
             // Лише на головній й не разом з іншим питанням: пуш чи посилання, що відкрили подію, ставлять тур на
             // паузу, а лист дайджесту (другий запуск) відкладає його, поки людина не відповість.
-            CoachMarks(listOf(CoachTip.CITY, CoachTip.MAP, CoachTip.CREATE), enabled = tourAllowed && current == Home, onFinish = onTourDone)
+            // Одна підказка — «+»: місто вже з геолокації, а «Мапа» підписана в таббарі (рішення власника 02.11).
+            CoachMarks(listOf(CoachTip.CREATE), enabled = tourAllowed && current == Home)
         }
         NoticeHost(state.notice, app::clearNotice, Modifier.align(Alignment.TopCenter))
         if (state.mutating) LinearProgressIndicator(
@@ -664,11 +685,18 @@ private fun NoticeHost(notice: AppNotice?, dismiss: () -> Unit, modifier: Modifi
  * шпилька з іконки, під нею зʼявляються назва й обіцянка. Системний сплеш — те саме полотно без іконки
  * (styles.xml), тож шва нема. Анімація — tools/generate_lottie.py.
  */
+/** Сплеш пішов: удар штампа плану на головній чекає на це, інакше він пройшов би під сплешем. */
+internal object LaunchSplash {
+    var gone by mutableStateOf(false)
+}
+
 @Composable
 private fun Splash() {
     val colors = Poruch.colors
     val reducedMotion = Poruch.reducedMotion
     var done by rememberSaveable { mutableStateOf(reducedMotion) }
+    // Після виходу (450 мс нижче), а не на його початку: сплеш ще розчиняється над головною.
+    LaunchedEffect(done) { if (done) { delay(450); LaunchSplash.gone = true } }
     var titled by remember { mutableStateOf(false) }
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.splash))
     val progress by animateLottieCompositionAsState(composition)
@@ -732,6 +760,8 @@ internal const val SAVE_ASKED = "save_asked"
 internal const val TICKET_ASKED = "ticket_asked"
 /** Стос «Ваш тиждень» уже показували в першій сесії; тиждень, коли його відкривали з головної (docs/return-hooks.md). */
 private const val DECK_DONE = "deck_done"
+/** Скільки стос першої сесії чекає на першу видачу для визначеного міста. */
+private const val DECK_PATIENCE_MS = 5_000L
 internal const val DECK_WEEK = "deck_week"
 private const val REVIEW_ASKED_VERSION = "review_asked_version"
 private const val INFO_NOTICE_MS = 3_000L

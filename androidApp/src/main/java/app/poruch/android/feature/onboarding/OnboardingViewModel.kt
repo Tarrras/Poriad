@@ -4,6 +4,7 @@ import androidx.lifecycle.viewModelScope
 import app.poruch.android.feature.home.toggle
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.domain.Crowd
+import app.poruch.domain.EventCategory
 import app.poruch.domain.FollowKind
 import app.poruch.domain.Zone
 import app.poruch.shared.PoruchApp
@@ -22,10 +23,12 @@ class OnboardingViewModel(private val app: PoruchApp) :
         reduce {
             copy(
                 step = if (answered) OnboardingStep.INTERESTS else step,
-                interests = taste.interests, times = taste.times, crowd = taste.crowd
+                // ponytail: кіно прибираємо з вибраного, поки прапорець `cinema` вимкнений: плитки нема, і зняти його людина
+                // не могла б, а «Готово» зберегло б знову. Повернути разом із плиткою.
+                interests = taste.interests - EventCategory.CINEMA, times = taste.times, crowd = taste.crowd
             )
         }
-        // Місто ще не відоме (геолокацію питаємо після туру), тож артисти — ті, хто гастролює країною.
+        // Місто ще не відоме (геолокацію питаємо одразу після питань), тож артисти — ті, хто гастролює країною.
         app.loadPopularArtists(true)
         viewModelScope.launch {
             app.state.map { shared ->

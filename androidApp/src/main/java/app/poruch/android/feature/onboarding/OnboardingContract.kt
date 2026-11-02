@@ -10,7 +10,8 @@ import app.poruch.domain.TimeSlot
  * Кроки онбордингу: те, що читає ранжування, і [FOLLOW] — привід повернутись. Кожен зайвий екран — привід піти, тож
  * артисти й райони («Мої місця», docs/my-places.md) — один крок «Про що сказати?» з двома секціями, а не два прохання поспіль.
  */
-enum class OnboardingStep { WELCOME, INTERESTS, TIMES, CROWD, FOLLOW }
+/** «Коли вам зручно?» несе й формат: три питання замість чотирьох, відповіді й ранжування ті самі (рішення 02.11). */
+enum class OnboardingStep { WELCOME, INTERESTS, TIMES, FOLLOW }
 
 data class OnboardingState(
     val step: OnboardingStep = OnboardingStep.WELCOME,
