@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -127,7 +128,11 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     }
 }
 
-/** Перший екран: Google, «або поштою», пошта й «Надіслати код», згода дрібним і «Увійти з паролем» посиланням. */
+/**
+ * Перший екран: Google, згода дрібним, «або поштою», пошта й «Надіслати код», «Увійти з паролем» посиланням. Згода —
+ * одразу під Google: тап по ньому створює профіль, тож її видно до тапу на будь-якому екрані без прокрутки, і вона ж
+ * стоїть над «Надіслати код».
+ */
 @Composable
 private fun EmailStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     val colors = Poruch.colors
@@ -137,20 +142,22 @@ private fun EmailStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                 painterResource(R.drawable.ic_google), stringResource(R.string.continue_with_google),
                 { onIntent(AuthIntent.SignInWithGoogle) }, enabled = !state.mutating
             )
+            ConsentNote(onIntent)
             OrDivider(stringResource(R.string.auth_or_email))
         }
         // Без автофокусу: клавіатура закрила б Google і згоду, а пошту людина обирає сама.
         LabelledField(
             stringResource(R.string.email), state.email, { onIntent(AuthIntent.SetEmail(it)) },
             placeholder = stringResource(R.string.email_placeholder),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false, imeAction = ImeAction.Send)
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false, imeAction = ImeAction.Send),
+            keyboardActions = KeyboardActions(onSend = { if (state.emailValid && !state.mutating) onIntent(AuthIntent.SendCode) })
         )
         PrimaryButton(
             stringResource(R.string.auth_code_send), { onIntent(AuthIntent.SendCode) },
             Modifier.fillMaxWidth(), icon = PoruchIcons.mail, enabled = state.emailValid, loading = state.mutating
         )
-        // Згода одразу під кнопками: дотик до них уже створює профіль.
-        ConsentNote(onIntent)
+        // Без Google згода — під кнопкою коду: дотик до неї вже створює профіль.
+        if (!state.googleAvailable) ConsentNote(onIntent)
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             GhostButton(
                 stringResource(R.string.auth_password_link), { onIntent(AuthIntent.ShowPassword(true)) },
@@ -275,7 +282,9 @@ private fun CodeStep(state: AuthState, email: String, onIntent: (AuthIntent) -> 
         LabelledField(
             stringResource(R.string.auth_code_field), state.code, { onIntent(AuthIntent.SetCode(it)) },
             focusRequester = codeField,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done),
+            // Number, а не NumberPassword: код приходить листом, і Gboard у полі пароля не пропонує вставку з буфера.
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { if (state.canVerify && !state.mutating) onIntent(AuthIntent.VerifyCode) }),
             textStyle = PoruchType.numeral.copy(fontSize = 28.sp, lineHeight = 32.sp, letterSpacing = 6.sp),
             contentType = ContentType.SmsOtpCode
         )

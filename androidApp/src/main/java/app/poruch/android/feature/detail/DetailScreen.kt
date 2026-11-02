@@ -39,7 +39,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -196,8 +195,10 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                             Modifier.onGloballyPositioned { companyTop = it.positionInRoot().y }
                         )
                         else if (state.screen.companions.isNotEmpty() && !state.screen.cancelled) Companions(state, onIntent)
-                        // Лише організатор — секції нема: «0 з 20» уже в «Місткості».
-                        event.gathering?.takeIf { it.attendeeCount > 0 || state.screen.attendees.isNotEmpty() }?.let { People(state, it, onIntent) }
+                        // Організатору, коли там лише він, секції нема: «0 з 20» уже в «Місткості». Гостю лишається — рядок
+                        // організатора там єдиний вхід до його картки й «Стежити».
+                        event.gathering?.takeIf { !state.screen.organizer || it.attendeeCount > 0 || state.screen.attendees.isNotEmpty() }
+                            ?.let { People(state, it, onIntent) }
                         if (state.screen.canAsk) AskOrganizer(state, onIntent)
                         Venue(event, state.screen.followingPlace, onIntent)
                         if (!state.screen.cancelled && !state.screen.ended) Safety(state, onIntent)
@@ -357,7 +358,7 @@ internal fun StickyAction(
                 // ширину, а дія під ним. Поруч із кнопкою воно обрізалось саме в момент рішення. Записаним стан каже
                 // штамп перед ним, а кнопка під ним стає тоновою.
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                    JoinStamp(state.screen.action)
+                    JoinStamp(state.screen.action, state.stampPending) { onIntent(DetailIntent.StampShown) }
                     hint(Modifier.weight(1f))
                 }
                 // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
@@ -431,28 +432,26 @@ internal fun PrimaryAction(state: DetailState, onIntent: (DetailIntent) -> Unit,
 
 /** Записаний, запит надіслано, у черзі: стан, який каже штамп на панелі. */
 private val STAMPED = setOf(DetailAction.LEAVE, DetailAction.REQUESTED, DetailAction.LEAVE_WAITLIST)
-/** Звідки штамп «б'є»: щойно натиснули «Приєднатися», «Надіслати запит» чи «Стати в чергу». */
-private val ASKING = setOf(DetailAction.JOIN, DetailAction.REQUEST, DetailAction.JOIN_WAITLIST)
-
 /**
  * Штамп участі на панелі дії — перший «вау» потоку (docs/design-wow-1.5.md, «Що перенести», п. 1): після запису падає з
- * розмаху, як касир штампує квиток, з тактильним ударом у мить удару. Відкрили вже записаними — просто стоїть. Без
- * анімацій — стоїть одразу. Крива та сама, що на сайті: розгін ×2.4 −16°, удар ×0.92 на 45 %, відскок ×1.04, спокій ×1 −4°.
+ * розмаху, як касир штампує квиток, з тактильним ударом у мить удару. Б'є лише у відповідь на тап ([pending] з ViewModel):
+ * панель, що перемкнулась сама (картка з кешу, потім повна подія), і повторний візит — штамп просто стоїть. Без анімацій —
+ * стоїть одразу. Крива та сама, що на сайті: розгін ×2.4 −16°, удар ×0.92 на 45 %, відскок ×1.04, спокій ×1 −4°.
+ * [onShown] гасить [pending], щойно панель перемкнулась.
  */
 @Composable
-private fun JoinStamp(action: DetailAction) {
+private fun JoinStamp(action: DetailAction, pending: Boolean, onShown: () -> Unit) {
     val view = LocalView.current
     val reduced = Poruch.reducedMotion
-    // Що було до цієї композиції. Звичайний масив, а не стан: його оновлення не має перескладати штамп.
-    val before = remember { arrayOf(action) }
-    val hits = before[0] in ASKING && action in STAMPED && !reduced
-    SideEffect { before[0] = action }
+    val stamped = action in STAMPED
+    val hits = pending && stamped && !reduced
     // Початок удару — вже в першому кадрі нового стану: з ефекту штамп на кадр стояв би на місці, а тоді злітав.
     val scale = remember(action) { Animatable(if (hits) 2.4f else 1f) }
     // Поворот поверх власних −4° штампа.
     val turn = remember(action) { Animatable(if (hits) -12f else 0f) }
     val shown = remember(action) { Animatable(if (hits) 0f else 1f) }
     LaunchedEffect(action) {
+        if (pending && stamped) onShown()
         if (!hits) return@LaunchedEffect
         val hit = CubicBezierEasing(0.55f, 0f, 0.9f, 0.45f)
         val rebound = CubicBezierEasing(0.2f, 0.8f, 0.3f, 1f)

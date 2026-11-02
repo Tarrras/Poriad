@@ -64,14 +64,14 @@ class DetailViewModel(
                         reduce { copy(askingBirthDate = true) }
                     }
                     // Запис відмовлено з іншої причини: повторювати нема чого (і інший екран деталей не перехопить чужу помилку).
-                    notice is AppNotice.Failed -> join = null
+                    notice is AppNotice.Failed -> { join = null; reduce { copy(stampPending = false) } }
                 }
                 if (declaring && shared.notice == AppNotice.Told(AppMessage.AGE_CONFIRMED)) {
                     declaring = false
                     join?.invoke()
                 }
                 // Дату не прийняли (молодше 18, уже вказана): банер скаже чому, повтору не буде.
-                if (declaring && shared.notice is AppNotice.Failed) { declaring = false; join = null }
+                if (declaring && shared.notice is AppNotice.Failed) { declaring = false; join = null; reduce { copy(stampPending = false) } }
             }
         }
     }
@@ -100,6 +100,7 @@ class DetailViewModel(
         val event = screen.event
         when (intent) {
             DetailIntent.Back -> send(DetailEffect.Back)
+            DetailIntent.StampShown -> reduce { copy(stampPending = false) }
             is DetailIntent.NotificationPermissionAnswered -> if (intent.granted) app.setRemindersEnabled(
                 true
             )
@@ -122,10 +123,11 @@ class DetailViewModel(
                 }
             } else authenticated(AuthReason.JOIN) {
                 when (screen.action) {
-                    DetailAction.JOIN, DetailAction.REQUEST -> joining { app.joinEvent(eventId) }
+                    // Штамп — відповідь на цей тап: панель перемкнеться, коли сервер підтвердить.
+                    DetailAction.JOIN, DetailAction.REQUEST -> { reduce { copy(stampPending = true) }; joining { app.joinEvent(eventId) } }
 
                     DetailAction.LEAVE -> app.leaveEvent(eventId)
-                    DetailAction.JOIN_WAITLIST -> joining { app.joinWaitlist(eventId) }
+                    DetailAction.JOIN_WAITLIST -> { reduce { copy(stampPending = true) }; joining { app.joinWaitlist(eventId) } }
 
                     DetailAction.LEAVE_WAITLIST -> app.leaveWaitlist(eventId)
                     else -> Unit
@@ -305,7 +307,8 @@ class DetailViewModel(
             is DetailIntent.ApproveRequest -> app.approveMember(eventId, intent.userId)
             is DetailIntent.DeclineRequest -> app.declineMember(eventId, intent.userId)
             is DetailIntent.DeclareBirthDate -> {
-                reduce { copy(askingBirthDate = false) }
+                // Без дати запису не буде — і штампа теж.
+                reduce { copy(askingBirthDate = false, stampPending = stampPending && intent.date != null) }
                 if (intent.date == null) join = null
                 else { declaring = true; app.declareBirthDate(intent.date.toString()) }
             }

@@ -93,10 +93,19 @@ internal fun AnnounceCard(state: EditorState, onIntent: (EditorIntent) -> Unit) 
     }
 }
 
-/** Текст першого запису буфера; null — порожньо, картинка чи файл без тексту. */
-private fun android.content.Context.clipboardText(): String? =
-    getSystemService(android.content.ClipboardManager::class.java)?.primaryClip
-        ?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString()?.takeIf { it.isNotBlank() }
+/**
+ * Текст першого запису буфера; null — порожньо чи не текст. Лише `text/plain` і `text/html`, і лише `item.text`: для
+ * скопійованого постера `coerceToText` дав би `content://…` (та ще й відкрив би провайдер у головному потоці), і розбір
+ * такого «анонсу» затер би назву й опис, які вже набрала людина.
+ */
+private fun android.content.Context.clipboardText(): String? {
+    val clipboard = getSystemService(android.content.ClipboardManager::class.java) ?: return null
+    val kind = clipboard.primaryClipDescription ?: return null
+    if (!kind.hasMimeType(android.content.ClipDescription.MIMETYPE_TEXT_PLAIN) &&
+        !kind.hasMimeType(android.content.ClipDescription.MIMETYPE_TEXT_HTML)
+    ) return null
+    return clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()?.takeIf { it.isNotBlank() }
+}
 
 @Composable
 private fun announceSummary(fill: AnnouncementFill): String = when (fill.failure) {
@@ -160,7 +169,9 @@ internal fun MediaSection(state: EditorState, onIntent: (EditorIntent) -> Unit) 
                                 translationX = if (dragging) offset else 0f
                                 if (dragging) { scaleX = 1.06f; scaleY = 1.06f; shadowElevation = 12f }
                             }
-                            .semantics {
+                            // Плитка — одна зупинка TalkBack: на першій він каже «Обкладинка» (штамп на ній декоративний),
+                            // хрестик лишається окремою кнопкою.
+                            .semantics(mergeDescendants = true) {
                                 if (index == 0) contentDescription = cover
                                 // Перетягування пальцем TalkBack не дістане: обкладинку роблять дією.
                                 else customActions = listOf(CustomAccessibilityAction(makeCover) {
