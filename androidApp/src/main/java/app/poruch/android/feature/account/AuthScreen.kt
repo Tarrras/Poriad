@@ -37,8 +37,14 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
 import app.poruch.android.ui.*
-import app.poruch.android.feature.editor.BirthDateSheet
-import java.time.format.DateTimeFormatter
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.ImeAction
 
 @Composable
 fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
@@ -52,6 +58,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             val confirming = state.awaitingConfirmation != null
+            val coding = state.codeMode && !state.askAdult
             Box(Modifier.fillMaxWidth().padding(top = Spacing.md)) {
                 IconPill(PoruchIcons.arrowLeft, stringResource(R.string.back), size = 40.dp) { onIntent(AuthIntent.Back) }
             }
@@ -59,7 +66,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                 Icon(
                     when {
                         confirming -> PoruchIcons.checkCircle; state.resetting -> PoruchIcons.lock
-                        state.askBirthDate -> PoruchIcons.calendar; else -> PoruchIcons.pin
+                        state.askAdult -> PoruchIcons.shield; coding -> PoruchIcons.mail; else -> PoruchIcons.pin
                     },
                     null, Modifier.size(32.dp), tint = colors.onBrand
                 )
@@ -69,7 +76,8 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                     when {
                         confirming -> R.string.auth_check_email_title
                         state.resetting -> R.string.auth_reset_title
-                        state.askBirthDate -> R.string.auth_birth_date_title
+                        state.askAdult -> R.string.auth_birth_date_title
+                        coding -> R.string.auth_code_title
                         state.signup -> R.string.auth_create
                         else -> R.string.auth_welcome
                     }
@@ -81,10 +89,12 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                     when {
                         confirming -> R.string.auth_check_email_subtitle
                         state.resetting -> R.string.auth_reset_subtitle
-                        state.askBirthDate -> R.string.auth_birth_date_subtitle
+                        state.askAdult -> R.string.auth_adult_subtitle
+                        coding -> R.string.auth_code_subtitle
                         // Навіщо профіль саме зараз: гість прийшов з дією, і рядок під заголовком — про неї.
                         else -> when (state.reason) {
-                            AuthReason.CREATE -> if (state.signup) R.string.auth_subtitle_create_signup else R.string.auth_subtitle_create_signin
+                            // Гість уже заповнив редактор і натиснув «Опублікувати».
+                            AuthReason.CREATE -> R.string.auth_subtitle_publish
                             AuthReason.JOIN -> R.string.auth_reason_join
                             AuthReason.FOLLOW -> R.string.auth_reason_follow
                             AuthReason.COMPANY -> R.string.auth_reason_company
@@ -104,8 +114,12 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
             ResetStep(state, onIntent)
             return@Column
         }
-        if (state.askBirthDate) {
-            BirthDateStep(state, onIntent)
+        if (state.askAdult) {
+            AdultStep(state, onIntent)
+            return@Column
+        }
+        if (state.codeMode) {
+            if (state.awaitingCode != null) CodeStep(state, state.awaitingCode, onIntent) else CodeEmailStep(state, onIntent)
             return@Column
         }
         // Фокус на перше поле: імʼя при реєстрації, пошта при вході.
@@ -121,10 +135,15 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                     painterResource(R.drawable.ic_google), stringResource(R.string.continue_with_google),
                     { onIntent(AuthIntent.SignInWithGoogle) }, enabled = !state.mutating
                 )
-                // Згода одразу під Google: дотик до нього вже створює профіль, а форма з кнопкою — нижче.
-                ConsentNote(onIntent)
-                OrDivider(stringResource(R.string.auth_or_email))
             }
+            // Код з пошти — той самий акаунт, що на сайті: хто записався на poriad.app поштою, пароля не має.
+            ProviderButton(
+                rememberVectorPainter(PoruchIcons.mail), stringResource(R.string.auth_code_button),
+                { onIntent(AuthIntent.ShowCode(true)) }, enabled = !state.mutating, tint = colors.ink
+            )
+            // Згода одразу під кнопками: дотик до них уже створює профіль, а форма з кнопкою — нижче.
+            ConsentNote(onIntent)
+            OrDivider(stringResource(R.string.auth_or_password))
             // Вхід і реєстрація — два рівноправні режими, тож перемикач угорі, а не кнопка під формою.
             SegmentedPill(
                 listOf(stringResource(R.string.auth_tab_login), stringResource(R.string.auth_tab_signup)),
@@ -134,15 +153,6 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                 stringResource(R.string.name), state.name, { onIntent(AuthIntent.SetName(it)) },
                 focusRequester = nameField,
                 placeholder = stringResource(R.string.name_placeholder)
-            )
-            // Питаємо раз, при реєстрації, і нікому не показуємо: на це спираються вікові межі й модерація.
-            if (state.signup) PickerField(
-                stringResource(R.string.birth_date),
-                state.birthDateValue?.format(BIRTH_DATE_FORMAT).orEmpty(),
-                { onIntent(AuthIntent.ShowBirthDatePicker(true)) },
-                placeholder = stringResource(R.string.birth_date_placeholder),
-                hint = stringResource(R.string.birth_date_hint),
-                icon = PoruchIcons.calendar
             )
             LabelledField(
                 stringResource(R.string.email), state.email, { onIntent(AuthIntent.SetEmail(it)) },
@@ -158,13 +168,13 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                 visualTransformation = if (state.passwordRevealed) VisualTransformation.None else PasswordVisualTransformation(),
                 trailing = { PasswordRevealIcon(state.passwordRevealed) { onIntent(AuthIntent.TogglePasswordReveal) } }
             )
+            // Дату питаємо лише на події з віковими межами; тут — галочка, як на сайті.
+            if (state.signup) AdultCheck(state.adult) { onIntent(AuthIntent.SetAdult(it)) }
             PrimaryButton(
                 stringResource(if (state.signup) R.string.register else R.string.login),
                 { onIntent(AuthIntent.Submit) },
                 Modifier.fillMaxWidth(), enabled = state.canSubmit, loading = state.mutating
             )
-            // Згода — підписом, а не чекбоксом: натискання на «Зареєструватися» і є згодою. З Google вона вже стоїть над формою.
-            if (state.signup && !state.googleAvailable) ConsentNote(onIntent)
             // По центру, як «Видалити обліковий запис» у профілі: текстова кнопка з лівим відступом виглядала зсунутою.
             if (!state.signup) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 GhostButton(
@@ -174,14 +184,11 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
             }
         }
     }
-    if (state.pickingBirthDate) BirthDateSheet(
-        state.birthDateValue, { onIntent(AuthIntent.ShowBirthDatePicker(false)) }
-    ) { onIntent(AuthIntent.SetBirthDate(it)) }
 }
 
 /** Кнопка входу через провайдера: знак провайдера в оригінальних кольорах, світла пігулка. */
 @Composable
-private fun ProviderButton(logo: Painter, text: String, onClick: () -> Unit, enabled: Boolean) {
+private fun ProviderButton(logo: Painter, text: String, onClick: () -> Unit, enabled: Boolean, tint: Color? = null) {
     val colors = Poruch.colors
     Row(
         // Великий шрифт переносить напис і робить кнопку вищою, а не обрізає «Продовжити з Goo…».
@@ -191,7 +198,7 @@ private fun ProviderButton(logo: Painter, text: String, onClick: () -> Unit, ena
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally)
     ) {
-        Image(logo, null, Modifier.size(20.dp))
+        Image(logo, null, Modifier.size(20.dp), colorFilter = tint?.let { ColorFilter.tint(it) })
         Text(
             text, style = MaterialTheme.typography.titleSmall, color = if (enabled) colors.ink else colors.inkTertiary,
             maxLines = 2, textAlign = TextAlign.Center
@@ -211,24 +218,84 @@ private fun OrDivider(text: String) {
 }
 
 /**
- * Після входу через Google: провайдер вік не каже, а «Поряд» — для повнолітніх. Та сама дата, що
- * при реєстрації поштою; «назад» лишає людину в акаунті, і картка віку чекатиме в профілі.
+ * Після входу через Google чи кодом: провайдер вік не каже, а «Поряд» — для повнолітніх. Та сама галочка, що при
+ * реєстрації; «назад» лишає людину в акаунті, і картка віку чекатиме в профілі.
  */
 @Composable
-private fun BirthDateStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
+private fun AdultStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     Column(Modifier.padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
-        PickerField(
-            stringResource(R.string.birth_date),
-            state.birthDateValue?.format(BIRTH_DATE_FORMAT).orEmpty(),
-            { onIntent(AuthIntent.ShowBirthDatePicker(true)) },
-            placeholder = stringResource(R.string.birth_date_placeholder),
-            hint = stringResource(R.string.birth_date_hint),
-            icon = PoruchIcons.calendar
+        AdultCheck(state.adult) { onIntent(AuthIntent.SetAdult(it)) }
+        PrimaryButton(
+            stringResource(R.string.auth_birth_date_continue), { onIntent(AuthIntent.ConfirmAdult) },
+            Modifier.fillMaxWidth(), enabled = state.adult, loading = state.mutating
+        )
+    }
+}
+
+/** «Мені вже є 18» з підписом, навіщо: увесь рядок — одна ціль, і TalkBack читає підпис разом зі станом. */
+@Composable
+internal fun AdultCheck(checked: Boolean, onChange: (Boolean) -> Unit) {
+    val colors = Poruch.colors
+    Row(
+        Modifier.fillMaxWidth().cardSurface().toggleable(checked, role = Role.Checkbox, onValueChange = onChange)
+            .padding(Spacing.lg),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        Checkbox(
+            checked, null,
+            colors = CheckboxDefaults.colors(checkedColor = colors.brand, checkmarkColor = colors.onBrand, uncheckedColor = colors.inkTertiary)
+        )
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(stringResource(R.string.adult_confirm), style = MaterialTheme.typography.titleSmall, color = colors.ink)
+            Text(stringResource(R.string.adult_confirm_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+        }
+    }
+}
+
+/** «Увійти кодом з пошти», крок 1: лише пошта. Вписана в форму переноситься. */
+@Composable
+private fun CodeEmailStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
+    val emailField = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { emailField.requestFocus() } }
+    Column(Modifier.padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+        LabelledField(
+            stringResource(R.string.email), state.email, { onIntent(AuthIntent.SetEmail(it)) },
+            focusRequester = emailField,
+            placeholder = stringResource(R.string.email_placeholder),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false)
         )
         PrimaryButton(
-            stringResource(R.string.auth_birth_date_continue), { onIntent(AuthIntent.DeclareBirthDate) },
-            Modifier.fillMaxWidth(), enabled = state.canDeclareBirthDate, loading = state.mutating
+            stringResource(R.string.auth_code_send), { onIntent(AuthIntent.SendCode) },
+            Modifier.fillMaxWidth(), icon = PoruchIcons.mail, enabled = state.emailValid, loading = state.mutating
         )
+        ConsentNote(onIntent)
+    }
+}
+
+/** Крок 2: код з листа. Поле одразу у фокусі, «Надіслати ще раз» — після хвилини, як дозволяє Supabase. */
+@Composable
+private fun CodeStep(state: AuthState, email: String, onIntent: (AuthIntent) -> Unit) {
+    val colors = Poruch.colors
+    val codeField = remember { FocusRequester() }
+    LaunchedEffect(email) { runCatching { codeField.requestFocus() } }
+    Column(Modifier.padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+        Text(stringResource(R.string.auth_code_sent, email), style = MaterialTheme.typography.bodyLarge, color = colors.ink)
+        LabelledField(
+            stringResource(R.string.auth_code_field), state.code, { onIntent(AuthIntent.SetCode(it)) },
+            focusRequester = codeField,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done)
+        )
+        PrimaryButton(
+            stringResource(R.string.auth_code_confirm), { onIntent(AuthIntent.VerifyCode) },
+            Modifier.fillMaxWidth(), enabled = state.canVerify, loading = state.mutating
+        )
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            GhostButton(
+                if (state.resendIn > 0) stringResource(R.string.auth_code_resend_in, state.resendIn) else stringResource(R.string.auth_code_resend),
+                { onIntent(AuthIntent.SendCode) }, tone = colors.inkSecondary, enabled = state.resendIn == 0 && !state.mutating
+            )
+            GhostButton(stringResource(R.string.auth_code_other_email), { onIntent(AuthIntent.OtherEmail) }, tone = colors.inkSecondary)
+        }
     }
 }
 
@@ -315,5 +382,3 @@ private fun ResetStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     }
 }
 
-/** Дата народження показується так, як її пишуть люди. */
-private val BIRTH_DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")

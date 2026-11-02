@@ -2,6 +2,7 @@ package app.poruch.android.feature.mine
 
 import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
+import app.poruch.android.feature.withMedia
 import app.poruch.domain.MyEventsTab
 import app.poruch.shared.MyEventsPresenter
 import app.poruch.shared.PoruchApp
@@ -90,7 +91,18 @@ class MyEventsViewModel(private val app: PoruchApp) :
             is MyEventsIntent.Unsave -> app.toggleSaved(intent.id)
             MyEventsIntent.SignIn -> send(MyEventsEffect.SignIn)
             MyEventsIntent.CreateEvent -> { app.createStarted("mine"); send(MyEventsEffect.CreateEvent) }
+            // Картка «Моїх подій» медіа може не нести: спершу повні деталі, інакше повтор вийде без фото й відео.
+            is MyEventsIntent.Repeat -> withMedia(intent.event) { send(MyEventsEffect.Repeat(it.id)) }
+            is MyEventsIntent.ThreadsPost -> withMedia(intent.event) { send(MyEventsEffect.ThreadsPost(it, app.threadsPost(it))) }
         }
+    }
+
+    /** Деталі дозавантажуються: повторний тап не починає ще одне. Не вдалось — банер спільного шару, дія не йде. */
+    private var loadingMedia: Job? = null
+
+    private fun withMedia(event: app.poruch.domain.Event, then: (app.poruch.domain.Event) -> Unit) {
+        if (loadingMedia?.isActive == true) return
+        loadingMedia = viewModelScope.launch { app.withMedia(event)?.let(then) }
     }
 
     private companion object {

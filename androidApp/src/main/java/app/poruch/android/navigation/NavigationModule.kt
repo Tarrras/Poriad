@@ -43,5 +43,6 @@ val navigationModule = module {
         navigation<MyPlaces> { ContentColumn { MyPlacesRoute(get()) } }
         navigation<Auth> { route -> ContentColumn { AuthRoute(route, get()) } }
         navigation<NewPassword> { ContentColumn { NewPasswordRoute(get()) } }
+        navigation<Published> { ContentColumn { PublishedRoute(get()) } }
     }
 }

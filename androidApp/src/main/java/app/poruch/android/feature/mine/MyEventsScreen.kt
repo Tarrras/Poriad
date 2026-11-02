@@ -394,6 +394,8 @@ private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsI
             val score = state.screen.myRatings[event.id]
             val rate =
                 state.tab == MyEventsTab.GOING && score == null && RatingRules.canRate(event, now)
+            // Своя спільнотна (не пошук компанії на афішу): щотижневий клуб не набирає подію наново.
+            val repeat = state.tab == MyEventsTab.ORGANIZING && event.repeatable
             // Запит до не найближчої події інакше видно лише в бейджі чипа.
             val asks =
                 if (state.tab == MyEventsTab.ORGANIZING) state.screen.requests.count { it.eventId == event.id } else 0
@@ -414,6 +416,10 @@ private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsI
                             }
                         }
 
+                        repeat && !stacked -> {
+                            { RowAction(stringResource(R.string.repeat_event)) { onIntent(MyEventsIntent.Repeat(event)) } }
+                        }
+
                         state.tab == MyEventsTab.SAVED -> {
                             { SaveButton(true, { onIntent(MyEventsIntent.Unsave(event.id)) }) }
                         }
@@ -427,6 +433,9 @@ private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsI
             if (rate && stacked) Box(Modifier.padding(start = Spacing.lg, bottom = Spacing.md)) {
                 RateButton { onIntent(MyEventsIntent.StartRating(event)) }
             }
+            if (repeat && stacked) Box(Modifier.padding(start = Spacing.lg, bottom = Spacing.md)) {
+                RowAction(stringResource(R.string.repeat_event)) { onIntent(MyEventsIntent.Repeat(event)) }
+            }
             if (index < events.lastIndex) HairLine(Modifier.padding(start = Spacing.lg + 60.dp + Spacing.md))
         }
     }
@@ -437,10 +446,14 @@ private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsI
  * кнопка забирала місце в назви й адреси.
  */
 @Composable
-private fun RateButton(onClick: () -> Unit) {
+private fun RateButton(onClick: () -> Unit) = RowAction(stringResource(R.string.rate_action), onClick)
+
+/** Тонова дія рядка: «Оцінити», «Повторити». */
+@Composable
+private fun RowAction(text: String, onClick: () -> Unit) {
     val colors = Poruch.colors
     Text(
-        stringResource(R.string.rate_action),
+        text,
         style = MaterialTheme.typography.labelLarge,
         color = colors.ink,
         maxLines = 1,
@@ -617,8 +630,16 @@ private fun OrganizerPanel(
                 contentAlignment = Alignment.Center
             ) { Icon(PoruchIcons.share, null, Modifier.size(18.dp), tint = colors.ink) }
         }
+        // Дії організатора над своєю подією: наступна така сама і пост з посиланням на запис.
+        if (event.repeatable) PanelActions { weight ->
+            SecondaryButton(stringResource(R.string.repeat_event), { onIntent(MyEventsIntent.Repeat(event)) }, weight, icon = PoruchIcons.refresh)
+            SecondaryButton(stringResource(R.string.threads_post), { onIntent(MyEventsIntent.ThreadsPost(event)) }, weight, icon = PoruchIcons.doc)
+        }
     }
 }
+
+/** Спільнотна подія, а не пошук компанії на афішу: її можна повторити й анонсувати. */
+private val Event.repeatable get() = gathering != null && gathering?.companionOf == null
 
 @Composable
 private fun RequestRow(

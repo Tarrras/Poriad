@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.rememberScrollState
@@ -30,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -81,9 +83,16 @@ import app.poruch.domain.ShelterKind
 @Composable
 internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onIntent: (DetailIntent) -> Unit) {
     val room = state.screen.room
+    // Фото й відео від організатора — каруселлю замість обкладинки; без них — та сама афіша, що й на головній.
+    val media = event.media
+    val pager = rememberPagerState { media.size }
     Box(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth().height(heroHeight())) {
-            EventArt(event, Modifier.fillMaxSize(), glyph = 260.dp, glyphDrop = 120.dp)
+            // Відео грає, лише поки обкладинку видно: прокрутили під аркуш — стоїть.
+            val visibleUntil = with(LocalDensity.current) { (heroHeight() - HERO_OVERLAP).toPx() }
+            val onScreen by remember(visibleUntil) { derivedStateOf { scroll.value < visibleUntil } }
+            if (media.isNotEmpty()) MediaCarousel(media, pager, Modifier.fillMaxSize(), onScreen)
+            else EventArt(event, Modifier.fillMaxSize(), glyph = 260.dp, glyphDrop = 120.dp)
             // Обкладинка довільна, тож тонка тінь зверху тримає смугу статусу читабельною.
             Box(
                 Modifier.fillMaxWidth().align(Alignment.TopCenter)
@@ -94,7 +103,7 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
         }
         Row(Modifier.fillMaxWidth().statusBarsPadding().padding(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
             ScrimButton(PoruchIcons.arrowLeft, stringResource(R.string.back)) { onIntent(DetailIntent.Back) }
-            Spacer(Modifier.weight(1f))
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { if (media.size > 1) PagerDots(pager) }
             ScrimButton(
                 if (state.screen.saved) PoruchIcons.bookmarkFilled else PoruchIcons.bookmark,
                 stringResource(if (state.screen.saved) R.string.unsave else R.string.save)

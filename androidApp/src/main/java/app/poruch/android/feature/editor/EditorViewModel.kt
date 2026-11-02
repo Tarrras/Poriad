@@ -3,30 +3,55 @@ package app.poruch.android.feature.editor
 import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.android.platform.NotificationPermission
+import app.poruch.android.feature.known
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import app.poruch.domain.AnnouncementFill
+import app.poruch.domain.AnnouncementRules
 import app.poruch.domain.DraftField
+import app.poruch.domain.DraftMedia
 import app.poruch.domain.Event
+import app.poruch.domain.EventCategory
+import app.poruch.domain.EventDraft
+import app.poruch.domain.EventRules
 import app.poruch.domain.PlaceResult
 import app.poruch.shared.AppNotice
 import app.poruch.shared.PoruchApp
 import java.time.Instant
 import java.time.ZoneId
 
-/** Редактор на три кроки. Тримає форму, відновлює чернетку з [DraftStore], у стор іде лише коли все розбирається. */
+/**
+ * Редактор на чотири кроки. Тримає форму, відновлює чернетку з [DraftStore], у стор іде лише коли все розбирається.
+ * Відкритий і гостю: вхід — на «Опублікувати», після нього подія публікується сама ([AppState.publishAfterSignIn]).
+ * [repeatOf] — нова подія з полями, фото й відео власної («Повторити»).
+ */
 class EditorViewModel(
     private val app: PoruchApp,
     private val drafts: DraftStore,
+    private val files: DraftMediaFiles,
     private val notifications: NotificationPermission,
-    private val editingId: String?
+    private val editingId: String?,
+    repeatOf: String? = null
 ) : MviViewModel<EditorState, EditorIntent, EditorEffect>(EditorState(editing = editingId != null)) {
 
     private var original: Event? = null
     private var submitted = false
+    /** Вхід відкрито поверх редактора й чекає: гість натиснув «Опублікувати». */
+    private var awaitingSignIn = false
+    /**
+     * Чернетка правки від спільного шару ([PoruchApp.editDraft]): поля, медіа й `mediaBase` — файли, з якими редактор
+     * відкрився. Медіа шлемо лише змінені; що видаляти, звіряє спільний шар з сервером.
+     */
+    private var editDraft: EventDraft? = null
+    /** Форма, з якою правка відкрилась: «Відкинути зміни?» і чи чіпали медіа. */
+    private var originalForm: EditorForm? = null
+    /** Стиснення обраних файлів: «Стерти» скасовує їх разом, а з екраном вони йдуть самі (дочірні до viewModelScope). */
+    private var imports = Job(viewModelScope.coroutineContext.job)
     /** Нову подію почали з незакінченої чернетки: параметр `draft` воронки створення. */
     private var resumed = false
 
@@ -39,10 +64,21 @@ class EditorViewModel(
 
     init {
         val shared = app.state.value
-        val event = editingId?.let { id -> (shared.library.myEvents + shared.map.events).firstOrNull { it.id == id } }
+        // Повні медіа (`mediaLoaded`) — з відкритих деталей чи «Моїх подій»; картка мапи — запасна: тоді `mediaBase` нема, і
+        // правка медіа лише додає до серверних.
+        val event = editingId?.let { id ->
+            val known = listOfNotNull(shared.detail.event) + shared.library.myEvents + shared.map.events
+            known.firstOrNull { it.id == id && it.mediaLoaded } ?: known.firstOrNull { it.id == id }
+        }
         original = event
+        editDraft = event?.let(app::editDraft)
+        originalForm = editDraft?.toForm()
+        // Повтор не пишемо в чернетку, поки людина нічого не змінила: незакінчена нова лишається, якщо просто закрити.
+        // Повна подія: «Мої події» дозавантажили деталі перед переходом ([withMedia]).
+        val repeated = repeatOf?.let { id -> app.known(id) ?: shared.library.myEvents.firstOrNull { it.id == id } }
+            ?.let(app::repeatDraft)?.toForm()
         reduce {
-            val restored = event?.toForm() ?: drafts.load(shared.city.name)
+            val restored = originalForm ?: repeated ?: drafts.load(shared.city.name)
             // Мапа відкривається на крапці, якщо вона вже є.
             val (latitude, longitude) = restored.point ?: (shared.city.latitude to shared.city.longitude)
             copy(
@@ -51,7 +87,7 @@ class EditorViewModel(
                 taken = event?.gathering?.attendeeCount ?: 0
             )
         }
-        resumed = state.value.canStartOver
+        resumed = repeated == null && state.value.canStartOver
         // «Анонс отримають N людей поруч»: лише для нової зустрічі — про правки сервер нікому не пише.
         if (editingId == null) viewModelScope.launch {
             state.map { it.point }.distinctUntilChanged().collectLatest { point ->
@@ -68,31 +104,52 @@ class EditorViewModel(
             val loaded = editingId?.let { id -> latest.detail.event?.takeIf { it.id == id } }
             if (loaded != null && original == null) {
                 original = loaded
-                val form = loaded.toForm() ?: return@observe copy(mutating = latest.mutating)
+                editDraft = app.editDraft(loaded)
+                val form = editDraft?.toForm() ?: return@observe copy(mutating = latest.mutating)
+                originalForm = form
                 return@observe copy(
                     form = form, mapLatitude = loaded.latitude, mapLongitude = loaded.longitude, mutating = latest.mutating,
                     host = loaded.gathering?.organizerName?.takeIf { it.isNotBlank() } ?: host,
                     taken = loaded.gathering?.attendeeCount ?: 0
                 )
             }
-            // Відмову показуємо над кнопкою, де людина щойно натиснула, а не банером згори.
+            // Відмову показуємо над кнопкою, де людина щойно натиснула, а не банером згори. Поки зверху вхід, помилки — його
+            // (хибний код, забагато спроб).
             val failed = (latest.notice as? AppNotice.Failed)?.error
-            if (submitted && failed != null) {
-                submitted = false
+            if (submitted && failed != null && !awaitingSignIn) {
+                submitted = false; awaitingSignIn = false
                 app.clearNotice()
-                return@observe copy(mutating = latest.mutating, failure = failed)
+                return@observe copy(mutating = latest.mutating, upload = null, failure = failed)
             }
             if (submitted && latest.completedEventId != null) {
-                submitted = false
-                unsaved = false; saveJob?.cancel(); drafts.clear(); app.clearCompletedEvent()
+                submitted = false; awaitingSignIn = false
+                unsaved = false; saveJob?.cancel(); app.clearCompletedEvent()
+                // Файли вже в події: чернетка нової йде разом зі своїми, правка — лише зі своїми новими.
+                if (editingId == null) drafts.clear() else dropLocalFiles()
                 // Нова подія — момент спитати про сповіщення: без дозволу запити на участь не дзвонять.
                 // Закриваємось після відповіді, бо запит живе в маршруті редактора.
                 if (editingId == null && latest.remindersEnabled && !notifications.granted()) send(EditorEffect.AskNotificationPermission)
-                else send(EditorEffect.Close)
+                else finish()
             }
-            copy(mutating = latest.mutating)
+            // Гість: спільний шар перевірив чернетку й чекає на вхід, а то й на галочку віку — її сервер може попросити вже
+            // після входу (`AGE_REQUIRED` на публікації). Тоді вхід відкриваємо знову, на кроці галочки.
+            val needsSignIn = latest.publishAfterSignIn && (!latest.signedIn || latest.session.askBirthDate)
+            if (submitted && needsSignIn && !awaitingSignIn) {
+                awaitingSignIn = true
+                send(EditorEffect.SignIn)
+            } else if (awaitingSignIn && !needsSignIn) {
+                awaitingSignIn = false
+                // Закрили вхід без входу: лишаємось тут з чернеткою, публікація скасована.
+                if (!latest.publishAfterSignIn) submitted = false
+            }
+            // Нова подія публікується: анімація поверх редактора, а не спінер на кнопці (1.6).
+            copy(mutating = latest.mutating, upload = latest.mediaUpload, publishing = editingId == null && submitted && latest.mutating && !awaitingSignIn)
         }
     }
+
+    /** Нову подію опубліковано — «Подію створено» замість редактора; правку — просто назад. */
+    private fun finish() =
+        send(if (editingId == null && app.state.value.published != null) EditorEffect.Published else EditorEffect.Close)
 
     override fun onIntent(intent: EditorIntent) {
         when (intent) {
@@ -171,13 +228,14 @@ class EditorViewModel(
                 // Під час публікації не закриваємось: відповідь сервера нікому було б прийняти,
                 // чернетка лишалась би, і наступне «+» публікувало б ту саму подію вдруге.
                 state.value.mutating -> Unit
-                editingId != null && original?.toForm() != state.value.form -> reduce { copy(discarding = Discard.CHANGES) }
+                editingId != null && edited() -> reduce { copy(discarding = Discard.CHANGES) }
                 else -> send(EditorEffect.Close)
             }
             is EditorIntent.AskDiscard -> reduce { copy(discarding = intent.what) }
             is EditorIntent.ConfirmDiscard -> when (intent.what) {
                 Discard.CHANGES -> send(EditorEffect.Close)
                 Discard.DRAFT -> {
+                    imports.cancel(); imports = Job(viewModelScope.coroutineContext.job)
                     unsaved = false; saveJob?.cancel(); drafts.clear(); resumed = false
                     val city = app.state.value.city
                     reduce {
@@ -187,18 +245,104 @@ class EditorViewModel(
             }
             is EditorIntent.NotificationPermissionAnswered -> {
                 if (intent.granted) app.setRemindersEnabled(true)
-                send(EditorEffect.Close)
+                finish()
+            }
+            is EditorIntent.SetAnnounce -> reduce { copy(announce = intent.text.take(AnnouncementRules.TEXT_MAX)) }
+            EditorIntent.FillFromAnnounce -> fillFromAnnounce()
+            EditorIntent.ReopenAnnounce -> reduce { copy(announced = null) }
+            is EditorIntent.AddMedia -> addMedia(intent.uris)
+            is EditorIntent.RemoveMedia -> {
+                val removed = state.value.form.media.getOrNull(intent.index) ?: return
+                reduce { copy(form = form.copy(media = form.media - removed), trimmed = trimmed - (removed as? DraftMedia.Local)?.key.orEmpty()) }
+                (removed as? DraftMedia.Local)?.let { files.delete(it.key) }
+                persist()
+            }
+            is EditorIntent.MoveMedia -> {
+                val media = state.value.form.media.toMutableList()
+                if (intent.from !in media.indices || intent.to !in media.indices) return
+                media.add(intent.to, media.removeAt(intent.from))
+                reduce { copy(form = form.copy(media = media)) }
+                persist()
             }
         }
     }
 
+    /** «Заповнити»: функція розбирає анонс, і поля, яких у тексті нема, лишаються як були. Відповідь — і гостю. */
+    private fun fillFromAnnounce() {
+        val text = state.value.announce.trim()
+        if (text.isEmpty() || state.value.announcing) return
+        reduce { copy(announcing = true) }
+        val before = state.value.form
+        viewModelScope.launch {
+            val fill = app.fillFromAnnouncement(text, before.city, before.timeZone)
+            // Поки функція думала, людина вже публікує чи сама правила поля: пізня відповідь не затирає набране й не пише
+            // опубліковану подію знову в чернетку. Файли, що дотиснулись тим часом, — не правка.
+            if (submitted || state.value.form.copy(media = before.media) != before) {
+                reduce { copy(announcing = false) }
+                return@launch
+            }
+            reduce { copy(announcing = false, announced = fill, form = form.filledFrom(fill)) }
+            persist()
+            // Крапку ставить людина з підказок адрес, як і для набраної адреси: на кроці «Де» вони вже чекатимуть.
+            fill.address?.let(::suggestAddresses)
+        }
+    }
+
+    private fun EditorForm.filledFrom(fill: AnnouncementFill): EditorForm {
+        val address = fill.address?.trim()?.takeIf { it.isNotEmpty() && it != address }
+        return copy(
+            title = fill.title?.take(EventRules.titleLength.last) ?: title,
+            description = fill.description?.take(EventRules.descriptionLength.last) ?: description,
+            category = fill.category?.takeIf { it != EventCategory.UNKNOWN } ?: category,
+            starts = fill.startsAt?.toLocal(timeZone)?.takeIf { it.isNotEmpty() } ?: starts,
+            ends = fill.endsAt?.toLocal(timeZone)?.takeIf { it.isNotEmpty() } ?: ends,
+            address = address ?: this.address,
+            // Стара крапка стояла біля іншої адреси.
+            latitude = if (address != null) "" else latitude, longitude = if (address != null) "" else longitude,
+            capacity = fill.capacity?.toString() ?: capacity,
+            minAge = fill.minAge?.toString() ?: minAge,
+            contactUrl = fill.contactUrl ?: contactUrl
+        )
+    }
+
+    /** По одному: відео стискається довго, і два кодеки разом — забагато для телефона. */
+    private fun addMedia(uris: List<android.net.Uri>) {
+        val picked = uris.take(state.value.mediaRoom)
+        if (picked.isEmpty()) return
+        reduce { copy(importing = importing + picked.size, mediaFailed = false) }
+        viewModelScope.launch(imports) {
+            picked.forEach { uri ->
+                val imported = files.import(uri)
+                reduce {
+                    val left = (importing - 1).coerceAtLeast(0)
+                    if (imported == null) copy(importing = left, mediaFailed = true)
+                    else copy(
+                        importing = left, form = form.copy(media = form.media + imported.media),
+                        trimmed = if (imported.trimmed) trimmed + imported.media.key else trimmed
+                    )
+                }
+                imported?.let { app.mediaAdded(it.media.kind); persist() }
+            }
+        }
+    }
+
+    /** Нові файли правки потрібні лише до збереження: чернетки в правки нема. */
+    private fun dropLocalFiles() = state.value.form.media.filterIsInstance<DraftMedia.Local>().forEach { files.delete(it.key) }
+
     private fun submit() {
+        // Файл ще стискається: без нього подія вийшла б не з тими медіа, а він лишився б у закритому редакторі.
+        if (state.value.importing > 0) return
         // Уся форма, а не крок: поки людина дивилась на неї, початок міг стати минулим.
         state.value.form.problems().firstOrNull()?.let { field ->
             blocked(field)
             return reduce { copy(step = EditorStep.entries.first { field in it.fields }, showProblems = true) }
         }
-        val draft = state.value.form.toDraft(original?.imageUrl) ?: return
+        val form = state.value.form
+        // Правка без змін у файлах — null: сервер лишає медіа як є (старі клієнти так само).
+        // Правка: медіа не чіпали — null, сервер лишає як є; інакше список разом з базою, з якою редактор відкрився.
+        val base = editDraft
+        val media = if (base == null) form.media else form.media.takeIf { it != originalForm?.media }
+        val draft = form.toDraft(base?.imageUrl, media, base?.mediaBase) ?: return
         reduce { copy(failure = null) }
         app.clearCompletedEvent()
         submitted = true
@@ -208,7 +352,7 @@ class EditorViewModel(
 
     /** Воронка створення (docs/analytics.md): лише нова подія, правка наявної — інша історія. */
     private fun track(reached: EditorStep) {
-        if (editingId == null) app.createStep(reached.name.lowercase(), resumed)
+        if (editingId == null) app.createStep(reached.name.lowercase(), resumed, state.value.form.media.size)
     }
 
     private fun blocked(field: DraftField) {
@@ -230,6 +374,7 @@ class EditorViewModel(
     /** Екран закрили посеред паузи: недописане зберігаємо зараз. Після публікації й «Стерти» прапорець уже знято. */
     override fun onCleared() {
         if (unsaved) drafts.save(state.value.form)
+        if (editingId != null) dropLocalFiles()
         super.onCleared()
     }
 
@@ -302,17 +447,17 @@ class EditorViewModel(
         }
     }
 
-    /** Редагувати можна лише кімнату: сервер перевіряє те саме в `assert_event_editable`. */
-    private fun Event.toForm(): EditorForm? {
-        val room = gathering ?: return null
-        return EditorForm(
-            title = title, description = description, category = category, city = city, address = address,
-            latitude = latitude.format(), longitude = longitude.format(), timeZone = timeZone,
-            starts = startsAt.toLocal(timeZone), ends = endsAt.toLocal(timeZone), capacity = room.capacity.toString(),
-            minAge = room.minAge.toString(), maxAge = room.maxAge?.toString().orEmpty(),
-            approvalRequired = room.approvalRequired, contactUrl = room.contactUrl.orEmpty()
-        )
-    }
+    /** Правку змінено відносно форми, з якою вона відкрилась. */
+    private fun edited() = originalForm != null && originalForm != state.value.form
+
+    /** Чернетка правки ([PoruchApp.editDraft]) чи «Повторити» у формі; у повтору дати вже на тиждень пізніше. */
+    private fun EventDraft.toForm() = EditorForm(
+        title = title, description = description, category = category ?: EditorForm.DEFAULT_CATEGORY, city = city,
+        address = address, latitude = latitude.format(), longitude = longitude.format(), timeZone = timeZone,
+        starts = startsAt.toLocal(timeZone), ends = endsAt.toLocal(timeZone), capacity = capacity.toString(),
+        minAge = minAge.toString(), maxAge = maxAge?.toString().orEmpty(), approvalRequired = approvalRequired,
+        contactUrl = contactUrl.orEmpty(), media = media.orEmpty()
+    )
 
     private fun String.toLocal(zone: String) = runCatching {
         Instant.parse(this).atZone(ZoneId.of(zone)).toLocalDateTime().format(EditorForm.LOCAL_FORMAT)

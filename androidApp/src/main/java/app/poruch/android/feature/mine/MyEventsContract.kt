@@ -47,6 +47,9 @@ sealed interface MyEventsIntent {
     data class Unsave(val id: String) : MyEventsIntent
     data object SignIn : MyEventsIntent
     data object CreateEvent : MyEventsIntent
+    /** «Повторити» власну спільнотну подію: редактор з усіма полями, фото й відео, на тиждень пізніше. */
+    data class Repeat(val event: Event) : MyEventsIntent
+    data class ThreadsPost(val event: Event) : MyEventsIntent
 }
 
 sealed interface MyEventsEffect {
@@ -55,4 +58,6 @@ sealed interface MyEventsEffect {
     data object OpenMap : MyEventsEffect
     data object SignIn : MyEventsEffect
     data object CreateEvent : MyEventsEffect
+    data class Repeat(val id: String) : MyEventsEffect
+    data class ThreadsPost(val event: Event, val text: String) : MyEventsEffect
 }

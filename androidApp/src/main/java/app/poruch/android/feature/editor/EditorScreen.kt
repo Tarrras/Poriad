@@ -64,8 +64,11 @@ import java.time.LocalDateTime
 @Composable
 fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     val colors = Poruch.colors
-    // Системний «назад» — крок назад, з першого кроку — закрити майстер тим самим шляхом, що й хрестик.
-    BackHandler { onIntent(if (state.step != EditorStep.ABOUT) EditorIntent.Back else EditorIntent.Close) }
+    // Системний «назад» — крок назад, з першого кроку — закрити майстер тим самим шляхом, що й хрестик. Поки публікується,
+    // ковтаємо його: інакше кроки гортались би під накладкою, і відмова сервера показалась би не на тому кроці.
+    BackHandler {
+        if (!state.publishing) onIntent(if (state.step != EditorStep.ABOUT) EditorIntent.Back else EditorIntent.Close)
+    }
     Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding().imePadding()) {
         WizardHeader(state, onIntent)
         val scroll = rememberScrollState()
@@ -102,6 +105,17 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit) {
             Modifier.fillMaxWidth().background(colors.surface).navigationBarsPadding().padding(Spacing.page),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
+            // Останній крок, а файл ще стискається: «Опублікувати» чекає на нього.
+            if (state.step.isLast && state.importing > 0) Text(
+                stringResource(R.string.media_compressing), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
+            )
+            // Публікація вантажить файли по черзі: без рядка спінер на кнопці висів би мовчки.
+            state.upload?.let {
+                Text(
+                    stringResource(R.string.media_uploading, it.current, it.total), style = MaterialTheme.typography.bodyMedium,
+                    color = colors.inkSecondary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                )
+            }
             // Над кнопкою, бо поле з помилкою може бути за краєм або під клавіатурою.
             (state.failure?.text() ?: state.stepProblems.firstOrNull()?.takeIf { state.showProblems }?.rule())?.let {
                 // Червоний рядок TalkBack сам не помітить: кажемо його, щойно він з'явився чи змінився.
@@ -118,7 +132,7 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit) {
                 PrimaryButton(
                     stringResource(if (!state.step.isLast) R.string.next else if (state.editing) R.string.apply else R.string.publish),
                     { onIntent(if (state.step.isLast) EditorIntent.Submit else EditorIntent.Next) },
-                    modifier, enabled = !state.mutating, loading = state.mutating
+                    modifier, enabled = !state.mutating && !(state.step.isLast && state.importing > 0), loading = state.mutating
                 )
             }
             // На великому шрифті дві кнопки поруч не вміщають напис — ставимо одна під одною.
@@ -131,6 +145,7 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     }
 
     if (state.pickingPoint) PointPicker(state, onIntent)
+    if (state.publishing) PublishingOverlay(state)
 
     state.discarding?.let { what ->
         val changes = what == Discard.CHANGES
@@ -219,6 +234,8 @@ private fun WizardHeaderRow(state: EditorState, onIntent: (EditorIntent) -> Unit
 private fun AboutStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     val form = state.form
     val description = form.description.trim().length
+    // Порядок як у пості Threads: готовий текст, назва, опис, фото й відео, а жанр наприкінці.
+    if (!state.editing) AnnounceCard(state, onIntent)
     LabelledField(
         stringResource(R.string.title), form.title,
         { value -> onIntent(EditorIntent.Edit { copy(title = value.take(EventRules.titleLength.last)) }) },
@@ -236,6 +253,7 @@ private fun AboutStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         },
         error = state.problem(DraftField.DESCRIPTION)
     )
+    MediaSection(state, onIntent)
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Text(
             stringResource(R.string.category_single).uppercase(), style = MaterialTheme.typography.labelSmall,
@@ -528,7 +546,6 @@ private fun PeopleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         )
         if (form.contactUrl.isNotBlank() && !ContactRules.isContactUrl(form.contactUrl)) FieldError(DraftField.CONTACT_URL.rule())
     }
-    Text(stringResource(R.string.photo_after_publish), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
 }
 
 /**

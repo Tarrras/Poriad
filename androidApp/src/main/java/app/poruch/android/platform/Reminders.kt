@@ -324,6 +324,13 @@ class RequestNotificationCenter(context: Context) : RequestNotifier {
     fun notifyJoined(eventId: String, eventTitle: String, text: String) = post(JOINED_TAG, eventId, eventTitle, text, reason = "joined")
 
     /**
+     * Рішення організатора про мою участь (1.5): запит схвалено чи відхилено, з черги звільнилось місце ([kind] —
+     * `approved`, `declined`, `promoted`). Той самий канал «Запити на участь», одне на подію: новіше рішення заміняє старе.
+     */
+    fun notifyDecision(eventId: String, eventTitle: String, text: String, kind: String) =
+        post(DECISION_TAG, eventId, eventTitle, text, reason = kind)
+
+    /**
      * Подію скасовано чи перенесено — учасникам. Свій канал з високою важливістю: скасування за годину
      * до початку має спливти, а не лежати в шторці. Одне на подію: новіша зміна замінює попередню.
      * [reason] — `moved` чи `cancelled`, для метрики відкриттів.
@@ -385,6 +392,7 @@ class RequestNotificationCenter(context: Context) : RequestNotifier {
         const val CHANNEL = "join_requests"
         const val TAG = "request"
         const val JOINED_TAG = "joined"
+        const val DECISION_TAG = "decision"
         const val CHANGE_CHANNEL = "event_changes"
         const val CHANGE_TAG = "change"
         const val FOLLOW_CHANNEL = "follows"

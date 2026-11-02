@@ -4,7 +4,10 @@ import app.poruch.android.navigation.AuthReason
 import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.android.platform.NotificationPermission
+import app.poruch.domain.AppError
 import app.poruch.domain.FollowKind
+import app.poruch.shared.AppMessage
+import app.poruch.shared.AppNotice
 import app.poruch.shared.DetailAction
 import app.poruch.shared.DetailPresenter
 import app.poruch.shared.PoruchApp
@@ -27,6 +30,12 @@ class DetailViewModel(
     /** «На мапі»: слот відкритої події переходить мапі як фокус, і при знятті екрана ми його не чистимо. */
     private var handedOff = false
 
+    /** Запис з цього екрана, який сервер може спинити `AGE_REQUIRED`: повторюємо його, щойно дату збережено. */
+    private var join: (() -> Unit)? = null
+    private var declaring = false
+    /** Банер, що вже висів до запису: він не відповідь на нього. */
+    private var staleNotice: AppNotice? = null
+
     init {
         viewModelScope.launch {
             presenter.state.collect { screen ->
@@ -38,9 +47,41 @@ class DetailViewModel(
                 }
                 // Збіг «Піти разом»: сервер уже записав обох у супутник — відкриваємо його, там чат.
                 screen.matchedCompanion?.let { app.clearMatchedCompanion(); send(DetailEffect.OpenEvent(it)) }
-                reduce { copy(screen = screen) }
+                // Записались (чи в черзі, чи запит пішов): повтор більше не потрібен.
+                if (screen.room?.joined == true || screen.room?.awaitingApproval == true || screen.waitlisted) join = null
+                val detail = app.state.value.detail
+                val detailed = !screen.loading && detail.failure == null && detail.event?.id == screen.event?.id
+                reduce { copy(screen = screen, detailed = detailed) }
             }
         }
+        viewModelScope.launch {
+            app.state.collect { shared ->
+                // Помилку не показуємо банером «вкажіть у профілі»: шторка дати тут же, і запис іде після неї.
+                val notice = shared.notice
+                if (join != null && !declaring && notice != staleNotice) when {
+                    notice == AppNotice.Failed(AppError.AgeRequired) -> {
+                        app.clearNotice()
+                        reduce { copy(askingBirthDate = true) }
+                    }
+                    // Запис відмовлено з іншої причини: повторювати нема чого (і інший екран деталей не перехопить чужу помилку).
+                    notice is AppNotice.Failed -> join = null
+                }
+                if (declaring && shared.notice == AppNotice.Told(AppMessage.AGE_CONFIRMED)) {
+                    declaring = false
+                    join?.invoke()
+                }
+                // Дату не прийняли (молодше 18, уже вказана): банер скаже чому, повтору не буде.
+                if (declaring && shared.notice is AppNotice.Failed) { declaring = false; join = null }
+            }
+        }
+    }
+
+    /** Запис, що пам'ятає себе для повтору після дати народження. */
+    private fun joining(action: () -> Unit) {
+        join = action
+        staleNotice = app.state.value.notice
+        action()
+        offerReminders()
     }
 
     private val eventId get() = presenter.sessionId
@@ -81,14 +122,10 @@ class DetailViewModel(
                 }
             } else authenticated(AuthReason.JOIN) {
                 when (screen.action) {
-                    DetailAction.JOIN, DetailAction.REQUEST -> {
-                        app.joinEvent(eventId); offerReminders()
-                    }
+                    DetailAction.JOIN, DetailAction.REQUEST -> joining { app.joinEvent(eventId) }
 
                     DetailAction.LEAVE -> app.leaveEvent(eventId)
-                    DetailAction.JOIN_WAITLIST -> {
-                        app.joinWaitlist(eventId); offerReminders()
-                    }
+                    DetailAction.JOIN_WAITLIST -> joining { app.joinWaitlist(eventId) }
 
                     DetailAction.LEAVE_WAITLIST -> app.leaveWaitlist(eventId)
                     else -> Unit
@@ -160,7 +197,7 @@ class DetailViewModel(
                 app.createCompanion(eventId, intent.meetAt, intent.note, intent.capacity)
             }
 
-            is DetailIntent.JoinCompanion -> authenticated(AuthReason.JOIN) { app.joinEvent(intent.id); offerReminders() }
+            is DetailIntent.JoinCompanion -> authenticated(AuthReason.JOIN) { joining { app.joinEvent(intent.id) } }
             // Гостю намір ставить спільний шар після входу, тож спершу кажемо йому, а тоді ведемо на вхід.
             DetailIntent.WantCompany -> { app.wantCompany(); authenticated(AuthReason.COMPANY) { offerReminders() } }
             DetailIntent.DropCompany -> app.dropCompany()
@@ -198,18 +235,12 @@ class DetailViewModel(
                 )
             }
 
-            DetailIntent.Edit -> send(DetailEffect.Edit(eventId))
+            DetailIntent.Edit -> if (state.value.detailed) send(DetailEffect.Edit(eventId))
             is DetailIntent.ConfirmCancel -> reduce { copy(confirmingCancel = intent.open) }
             DetailIntent.CancelEvent -> {
                 reduce { copy(confirmingCancel = false) }
                 app.cancelEvent(eventId)
             }
-
-            is DetailIntent.AttachPhoto -> app.uploadEventImage(
-                eventId,
-                intent.bytes,
-                intent.contentType
-            )
 
             is DetailIntent.ShowReport -> if (intent.target != null && !screen.signedIn) {
                 send(DetailEffect.RequireSignIn())
@@ -273,6 +304,12 @@ class DetailViewModel(
 
             is DetailIntent.ApproveRequest -> app.approveMember(eventId, intent.userId)
             is DetailIntent.DeclineRequest -> app.declineMember(eventId, intent.userId)
+            is DetailIntent.DeclareBirthDate -> {
+                reduce { copy(askingBirthDate = false) }
+                if (intent.date == null) join = null
+                else { declaring = true; app.declareBirthDate(intent.date.toString()) }
+            }
+            DetailIntent.ThreadsPost -> event?.takeIf { state.value.detailed }?.let { send(DetailEffect.ThreadsPost(it, app.threadsPost(it))) }
             is DetailIntent.Rate -> app.rateEvent(
                 eventId,
                 intent.score,

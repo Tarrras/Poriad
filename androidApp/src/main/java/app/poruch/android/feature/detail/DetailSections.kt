@@ -82,6 +82,7 @@ import app.poruch.domain.RatingRules
 import app.poruch.domain.RatingTag
 import app.poruch.domain.ReportReason
 import app.poruch.domain.ShelterKind
+import app.poruch.domain.ShareMode
 
 // Секції екрана деталей: усе між обкладинкою й нижньою панеллю дії. Розрізано з DetailScreen.kt.
 
@@ -693,13 +694,21 @@ internal fun ExternalActions(state: DetailState, onIntent: (DetailIntent) -> Uni
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         RoundAction(PoruchIcons.calendar, stringResource(R.string.calendar_short), { onIntent(DetailIntent.AddToCalendar) }, Modifier.weight(1f), enabled = !state.screen.cancelled)
         RoundAction(PoruchIcons.directions, stringResource(R.string.open_in_maps), { onIntent(DetailIntent.OpenInMaps) }, Modifier.weight(1f))
-        // Поділитися подією — і є покликати (docs/invites.md). Скасовану чи минулу — просто поділитися.
-        // Підказка лише з входом: посилання гостя не несе імені, і пояснювати нема що.
-        if (state.screen.canInvite) RoundAction(
-            PoruchIcons.personAdd, stringResource(R.string.invite), { onIntent(DetailIntent.Share) },
-            Modifier.weight(1f).coachTarget(CoachTip.INVITE.takeIf { state.screen.signedIn }), loading = state.inviting
-        )
-        else RoundAction(PoruchIcons.share, stringResource(R.string.share), { onIntent(DetailIntent.Share) }, Modifier.weight(1f))
+        // Хто чим ділиться (1.6, ShareMode): організатор своєї звичайної події поширює анонс — пост для Threads з посиланням
+        // для запису (з повними деталями: у картці нема фото й відео); усі інші діляться з другом особистим посиланням, як
+        // «Покликати» (docs/invites.md). Скасовану чи минулу — просто поділитися. Підказка лише з входом: посилання гостя не
+        // несе імені, і пояснювати нема що.
+        when {
+            state.screen.shareMode == ShareMode.PROMOTE -> RoundAction(
+                PoruchIcons.share, stringResource(R.string.share_promote), { onIntent(DetailIntent.ThreadsPost) },
+                Modifier.weight(1f), enabled = state.detailed
+            )
+            state.screen.canInvite -> RoundAction(
+                PoruchIcons.personAdd, stringResource(R.string.share_friend), { onIntent(DetailIntent.Share) },
+                Modifier.weight(1f).coachTarget(CoachTip.INVITE.takeIf { state.screen.signedIn }), loading = state.inviting
+            )
+            else -> RoundAction(PoruchIcons.share, stringResource(R.string.share), { onIntent(DetailIntent.Share) }, Modifier.weight(1f))
+        }
         RoundAction(PoruchIcons.map, stringResource(R.string.on_map), { onIntent(DetailIntent.OpenMap) }, Modifier.weight(1f))
     }
 }
@@ -886,7 +895,6 @@ internal fun OrganizerActions(state: DetailState, onIntent: (DetailIntent) -> Un
     HairLine()
     // Час, місце й місткість супутника тримає сервер; після початку сервер не приймає правок. Лишається скасувати.
     val editable = state.screen.companionOf == null && !state.screen.started
-    if (editable) PhotoPickerButton(state.screen.mutating) { bytes, mime -> onIntent(DetailIntent.AttachPhoto(bytes, mime)) }
     // Збір: організатор міняє лише час (R7б).
     state.screen.event?.takeIf { state.screen.canMoveMeet }?.let { event ->
         SecondaryButton(
@@ -894,8 +902,16 @@ internal fun OrganizerActions(state: DetailState, onIntent: (DetailIntent) -> Un
             Modifier.fillMaxWidth(), enabled = !state.screen.mutating, icon = PoruchIcons.clock
         )
     }
+    // Окремо від «Поділитися»: там на своїй події «Покликати». Текст з посиланням і всі фото й відео — для свого посту.
+    // Як і «Редагувати» — з повними деталями: у картці стрічки нема фото й відео події.
+    if (state.screen.companionOf == null) SecondaryButton(
+        stringResource(R.string.threads_post), { onIntent(DetailIntent.ThreadsPost) }, Modifier.fillMaxWidth(),
+        enabled = state.detailed, icon = PoruchIcons.doc
+    )
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        if (editable) SecondaryButton(stringResource(R.string.edit), { onIntent(DetailIntent.Edit) }, Modifier.weight(1f), icon = PoruchIcons.edit)
+        if (editable) SecondaryButton(
+            stringResource(R.string.edit), { onIntent(DetailIntent.Edit) }, Modifier.weight(1f), enabled = state.detailed, icon = PoruchIcons.edit
+        )
         SecondaryButton(
             stringResource(R.string.cancel_event), { onIntent(DetailIntent.ConfirmCancel(true)) },
             Modifier.weight(1f), enabled = !state.screen.mutating, tone = colors.danger

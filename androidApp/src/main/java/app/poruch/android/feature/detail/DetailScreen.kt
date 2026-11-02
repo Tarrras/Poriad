@@ -5,6 +5,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import org.koin.compose.koinInject
 import app.poruch.shared.PoruchApp
+import app.poruch.android.feature.editor.BirthDateSheet
+import app.poruch.domain.SafetyRules
 import app.poruch.android.feature.wallet.WalletUi
 import app.poruch.android.platform.TicketFiles
 import androidx.compose.ui.layout.onSizeChanged
@@ -254,6 +256,17 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     }
     state.reporting?.let { target -> ReportSheet(target, onIntent) }
     if (state.seekingCompany) CompanionSheet(event, state.screen.mutating, onIntent)
+    // `AGE_REQUIRED`: організатор обмежив вік, а в акаунта лише галочка (чи віку нема зовсім). Дата — тут, і запис іде
+    // одразу після неї.
+    if (state.askingBirthDate) {
+        val limited = state.screen.room?.let { it.minAge > SafetyRules.MIN_SIGNUP_AGE || it.maxAge != null } == true
+        BirthDateSheet(
+            null, { onIntent(DetailIntent.DeclareBirthDate(null)) },
+            title = stringResource(if (limited) R.string.age_date_title else R.string.confirm_age_title),
+            body = stringResource(if (limited) R.string.age_date_body else R.string.birth_date_hint),
+            confirm = stringResource(R.string.age_date_continue)
+        ) { onIntent(DetailIntent.DeclareBirthDate(it)) }
+    }
     state.movingMeet?.let { from ->
         val parent = state.screen.companionOf
         val start = parent?.startsAt

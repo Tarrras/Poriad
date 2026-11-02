@@ -1473,6 +1473,18 @@ object PoruchIcons {
             .build()
     }
 
+    /** Відео: ▶ на мініатюрі й у каруселі. */
+    val play: ImageVector by lazy {
+        builder("play")
+            .fill {
+                moveTo(8f, 5.5f)
+                lineTo(19f, 12f)
+                lineTo(8f, 18.5f)
+                close()
+            }
+            .build()
+    }
+
     /** «Назад» у шапці. */
     val arrowLeft: ImageVector by lazy {
         builder("arrowLeft")

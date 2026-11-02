@@ -23,7 +23,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.runtime.remember
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
@@ -182,10 +185,25 @@ fun RoundAction(
             if (loading) CircularProgressIndicator(Modifier.size(20.dp), color = ink, strokeWidth = 2.dp)
             else Icon(icon, null, Modifier.size(22.dp), tint = ink)
         }
-        // На великому шрифті — трикрапка, а не підпис, обрізаний посеред слова.
-        Text(title, style = MaterialTheme.typography.labelMedium, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        // Два рядки: «Поширити анонс», «Поділитися з другом» (1.6) в один не вміщались. На вузькому телефоні (360 dp) слово
+        // ще й рвалось посередині («Календа/р») — тож шрифт менший, поки кожне слово не стане в рядок, але не менше 3/4.
+        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val measurer = rememberTextMeasurer()
+            val base = MaterialTheme.typography.labelMedium
+            val style = remember(title, constraints.maxWidth, base) {
+                val words = title.split(' ')
+                generateSequence(1f) { it - 0.05f }.takeWhile { it >= MIN_LABEL_SCALE }
+                    .map { base.copy(fontSize = base.fontSize * it) }
+                    .firstOrNull { candidate -> words.all { measurer.measure(it, candidate, maxLines = 1).size.width <= constraints.maxWidth } }
+                    ?: base.copy(fontSize = base.fontSize * MIN_LABEL_SCALE)
+            }
+            Text(title, style = style, color = ink, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+        }
     }
 }
+
+/** Наскільки може зменшитись підпис круглої дії, щоб слово не рвалось. */
+private const val MIN_LABEL_SCALE = 0.75f
 
 @Composable
 fun CreateButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -211,5 +229,17 @@ fun CreateButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
             Modifier.size(24.dp),
             tint = colors.onBrand
         )
+    }
+}
+
+/** Ряд дій деталей з довгими підписами 1.6: «Поширити анонс», «Поділитися з другом» — у два рядки, не трикрапкою. */
+@Preview(widthDp = 360)
+@Composable
+private fun RoundActionsPreview() = PoruchTheme(dark = false) {
+    Row(Modifier.background(Poruch.colors.canvas).padding(Spacing.page), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        RoundAction(PoruchIcons.calendar, "Календар", {}, Modifier.weight(1f))
+        RoundAction(PoruchIcons.share, "Поширити анонс", {}, Modifier.weight(1f))
+        RoundAction(PoruchIcons.personAdd, "Поділитися з другом", {}, Modifier.weight(1f))
+        RoundAction(PoruchIcons.map, "На мапі", {}, Modifier.weight(1f))
     }
 }

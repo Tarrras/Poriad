@@ -1,5 +1,8 @@
 package app.poruch.android.feature.editor
 
+import android.net.Uri
+import app.poruch.domain.AnnouncementFill
+import app.poruch.domain.DraftMedia
 import app.poruch.domain.EventCategory
 import app.poruch.domain.AppError
 import app.poruch.domain.ContactRules
@@ -30,14 +33,19 @@ data class EditorForm(
     val maxAge: String = "",
     val approvalRequired: Boolean = false,
     /** Чат учасників. Порожньо — без чату. */
-    val contactUrl: String = ""
+    val contactUrl: String = "",
+    /** Фото й відео в порядку показу, перше — обкладинка. Нові лежать на телефоні до публікації. */
+    val media: List<DraftMedia> = emptyList()
 ) {
     /** Крапка зустрічі, якщо є. З самих координат, а не з прапорця: прапорець розходився з ними. */
     val point: Pair<Double, Double>?
         get() = latitude.toDoubleOrNull()?.let { lat -> longitude.toDoubleOrNull()?.let { lon -> lat to lon } }
 
-    /** Null, поки не розбирається кожне поле. Кнопка публікації дивиться сюди. */
-    fun toDraft(imageUrl: String?): EventDraft? = runCatching {
+    /**
+     * Null, поки не розбирається кожне поле. Кнопка публікації дивиться сюди. [media] null — медіа події не чіпати;
+     * [mediaBase] — з чернетки правки ([app.poruch.shared.PoruchApp.editDraft]).
+     */
+    fun toDraft(imageUrl: String?, media: List<DraftMedia>?, mediaBase: Set<String>? = null): EventDraft? = runCatching {
         val zone = ZoneId.of(timeZone)
         EventDraft(
             title = title.trim(), description = description.trim(), category = category,
@@ -47,7 +55,8 @@ data class EditorForm(
             endsAt = LocalDateTime.parse(ends, LOCAL_FORMAT).atZone(zone).toInstant().toString(),
             timeZone = timeZone, capacity = capacity.toInt(), imageUrl = imageUrl,
             minAge = minAge.toInt(), maxAge = maxAge.trim().takeIf { it.isNotEmpty() }?.toInt(),
-            approvalRequired = approvalRequired, contactUrl = ContactRules.normalize(contactUrl)
+            approvalRequired = approvalRequired, contactUrl = ContactRules.normalize(contactUrl), media = media,
+            mediaBase = mediaBase
         ).also {
             if (!SafetyRules.isAgeLimit(it.minAge, it.maxAge)) error("age limits")
             if (!ContactRules.isContactUrl(it.contactUrl)) error("contact url")
@@ -68,7 +77,7 @@ data class EditorForm(
             startsAt = instant(starts), endsAt = instant(ends), timeZone = timeZone,
             capacity = capacity.toIntOrNull() ?: 0, minAge = minAge.toIntOrNull() ?: 0,
             maxAge = maxAge.trim().takeIf { it.isNotEmpty() }?.let { it.toIntOrNull() ?: -1 },
-            approvalRequired = approvalRequired, contactUrl = ContactRules.normalize(contactUrl)
+            approvalRequired = approvalRequired, contactUrl = ContactRules.normalize(contactUrl), media = media
         ).validate(now.toString())
     }
 
@@ -85,11 +94,11 @@ enum class EditorStep(
     /** Поля, які людина вводить на цьому кроці: їхні помилки тримають «Далі». */
     val fields: Set<DraftField>
 ) {
-    ABOUT(setOf(DraftField.TITLE, DraftField.DESCRIPTION, DraftField.CATEGORY)),
+    // IMAGE_URL — і понад п'ять фото чи відео: вони на першому кроці.
+    ABOUT(setOf(DraftField.TITLE, DraftField.DESCRIPTION, DraftField.CATEGORY, DraftField.IMAGE_URL)),
     PLACE(setOf(DraftField.ADDRESS, DraftField.LOCATION)),
     SCHEDULE(setOf(DraftField.STARTS_AT, DraftField.ENDS_AT, DraftField.TIME_ZONE)),
-    // Фото додають після публікації, тож IMAGE_URL тут лише щоб кожне поле мало свій крок.
-    PEOPLE(setOf(DraftField.CAPACITY, DraftField.AGE_LIMITS, DraftField.CONTACT_URL, DraftField.IMAGE_URL));
+    PEOPLE(setOf(DraftField.CAPACITY, DraftField.AGE_LIMITS, DraftField.CONTACT_URL));
 
     val isLast get() = this == PEOPLE
     fun next() = entries.getOrElse(ordinal + 1) { this }
@@ -124,13 +133,32 @@ data class EditorState(
     /** Скільки вже йде: нова зустріч друкується «0/20». */
     val taken: Int = 0,
     /** Скільки людей поруч почують про нову зустріч у цій крапці («Мої місця»). Null — менше трьох, не знаємо чи правимо. */
-    val audience: Int? = null
+    val audience: Int? = null,
+    /** Текст у картці «Є готовий анонс?». */
+    val announce: String = "",
+    val announcing: Boolean = false,
+    /** Що заповнив анонс: картка згорнута в рядок «Заповнили з анонсу…». Null — картка відкрита. */
+    val announced: AnnouncementFill? = null,
+    /** Скільки обраних файлів ще стискаємо. */
+    val importing: Int = 0,
+    /** Котрийсь обраний файл не вдалося додати: рядок під плитками до наступного вибору. */
+    val mediaFailed: Boolean = false,
+    /** Відео, обрізані до перших 30 с: «Перші 30 секунд» під мініатюрою. */
+    val trimmed: Set<String> = emptySet(),
+    /** «Завантажуємо 2 з 4» під час публікації. */
+    val upload: app.poruch.shared.MediaUpload? = null,
+    /** Нова подія публікується: накладка з анімацією й лічильником файлів. */
+    val publishing: Boolean = false
 ) {
     val point get() = form.point
     val pointChosen get() = point != null
 
-    /** Є що стерти: чернетка з текстом чи адресою. */
-    val canStartOver get() = !editing && (form.title.isNotBlank() || form.description.isNotBlank() || form.address.isNotBlank())
+    /** Є що стерти: чернетка з текстом, адресою чи файлами. */
+    val canStartOver get() = !editing &&
+        (form.title.isNotBlank() || form.description.isNotBlank() || form.address.isNotBlank() || form.media.isNotEmpty())
+
+    /** Скільки ще файлів можна додати. */
+    val mediaRoom get() = app.poruch.domain.MediaRules.MAX_ITEMS - form.media.size - importing
 
     /** Кожен крок перевіряє лише свої поля, тож «Далі» не блокується наступним. */
     val stepProblems: List<DraftField> get() = form.problems().filter { it in step.fields }
@@ -164,9 +192,23 @@ sealed interface EditorIntent {
     data class ConfirmDiscard(val what: Discard) : EditorIntent
     /** Відповідь системи на [EditorEffect.AskNotificationPermission]. */
     data class NotificationPermissionAnswered(val granted: Boolean) : EditorIntent
+    data class SetAnnounce(val text: String) : EditorIntent
+    /** «Заповнити» в картці анонсу. */
+    data object FillFromAnnounce : EditorIntent
+    /** «Інший текст»: картка знову відкрита. */
+    data object ReopenAnnounce : EditorIntent
+    /** Обране в системному виборі фото й відео. */
+    data class AddMedia(val uris: List<Uri>) : EditorIntent
+    data class RemoveMedia(val index: Int) : EditorIntent
+    /** Перетягнули плитку: перше стане обкладинкою. */
+    data class MoveMedia(val from: Int, val to: Int) : EditorIntent
 }
 
 sealed interface EditorEffect {
     data object Close : EditorEffect
+    /** Гість натиснув «Опублікувати»: вхід поверх редактора, після нього подія публікується сама. */
+    data object SignIn : EditorEffect
+    /** Нову подію опубліковано: редактор поступається екрану «Подію створено». */
+    data object Published : EditorEffect
     data object AskNotificationPermission : EditorEffect
 }
