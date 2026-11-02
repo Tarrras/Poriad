@@ -41,8 +41,9 @@ internal class HomeDiscovery(
     /** Стрічка головної окремим запитом, коли мапа звужена фільтрами. */
     fun refresh() {
         val snapshot = area
+        // До запуску: див. [DiscoveryEngine.refresh].
+        store.update { it.copy(home = it.home.copy(loading = true)) }
         feedJob.launch {
-            store.update { it.copy(home = it.home.copy(loading = true)) }
             var offline = false
             val page = try {
                 events.discover(snapshot)
