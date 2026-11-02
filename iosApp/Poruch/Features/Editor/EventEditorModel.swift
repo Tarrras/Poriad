@@ -37,10 +37,12 @@ struct EditorForm: Codable, Equatable {
     var contactUrl: String?
     /// Фото й відео в порядку показу, перше — обкладинка. Optional, щоб старі чернетки читались далі.
     var media: [DraftItem]?
+    /// Ціна входу, гривні (docs/organizers-1.5.md, 1.7). Nil — безкоштовно.
+    var price: Int?
 
     private enum CodingKeys: String, CodingKey {
         case title, description, categoryKey = "category", city, address, latitude, longitude, placed
-        case starts, ends, timeZone, capacity, minAge, maxAge, approvalRequired, contactUrl, media
+        case starts, ends, timeZone, capacity, minAge, maxAge, approvalRequired, contactUrl, media, price
     }
 
     /// Посилання, як його бачить чернетка: обрізане, порожнє стає nil.
@@ -71,7 +73,8 @@ struct EditorForm: Codable, Equatable {
             startsAt: iso.string(from: starts), endsAt: iso.string(from: ends),
             timeZone: timeZone, capacity: Int32(capacity), imageUrl: imageUrl,
             minAge: Int32(minAge), maxAge: maxAge.map { KotlinInt(int: Int32($0)) },
-            approvalRequired: approvalRequired, contactUrl: contactLink, media: media, mediaBase: mediaBase
+            approvalRequired: approvalRequired, contactUrl: contactLink, media: media, mediaBase: mediaBase,
+            price: price.map { KotlinInt(int: Int32(clamping: $0)) }
         )
     }
 }
@@ -598,7 +601,8 @@ extension EditorForm {
             media: (draft.media ?? []).compactMap { item in
                 (item as? DraftMediaCopied).map { DraftItem($0.media, origin: .copied) }
                     ?? (item as? DraftMediaRemote).map { DraftItem($0.media, origin: .remote) }
-            }
+            },
+            price: draft.price.map { Int(truncating: $0) }
         )
     }
 }

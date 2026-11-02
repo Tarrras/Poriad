@@ -91,6 +91,7 @@ fun DraftField.rule(): String = when (this) {
     DraftField.IMAGE_URL -> stringResource(R.string.field_image_url, ImageRules.MAX_BYTES / (1024 * 1024))
     DraftField.AGE_LIMITS -> stringResource(R.string.field_age_limits, SafetyRules.MIN_SIGNUP_AGE, SafetyRules.MAX_AGE_LIMIT)
     DraftField.CONTACT_URL -> stringResource(R.string.field_contact_url)
+    DraftField.PRICE -> stringResource(R.string.err_price)
 }
 
 private val AppMessage.resource: Int

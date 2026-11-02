@@ -127,7 +127,9 @@ internal data class EventDto(
             maxAge = maxAge,
             contactUrl = contactUrl,
             companionOf = companionOf?.let { CompanionParent(it, companionOfTitle.orEmpty(), companionOfStartsAt) },
-            pendingMeet = meetProposed?.let { proposed -> meetDecideBy?.let { PendingMeet(proposed, it) } }
+            pendingMeet = meetProposed?.let { proposed -> meetDecideBy?.let { PendingMeet(proposed, it) } },
+            // Ціна людини — ціле; `price_min` спільний з афішею, тож тут дробу не буває.
+            price = priceMin?.toInt()?.takeIf { it > 0 }
         )
     }
 

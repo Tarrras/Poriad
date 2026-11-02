@@ -95,6 +95,8 @@ internal class SupabaseEventAuthoring(
                 buildJsonObject { put("kind", m.kind.key); put("url", m.url); m.poster?.let { put("poster", it) } }
             })
         } ?: JsonNull)
+        // Завжди: 0 — безкоштовно (правка прибирає ціну). Null сервер читає як старий клієнт і ціну лишає.
+        put("p_price", d.price ?: 0)
         // Лише коли є: сервер без міграції чату не знає цього параметра, а відсутній означає «без чату».
         ContactRules.normalize(d.contactUrl)?.let { put("p_contact_url", it) }
     }

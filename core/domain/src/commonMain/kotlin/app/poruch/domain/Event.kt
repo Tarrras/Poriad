@@ -242,7 +242,9 @@ data class Gathering(
     /** Супутник «Йдемо разом»: на яку афішу йдуть. Null — звичайна подія. */
     val companionOf: CompanionParent? = null,
     /** Афішу перенесли, збір чекає рішення організатора (R7а). */
-    val pendingMeet: PendingMeet? = null
+    val pendingMeet: PendingMeet? = null,
+    /** Ціна входу в гривнях, точна, без «від» (`events.price_min`). Як оплатити — з організатором напряму. Null — безкоштовно. */
+    val price: Int? = null
 ) {
     val seatsLeft get() = (capacity - attendeeCount).coerceAtLeast(0)
 
@@ -450,7 +452,9 @@ data class EventDraft(
      * сервері є (додали в кабінеті, поки був відкритий редактор), — лишається. Null — редактор з картки, деталі ще їхали:
      * список лише додає до серверних медіа, і нічого не зникає. Нової події не стосується.
      */
-    val mediaBase: Set<String>? = null
+    val mediaBase: Set<String>? = null,
+    /** Ціна входу в гривнях, [EventRules.price]. Null — безкоштовно: правка її теж прибирає. */
+    val price: Int? = null
 ) {
     fun validate(now: String): List<DraftField> = buildList {
         if (title.trim().length !in EventRules.titleLength) add(DraftField.TITLE)
@@ -470,5 +474,6 @@ data class EventDraft(
         if (!ContactRules.isContactUrl(contactUrl)) add(DraftField.CONTACT_URL)
         // Окремого поля нема: платформи вже мають текст для IMAGE_URL, а вибір і так не дає більше п'яти.
         if ((media?.size ?: 0) > MediaRules.MAX_ITEMS) add(DraftField.IMAGE_URL)
+        if (price != null && price !in EventRules.price) add(DraftField.PRICE)
     }
 }

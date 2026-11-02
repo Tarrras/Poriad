@@ -18,6 +18,14 @@ class EventDraftTest {
         assertTrue(draft().copy(contactUrl="https://t.me/po ruch").validate("2030-01-01T00:00:00Z").contains(DraftField.CONTACT_URL))
         assertTrue(draft().copy(contactUrl="https://"+"a".repeat(600)).validate("2030-01-01T00:00:00Z").contains(DraftField.CONTACT_URL))
     }
+    @Test fun priceIsWholeHryvniasUpToAHundredThousand() {
+        assertFalse(draft().validate("2030-01-01T00:00:00Z").contains(DraftField.PRICE), "no price — free")
+        assertFalse(draft().copy(price = 100_000).validate("2030-01-01T00:00:00Z").contains(DraftField.PRICE))
+        assertTrue(draft().copy(price = 0).validate("2030-01-01T00:00:00Z").contains(DraftField.PRICE), "free is null, not 0")
+        assertTrue(draft().copy(price = 100_001).validate("2030-01-01T00:00:00Z").contains(DraftField.PRICE))
+        assertEquals("1\u00A0500", EventRules.formatPrice(1500))
+        assertEquals("300", EventRules.formatPrice(300))
+    }
     @Test fun contactHostIsWhatThePersonWillSee() {
         assertEquals("t.me", ContactRules.host("https://t.me/poruch?start=1"))
         assertEquals("instagram.com", ContactRules.host("https://instagram.com"))

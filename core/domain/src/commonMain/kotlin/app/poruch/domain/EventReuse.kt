@@ -25,7 +25,8 @@ object EventEdit {
             startsAt = event.startsAt, endsAt = event.endsAt, timeZone = event.timeZone, capacity = room.capacity,
             imageUrl = event.imageUrl, minAge = room.minAge, maxAge = room.maxAge, approvalRequired = room.approvalRequired,
             contactUrl = room.contactUrl, media = media.map { DraftMedia.Remote(it) },
-            mediaBase = if (event.mediaLoaded) media.flatMap { listOfNotNull(it.url, it.poster) }.toSet() else null
+            mediaBase = if (event.mediaLoaded) media.flatMap { listOfNotNull(it.url, it.poster) }.toSet() else null,
+            price = room.price
         )
     }
 }
@@ -85,6 +86,7 @@ object ThreadsPost {
      * ```
      * {Назва}
      * {нд, 2 листопада, 19:00} · {Місце}
+     * Вхід — {300} ₴ — лише з ціною, як у кабінеті (`threadsPost` у site/js/poriad.js)
      *
      * {blurb або перші 200 символів опису}
      *
@@ -92,11 +94,13 @@ object ThreadsPost {
      * ```
      * Час — у поясі події. Порожній опис — без абзацу.
      */
-    fun text(event: Event): String =
-        text(event.id, event.displayTitle, event.startsAt, event.timeZone, event.placeLabel, event.blurb, event.description)
+    fun text(event: Event): String = text(
+        event.id, event.displayTitle, event.startsAt, event.timeZone, event.placeLabel, event.blurb, event.description,
+        event.gathering?.price
+    )
 
     /** Те саме з полів: щойно опублікована подія ([EventDraft]) ще не має картки. */
-    fun text(id: String, title: String, startsAt: String, timeZone: String, place: String, blurb: String?, description: String): String {
+    fun text(id: String, title: String, startsAt: String, timeZone: String, place: String, blurb: String?, description: String, price: Int?): String {
         val zone = runCatching { TimeZone.of(timeZone) }.getOrDefault(TimeZone.UTC)
         val start = runCatching { Instant.parse(startsAt) }.getOrNull()?.toLocalDateTime(zone)
         val date = start?.let {
@@ -107,7 +111,10 @@ object ThreadsPost {
         val about = blurb?.trim()?.takeIf { it.isNotEmpty() }
             ?: if (text.length <= ABOUT_MAX) text else text.take(ABOUT_MAX).trimEnd() + "…"
         return listOfNotNull(
-            title + "\n" + listOfNotNull(date, place.takeIf { it.isNotBlank() }).joinToString(" · "),
+            listOfNotNull(
+                title, listOfNotNull(date, place.takeIf { it.isNotBlank() }).joinToString(" · "),
+                price?.let { "Вхід — " + EventRules.formatPrice(it) + " ₴" }
+            ).joinToString("\n"),
             about.takeIf { it.isNotEmpty() },
             "Запис: " + EventLinks.url(id).removePrefix("https://")
         ).joinToString("\n\n")

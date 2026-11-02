@@ -44,6 +44,11 @@ class EventReuseTest {
         val long = ThreadsPost.text(club.copy(description = "а".repeat(250)))
         assertTrue("а".repeat(200) + "…\n\n" in long)
         assertFalse("\n\n\n" in ThreadsPost.text(club.copy(description = "")), "no empty paragraph")
+        // З ціною (1.7) — рядок «Вхід» під датою, як у кабінеті.
+        val priced = club.copy(gathering = club.gathering!!.copy(price = 1500))
+        assertTrue(ThreadsPost.text(priced).startsWith("Книжковий клуб\nвт, 20 жовтня, 19:00 · Пекарня Протісто, Академмістечко\nВхід — 1\u00A0500 ₴\n\n"))
+        assertEquals(1500, EventEdit.draft(priced)!!.price, "edit and repeat keep the price")
+        assertEquals(1500, EventRepeat.draft(priced, Instant.parse("2026-10-01T12:00:00Z"))!!.price)
     }
 
     /** «За подією і роллю» (1.6): анонс — лише організатор своєї звичайної спільнотної події, що ще попереду. */

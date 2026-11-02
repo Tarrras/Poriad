@@ -184,8 +184,8 @@ object HomeRules {
 
     private fun matches(filter: FeedFilter, event: Event, now: Instant, zone: TimeZone): Boolean = when (filter.kind) {
         FeedFilterKind.ALL -> true
-        // Безкоштовна афіша — за словом джерела; кімната — якщо це не «Йдемо разом» на платний концерт.
-        FeedFilterKind.FREE -> event.listing?.isFree == true || event.gathering.let { it != null && it.companionOf == null }
+        // Безкоштовна афіша — за словом джерела; кімната — якщо це не «Йдемо разом» на платний концерт і без ціни (1.7).
+        FeedFilterKind.FREE -> event.listing?.isFree == true || event.gathering.let { it != null && it.companionOf == null && it.price == null }
         FeedFilterKind.CATEGORY -> event.category == filter.category
         // Перетин з добою, а не лише початок: виставка, що йде, і «сьогодні», і «завтра».
         else -> {

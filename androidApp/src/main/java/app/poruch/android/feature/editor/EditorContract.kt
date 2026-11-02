@@ -35,7 +35,9 @@ data class EditorForm(
     /** Чат учасників. Порожньо — без чату. */
     val contactUrl: String = "",
     /** Фото й відео в порядку показу, перше — обкладинка. Нові лежать на телефоні до публікації. */
-    val media: List<DraftMedia> = emptyList()
+    val media: List<DraftMedia> = emptyList(),
+    /** Ціна входу, гривні (docs/organizers-1.5.md, 1.7). Порожньо — безкоштовно. */
+    val price: String = ""
 ) {
     /** Крапка зустрічі, якщо є. З самих координат, а не з прапорця: прапорець розходився з ними. */
     val point: Pair<Double, Double>?
@@ -56,7 +58,7 @@ data class EditorForm(
             timeZone = timeZone, capacity = capacity.toInt(), imageUrl = imageUrl,
             minAge = minAge.toInt(), maxAge = maxAge.trim().takeIf { it.isNotEmpty() }?.toInt(),
             approvalRequired = approvalRequired, contactUrl = ContactRules.normalize(contactUrl), media = media,
-            mediaBase = mediaBase
+            mediaBase = mediaBase, price = price.trim().takeIf { it.isNotEmpty() }?.toInt()
         ).also {
             if (!SafetyRules.isAgeLimit(it.minAge, it.maxAge)) error("age limits")
             if (!ContactRules.isContactUrl(it.contactUrl)) error("contact url")
@@ -77,7 +79,8 @@ data class EditorForm(
             startsAt = instant(starts), endsAt = instant(ends), timeZone = timeZone,
             capacity = capacity.toIntOrNull() ?: 0, minAge = minAge.toIntOrNull() ?: 0,
             maxAge = maxAge.trim().takeIf { it.isNotEmpty() }?.let { it.toIntOrNull() ?: -1 },
-            approvalRequired = approvalRequired, contactUrl = ContactRules.normalize(contactUrl), media = media
+            approvalRequired = approvalRequired, contactUrl = ContactRules.normalize(contactUrl), media = media,
+            price = price.trim().takeIf { it.isNotEmpty() }?.let { it.toIntOrNull() ?: -1 }
         ).validate(now.toString())
     }
 
@@ -98,7 +101,7 @@ enum class EditorStep(
     ABOUT(setOf(DraftField.TITLE, DraftField.DESCRIPTION, DraftField.CATEGORY, DraftField.IMAGE_URL)),
     PLACE(setOf(DraftField.ADDRESS, DraftField.LOCATION)),
     SCHEDULE(setOf(DraftField.STARTS_AT, DraftField.ENDS_AT, DraftField.TIME_ZONE)),
-    PEOPLE(setOf(DraftField.CAPACITY, DraftField.AGE_LIMITS, DraftField.CONTACT_URL));
+    PEOPLE(setOf(DraftField.CAPACITY, DraftField.AGE_LIMITS, DraftField.CONTACT_URL, DraftField.PRICE));
 
     val isLast get() = this == PEOPLE
     fun next() = entries.getOrElse(ordinal + 1) { this }

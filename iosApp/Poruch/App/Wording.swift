@@ -70,6 +70,7 @@ extension DraftField {
         case "TIME_ZONE": return "Не вдалося визначити часовий пояс. Оберіть місце ще раз"
         case "AGE_LIMITS": return "Вік — від \(SafetyRules.shared.MIN_SIGNUP_AGE) до \(SafetyRules.shared.MAX_AGE_LIMIT), і «від» не більше за «до»"
         case "CONTACT_URL": return "Посилання на чат має починатися з https:// і не містити пробілів"
+        case "PRICE": return Copy.err_price
         default: return "Фото — JPEG, PNG або WebP до 5 МБ"
         }
     }

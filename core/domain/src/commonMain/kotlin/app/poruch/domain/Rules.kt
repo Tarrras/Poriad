@@ -13,6 +13,11 @@ object EventRules {
     val titleLength = 3..120
     val descriptionLength = 10..5000
     val capacity = 1..10_000
+    /** Ціна входу на подію від людей, цілі гривні (docs/organizers-1.5.md, 1.7). Оплату людина узгоджує з організатором. */
+    val price = 1..100_000
+
+    /** «1 500» — з нерозривним пробілом між тисячами. */
+    fun formatPrice(price: Int): String = price.toString().reversed().chunked(3).joinToString("\u00A0").reversed()
 }
 
 /**

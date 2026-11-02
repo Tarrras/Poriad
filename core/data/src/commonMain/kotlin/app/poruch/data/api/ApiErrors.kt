@@ -67,6 +67,7 @@ private val SERVER_ERRORS: Map<String, AppError> = mapOf(
     "INVALID_DESCRIPTION" to AppError.InvalidDraft(listOf(DraftField.DESCRIPTION)),
     "INVALID_AGE_LIMIT" to AppError.InvalidDraft(listOf(DraftField.AGE_LIMITS)),
     "INVALID_CONTACT_URL" to AppError.InvalidDraft(listOf(DraftField.CONTACT_URL)),
+    "INVALID_PRICE" to AppError.InvalidDraft(listOf(DraftField.PRICE)),
     "ORGANIZER_CANNOT_JOIN" to AppError.OrganizerCannotJoin,
     "ALREADY_MEMBER" to AppError.AlreadyMember,
     "EVENT_HAS_SPACE" to AppError.EventHasSpace,

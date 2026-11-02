@@ -249,7 +249,7 @@ internal class EventUseCases(
             .let { parts -> if (parts.size == 2 && parts[1] in parts[0]) parts.take(1) else parts }.joinToString(", ")
         return PublishedEvent(
             id = id, link = EventLinks.url(id),
-            post = ThreadsPost.text(id, TitleRules.display(draft.title.trim()), draft.startsAt, draft.timeZone, draft.address.trim(), null, draft.description),
+            post = ThreadsPost.text(id, TitleRules.display(draft.title.trim()), draft.startsAt, draft.timeZone, draft.address.trim(), null, draft.description, draft.price),
             // Звичайна подія свого організатора: саме вона щойно опублікована, тож завжди анонс.
             shareMode = ShareMode.PROMOTE,
             title = draft.title.trim(),

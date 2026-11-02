@@ -246,7 +246,9 @@ class HomeRulesTest {
         val paid = event("paid", listing = Listing("Афіша", priceMin = 300.0))
         val meetup = event("meetup", gathering = room(false))
         val companion = event("companion", gathering = room(true))
-        val hits = HomeRules.apply(entries(freeListing, unknownPrice, paid, meetup, companion), FeedFilter(FeedFilterKind.FREE), now, zone)
+        // Зустріч з ціною (1.7) — не безкоштовна.
+        val pricedMeetup = event("priced", gathering = room(false).copy(price = 300))
+        val hits = HomeRules.apply(entries(freeListing, unknownPrice, paid, meetup, companion, pricedMeetup), FeedFilter(FeedFilterKind.FREE), now, zone)
         assertEquals(listOf("free", "meetup"), hits.map { it.event.id })
     }
 
