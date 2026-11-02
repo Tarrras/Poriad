@@ -55,7 +55,8 @@ extension DetailAction {
         case .join: Copy.join
         case .request: Copy.request_join
         case .requested: Copy.request_pending
-        case .leave: Copy.going
+        // «Ви йдете» каже штамп поруч; кнопка — що станеться від дотику.
+        case .leave: Copy.leave
         case .joinWaitlist: Copy.join_waitlist
         case .leaveWaitlist: Copy.leave_waitlist
         case .organizer: Copy.you_organize

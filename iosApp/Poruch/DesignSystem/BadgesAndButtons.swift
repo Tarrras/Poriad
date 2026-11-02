@@ -113,13 +113,15 @@ struct SecondaryButton: View {
     var symbol: String?
     var tone: Color?
     var enabled: Bool = true
+    /// Рядків напису: довший стан на вузькій панелі (поруч із корінцем) — три.
+    var lines = 2
     let action: () -> Void
     var body: some View {
         Button(action: action) {
             HStack(spacing: Space.sm) {
                 if let glyph { PoruchIcon(glyph: glyph, size: 18) }
                 else if let symbol { Image(systemName: symbol).font(.system(size: 15, weight: .semibold)) }
-                Text(title).font(PoruchFont.button).lineLimit(2).multilineTextAlignment(.center)
+                Text(title).font(PoruchFont.button).lineLimit(lines).multilineTextAlignment(.center)
             }
             .foregroundStyle(enabled ? tone ?? Palette.ink : Palette.inkTertiary)
             .padding(.horizontal, Space.xxl).padding(.vertical, Space.sm).frame(minHeight: 52).frame(maxWidth: .infinity)

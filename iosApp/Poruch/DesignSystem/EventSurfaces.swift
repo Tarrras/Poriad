@@ -286,6 +286,8 @@ struct EventMapCard: View {
     var focused: Bool = false
     var saved: Bool = false
     var onSave: (() -> Void)?
+    /// Плаває над мапою — з тінню; квиток у потоці сторінки («Подію створено») — пласкіший, без неї.
+    var elevation = Elevation.raised
     let action: () -> Void
     var body: some View {
         Button(action: action) {
@@ -317,7 +319,7 @@ struct EventMapCard: View {
                     StubTime(event: event, compact: onSave != nil, showsGenre: false)
                 }
             }
-            .lifted(Elevation.raised)
+            .lifted(elevation)
         }
         .buttonStyle(PressableStyle())
         .ticketAccessibility(event, state: eventState(event)?.0, saved: saved, onSave: onSave)

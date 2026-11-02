@@ -285,10 +285,12 @@ enum EditorStep: Int, CaseIterable, Identifiable {
 
     // ---- «Є готовий анонс?»
 
-    /// «Заповнити»: поля з тексту (`parse-announcement`), і гостю. Не розібрали — назва й опис з самого тексту.
+    /// «Вставити» = «Заповнити»: поля з тексту (`parse-announcement`), і гостю. Не розібрали — назва й опис з самого тексту.
     func fillFromAnnouncement() {
         let text = announceText.trimmed
-        guard !text.isEmpty, !announcing else { return }
+        guard !announcing else { return }
+        // У буфері самі пробіли: «Вставити» спрацювала, а заповнювати нічим — кажемо, а не мовчимо.
+        guard !text.isEmpty else { announced = AnnounceResult(text: Copy.announce_clipboard_empty, failed: true); return }
         announcing = true
         Task { @MainActor in
             var fill: AnnouncementFill

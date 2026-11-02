@@ -53,6 +53,10 @@ struct EventDetailView: View, Equatable {
     @State var openingContact = false
     /// «Пост для Threads»: подія, для якої готуємо меню (файли вантажаться). Nil — нічого.
     @State var threadsEvent: Event?
+    /// Людина щойно натиснула «Йду» / «Подати заявку» / «У чергу»: наступний стан участі б'є штампом.
+    @State var joinTapped = false
+    /// Лічильник ударів штампа участі (`StampDrop`).
+    @State var stampHit = 0
     /// `AGE_REQUIRED` на події з віком від 19 чи верхньою межею: вибір дати замість банера.
     @State var askingBirthDate = false
     /// Зміщення стрічки, за яким їде обкладинка. Див. `reportsScrollOffset`. Класом, а не `@State CGFloat`: його
@@ -337,7 +341,8 @@ struct EventDetailView: View, Equatable {
             else if view.listing == nil, !view.myTickets.isEmpty { yourTickets(view.myTickets) }
             if view.canWantCompany && !view.cancelled { companySection(view).id(companySectionID) }
             else if !view.companions.isEmpty && !view.cancelled { companionsSection(view) }
-            if let room = view.room { people(room, view) }
+            // Організатору без жодного учасника «Ідуть» показала б лише його самого: «0 з 20» уже в «Місткості».
+            if let room = view.room, !(view.organizer && view.attendees.isEmpty && room.attendeeCount == 0) { people(room, view) }
             if view.canAsk { askOrganizer(view) }
             venue(event, view)
             if !view.cancelled && !view.ended { safety() }

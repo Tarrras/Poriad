@@ -271,7 +271,9 @@ extension EventDetailView {
             // Хто чим ділиться (1.6, `shareMode`): організатор своєї події — «Поширити анонс» (пост для Threads з
             // посиланням для запису, лише з повними деталями); усі інші — «Поділитися з другом», особисте посилання, як
             // «Покликати» (docs/invites.md). Скасовану чи минулу — просто поділитися.
-            if view.canInvite && view.shareMode == .promote {
+            if promotesOnPanel(view) {
+                // Поширення — на панелі дії.
+            } else if view.canInvite && view.shareMode == .promote {
                 Button { threadsEvent = event } label: {
                     RoundAction(title: Copy.share_promote, enabled: screen.detailsLoaded && threadsEvent == nil) {
                         if threadsEvent != nil { ProgressView() } else { PoruchIcon(glyph: PoruchIcons.share, size: 20) }
@@ -655,8 +657,23 @@ extension EventDetailView {
                     }
                 } else {
                     // Зустріч: пояснення («Організатор підтверджує кожного», «Лишилось 2 місця») — окремим рядком на всю
-                    // ширину, а дія під ним. Поруч із кнопкою воно обрізалось саме в момент рішення.
-                    summary(view)
+                    // ширину, а дія під ним. Поруч із кнопкою воно обрізалось саме в момент рішення. Записались — перед
+                    // ним штамп стану, що падає з розмаху (вау №1, docs/design-wow-1.5.md). На великому шрифті — штамп над
+                    // поясненням: поруч воно знову обрізалось.
+                    let stampLayout = typeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: Space.sm)) : AnyLayout(HStackLayout(spacing: Space.sm))
+                    stampLayout {
+                        if let stamp = participationStamp(view) {
+                            StampDrop(stamp: TicketStamp(text: stamp.0, tone: stamp.1, glyph: stamp.2), hit: stampHit, armed: joinTapped)
+                        }
+                        summary(view)
+                    }
+                    // Б'є лише щойно зроблений запис, а не стан, з яким екран відкрили.
+                    .onChange(of: participationStamp(view)?.0) { _, stamp in
+                        guard stamp != nil, joinTapped else { return }
+                        joinTapped = false
+                        stampHit += 1
+                    }
                     // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
                     if view.action != .none { primaryAction(event, view) }
                 }
@@ -720,14 +737,43 @@ extension EventDetailView {
         .accessibilityAddTraits(.isButton)
     }
 
-    func primaryAction(_ event: Event, _ view: DetailScreenState) -> some View {
-        PrimaryButton(
-            title: view.action.title,
-            tone: view.action == .leave ? Palette.success : view.action == .leaveWaitlist ? Palette.accentText : nil,
-            loading: view.mutating,
-            enabled: view.action.isEnabled && !view.mutating
-        ) {
-            if !actions.perform(view.action, on: event, signedIn: view.signedIn) { auth = .join }
+    /// Головна дія панелі. Організатору — «Поширити анонс» замість неактивної «Ви організатор» (стан і так каже штамп
+    /// на обкладинці). Записаним — тонова кнопка: головну дію вже зроблено, стан несе штамп поруч.
+    @ViewBuilder func primaryAction(_ event: Event, _ view: DetailScreenState) -> some View {
+        if promotesOnPanel(view) {
+            PrimaryButton(
+                title: Copy.share_promote, glyph: PoruchIcons.share,
+                loading: threadsEvent != nil, enabled: screen.detailsLoaded && threadsEvent == nil
+            ) { threadsEvent = event }
+        } else if participationStamp(view) != nil {
+            SecondaryButton(title: view.action.title, enabled: view.action.isEnabled && !view.mutating, lines: 3) {
+                if !actions.perform(view.action, on: event, signedIn: view.signedIn) { auth = .join }
+            }
+            .frame(maxWidth: .infinity)
+            // «Ви берете участь · вийти» поруч із корінцем на AX3 обрізалось до «Ви берет…»: як рядок стану компанії,
+            // кнопка росте до AX1, а там вміщається в три рядки.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        } else {
+            PrimaryButton(title: view.action.title, loading: view.mutating, enabled: view.action.isEnabled && !view.mutating) {
+                let joining = view.action == .join || view.action == .request || view.action == .joinWaitlist
+                // Гість іде у вхід: штамп після нього не його дотик, тож прапорець — лише коли запит справді пішов.
+                if actions.perform(view.action, on: event, signedIn: view.signedIn) { joinTapped = joining } else { auth = .join }
+            }
+        }
+    }
+
+    /// Пост для Threads своєї події — на панелі дії, а не круглою дією: одна функція — одне місце.
+    func promotesOnPanel(_ view: DetailScreenState) -> Bool {
+        view.action == .organizer && view.canInvite && view.shareMode == .promote
+    }
+
+    /// Штамп участі на панелі: записався, чекає підтвердження чи в черзі.
+    func participationStamp(_ view: DetailScreenState) -> (String, BadgeTone, PoruchGlyph?)? {
+        switch view.action {
+        case .leave: (Copy.going, .success, PoruchIcons.check)
+        case .requested: (Copy.stamp_request, .accent, nil)
+        case .leaveWaitlist: (Copy.stamp_waitlist, .accent, nil)
+        default: nil
         }
     }
 

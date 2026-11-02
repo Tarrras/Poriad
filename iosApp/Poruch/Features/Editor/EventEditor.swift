@@ -35,20 +35,20 @@ struct EventEditor: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Space.lg) {
                         // Квиток друкується згори, поки людина відповідає: той самий, що побачать у «Від людей».
-                        // На «Де» і «Коли» — смужкою: повний квиток забирав чверть екрана, і мапа з датами йшли за згин.
+                        // Смужкою, а повний — лише на останньому кроці як прев'ю: інакше поле «Назва» йшло за згин SE.
                         DraftTicket(
                             form: editor.form, host: editor.host, taken: editor.taken,
                             timed: editor.step.rawValue >= EditorStep.schedule.rawValue || editor.editing,
-                            compact: editor.step == .place || editor.step == .schedule
+                            compact: !editor.step.isLast
                         )
-                        // Кожен крок — одне питання великим заголовком, як в онбордингу.
+                        // Кожен крок — одне питання великим заголовком, як в онбордингу. «Крок N з 4» кажуть сегменти в
+                        // шапці (і VoiceOver з них); на першому підзаголовок не потрібен — поля підписані самі.
                         VStack(alignment: .leading, spacing: Space.xs) {
-                            // Номер кроку словами: смужки згори кажуть «скільки», а не «котрий». Без капсу: «КРОК 1 З 4»
-                            // у цьому шрифті читалось як «1 3 4».
-                            Text(stepLabel(editor.step)).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).decorative()
                             Text(editor.step.headline).font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
                                 .accessibilityAddTraits(.isHeader)
-                            Text(editor.step.hint).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                            if editor.step != .about {
+                                Text(editor.step.hint).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                            }
                         }.padding(.bottom, Space.xs)
                         switch editor.step {
                         case .about: AboutStep(editor: editor)
@@ -406,9 +406,11 @@ private struct AboutStep: View {
 }
 
 /// «Є готовий анонс?» над назвою: організатор з Threads уже написав пост, тож поля заповнює він (`parse-announcement`).
+/// Один рядок із системною «Вставити»: вставили — одразу заповнюємо, поля для набору нема (рішення власника 02.11).
 /// Після відповіді — рядок «Заповнили з анонсу: …» з «Інший текст».
 private struct AnnounceCard: View {
     @ObservedObject var editor: EventEditorModel
+    @Environment(\.dynamicTypeSize) private var typeSize
     private var limit: Int { Int(AnnouncementRules.shared.TEXT_MAX) }
 
     var body: some View {
@@ -422,29 +424,31 @@ private struct AnnounceCard: View {
     }
 
     private var expanded: some View {
-        VStack(alignment: .leading, spacing: Space.md) {
+        // На великому шрифті «Вставити» — під текстом: поруч напис стискався б до слова в рядку.
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: Space.md)) : AnyLayout(HStackLayout(spacing: Space.md))
+        return layout {
             VStack(alignment: .leading, spacing: Space.xs) {
                 Text(Copy.announce_title).font(PoruchFont.cardName).foregroundStyle(Palette.ink).accessibilityAddTraits(.isHeader)
-                Text(Copy.announce_subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                Text(Copy.announce_subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(2)
             }
-            LabelledField(
-                label: Copy.announce_field,
-                text: Binding(get: { editor.announceText }, set: { editor.announceText = String($0.prefix(limit)) }),
-                multiline: true
-            )
-            HStack(spacing: Space.md) {
-                // Системна «Вставити»: бере з буфера без питання про доступ.
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if editor.announcing {
+                HStack(spacing: Space.sm) {
+                    ProgressView()
+                    Text(Copy.announce_filling).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                }
+                .accessibilityElement(children: .combine)
+            } else {
+                // Системна «Вставити»: бере з буфера без питання про доступ, і одразу заповнює.
                 PasteButton(payloadType: String.self) { strings in
                     guard let text = strings.first else { return }
-                    Task { @MainActor in editor.announceText = String(text.prefix(limit)) }
+                    Task { @MainActor in
+                        editor.announceText = String(text.prefix(limit))
+                        editor.fillFromAnnouncement()
+                    }
                 }
                 .labelStyle(.titleAndIcon).buttonBorderShape(.capsule).tint(Palette.ink)
-                Spacer(minLength: 0)
-                PrimaryButton(
-                    title: editor.announcing ? Copy.announce_filling : Copy.announce_fill, loading: editor.announcing,
-                    enabled: !editor.announceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !editor.announcing
-                ) { editor.fillFromAnnouncement() }
-                .fixedSize()
             }
         }
     }
