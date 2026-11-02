@@ -7,6 +7,7 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import kotlinx.coroutines.launch
@@ -100,6 +101,8 @@ fun Modifier.pressable(
     role: Role? = Role.Button,
     /** Форма, якою обрізано відгук: у квитка ripple не залазить у вирізи й кути. */
     shape: Shape? = null,
+    /** Довгий натиск: меню дій рядка («Повторити»). */
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ): Modifier {
     val interaction = remember { MutableInteractionSource() }
@@ -132,11 +135,12 @@ fun Modifier.pressable(
             scaleX = scale.value; scaleY = scale.value
             if (shape != null) { this.shape = shape; clip = true }
         }
-        .clickable(
+        .combinedClickable(
             interactionSource = interaction,
             indication = LocalIndication.current,
             enabled = enabled,
             role = role,
+            onLongClick = onLongClick,
             onClick = onClick
         )
 }

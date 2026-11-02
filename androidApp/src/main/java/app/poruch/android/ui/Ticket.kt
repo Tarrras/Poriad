@@ -50,6 +50,7 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -227,15 +228,19 @@ fun ticketA11yLabel(event: Event, state: String? = null): String {
 @Composable
 fun Modifier.ticketSemantics(
     label: String, onClick: () -> Unit, saved: Boolean = false, onSave: (() -> Unit)? = null,
-    status: String? = null, selected: Boolean = false
+    status: String? = null, selected: Boolean = false,
+    /** Довгий натиск рядка — меню «Ще дії»; TalkBack пропонує його тією ж назвою. */
+    longClick: (() -> Unit)? = null
 ): Modifier {
     val saveLabel = stringResource(if (saved) R.string.unsave else R.string.save)
+    val moreLabel = stringResource(R.string.more_actions)
     return clearAndSetSemantics {
         contentDescription = label
         role = Role.Button
         if (selected) this.selected = true
         status?.let { stateDescription = it }
         onClick { onClick(); true }
+        if (longClick != null) onLongClick(moreLabel) { longClick(); true }
         if (onSave != null) customActions = listOf(CustomAccessibilityAction(saveLabel) { onSave(); true })
     }
 }

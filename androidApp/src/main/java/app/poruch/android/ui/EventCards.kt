@@ -259,6 +259,8 @@ fun EventRow(
     trailing: (@Composable () -> Unit)? = null,
     /** Статус замість звичного: «2 запити на участь» у своїй події. */
     status: Pair<String, BadgeTone>? = null,
+    /** Довгий натиск — меню дій рядка, яке малює екран. */
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
     val colors = Poruch.colors
@@ -269,8 +271,11 @@ fun EventRow(
     Row(
         modifier
             .fillMaxWidth()
-            .ticketSemantics(ticketA11yLabel(event, note ?: listOfNotNull(badge?.first, source).joinToString(", ")), onClick, status = unreadLabel)
-            .pressable(onClick = onClick)
+            .ticketSemantics(
+                ticketA11yLabel(event, note ?: listOfNotNull(badge?.first, source).joinToString(", ")), onClick, status = unreadLabel,
+                longClick = onLongClick
+            )
+            .pressable(onLongClick = onLongClick, onClick = onClick)
             .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         verticalAlignment = Alignment.CenterVertically
@@ -439,7 +444,10 @@ fun artistKindLabel(kind: ArtistKind?): String? = when (kind) {
 @Composable
 fun EventMapCard(
     event: Event, modifier: Modifier = Modifier, focused: Boolean = false,
-    saved: Boolean = false, onSave: (() -> Unit)? = null, onClick: () -> Unit
+    saved: Boolean = false, onSave: (() -> Unit)? = null,
+    /** Над мапою квиток плаває; у потоці сторінки («Подію створено») лежить пласко. */
+    elevation: Dp = Elevation.raised,
+    onClick: () -> Unit
 ) {
     val colors = Poruch.colors
     val state = eventState(event)
@@ -455,7 +463,7 @@ fun EventMapCard(
         },
         modifier = modifier
             .ticketSemantics(ticketA11yLabel(event, state?.first), onClick, saved, onSave, selected = focused),
-        stubLength = 80.dp, radius = Corner.lg, surface = colors.surfaceRaised, elevation = Elevation.raised,
+        stubLength = 80.dp, radius = Corner.lg, surface = colors.surfaceRaised, elevation = elevation,
         outline = if (focused) colors.ink else null, dashed = false, onClick = onClick
     ) {
         Row(

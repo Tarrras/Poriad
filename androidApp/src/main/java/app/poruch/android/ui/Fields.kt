@@ -1,10 +1,14 @@
 package app.poruch.android.ui
 
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.semantics.contentType
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.Icon
@@ -167,12 +171,18 @@ fun LabelledField(
     /** Багаторядкове поле відкривається цієї висоти, щоб читалось як місце для абзацу. */
     minLines: Int = if (singleLine) 1 else 4,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    /** Що робить клавіша дії клавіатури («Надіслати»). */
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     /** Фокус для екрана, що відкривається заради цього поля. */
     focusRequester: FocusRequester? = null,
     /** Що не так із полем: під ним, кольором помилки. */
     error: String? = null,
-    trailing: @Composable (() -> Unit)? = null
+    trailing: @Composable (() -> Unit)? = null,
+    /** Свій голос поля замість тексту інтерфейсу: цифри коду з листа. */
+    textStyle: TextStyle? = null,
+    /** Що це за поле для автозаповнення системи: код з SMS чи листа. */
+    contentType: ContentType? = null
 ) {
     val colors = Poruch.colors
     val field = rememberBufferedText(value, onValueChange)
@@ -204,11 +214,15 @@ fun LabelledField(
                 minLines = minLines,
                 modifier = Modifier.weight(1f)
                     // Помилка — стан поля: TalkBack каже її разом із назвою, а не як окремий текст нижче.
-                    .semantics { contentDescription = label; if (error != null) error(error) }
+                    .semantics {
+                        contentDescription = label; if (error != null) error(error)
+                        contentType?.let { this.contentType = it }
+                    }
                     .let { if (focusRequester != null) it.focusRequester(focusRequester) else it },
-                textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.ink),
+                textStyle = (textStyle ?: MaterialTheme.typography.bodyLarge).copy(color = colors.ink),
                 cursorBrush = SolidColor(colors.ink),
                 keyboardOptions = keyboardOptions,
+                keyboardActions = keyboardActions,
                 visualTransformation = visualTransformation,
                 decorationBox = { inner ->
                     if (field.text.isEmpty() && placeholder.isNotEmpty()) {

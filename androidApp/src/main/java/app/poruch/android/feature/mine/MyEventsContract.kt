@@ -50,6 +50,8 @@ sealed interface MyEventsIntent {
     /** «Повторити» власну спільнотну подію: редактор з усіма полями, фото й відео, на тиждень пізніше. */
     data class Repeat(val event: Event) : MyEventsIntent
     data class ThreadsPost(val event: Event) : MyEventsIntent
+    /** Кругла «Поширити» своєї: анонс для Threads чи особисте посилання — за `ShareRules.mode`, як на деталях. */
+    data class Share(val event: Event) : MyEventsIntent
 }
 
 sealed interface MyEventsEffect {
@@ -60,4 +62,5 @@ sealed interface MyEventsEffect {
     data object CreateEvent : MyEventsEffect
     data class Repeat(val id: String) : MyEventsEffect
     data class ThreadsPost(val event: Event, val text: String) : MyEventsEffect
+    data class Invite(val event: Event, val link: String) : MyEventsEffect
 }

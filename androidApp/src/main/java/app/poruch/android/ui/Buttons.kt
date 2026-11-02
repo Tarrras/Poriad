@@ -78,14 +78,16 @@ fun SecondaryButton(
     text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
     enabled: Boolean = true, icon: ImageVector? = null, tone: Color? = null,
     /** Вужчі поля: поруч із підписом у панелі дії, де ширину ділить корінець. */
-    compact: Boolean = false
+    compact: Boolean = false,
+    /** Тло, коли кнопка стоїть на тоновій плашці й своє тло з нею зливалось би. */
+    container: Color? = null
 ) {
     val colors = Poruch.colors
     val foreground = if (enabled) tone ?: colors.ink else colors.inkTertiary
     Row(
         modifier
             .heightIn(min = 52.dp)
-            .background(colors.brandContainer, ButtonShape)
+            .background(container ?: colors.brandContainer, ButtonShape)
             .clip(ButtonShape)
             .pressable(enabled = enabled, onClick = onClick)
             .padding(horizontal = if (compact) Spacing.lg else Spacing.xxl, vertical = Spacing.sm),
@@ -109,7 +111,9 @@ fun GhostButton(
     tone: Color? = null,
     enabled: Boolean = true,
     onClickLabel: String? = null,
-    trailingIcon: ImageVector? = null
+    trailingIcon: ImageVector? = null,
+    /** Гліф перед написом: «Додати в календар». */
+    icon: ImageVector? = null
 ) {
     val colors = Poruch.colors
     val color = if (enabled) tone ?: colors.ink else colors.inkTertiary
@@ -123,6 +127,7 @@ fun GhostButton(
         horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        icon?.let { Icon(it, null, Modifier.size(18.dp), tint = color) }
         Text(text, style = MaterialTheme.typography.labelLarge, color = color)
         trailingIcon?.let { Icon(it, null, Modifier.size(14.dp), tint = color) }
     }

@@ -36,7 +36,13 @@ data class DetailState(
      * Повні деталі (`event_details`) приїхали. До того на екрані картка без фото й відео, і «Редагувати» з неї затерла б
      * медіа події, тож вона неактивна.
      */
-    val detailed: Boolean = false
+    val detailed: Boolean = false,
+    /**
+     * Людина щойно натиснула «Приєднатися», «Надіслати запит» чи «Стати в чергу»: коли панель перемкнеться на «записані»,
+     * штамп має впасти з розмаху. Одноразове: екран гасить його ([DetailIntent.StampShown]). Перемикання без тапу (картка з
+     * кешу, потім повна подія) штампом не б'є.
+     */
+    val stampPending: Boolean = false
 )
 
 /** На що скарга: на подію, на того, хто її опублікував, чи на людину з картки. */
@@ -44,6 +50,8 @@ enum class ReportTarget { EVENT, ORGANIZER, PERSON }
 
 sealed interface DetailIntent {
     data object Back : DetailIntent
+    /** Штамп запису вже впав (чи показаний без руху): [DetailState.stampPending] гасимо. */
+    data object StampShown : DetailIntent
     /** Відповідь системи на [DetailEffect.AskNotificationPermission]. */
     data class NotificationPermissionAnswered(val granted: Boolean) : DetailIntent
     /** Потяг вниз: перечитати місця, членство й запити. */

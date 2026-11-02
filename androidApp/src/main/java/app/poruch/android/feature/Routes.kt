@@ -162,6 +162,7 @@ fun MyEventsRoute(navigator: Navigator) {
             MyEventsEffect.CreateEvent -> navigator.createEvent()
             is MyEventsEffect.Repeat -> navigator.open(Editor(repeatOf = effect.id))
             is MyEventsEffect.ThreadsPost -> scope.launch { context.shareThreadsPost(effect.event.shareMedia, effect.text) }
+            is MyEventsEffect.Invite -> context.inviteEvent(effect.event, effect.link)
         }
     }
     // Щойно доданий квиток лежить у «Квитках» — туди й перемикаємо, навіть якщо людина стояла в іншому розрізі.
