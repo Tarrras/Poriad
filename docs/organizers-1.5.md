@@ -628,7 +628,8 @@ Android `Navigator.createEvent` → `Auth(AuthReason.CREATE)`), і 70% гост�
   (web)» (`…-irvrrok6…`, він уже перший у Client IDs на dev і prod) — адреси повернення обох проєктів. Новий секрет
   цього клієнта власник вставив у Supabase prod і dev (02.11; `/authorize?provider=google` веде на Google з цим
   клієнтом і правильним callback); старий `****RX6Y` загублений — вимкнути в Google. `RESEND_API_KEY` у
-  секретах функцій prod і dev — 02.11 (ключ Resend лише на надсилання). Лишилось власнику: `ANTHROPIC_API_KEY`. `MAIL_FROM` не потрібен —
+  секретах функцій prod і dev — 02.11 (ключ Resend лише на надсилання). `ANTHROPIC_API_KEY` на prod і dev — 02.11;
+  на dev `parse-announcement` за ~5,6 с заповнює назву, опис, жанр, дату, місце й кількість місць (iOS-симулятор, гість). `MAIL_FROM` не потрібен —
   у `push` той самий відправник за замовчуванням. Site URL на prod — `https://poriad.app` (був `http://localhost:3000`).
 - **Google на вебі:** у Google Cloud веб-клієнт OAuth (якщо ще нема) з адресою повернення
   `https://{проєкт}.supabase.co/auth/v1/callback` для dev і prod; його ID і секрет — у Supabase → Auth → Providers →
@@ -666,8 +667,9 @@ Android `Navigator.createEvent` → `Auth(AuthReason.CREATE)`), і 70% гост�
 треба). `main` = `origin/main` = fa5f7603 і вже в `1.5`, тож злиття — перемотка. На prod чекають шість міграцій
 (20261117…20261121) і три функції. Хвилі 1 й 2 можна викотити разом: міграції сумісні зі старими збірками.
 
-1. **Ручні кроки вище**, якщо ще не зроблені. Без них не працюють: листи з кодом (Resend, SMTP, шаблон), Google на
-   вебі, «Вставити анонс» (`ANTHROPIC_API_KEY` — на dev теж нема, 02.11 функція відповідає «not set»).
+1. **Ручні кроки вище** — зроблено 02.11 (пошта, шаблони з кодом, Google на вебі, `RESEND_API_KEY`,
+   `ANTHROPIC_API_KEY`, Site URL). Лишились рекомендації після аудиту: ліміт витрат на ключ Anthropic, ліміти листів і
+   строк коду в Auth, Turnstile перед широким запуском, маршрути статики з Worker = None.
 2. **Злиття `1.5` → `main`** — лід, після «так» власника.
 3. **База:**
    `supabase db push --dry-run --linked --project-ref tzdogzdvctlumsqlqskr` — мають бути рівно 20261117…20261121 (6),
