@@ -181,6 +181,9 @@
   <string name="clear_search">Очистити пошук</string>
   <string name="filters">Фільтри</string>
   <string name="going">Ви йдете</string>
+  <!-- Штамп стану на панелі дії після запису (docs/design-wow-1.5.md): заявка й черга; участь — going. -->
+  <string name="stamp_request">Запит</string>
+  <string name="stamp_waitlist">Черга</string>
   <string name="seats_left">Лишилось %1$d місць</string>
   <string name="attendees">%1$d з %2$d учасників</string>
   <string name="search_placeholder">Подія, місце або тема</string>

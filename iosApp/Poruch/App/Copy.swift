@@ -142,6 +142,8 @@ enum Copy {
     static let clear_search = "Очистити пошук"
     static let filters = "Фільтри"
     static let going = "Ви йдете"
+    static let stamp_request = "Запит"
+    static let stamp_waitlist = "Черга"
     static func seats_left(_ a0: String) -> String { "Лишилось \(a0) місць" }
     static func attendees(_ a0: String, _ a1: String) -> String { "\(a0) з \(a1) учасників" }
     static let search_placeholder = "Подія, місце або тема"
