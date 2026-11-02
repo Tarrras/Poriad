@@ -14,7 +14,8 @@ sealed interface Tab : NavKey
 @Serializable data object Mine : Tab
 @Serializable data object Profile : Tab
 
-@Serializable data class Detail(val eventId: String) : NavKey
+/** [requests] — «Запити · N» з головної: деталі одразу прокручуються до запитів, вони внизу сторінки. */
+@Serializable data class Detail(val eventId: String, val requests: Boolean = false) : NavKey
 /** Екран артиста: що показувати, тримає [app.poruch.shared.AppState.artist]; хто відкриває, кличе `openArtist` перед переходом. */
 @Serializable data class ArtistPage(val artistId: String) : NavKey
 /** Без [editingId] — нова подія; [repeatOf] — нова з полями, фото й відео власної події («Повторити»). */

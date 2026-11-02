@@ -886,9 +886,8 @@ private fun NextPlanCard(row: PersonalRow, modifier: Modifier, open: () -> Unit,
                 stringResource(R.string.home_requests_short, row.requests),
                 null,
                 width,
-                highlight = true,
-                onClick = open
-            )
+                highlight = true
+            ) { onIntent(HomeIntent.OpenRequests(event.id)) }
         }
         // Великий шрифт: дії одна під одною, як у «Моїх подіях», — три в ряд обрізали б «Маршрут» до «Ма…».
         if (LocalDensity.current.fontScale >= 1.3f) Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {

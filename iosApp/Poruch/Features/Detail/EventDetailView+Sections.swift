@@ -1029,7 +1029,7 @@ extension EventDetailView {
     }
 
     /// Коротке обведення чорнилом після прокрутки сюди — як вибраний квиток на мапі.
-    private func companyFlashRing(_ id: String) -> some View {
+    func companyFlashRing(_ id: String) -> some View {
         RoundedRectangle(cornerRadius: Corner.lg, style: .continuous)
             .strokeBorder(Palette.ink, lineWidth: 2)
             .opacity(companyFlash == id ? 1 : 0)

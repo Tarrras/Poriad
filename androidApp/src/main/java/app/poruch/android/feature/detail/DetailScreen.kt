@@ -89,7 +89,7 @@ import androidx.compose.animation.slideOutVertically
 import kotlinx.coroutines.delay
 
 @Composable
-fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
+fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit, focusRequests: Boolean = false) {
     val colors = Poruch.colors
     val event = state.screen.event
     // «Додати квиток» з «Купили квиток?»: файл чи знімок, квиток — на цю подію (docs/ticket-wallet.md).
@@ -128,18 +128,30 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     // сама їде до неї й коротко підсвічує стан, а панель дії каже «Ви шукаєте компанію» з переходом до людей.
     val companyMine = state.screen.companyTeaser?.mine == true
     var companyTop by remember { mutableFloatStateOf(0f) }
+    var requestsTop by remember { mutableFloatStateOf(0f) }
     val highlight = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val reduced = Poruch.reducedMotion
     val statusTop = WindowInsets.statusBars.getTop(density)
-    val toCompany: () -> Unit = {
+    /** Сторінка їде до секції, що починається на [top] (у координатах вікна), і коротко її обводить. */
+    val focusAt: (Float) -> Unit = { top ->
         scope.launch {
-            val target = (scroll.value + companyTop - statusTop - with(density) { Spacing.lg.toPx() }).toInt().coerceIn(0, scroll.maxValue)
+            val target = (scroll.value + top - statusTop - with(density) { Spacing.lg.toPx() }).toInt().coerceIn(0, scroll.maxValue)
             if (reduced) scroll.scrollTo(target) else scroll.animateScrollTo(target, Motion.spring())
             highlight.snapTo(1f)
             delay(if (reduced) 1_500 else 700)
             if (reduced) highlight.snapTo(0f) else highlight.animateTo(0f, tween(600))
         }
+    }
+    val toCompany: () -> Unit = { focusAt(companyTop) }
+    // «Запити · N» з головної: запити внизу, під описом і контактами — їдемо до них раз, коли вони прийшли й лягли.
+    var requestsFocused by rememberSaveable { mutableStateOf(false) }
+    val requestsReady = focusRequests && state.screen.organizer && state.screen.requests.isNotEmpty()
+    LaunchedEffect(requestsReady) {
+        if (!requestsReady || requestsFocused) return@LaunchedEffect
+        requestsFocused = true
+        delay(350)
+        focusAt(requestsTop)
     }
     var wasMine by remember { mutableStateOf(companyMine) }
     LaunchedEffect(companyMine) {
@@ -201,7 +213,9 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                         if (state.screen.othersHere.isNotEmpty()) OthersHere(state.screen.othersHere, event.placeName, onIntent)
                         // Чат і посилання — для своїх: сервер віддає посилання лише організатору й підтвердженим.
                         if (state.screen.hasChat || event.gathering?.hasContact == true) ContactSection(state, event, onIntent)
-                        if (state.screen.organizer && state.screen.requests.isNotEmpty()) JoinRequests(state, onIntent)
+                        if (state.screen.organizer && state.screen.requests.isNotEmpty()) JoinRequests(
+                            state, onIntent, { highlight.value }, Modifier.onGloballyPositioned { requestsTop = it.positionInRoot().y }
+                        )
                         if (state.screen.organizer && state.screen.questions.isNotEmpty()) Questions(state, onIntent)
                         if (state.screen.canRate) RateEvent(state, onIntent)
                         if (state.screen.organizer && state.screen.ended && !state.screen.cancelled) Ratings(state)

@@ -20,7 +20,8 @@ struct HomeView: View, Equatable {
     var createEvent: (String) -> Void
     /// Відкрити деталі; другий аргумент — квиток, з якого деталі виростають (`morphSource`). Шлях стосу тримає корінь
     /// (`RootView.homePath`).
-    var openEvent: (String, String?) -> Void
+    /// Деталі: id, квиток-джерело морфа й чи одразу до запитів («Запити · N»).
+    var openEvent: (String, String?, Bool) -> Void
     /// Прямо в чат події, минаючи деталі.
     var openChat: (Event) -> Void
     /// Екран підписок: рядок у «Ваше».
@@ -113,7 +114,8 @@ struct HomeView: View, Equatable {
                             // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею. Усе особисте —
                             // плани, «Ваш тиждень», дати артистів, підписки — одним блоком у чотири рядки (критика довжини 28.10).
                             HomePersonalSection(
-                                view: view, deckDue: deckWeek != view.deckWeek, open: open, openChat: openChat,
+                                view: view, deckDue: deckWeek != view.deckWeek, open: open,
+                                openRequests: openRequests, openChat: openChat,
                                 openMyEvents: openMyEvents, openFollows: openFollows,
                                 openDeck: {
                                     deckWeek = view.deckWeek
@@ -163,7 +165,13 @@ struct HomeView: View, Equatable {
     /// в деталі. Без такого джерела на екрані zoom виростав би з центру, тож джерело мають усі квитки, що кличуть `open`.
     private func open(_ id: String, from: String) {
         model.app.selectEvent(id: id, from: from)
-        openEvent(id, "\(from)/\(id)")
+        openEvent(id, "\(from)/\(id)", false)
+    }
+
+    /// «Запити · N» на квитку найближчого плану: ті самі деталі, але одразу на запитах.
+    private func openRequests(_ id: String) {
+        model.app.selectEvent(id: id, from: "home_your")
+        openEvent(id, "home_your/\(id)", true)
     }
 
     /// «Усі N» біля «У місті»: мапа з усім містом, а не з фільтрами, що лишились з минулого візиту.

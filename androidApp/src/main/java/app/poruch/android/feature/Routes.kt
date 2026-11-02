@@ -61,9 +61,9 @@ import kotlin.concurrent.thread
  */
 
 /** Деталі події: натиснутий квиток розгортається в них (Morph.kt), інші шляхи (пуш, рядок-посилання) — звичайний перехід. */
-private fun Navigator.openDetail(id: String) {
+private fun Navigator.openDetail(id: String, requests: Boolean = false) {
     val ticket = Unfold.pending?.takeIf { it.id == id }
-    if (ticket != null) Unfold.open(ticket) { open(Detail(id)) } else { Unfold.forget(id); open(Detail(id)) }
+    if (ticket != null) Unfold.open(ticket) { open(Detail(id, requests)) } else { Unfold.forget(id); open(Detail(id, requests)) }
 }
 
 /** Збирає одноразові ефекти, поки маршрут на екрані. */
@@ -86,6 +86,7 @@ fun HomeRoute(navigator: Navigator) {
         when (effect) {
             is HomeEffect.Navigate -> when (effect.destination) {
                 HomeDestination.DETAIL -> navigator.openDetail(effect.id)
+                HomeDestination.REQUESTS -> navigator.openDetail(effect.id, requests = true)
                 HomeDestination.CHAT -> navigator.open(Chat(effect.id))
                 HomeDestination.MAP -> navigator.open(Explore())
                 HomeDestination.PROFILE -> navigator.open(Profile)
@@ -223,7 +224,7 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
     // першу композицію: під час жесту predictive back попередній екран лише STARTED, і він не має красти слот
     // у того, що ще під пальцем.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { model.dispatch(DetailIntent.Reopen) }
-    DetailScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
+    DetailScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch, focusRequests = route.requests)
 }
 
 @Composable

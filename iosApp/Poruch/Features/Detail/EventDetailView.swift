@@ -8,6 +8,8 @@ struct EventRoute: Hashable, Identifiable {
     let id: String
     /// Квиток, з якого деталі виростають (`morphSource`); nil — звичайний перехід стосу.
     var morph: String? = nil
+    /// «Запити · N» з головної: деталі одразу прокручуються до запитів — вони внизу, під описом і контактами.
+    var requests = false
 
     /// Деталі справді виростають з квитка: zoom є лише з iOS 18, на 17 — звичайний перехід.
     var zooms: Bool {
@@ -22,7 +24,8 @@ struct EventScreen: View {
     @Environment(\.appModel) private var appModel
     @Environment(\.morphSpace) private var morphSpace
     var body: some View {
-        EventDetailView(app: appModel!.app, eventID: route.id, zoomed: route.zooms && morphSpace != nil).equatable().id(route.id)
+        EventDetailView(app: appModel!.app, eventID: route.id, zoomed: route.zooms && morphSpace != nil, focusRequests: route.requests)
+            .equatable().id(route.id)
             .morphDestination(route.morph, in: morphSpace)
     }
 }
@@ -110,10 +113,14 @@ struct EventDetailView: View, Equatable {
     let eventID: String
     /// Деталі виросли з квитка (zoom): потяг униз згортає їх назад, тож оновлення потягом тут нема — жести билися.
     let zoomed: Bool
+    /// Прийшли з «Запити · N»: щойно запити є, прокрутити до них (раз).
+    let focusRequests: Bool
+    @State private var requestsFocused = false
 
-    init(app: PoruchApp, eventID: String, zoomed: Bool = false) {
+    init(app: PoruchApp, eventID: String, zoomed: Bool = false, focusRequests: Bool = false) {
         self.eventID = eventID
         self.zoomed = zoomed
+        self.focusRequests = focusRequests
         _actions = StateObject(wrappedValue: EventActionsModel(app: app))
         _screen = StateObject(wrappedValue: DetailScreenModel(app: app, eventID: eventID))
     }
@@ -293,6 +300,17 @@ struct EventDetailView: View, Equatable {
                     withAnimation(.easeOut(duration: 0.6)) { if companyFlash == target { companyFlash = nil } }
                 }
             }
+            // «Запити · N» з головної: запити внизу сторінки — прокручуємо до них і коротко обводимо, як «Шукають компанію».
+            // Запити приходять після події, тож чекаємо на них; пауза — щоб перехід стосу встиг лягти.
+            .onChange(of: focusRequests && view.organizer && !view.requests.isEmpty, initial: true) { _, ready in
+                guard ready, !requestsFocused else { return }
+                requestsFocused = true
+                Task {
+                    try? await Task.sleep(for: .milliseconds(350))
+                    companyFocusTarget = requestsSectionID
+                    companyFocusTick += 1
+                }
+            }
             // Намір став видимим (після входу гостя теж): секція з «Ви шукаєте компанію» й людьми — на екран.
             .onChange(of: view.companyTeaser?.mine == true) { _, mine in
                 guard mine, companyAsked else { return }
@@ -349,7 +367,9 @@ struct EventDetailView: View, Equatable {
             description(event)
             if !view.othersHere.isEmpty { othersHereSection(view.othersHere, placeName: event.placeName) }
             if view.hasChat || view.contactURL != nil { contact(view) }
-            if view.organizer && !view.requests.isEmpty { joinRequests(event, view) }
+            if view.organizer && !view.requests.isEmpty {
+                joinRequests(event, view).id(requestsSectionID).overlay { companyFlashRing(requestsSectionID).padding(-Space.sm) }
+            }
             if view.organizer && !view.questions.isEmpty { questions(event, view) }
             if view.canRate { RateEventSection(event: event, mine: view.myRating) }
             if view.organizer && view.ended && !view.cancelled { RatingsSummary(ratings: view.ratings) }
@@ -467,6 +487,7 @@ let detailScrollSpace = "detail"
 
 /// Мітки прокрутки до «Шукають компанію»: уся секція й картка людей.
 let companySectionID = "company-section"
+let requestsSectionID = "requests-section"
 let companyPeopleID = "company-people"
 
 /// Зміщення стрічки деталей. Його читають лише вигляди нижче, тож кадр прокрутки не перераховує секції й панель дії.

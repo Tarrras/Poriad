@@ -35,6 +35,10 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             app.openArtist(intent.artist.id, intent.artist.name, intent.artist.kind)
             send(HomeEffect.Navigate(HomeDestination.ARTIST, intent.artist.id))
         }
+        is HomeIntent.OpenRequests -> {
+            app.selectEvent(intent.id, "home_your")
+            send(HomeEffect.Navigate(HomeDestination.REQUESTS, intent.id))
+        }
         is HomeIntent.OpenChat -> {
             app.selectEvent(intent.id)
             send(HomeEffect.Navigate(HomeDestination.CHAT, intent.id))

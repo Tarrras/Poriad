@@ -52,6 +52,8 @@ sealed interface HomeIntent {
     data object ShowResultsOnMap : HomeIntent
     /** [from] — звідки відкрито (`home_hero`, `home_poster`, `home_your`, `home_search`): піде в `event_view`. */
     data class OpenEvent(val id: String, val from: String) : HomeIntent
+    /** «Запити · N» на квитку найближчого плану: деталі одразу на запитах. */
+    data class OpenRequests(val id: String) : HomeIntent
     /** Заклад з пошуку: мапа переходить до нього й відкриває його стос. */
     data class OpenPlace(val place: Place) : HomeIntent
     /** Район із пошуку: мапа в районі. */
@@ -86,4 +88,4 @@ sealed interface HomeEffect {
     data class Navigate(val destination: HomeDestination, val id: String = "") : HomeEffect
 }
 
-enum class HomeDestination { DETAIL, CHAT, MAP, PROFILE, MINE, FOLLOWS, EDITOR, ARTIST }
+enum class HomeDestination { DETAIL, REQUESTS, CHAT, MAP, PROFILE, MINE, FOLLOWS, EDITOR, ARTIST }

@@ -269,7 +269,7 @@ struct RootView: View {
                     HomeView(
                         openMap: showMap, openProfile: { tab = 3 }, openMyEvents: { tab = 2 },
                         createEvent: { startCreating(from: $0) },
-                        openEvent: { homePath.append(EventRoute(id: $0, morph: $1)) },
+                        openEvent: { homePath.append(EventRoute(id: $0, morph: $1, requests: $2)) },
                         openChat: { homePath.append(ChatRoute(id: $0.id)) },
                         openFollows: { homePath.append(FollowsRoute()) }
                     )

@@ -10,6 +10,8 @@ struct HomePersonalSection: View {
     let deckDue: Bool
     /// Деталі події; другий аргумент — звідки тап, для аналітики.
     let open: (String, String) -> Void
+    /// «Запити · N» на квитку плану: деталі, прокручені до запитів.
+    let openRequests: (String) -> Void
     let openChat: (Event) -> Void
     let openMyEvents: () -> Void
     let openFollows: () -> Void
@@ -45,7 +47,7 @@ struct HomePersonalSection: View {
             )
             if let lead {
                 // Свій стан на кожен план: штамп падає раз, коли найближчим став інший план.
-                NextPlanCard(row: lead, open: { open(lead.event.id, "home_your") }, chat: { openChat(lead.event) })
+                NextPlanCard(row: lead, open: { open(lead.event.id, "home_your") }, requests: { openRequests(lead.event.id) }, chat: { openChat(lead.event) })
                     .id(lead.event.id)
                     .morphSource("home_your/\(lead.event.id)")
             }
@@ -238,6 +240,7 @@ private struct PlanButton: View {
 private struct NextPlanCard: View {
     let row: PersonalRow
     let open: () -> Void
+    let requests: () -> Void
     let chat: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.homeCovered) private var covered
@@ -250,9 +253,10 @@ private struct NextPlanCard: View {
     /// Квиток над таббаром: удар, якого не видно, пішов би в порожнечу, а план уже вважався б показаним.
     @State private var onScreen = false
 
-    init(row: PersonalRow, open: @escaping () -> Void, chat: @escaping () -> Void) {
+    init(row: PersonalRow, open: @escaping () -> Void, requests: @escaping () -> Void, chat: @escaping () -> Void) {
         self.row = row
         self.open = open
+        self.requests = requests
         self.chat = chat
         // «Зменшити рух» — штамп одразу на місці, без удару.
         _armed = State(initialValue: !PlanStamps.shown(row.event.id) && !UIAccessibility.isReduceMotionEnabled)
@@ -337,7 +341,7 @@ private struct NextPlanCard: View {
                     highlight: row.chat != nil, action: chat
                 )
                 if row.requests > 0 {
-                    PlanButton(title: Copy.home_requests_short("\(row.requests)"), glyph: PoruchIcons.personAdd, highlight: true, action: open)
+                    PlanButton(title: Copy.home_requests_short("\(row.requests)"), glyph: PoruchIcons.personAdd, highlight: true, action: requests)
                 }
             }
         }
