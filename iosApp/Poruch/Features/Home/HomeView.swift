@@ -81,7 +81,7 @@ struct HomeView: View, Equatable {
     private func header(_ view: HomeScreenState) -> some View {
         HomeHeader(
             view: view, searchActive: searchActive(view), searchEpoch: searchEpoch, focus: $searchFocused,
-            startSearch: startSearch, cancelSearch: cancelSearch, openProfile: openProfile, openCitySearch: { citySearch = true }
+            startSearch: startSearch, cancelSearch: cancelSearch, openCitySearch: { citySearch = true }
         )
     }
 
@@ -124,8 +124,6 @@ struct HomeView: View, Equatable {
                                 view: view, feedLimit: $feedLimit, open: open, showCity: showCity, openMap: openMap,
                                 chipsPinned: $chipsPinned, selectChip: { selectChip($0, proxy: proxy) }
                             )
-                            // Кінець стрічки не глухий кут: далі мапа чи власна подія.
-                            if !view.feed.isEmpty { moreRows(view) }
                         } else {
                             PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
                         }
@@ -161,22 +159,6 @@ struct HomeView: View, Equatable {
         if pinned { withMotion { proxy.scrollTo(homeFeedChips, anchor: .top) } }
     }
 
-    /// Куди далі, коли стрічку переглянуто: мапа з усім, що є, і створення власної події.
-    private func moreRows(_ view: HomeScreenState) -> some View {
-        VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: Copy.next)
-            GroupedRows {
-                LinkRow(
-                    glyph: PoruchIcons.map, title: Copy.all_events_section,
-                    subtitle: Copy.all_events_hint,
-                    value: view.totalFound > 0 ? "\(view.totalFound)" : nil, action: showCity
-                )
-                Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
-                LinkRow(glyph: PoruchIcons.sparkle, title: Copy.create_banner_title, subtitle: Copy.create_banner_subtitle) { createEvent("home_footer") }
-            }
-        }.padding(.horizontal, Space.page)
-    }
-
     /// Відкрити деталі події; `from` — звідки тап, для аналітики й морфа: квиток з `morphSource("\(from)/\(id)")` розгортається
     /// в деталі. Без такого джерела на екрані zoom виростав би з центру, тож джерело мають усі квитки, що кличуть `open`.
     private func open(_ id: String, from: String) {
@@ -184,14 +166,15 @@ struct HomeView: View, Equatable {
         openEvent(id, "\(from)/\(id)")
     }
 
-    /// «Усі N» біля «У місті» і рядок «Усі події поруч»: мапа з усім містом, а не з фільтрами, що лишились з минулого візиту.
+    /// «Усі N» біля «У місті»: мапа з усім містом, а не з фільтрами, що лишились з минулого візиту.
     private func showCity() { model.app.showEverythingOnMap(); openMap() }
 
     /// «Усі N» біля «Від людей»: мапа лише зі зустрічами від людей з вільним місцем.
     private func showPeople() { model.app.showPeopleOnMap(); openMap() }
 }
 
-/// Шапка головної. Поза пошуком — заголовок, місто й кнопки пошуку та профілю; у пошуку — поле, «Скасувати» і фільтри.
+/// Шапка головної. Поза пошуком — заголовок, місто й кнопка пошуку (профіль — вкладка таббару, другого входу не треба);
+/// у пошуку — поле, «Скасувати» і фільтри.
 private struct HomeHeader: View {
     let view: HomeScreenState
     let searchActive: Bool
@@ -200,7 +183,6 @@ private struct HomeHeader: View {
     let focus: FocusState<Bool>.Binding
     let startSearch: () -> Void
     let cancelSearch: () -> Void
-    let openProfile: () -> Void
     let openCitySearch: () -> Void
     @Environment(\.appModel) private var appModel
     private var model: AppModel { appModel! }
@@ -232,10 +214,7 @@ private struct HomeHeader: View {
                         .coachTarget(.city)
                     }
                     Spacer(minLength: Space.sm)
-                    HStack(spacing: Space.sm) {
-                        IconPill(glyph: PoruchIcons.search, label: Copy.search_scope("\(view.searchScope)"), action: startSearch)
-                        IconPill(glyph: PoruchIcons.person, label: Copy.profile, action: openProfile)
-                    }
+                    IconPill(glyph: PoruchIcons.search, label: Copy.search_scope("\(view.searchScope)"), action: startSearch)
                 }
                 .padding(.horizontal, Space.page)
             } else {

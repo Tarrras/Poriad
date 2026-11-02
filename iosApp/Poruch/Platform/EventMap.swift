@@ -666,6 +666,8 @@ struct EventMap: UIViewRepresentable {
     }
     /// Людина ще не відповідала на системне питання.
     var undecided: Bool { manager.authorizationStatus == .notDetermined }
+    /// Дозволила: місто ось-ось прийде з геокодера.
+    var allowed: Bool { [.authorizedWhenInUse, .authorizedAlways].contains(manager.authorizationStatus) }
     func request() {
         announced = nil
         point = nil

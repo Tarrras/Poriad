@@ -53,9 +53,11 @@ struct HomePeopleSection: View {
     @ViewBuilder private func cards(width: CGFloat?) -> some View {
         ForEach(view.people, id: \.event.id) { entry in
             let id = entry.event.id
+            // Друкований, як і афіші з компанією: одна обкладинка 4:5 тягнула всю рейку до ~410 pt з порожнім полем.
+            // Фото події — у деталях.
             PosterCard(
                 entry: entry, saved: view.isSaved(entry.event), waitlisted: view.isWaitlisted(entry.event),
-                showsOrigin: false, morph: "home_people", onSave: { model.app.toggleSaved(id: id) }
+                showsOrigin: false, printedOnly: true, morph: "home_people", onSave: { model.app.toggleSaved(id: id) }
             ) { open(id, "home_people") }
             .frame(width: width).frame(maxHeight: .infinity)
         }
@@ -305,8 +307,8 @@ private struct PosterCard: View {
     /// корінцем 1,5× (горизонтальний квиток на AX5 рвав «П'ЯТНИЦЮ» і так само).
     private var wide: Bool { typeSize.isAccessibilitySize }
 
-    /// Друкована сторона без фото дає назві чотири рядки; квиток на всю ширину на великому шрифті — без стелі.
-    private var titleLines: Int? { wide ? nil : (printed ? 4 : 2) }
+    /// Друкована сторона без фото дає назві три рядки (рейка ~270 pt); квиток на всю ширину на великому шрифті — без стелі.
+    private var titleLines: Int? { wide ? nil : (printed ? 3 : 2) }
 
     /// Штамп — лише стан квитка: скасовано, «Ви йдете», «Лишилось 2». Чому квиток тут — [reason], тихим рядком.
     @ViewBuilder private func stampView(onFill: Bool) -> some View {

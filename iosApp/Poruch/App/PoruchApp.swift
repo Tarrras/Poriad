@@ -143,7 +143,7 @@ struct RootView: View {
     @StateObject private var location = LocationFinder()
     /// Мʼяке питання про дайджест вихідних, див. `DigestPrompt`.
     @State private var digestAsk = false
-    /// Стос «Ваш тиждень» (docs/return-hooks.md): раз, у першій сесії після онбордингу, до туру.
+    /// Стос «Ваш тиждень» (docs/return-hooks.md): раз, у першій сесії після онбордингу, до підказки «+».
     @AppStorage("poruch.deckDone") private var deckDone = false
     @State private var deck: DeckCards?
     /// Людина натиснула кнопку в листі дайджесту; змах униз без відповіді рахуємо як «не зараз».
@@ -165,21 +165,11 @@ struct RootView: View {
                 OnboardingView()
             } else {
                 app
-                    // Геолокацію питаємо, лише коли онбординг позаду: не поверх його першого екрана. Нового ще й
-                    // спершу вітаємо туром по головній, а питаємо після нього (`.coachMarks`, `onFinish`).
-                    .onAppear { if !(newcomer && location.undecided) { location.request() } }
+                    // Геолокацію питаємо, щойно онбординг позаду, — у першому кадрі головної (docs/design-wow-1.5.md):
+                    // місто відоме до стосу, тож підказка «Ваше місто» не потрібна.
+                    .onAppear { location.request() }
                     .task { digestAsk = await DigestPrompt.due(digestEnabled: root.digestEnabled) }
-                    // Видача їде паралельно з онбордингом; за секунду її вже досить. Не встигла — стосу нема, лишається
-                    // рядок на головній. ponytail: одна перевірка, а не очікування видачі.
-                    .task {
-                        guard newcomer, !deckDone else { return }
-                        try? await Task.sleep(for: .seconds(1))
-                        deckDone = true
-                        let cards = model.app.deckCards()
-                        guard cards.count >= Int(DeckRules.shared.MIN) else { return }
-                        UserDefaults.standard.set(model.app.deckWeek(), forKey: "poruch.deckWeek")
-                        deck = DeckCards(events: cards)
-                    }
+                    .task { await openFirstDeck() }
                     .fullScreenCover(item: $deck) { DeckView(cards: $0.events) { deck = nil } }
                     // Перша підписка за запуск: питаємо про сповіщення, без них пуші про нове не дійдуть.
                     .onChange(of: root.followsMade) { _, made in if made > 0 { FollowPrompt.ask() } }
@@ -217,6 +207,35 @@ struct RootView: View {
         } else {
             Palette.canvas.ignoresSafeArea()
         }
+    }
+
+    /// Стос «Ваш тиждень» на 5 карток (`deckCards`, `DeckRules.FIRST`) — після відповіді про геолокацію й першої видачі
+    /// вже для того міста. Відповідь чекаємо скільки треба (людина читає системне питання), видачу — до 5 с: не встигла —
+    /// стосу нема, лишається рядок на головній.
+    /// ponytail: опитування раз на 200 мс, а не підписка на стан — двічі за життя застосунку.
+    private func openFirstDeck() async {
+        guard newcomer, !deckDone else { return }
+        while location.undecided {
+            guard (try? await Task.sleep(for: .milliseconds(200))) != nil else { return }
+        }
+        // Місто могло змінитись тільки що, а видача ще не почала вантажитись: коротка пауза, щоб не взяти стару.
+        guard (try? await Task.sleep(for: .milliseconds(600))) != nil else { return }
+        let deadline = ContinuousClock.now + .seconds(5)
+        var cards: [Event] = []
+        while ContinuousClock.now < deadline {
+            let state = model.state
+            // Дозволили — чекаємо місто з геокодера; відмова — лишається те, що є (Київ).
+            let located = !location.allowed || (location.city != nil && state?.city.name == location.city?.name)
+            if located, state?.home.loading == false {
+                cards = model.app.deckCards()
+                if cards.count >= Int(DeckRules.shared.MIN) { break }
+            }
+            guard (try? await Task.sleep(for: .milliseconds(200))) != nil else { return }
+        }
+        deckDone = true
+        guard cards.count >= Int(DeckRules.shared.MIN) else { return }
+        UserDefaults.standard.set(model.app.deckWeek(), forKey: "poruch.deckWeek")
+        deck = DeckCards(events: cards)
     }
 
     /// Мапа з деталей: стоси скидаємо самі. `dismiss()` у ту ж мить, що й зміна вкладки, SwiftUI
@@ -311,14 +330,12 @@ struct RootView: View {
         .motion(value: tabBarHidden)
         // Лише на корені головної й не разом з іншим питанням: пуш чи посилання, що відкрили подію, ставлять тур
         // на паузу, а лист дайджесту (другий запуск) чи вхід — відкладають, поки людина не відповість.
+        // Одна підказка — «+»: місто вже з геолокації, «Мапа» підписана в таббарі. Не поверх системного питання й стосу.
         .coachMarks(
-            [.city, .map, .create],
+            [.create],
             enabled: newcomer && tab == 0 && homePath.isEmpty && !tabBarHidden && !digestAsk && deck == nil && !creating
-        ) {
-            // Тур пройдено чи пропущено: тепер питання про геолокацію. Пауза — щоб системне вікно не наклалось на згасання.
-            guard location.undecided else { return }
-            Task { try? await Task.sleep(for: .milliseconds(400)); location.request() }
-        }
+                && !location.undecided && (deckDone || !newcomer)
+        )
         .onAppear {
             // Тап по сповіщенню веде на подію (або в її чат) зі стеку головної, поверх усього, що було відкрите.
             // Без події, але із закладом — пуш про кілька його нових подій: мапа на його стосі.

@@ -90,7 +90,8 @@ struct EventHeroCard: View {
                     VStack(alignment: .leading, spacing: Space.sm) {
                         Text(event.cardTitle).font(event.hasCover ? PoruchFont.brandTitle1 : PoruchFont.brandDisplay)
                             .foregroundStyle(Palette.ink)
-                            .multilineTextAlignment(.leading).lineLimit(!event.hasCover || upright ? 5 : 2)
+                            // З фото — три рядки: на SE у два «Вечір Імпровізації н…» обривався посеред назви.
+                            .multilineTextAlignment(.leading).lineLimit(!event.hasCover || upright ? 5 : 3)
                             .fixedSize(horizontal: false, vertical: true)
                         HostLine(event: event)
                         if let extra { extra.padding(.vertical, Space.xs) }
