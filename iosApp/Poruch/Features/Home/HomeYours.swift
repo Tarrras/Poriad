@@ -240,6 +240,9 @@ private struct NextPlanCard: View {
     let open: () -> Void
     let chat: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.homeCovered) private var covered
+    /// Системне питання (геолокація, сповіщення) робить застосунок неактивним: удар під ним не видно.
+    @Environment(\.scenePhase) private var phase
     @ScaledMetric(relativeTo: .body) private var ticketHeight: CGFloat = 132
     /// Штамп ще не впав: план новий для головної. Рух — раз на план, а не на кожне відкриття, інакше він читався б затримкою.
     @State private var armed: Bool
@@ -338,15 +341,21 @@ private struct NextPlanCard: View {
                 }
             }
         }
-        // Стрічка не лінива: `.task` спрацював би на вставці, поза екраном. Удар — коли квиток видно.
-        .task(id: onScreen) {
-            guard onScreen, !PlanStamps.shown(event.id) else { return }
+        // Стрічка не лінива: `.task` спрацював би на вставці, поза екраном. Удар — коли квиток видно, а головну нічим не
+        // закрито; зникло посеред паузи — завдання скасовується, і план лишається новим.
+        .task(id: onScreen && !covered && phase == .active) {
+            guard onScreen, !covered, phase == .active, !PlanStamps.shown(event.id) else { return }
             // Хай головна спершу ляже: удар у першому ж кадрі губився б у появі стрічки.
             if armed { guard (try? await Task.sleep(for: .milliseconds(350))) != nil else { return } }
             PlanStamps.remember(event.id)
             if armed { armed = false; hit += 1 }
         }
     }
+}
+
+extension EnvironmentValues {
+    /// Головну закриває інший екран чи лист (`RootView`): рух на ній ніхто не побачить.
+    @Entry var homeCovered = false
 }
 
 /// Таббар плаває над низом стрічки: квиток під ним не видно.

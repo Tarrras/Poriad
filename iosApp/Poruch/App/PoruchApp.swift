@@ -210,20 +210,21 @@ struct RootView: View {
     }
 
     /// Стос «Ваш тиждень» на 5 карток (`deckCards`, `DeckRules.FIRST`) — коли геолокація завершилась (місто, відмова чи
-    /// збій) і видача для міста, що вийшло, готова. Відповідь чекаємо скільки треба (людина читає системне питання),
-    /// видачу — до 5 с: не встигла — стосу нема, лишається рядок на головній. Нове місто ставить `home.loading` одразу,
+    /// збій) і видача для міста, що вийшло, готова. Відповідь чекаємо скільки треба (людина читає системне питання), а
+    /// місто й видачу — разом до 5 с від неї: без останнього відомого положення вимір і геокодер тривають довше, і стос
+    /// вискочив би посеред іншого екрана. Не встигли — стосу нема, лишається рядок на головній. Нове місто ставить `home.loading` одразу,
     /// тож стара видача за готову не зійде; ручний вибір міста геолокація не перебиває — видача тоді його.
     /// ponytail: опитування раз на 200 мс, а не підписка на стан — раз за життя застосунку.
     private func openFirstDeck() async {
         guard newcomer, !deckDone else { return }
-        while !location.settled {
+        while location.undecided {
             guard (try? await Task.sleep(for: .milliseconds(200))) != nil else { return }
         }
         let deadline = ContinuousClock.now + .seconds(5)
         var cards: [Event] = []
         while ContinuousClock.now < deadline {
             // Зі стору напряму: дзеркало `model.state` оновлюється наступним проходом.
-            if let home = (model.app.state.value as? AppState)?.home, home.loaded, !home.loading {
+            if location.settled, let home = (model.app.state.value as? AppState)?.home, home.loaded, !home.loading {
                 cards = model.app.deckCards()
                 break
             }
@@ -273,6 +274,10 @@ struct RootView: View {
                         openFollows: { homePath.append(FollowsRoute()) }
                     )
                     .equatable()
+                    // Головну щось закриває: стос (і перший, що ось-ось відкриється), лист, редактор, деталі, інша
+                    // вкладка, квиток. Штамп плану під ними не б'є.
+                    .environment(\.homeCovered, deck != nil || (newcomer && !deckDone) || digestAsk || creating
+                        || !homePath.isEmpty || tab != 0 || root.shownTicket != nil)
                     .safeAreaPadding(.bottom, 92)
                     .toolbar(.hidden, for: .tabBar)
                     // Пуш і посилання ставлять нову подію в той самий слот стосу (див. `PushDelegate.openEvent`):
