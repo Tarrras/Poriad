@@ -207,7 +207,7 @@ async function authed(path, init = {}) {
   return response;
 }
 
-// ---- Вхід: Google (крім вбудованих браузерів) або код з пошти; вперше — імʼя й «Мені вже є 18».
+// ---- Вхід: Google (крім вбудованих браузерів) або код з пошти; вперше — імʼя. 18+ — рядком згоди, `confirm_adult` мовчки.
 
 const auth = { dialog: null, done: null, email: "" };
 
@@ -284,7 +284,6 @@ function setupAuth() {
       } else {
         const name = form.name.value.trim();
         if (name.length < 2 || name.length > 60) return error("Вкажіть імʼя від 2 до 60 символів");
-        if (!form.adult.checked) return error("Позначте, що вам уже є 18: «Поряд» — для дорослих");
         await authed(`/rest/v1/profiles?id=eq.${me.id}`, { method: "PATCH", body: JSON.stringify({ display_name: name }) });
         await rpc("confirm_adult");
         ready = me.id;

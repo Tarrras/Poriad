@@ -360,6 +360,7 @@ function joinSheet(e, ct, now) {
     <form data-form="email"><label class="field"><span>Ваша пошта</span><input type="email" name="email" autocomplete="email" required></label>
       <button class="btn primary" type="submit">Надіслати код</button></form>
     <p class="fine">Надішлемо код для входу. Пароль не потрібен.</p>
+    <p class="fine">Продовжуючи, ви підтверджуєте, що вам уже є 18, і погоджуєтесь з <a href="/terms.html">Умовами користування</a> та <a href="/privacy.html">Політикою конфіденційності</a>.</p>
   </section>
   <section data-step="code" hidden>
     <h2>Код з листа</h2>
@@ -372,7 +373,6 @@ function joinSheet(e, ct, now) {
     <h2>Як вас звати?</h2>
     <form data-form="profile"><label class="field"><span>Імʼя</span><input name="name" autocomplete="name" maxlength="80" required></label>
       <label class="field" data-birth hidden><span>Дата народження</span><input type="date" name="birth"></label>
-      <label class="check"><input type="checkbox" name="adult" required><span>Мені вже є 18</span></label>
       <button class="btn primary" type="submit">Записатися</button></form>
     <p class="fine">Імʼя побачить організатор.</p>
   </section>

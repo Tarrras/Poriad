@@ -286,7 +286,10 @@ export function start(sheet) {
     codeStep(p);
   }
 
-  /** Крок 3: новий акаунт — імʼя й галочка; подія з віком від 19 чи верхньою межею — ще й дата. */
+  /**
+   * Крок 3: новий акаунт — імʼя (його бачить організатор); подія з віком від 19 чи верхньою межею — ще й дата. Вік 18+
+   * підтверджує рядок згоди на першому кроці, тож `confirm_adult` — мовчки, без галочки (власник 02.11).
+   */
   async function askProfile() {
     const form = $('[data-form="profile"]');
     const birth = needsBirthDate(data.minAge, data.maxAge);
@@ -436,7 +439,7 @@ export function start(sheet) {
       form.name.focus();
       return error("Напишіть, як вас звати.");
     }
-    // Спершу дата: якщо їй менше 18, set_birth_date каже UNDERAGE, і галочки ми вже не ставимо.
+    // Спершу дата: якщо їй менше 18, set_birth_date каже UNDERAGE, і 18+ із згоди ми вже не ставимо.
     if (needsBirthDate(data.minAge, data.maxAge)) {
       await rpc("set_birth_date", { p_birth: form.birth.value }).catch((e) => { if (e.code !== "AGE_ALREADY_SET") throw e; });
     }

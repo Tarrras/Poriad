@@ -767,8 +767,6 @@ a.row:hover { background: var(--surface-muted); }
 .field input { height: 52px; padding: 0 16px; border: 1px solid var(--hairline); border-radius: var(--r-md); background: var(--canvas); font: 400 17px/22px var(--font); color: var(--ink); }
 .field input:focus { outline: none; box-shadow: 0 0 0 2px var(--ink); }
 .field input[inputmode="numeric"] { font: 800 28px/1 var(--xcond); letter-spacing: 6px; font-variant-numeric: tabular-nums; }
-.check { display: flex; align-items: center; gap: 12px; min-height: 44px; font: 500 16px/21px var(--font); cursor: pointer; }
-.check input { width: 22px; height: 22px; margin: 0; flex: none; accent-color: var(--ink); }
 .or { display: flex; align-items: center; gap: 12px; font: 500 13px/18px var(--font); color: var(--ink-tertiary); }
 .or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--hairline); }
 .in-app { display: flex; flex-direction: column; gap: 4px; font: 400 15px/21px var(--font); }

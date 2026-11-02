@@ -171,7 +171,7 @@
   <p class="kab-note" data-progress role="status"></p>
 </dialog>
 
-<!-- Вхід: Google або код з пошти; вперше — імʼя й «Мені вже є 18» -->
+<!-- Вхід: Google або код з пошти; вперше — імʼя. 18+ — рядком згоди, без галочки -->
 <dialog class="install" data-auth>
   <form class="install-box kab-auth" data-auth-form novalidate>
     <button class="round" type="button" data-auth-close aria-label="Закрити"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-close"/></svg></button>
@@ -182,6 +182,7 @@
       <p class="kab-or" data-google-or>або кодом з пошти</p>
       <label class="kab-field"><span>Пошта</span><input type="email" name="email" autocomplete="email" inputmode="email" placeholder="you@example.com"></label>
       <button class="btn secondary kab-wide" type="submit" data-send>Надіслати код</button>
+      <p class="fine">Продовжуючи, ви підтверджуєте, що вам уже є 18, і погоджуєтесь з <a href="terms.html">Умовами користування</a> та <a href="privacy.html">Політикою конфіденційності</a>.</p>
     </div>
     <div data-step="code" hidden>
       <h2>Код з листа</h2>
@@ -194,7 +195,6 @@
       <h2>Кілька слів про вас</h2>
       <p class="lead">Імʼя бачать учасники ваших подій.</p>
       <label class="kab-field"><span>Імʼя</span><input name="name" maxlength="60" autocomplete="given-name"></label>
-      <label class="kab-check"><input type="checkbox" name="adult"><span><b>Мені вже є 18</b><small>«Поряд» — для дорослих</small></span></label>
       <button class="btn primary kab-wide" type="submit">Продовжити</button>
     </div>
     <p class="kab-error" data-auth-error role="alert"></p>
