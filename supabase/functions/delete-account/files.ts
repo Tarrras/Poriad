@@ -10,19 +10,15 @@ type Bucket = {
   remove(paths: string[]): Promise<{ error: unknown }>;
 };
 
-/** Шляхи — <uid>/<event_id або avatar>/<file>: list не рекурсивний, тож обходимо папки. Збій — виняток, акаунт лишається. */
+/**
+ * Шляхи — <uid>/<event_id або avatar>/<file>, але RLS пускає й глибше (<uid>/<event>/a/b.jpg), а list не рекурсивний:
+ * обходимо кожну папку до дна. Збій — виняток, акаунт лишається.
+ */
 export async function removeUserFiles(from: (bucket: string) => Bucket, uid: string): Promise<number> {
   let removed = 0;
   for (const bucket of BUCKETS) {
     const storage = from(bucket);
-    const paths: string[] = [];
-    for (const folder of await listAll(storage, uid)) {
-      // Папка в list має id=null; файл просто в <uid>/ теж можливий — видаляємо і його.
-      if (folder.id) { paths.push(`${uid}/${folder.name}`); continue; }
-      for (const file of await listAll(storage, `${uid}/${folder.name}`)) {
-        if (file.id) paths.push(`${uid}/${folder.name}/${file.name}`);
-      }
-    }
+    const paths = await filesUnder(storage, uid);
     for (let i = 0; i < paths.length; i += PAGE) {
       const { error } = await storage.remove(paths.slice(i, i + PAGE));
       if (error) throw error;
@@ -30,6 +26,16 @@ export async function removeUserFiles(from: (bucket: string) => Bucket, uid: str
     removed += paths.length;
   }
   return removed;
+}
+
+// Папка в list має id=null, файл — id.
+async function filesUnder(storage: Bucket, prefix: string): Promise<string[]> {
+  const paths: string[] = [];
+  for (const entry of await listAll(storage, prefix)) {
+    if (entry.id) paths.push(`${prefix}/${entry.name}`);
+    else paths.push(...await filesUnder(storage, `${prefix}/${entry.name}`));
+  }
+  return paths;
 }
 
 async function listAll(storage: Bucket, prefix: string) {

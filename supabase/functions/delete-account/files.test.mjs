@@ -26,12 +26,13 @@ function fake(files, failRemove = null) {
 }
 
 const files = {
-  "event-images": ["u1/e1/cover.jpg", "u1/e1/poster.jpg", "u1/avatar/a.jpg", "u1/loose.jpg", "u2/e9/other.jpg"],
+  "event-images": ["u1/e1/cover.jpg", "u1/e1/poster.jpg", "u1/e1/a/b/deep.jpg", "u1/avatar/a.jpg", "u1/loose.jpg", "u2/e9/other.jpg"],
   "event-videos": ["u1/e1/clip.mp4", "u1/e2/long.mp4", "u2/e9/other.mp4"],
 };
 const s = fake(files);
-assert.equal(await removeUserFiles(s.from, "u1"), 6);
-assert.deepEqual(s.removed["event-images"].sort(), ["u1/avatar/a.jpg", "u1/e1/cover.jpg", "u1/e1/poster.jpg", "u1/loose.jpg"]);
+assert.equal(await removeUserFiles(s.from, "u1"), 7);
+assert.deepEqual(s.removed["event-images"].sort(), ["u1/avatar/a.jpg", "u1/e1/a/b/deep.jpg", "u1/e1/cover.jpg", "u1/e1/poster.jpg", "u1/loose.jpg"],
+  "deeper folders too: RLS allows them");
 assert.deepEqual(s.removed["event-videos"].sort(), ["u1/e1/clip.mp4", "u1/e2/long.mp4"], "videos go too");
 assert.ok(![...s.removed["event-images"], ...s.removed["event-videos"]].some((p) => p.startsWith("u2/")), "someone else's files stay");
 

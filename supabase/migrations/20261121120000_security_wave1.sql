@@ -1,9 +1,11 @@
 -- Аудит безпеки хвилі 1 (docs/organizers-1.5.md, «Аудит безпеки хвилі 1», 02.11), до пілоту:
--- - видалення акаунта прибирає й відео (бакет event-videos), не лише фото;
--- - у теці події `<uid>/<event>/` не більше 12 файлів у event-images і 6 у event-videos: 5 медіа, їхні постери й
---   обкладинка з запасом на повтор, але не безкінечне сховище за наш рахунок;
--- - «Вставити анонс»: загальна стеля 300 викликів на годину замість 1000;
--- - назва спільнотної події без посилань і доменів: поштові клієнти роблять з них лінк у листі від noreply@poriad.app.
+-- - видалення акаунта прибирає й відео (бакет event-videos), не лише фото; RPC `delete_my_account` клієнтам закрито:
+--   він видаляє рядки без файлів у Storage і без повторного входу, а застосунки й сайт з 23.09 (v1.3.1) ходять у
+--   функцію `delete-account`;
+-- - у теці події `<uid>/<event>/` не більше 12 файлів у event-images і 11 у event-videos: 5 медіа, їхні постери й
+--   обкладинка з запасом на заміну, але не безкінечне сховище за наш рахунок;
+-- - «Вставити анонс»: загальна стеля 300 викликів на годину замість 1000.
+-- Посилання з назв і імен у листах прибирає функція `push` (mail.ts), а не заборона в базі.
 
 -- Тіло — з 20260923100000, додано event-videos.
 create or replace function private.delete_my_account() returns void language plpgsql security definer set search_path='' as $$
@@ -14,13 +16,14 @@ begin
  delete from storage.objects where bucket_id in ('event-images','event-videos') and name like v_user::text || '/%';
  delete from auth.users where id=v_user;
 end $$;
+revoke execute on function public.delete_my_account(), private.delete_my_account() from public, anon, authenticated;
 
 -- Ліміт файлів у теці події. Тригер на кожну вставку, зокрема Storage copy («Повторити») і upsert: той самий файл
 -- удруге не рахуємо. Аватари (`<uid>/avatar/…`) не чіпаємо: застосунок кладе кожен під новою назвою.
--- ponytail: аватари без ліміту, а заміна медіа в події кладе нові файли поруч зі старими — 12/6 вистачає на одну
--- повну заміну; якщо організатори впиратимуться, клієнти мають видаляти замінені файли.
+-- Відео 11 = 2×5+1: клієнти спершу вантажать нові файли й лише після update_event видаляють замінені, тож на мить у
+-- теці лежать і старі, і нові. ponytail: аватари без ліміту.
 create function private.limit_event_files() returns trigger language plpgsql security definer set search_path='' as $$
-declare v_max integer := case new.bucket_id when 'event-images' then 12 when 'event-videos' then 6 end; v_prefix text;
+declare v_max integer := case new.bucket_id when 'event-images' then 12 when 'event-videos' then 11 end; v_prefix text;
 begin
  if v_max is null or split_part(new.name, '/', 3) = '' or split_part(new.name, '/', 2) = 'avatar' then return new; end if;
  v_prefix := split_part(new.name, '/', 1) || '/' || split_part(new.name, '/', 2) || '/';
@@ -52,24 +55,4 @@ begin
  end if;
  insert into private.announce_calls(ip) values (v_net);
  return true;
-end $$;
-
--- Тіло — з 20260923140000, додано посилання в назві. Лише спільнотна подія (супутник бере назву афіші) і лише нова
--- чи змінена назва: старі події редагуються як були.
-create or replace function private.check_event_text() returns trigger language plpgsql set search_path='' as $$
-begin
- if new.organizer_id is null then return new; end if;
- if (tg_op='INSERT' or new.title is distinct from old.title)
-    and char_length(btrim(new.title)) not between 3 and 120 then
-  raise exception 'INVALID_TITLE' using errcode='22023';
- end if;
- if (tg_op='INSERT' or new.title is distinct from old.title) and new.companion_of is null
-    and new.title ~* '(https?://|www\.|[[:alnum:]_-]\.(com|net|org|ua|app|io|me|ru|su|info|xyz|top|link|site|online|store|shop|biz|club|live|pro|tv|cc|gg|ly|to|co|eu|pl|de|uk|рф|укр)\y)' then
-  raise exception 'INVALID_TITLE' using errcode='22023';
- end if;
- if (tg_op='INSERT' or new.description is distinct from old.description)
-    and char_length(btrim(new.description)) not between 10 and 5000 then
-  raise exception 'INVALID_DESCRIPTION' using errcode='22023';
- end if;
- return new;
 end $$;
