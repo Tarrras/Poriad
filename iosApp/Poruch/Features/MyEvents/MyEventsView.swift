@@ -372,7 +372,7 @@ struct MyEventsView: View, Equatable {
                 if own {
                     Button { startRepeat(event) } label: { Label(Copy.repeat_event, systemImage: "arrow.clockwise") }
                         .disabled(preparing)
-                    Button { startThreads(event) } label: { Label(Copy.threads_post, systemImage: "doc.on.doc") }
+                    Button { startThreads(event) } label: { Label(Copy.share_promote, systemImage: "square.and.arrow.up") }
                         .disabled(preparing)
                 }
             }
@@ -473,12 +473,12 @@ private func panelCountdown(_ event: Event) -> String? {
 /// Кнопка картки: як `SecondaryButton`, але з вужчими полями, щоб у ряд вміщалось три дії з підписом.
 private struct CardButton: View {
     let title: String
-    let glyph: PoruchGlyph
+    var glyph: PoruchGlyph?
     let action: () -> Void
     var body: some View {
         Button(action: action) {
             HStack(spacing: Space.sm) {
-                PoruchIcon(glyph: glyph, size: 18)
+                if let glyph { PoruchIcon(glyph: glyph, size: 18) }
                 Text(title).font(PoruchFont.button).lineLimit(2)
             }
             .foregroundStyle(Palette.ink)
@@ -583,24 +583,39 @@ private struct OrganizerPanel: View {
             }
             if let declined { declinedRow(declined) }
             else if let request = requests.first { requestRow(request) }
-            PanelActions {
-                CardButton(title: Copy.participants, glyph: PoruchIcons.social) { open(event.id) }
-                CardButton(title: unread > 0 ? Copy.chat_short_unread("\(unread)") : Copy.chat_short, glyph: PoruchIcons.chat) { chat(event.id) }
-                ShareLink(item: SystemActions.shareText(for: event)) {
-                    PoruchIcon(glyph: PoruchIcons.share, size: 18).foregroundStyle(Palette.ink)
-                        .frame(width: 48, height: 48).background(Palette.brandContainer, in: Circle())
-                }.accessibilityLabel(Copy.share)
-                .simultaneousGesture(TapGesture().onEnded { model.app.eventShared() })
-            }
-            // Збір на афішу не повторюють і не анонсують: він живе разом з афішею.
-            if event.gathering?.companionOf == nil {
-                PanelActions {
-                    CardButton(title: Copy.threads_post, glyph: PoruchIcons.copy) { threads(event) }
-                    CardButton(title: Copy.repeat_event, glyph: PoruchIcons.refresh) { repeatEvent(event) }
-                }
-                .disabled(preparing)
+            actions
+        }
+    }
+
+    /// Один ряд: дві другорядні й дві круглі — «Поширити анонс» і «⋯» з «Повторити» (docs/design-wow-1.5.md, «Мої
+    /// події»): перший екран SE лишається за найближчою подією, а не за кнопками. Поруч із двома круглими другорядні —
+    /// словами, без гліфів: з ними на SE виходило «Уча-сники» по складах.
+    private var actions: some View {
+        // Збір на афішу не повторюють і не анонсують: він живе разом з афішею, тож — звичайне посилання.
+        let own = event.gathering?.companionOf == nil
+        return PanelActions {
+            CardButton(title: Copy.participants, glyph: own ? nil : PoruchIcons.social) { open(event.id) }
+            CardButton(title: unread > 0 ? Copy.chat_short_unread("\(unread)") : Copy.chat_short, glyph: own ? nil : PoruchIcons.chat) { chat(event.id) }
+            if own {
+                Button { threads(event) } label: { round(PoruchIcon(glyph: PoruchIcons.share, size: 18)) }
+                    .buttonStyle(PressableStyle())
+                    .accessibilityLabel(Copy.share_promote)
+                    .disabled(preparing)
+                Menu {
+                    Button { repeatEvent(event) } label: { Label(Copy.repeat_event, systemImage: "arrow.clockwise") }
+                } label: { round(Image(systemName: "ellipsis").font(.system(size: 17, weight: .semibold))) }
+                    .accessibilityLabel(Copy.more_actions)
+                    .disabled(preparing)
+            } else {
+                ShareLink(item: SystemActions.shareText(for: event)) { round(PoruchIcon(glyph: PoruchIcons.share, size: 18)) }
+                    .accessibilityLabel(Copy.share)
+                    .simultaneousGesture(TapGesture().onEnded { model.app.eventShared() })
             }
         }
+    }
+
+    private func round(_ glyph: some View) -> some View {
+        glyph.foregroundStyle(Palette.ink).frame(width: 48, height: 48).background(Palette.brandContainer, in: Circle())
     }
 
     private func requestRow(_ request: JoinRequest) -> some View {

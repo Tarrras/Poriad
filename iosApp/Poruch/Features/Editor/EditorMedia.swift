@@ -397,7 +397,10 @@ struct MediaSection: View {
             if let error = editor.mediaError {
                 Text(error).font(PoruchFont.caption).foregroundStyle(Palette.danger)
             }
-            Text(Copy.media_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            // З першим файлом підказку заміняє штамп «Обкладинка» на плитці.
+            if items.isEmpty && editor.preparing == 0 {
+                Text(Copy.media_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            }
         }
         .motion(value: items)
         .onChange(of: picked) { _, chosen in

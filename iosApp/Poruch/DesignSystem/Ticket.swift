@@ -219,3 +219,53 @@ struct TicketStamp: View {
         .rotationEffect(.degrees(-4))
     }
 }
+
+/// Штамп, що падає з розмаху (docs/design-wow-1.5.md, «Рух»): ×2.4 і −16° → удар ×0.92, −3° → ×1.04 → ×1, −4° за
+/// 0,52 с, і важкий тактильний відгук саме в мить удару. Б'є лише на зміну `hit`, тож повторний показ стоїть спокійно.
+/// «Зменшити рух» — проявляється в сталому масштабі, як «ЗБЕРЕЖЕНО» у стосі.
+struct StampDrop: View {
+    let stamp: TicketStamp
+    let hit: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var impact = 0
+
+    var body: some View {
+        // Кути — поверх власних −4° штампа.
+        let still = reduceMotion
+        stamp
+            .keyframeAnimator(initialValue: StampPose(), trigger: hit) { content, pose in
+                content.scaleEffect(pose.scale).rotationEffect(.degrees(pose.turn)).opacity(pose.opacity)
+            } keyframes: { _ in
+                KeyframeTrack(\.scale) {
+                    MoveKeyframe(still ? 1 : 2.4)
+                    LinearKeyframe(still ? 1 : 0.92, duration: 0.234, timingCurve: stampSwing)
+                    LinearKeyframe(still ? 1 : 1.04, duration: 0.14, timingCurve: stampRebound)
+                    LinearKeyframe(1, duration: 0.146, timingCurve: stampRebound)
+                }
+                KeyframeTrack(\.turn) {
+                    MoveKeyframe(still ? 0 : -12)
+                    LinearKeyframe(still ? 0 : 1, duration: 0.234, timingCurve: stampSwing)
+                    LinearKeyframe(still ? 0 : -0.5, duration: 0.14, timingCurve: stampRebound)
+                    LinearKeyframe(0, duration: 0.146, timingCurve: stampRebound)
+                }
+                KeyframeTrack(\.opacity) {
+                    MoveKeyframe(0)
+                    LinearKeyframe(1, duration: 0.234, timingCurve: stampSwing)
+                }
+            }
+            .sensoryFeedback(.impact(weight: .heavy), trigger: impact)
+            .onChange(of: hit) { _, _ in
+                DispatchQueue.main.asyncAfter(deadline: .now() + (still ? 0 : 0.234)) { impact += 1 }
+            }
+    }
+}
+
+private struct StampPose {
+    var scale: CGFloat = 1
+    var turn: Double = 0
+    var opacity: Double = 1
+}
+
+/// Розгін до удару й відскок — ті самі криві, що на сайті (`cubic-bezier(.55, 0, .9, .45)` і `(.2, .8, .3, 1)`).
+private let stampSwing = UnitCurve.bezier(startControlPoint: UnitPoint(x: 0.55, y: 0), endControlPoint: UnitPoint(x: 0.9, y: 0.45))
+private let stampRebound = UnitCurve.bezier(startControlPoint: UnitPoint(x: 0.2, y: 0.8), endControlPoint: UnitPoint(x: 0.3, y: 1))

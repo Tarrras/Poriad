@@ -2,9 +2,11 @@ import EventKit
 import SwiftUI
 import Shared
 
-/// «Подію створено» (docs/organizers-1.5.md, 1.6): на квиток падає штамп, далі — поширити, скопіювати посилання, додати
-/// в календар. «Готово» чи змах униз — на деталі події. Редактор показує його замість себе, щойно публікація скінчилась:
-/// друга шторка поверх тієї, що закривається, SwiftUI не показав би.
+/// «Подію створено» (docs/organizers-1.5.md, 1.6; docs/design-wow-1.5.md, «Застосунки: простота»): на квиток падає
+/// штамп, з прорізу під заголовком виїжджає справжній квиток події, далі одна головна дія (поширити), одна другорядна
+/// (посилання) і календар текстом. «Готово» вгорі праворуч, як у системних аркушах; воно, змах униз і тап по квитку —
+/// на деталі події. Редактор показує його замість себе, щойно публікація скінчилась: друга шторка поверх тієї, що
+/// закривається, SwiftUI не показав би.
 struct PublishedView: View {
     let published: PublishedEvent
     let done: () -> Void
@@ -16,6 +18,10 @@ struct PublishedView: View {
     @State private var folder: URL?
     @State private var preparing = false
     @State private var calendar: CalendarSession?
+    /// Квиток події вже виїхав з прорізу.
+    @State private var ticketOut = false
+    /// Висота квитка — та сама, що в `EventMapCard`: на неї він сховано стоїть над прорізом.
+    @ScaledMetric(relativeTo: .body) private var cardHeight = mapCardHeight
 
     /// Подія з деталей чи «Моїх подій», якщо вже доїхала: жанр для корінця, файли й особисте запрошення.
     private var event: Event? {
@@ -31,11 +37,12 @@ struct PublishedView: View {
             VStack(spacing: Space.xl) {
                 // Без «зменшити рух» штамп падає раз; з ним — одразу стоїть.
                 BrandAnimation(name: "Published", loop: false, still: reduceMotion, stillAt: 1, stub: event.map { categoryStub($0.category) })
-                    .frame(width: 300, height: 200)
+                    .frame(width: 200, height: 133)
                     .decorative()
-                VStack(spacing: Space.sm) {
-                    Text(Copy.published_title).font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
-                        .multilineTextAlignment(.center).accessibilityAddTraits(.isHeader)
+                Text(Copy.published_title).font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
+                    .multilineTextAlignment(.center).accessibilityAddTraits(.isHeader)
+                // Назву несе квиток; поки подія не доїхала в стан — назва словами.
+                if let event { slot(event) } else {
                     Text(TitleRules.shared.display(title: published.title)).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                         .multilineTextAlignment(.center)
                 }
@@ -43,17 +50,36 @@ struct PublishedView: View {
                     PrimaryButton(title: shareTitle, glyph: PoruchIcons.share, loading: preparing, enabled: !preparing) { shareTapped() }
                     SecondaryButton(title: Copy.published_copy_link, glyph: PoruchIcons.link) { copyLink() }
                         .frame(maxWidth: .infinity)
-                    SecondaryButton(title: Copy.published_calendar, glyph: PoruchIcons.calendar) { addToCalendar() }
-                        .frame(maxWidth: .infinity)
-                    Button(Copy.published_done, action: done)
+                    Button { addToCalendar() } label: {
+                        HStack(spacing: Space.sm) {
+                            PoruchIcon(glyph: PoruchIcons.calendar, size: 18)
+                            Text(Copy.published_calendar)
+                        }
                         .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
-                        .frame(maxWidth: .infinity).frame(minHeight: 44)
+                        .frame(maxWidth: .infinity).tapTarget()
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-            .padding(Space.page).padding(.top, Space.section)
+            .padding(.horizontal, Space.page).padding(.bottom, Space.page)
+            // Подія доїхала в стан пізніше за екран: проріз розсувається плавно, а не стрибком.
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: event == nil)
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HStack {
+                Spacer()
+                Button(Copy.published_done, action: done)
+                    .font(PoruchFont.button).foregroundStyle(Palette.ink).tapTarget()
+            }
+            .padding(.horizontal, Space.page).padding(.top, Space.sm)
+            // Хром, як шапка редактора: не росте далі xxLarge.
+            .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         }
         .background(Palette.canvas)
         .notice(notice) { notice = nil }
+        // Квиток виїжджає, щойно подія є: часто вона доїжджає в стан уже після появи екрана.
+        .onAppear { if event != nil { printTicket() } }
+        .onChange(of: event == nil) { _, missing in if !missing { printTicket() } }
         .sheet(item: $share, onDismiss: {
             if let folder { try? FileManager.default.removeItem(at: folder) }
             folder = nil
@@ -65,6 +91,21 @@ struct PublishedView: View {
                 end: Date(timeIntervalSince1970: TimeInterval(published.endMillis) / 1000), store: session.store
             )
         }
+    }
+
+    /// Проріз під заголовком: квиток виїжджає з-під його краю згори, а місце під ним уже є, тож кнопки не стрибають.
+    /// Тап — деталі, як «Готово».
+    private func slot(_ event: Event) -> some View {
+        EventMapCard(event: event, elevation: Elevation.flat, action: done)
+            .offset(y: ticketOut ? 0 : -(scaledMapCardHeight(cardHeight) + 6))
+            .clipped()
+    }
+
+    /// Як на сайті (`.kab-done-ticket`): 1 с після затримки 0,35 с, поки штамп ще падає. «Зменшити рух» — одразу на місці.
+    private func printTicket() {
+        guard !ticketOut else { return }
+        if reduceMotion { ticketOut = true; return }
+        withAnimation(.timingCurve(0.25, 0.1, 0.25, 1, duration: 1).delay(0.35)) { ticketOut = true }
     }
 
     /// «Поширити анонс» — пост для Threads у буфер і меню з ним, фото й відео; «Поділитися з другом» — особисте `?by=`.
