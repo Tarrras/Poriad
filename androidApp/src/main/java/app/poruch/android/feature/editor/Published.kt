@@ -15,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewModelScope
 import app.poruch.android.R
@@ -132,3 +133,20 @@ fun PublishedScreen(state: PublishedState, onIntent: (PublishedIntent) -> Unit) 
         GhostButton(stringResource(R.string.published_done), { onIntent(PublishedIntent.Done) }, tone = colors.ink)
     }
 }
+
+@Preview(heightDp = 760)
+@Composable
+private fun PublishedPreview() = PoruchTheme(dark = false) {
+    PublishedScreen(PublishedState(PREVIEW_PUBLISHED)) {}
+}
+
+@Preview(heightDp = 760)
+@Composable
+private fun PublishedFriendDarkPreview() = PoruchTheme(dark = true) {
+    PublishedScreen(PublishedState(PREVIEW_PUBLISHED.copy(shareMode = ShareMode.FRIEND), sharing = true)) {}
+}
+
+private val PREVIEW_PUBLISHED = PublishedEvent(
+    id = "preview", link = "https://poriad.app/e/preview", post = "", shareMode = ShareMode.PROMOTE,
+    title = "Вечір настільних ігор у «Протісто»", startMillis = 0, endMillis = 0, timeZone = "Europe/Kyiv", location = "Київ"
+)

@@ -39,6 +39,8 @@ import app.poruch.domain.AnnounceField
 import app.poruch.domain.AnnouncementFill
 import app.poruch.domain.DraftMedia
 import app.poruch.domain.MediaKind
+import androidx.compose.ui.tooling.preview.Preview
+import app.poruch.shared.MediaUpload
 import coil3.compose.AsyncImage
 
 // Крок 1 редактора: «Є готовий анонс?» і «Фото й відео» (docs/organizers-1.5.md, хвиля 2).
@@ -253,3 +255,9 @@ private val DraftMedia.id: String
     }
 
 private val TILE = 88.dp
+
+@Preview(heightDp = 640)
+@Composable
+private fun PublishingOverlayPreview() = PoruchTheme(dark = false) {
+    Box(Modifier.fillMaxSize()) { PublishingOverlay(EditorState(upload = MediaUpload(2, 4))) }
+}

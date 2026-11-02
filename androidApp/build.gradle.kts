@@ -95,6 +95,10 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2026.02.01"))
     implementation("androidx.activity:activity-compose:1.12.4")
     implementation("androidx.compose.material3:material3")
+    // Прев'ю Compose: анотація @Preview (кілька КБ) і ComposeViewAdapter, яким їх малює Prevue без Android Studio —
+    // лише в debug, у реліз не йде.
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation("androidx.navigation3:navigation3-runtime:1.2.0")
