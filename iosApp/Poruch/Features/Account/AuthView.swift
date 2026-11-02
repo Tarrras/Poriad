@@ -243,6 +243,9 @@ struct AuthView: View {
                 Text(providerError).font(PoruchFont.caption).foregroundStyle(Palette.danger)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            // Згода одразу під Apple й Google: дотик до них уже створює профіль, тож її видно до нього й на SE. Під
+            // «Надіслати код» вона йшла за згин.
+            consent.frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: Space.md) {
                 Rectangle().fill(Palette.hairline).frame(height: 1)
                 Text(Copy.auth_or_email).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).fixedSize()
@@ -266,8 +269,10 @@ struct AuthView: View {
     }
 
     /// Лист з кодом; відлік до наступного — з самого тапу. Повтор на ту саму пошту `awaitingCode` не міняє, тож поле
-    /// коду відкриваємо самі: код на неї вже йшов.
+    /// коду відкриваємо самі: код на неї вже йшов. Пошту — без пробілів, як її зберігає спільний шар: QuickType лишає
+    /// пробіл у кінці, і без цього поле коду після «Інша пошта» не з'являлось.
     private func send(_ email: String) {
+        let email = email.trimmingCharacters(in: .whitespacesAndNewlines)
         resendAt = Date().addingTimeInterval(codeResendDelay)
         providerError = nil
         if model.state?.session.awaitingCode == email { codeMode = true; code = "" }
@@ -289,8 +294,8 @@ struct AuthView: View {
         }.padding(.horizontal, Space.page)
     }
 
-    /// Перший екран: Apple, Google, пошта й «Надіслати код» — ті самі `/auth/v1/otp` і `/verify`, що на сайті. Новий
-    /// акаунт з'являється тут же, тож згода — під кнопкою; пароль — посиланням для тих, хто його має.
+    /// Перший екран: Apple, Google, згода, пошта й «Надіслати код» — ті самі `/auth/v1/otp` і `/verify`, що на сайті.
+    /// Пароль — посиланням для тих, хто його має.
     private var start: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             providers
@@ -301,7 +306,6 @@ struct AuthView: View {
             PrimaryButton(title: Copy.auth_code_send, glyph: PoruchIcons.mail, loading: model.state?.mutating == true, enabled: form.emailValid) {
                 send(form.email)
             }
-            consent
             Button(Copy.auth_password_link) { providerError = nil; passwordMode = true }
                 .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
                 .frame(maxWidth: .infinity).frame(minHeight: 44)
@@ -368,7 +372,7 @@ struct AuthView: View {
         }.padding(.horizontal, Space.page)
     }
 
-    /// Згода під «Надіслати код»: назви документів — посилання, але в чорнилі, а не в
+    /// Згода під Apple й Google: назви документів — посилання, але в чорнилі, а не в
     /// системному синьому, щоб рядок лишався підписом, а не закликом. Адреси спільні з Android.
     private var consent: some View {
         var text = AttributedString(Copy.auth_consent_prefix)

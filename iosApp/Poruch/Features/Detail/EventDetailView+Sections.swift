@@ -658,10 +658,13 @@ extension EventDetailView {
                 } else {
                     // Зустріч: пояснення («Організатор підтверджує кожного», «Лишилось 2 місця») — окремим рядком на всю
                     // ширину, а дія під ним. Поруч із кнопкою воно обрізалось саме в момент рішення. Записались — перед
-                    // ним штамп стану, що падає з розмаху (вау №1, docs/design-wow-1.5.md).
-                    HStack(spacing: Space.sm) {
+                    // ним штамп стану, що падає з розмаху (вау №1, docs/design-wow-1.5.md). На великому шрифті — штамп над
+                    // поясненням: поруч воно знову обрізалось.
+                    let stampLayout = typeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: Space.sm)) : AnyLayout(HStackLayout(spacing: Space.sm))
+                    stampLayout {
                         if let stamp = participationStamp(view) {
-                            StampDrop(stamp: TicketStamp(text: stamp.0, tone: stamp.1, glyph: stamp.2), hit: stampHit)
+                            StampDrop(stamp: TicketStamp(text: stamp.0, tone: stamp.1, glyph: stamp.2), hit: stampHit, armed: joinTapped)
                         }
                         summary(view)
                     }
@@ -743,14 +746,18 @@ extension EventDetailView {
                 loading: threadsEvent != nil, enabled: screen.detailsLoaded && threadsEvent == nil
             ) { threadsEvent = event }
         } else if participationStamp(view) != nil {
-            SecondaryButton(title: view.action.title, enabled: view.action.isEnabled && !view.mutating) {
+            SecondaryButton(title: view.action.title, enabled: view.action.isEnabled && !view.mutating, lines: 3) {
                 if !actions.perform(view.action, on: event, signedIn: view.signedIn) { auth = .join }
             }
             .frame(maxWidth: .infinity)
+            // «Ви берете участь · вийти» поруч із корінцем на AX3 обрізалось до «Ви берет…»: як рядок стану компанії,
+            // кнопка росте до AX1, а там вміщається в три рядки.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         } else {
             PrimaryButton(title: view.action.title, loading: view.mutating, enabled: view.action.isEnabled && !view.mutating) {
-                if view.action == .join || view.action == .request || view.action == .joinWaitlist { joinTapped = true }
-                if !actions.perform(view.action, on: event, signedIn: view.signedIn) { auth = .join }
+                let joining = view.action == .join || view.action == .request || view.action == .joinWaitlist
+                // Гість іде у вхід: штамп після нього не його дотик, тож прапорець — лише коли запит справді пішов.
+                if actions.perform(view.action, on: event, signedIn: view.signedIn) { joinTapped = joining } else { auth = .join }
             }
         }
     }

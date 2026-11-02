@@ -593,23 +593,27 @@ private struct OrganizerPanel: View {
     private var actions: some View {
         // Збір на афішу не повторюють і не анонсують: він живе разом з афішею, тож — звичайне посилання.
         let own = event.gathering?.companionOf == nil
+        // Те саме правило, що `shareMode` деталей: скасовану, перенесену чи минулу не анонсують — нею лише діляться.
+        let promote = ShareRules.shared.mode(event: event, me: model.state?.session.userId, now: nowInstant()) == .promote
         return PanelActions {
             CardButton(title: Copy.participants, glyph: own ? nil : PoruchIcons.social) { open(event.id) }
             CardButton(title: unread > 0 ? Copy.chat_short_unread("\(unread)") : Copy.chat_short, glyph: own ? nil : PoruchIcons.chat) { chat(event.id) }
-            if own {
+            if promote {
                 Button { threads(event) } label: { round(PoruchIcon(glyph: PoruchIcons.share, size: 18)) }
                     .buttonStyle(PressableStyle())
                     .accessibilityLabel(Copy.share_promote)
-                    .disabled(preparing)
-                Menu {
-                    Button { repeatEvent(event) } label: { Label(Copy.repeat_event, systemImage: "arrow.clockwise") }
-                } label: { round(Image(systemName: "ellipsis").font(.system(size: 17, weight: .semibold))) }
-                    .accessibilityLabel(Copy.more_actions)
                     .disabled(preparing)
             } else {
                 ShareLink(item: SystemActions.shareText(for: event)) { round(PoruchIcon(glyph: PoruchIcons.share, size: 18)) }
                     .accessibilityLabel(Copy.share)
                     .simultaneousGesture(TapGesture().onEnded { model.app.eventShared() })
+            }
+            if own {
+                Menu {
+                    Button { repeatEvent(event) } label: { Label(Copy.repeat_event, systemImage: "arrow.clockwise") }
+                } label: { round(Image(systemName: "ellipsis").font(.system(size: 17, weight: .semibold))) }
+                    .accessibilityLabel(Copy.more_actions)
+                    .disabled(preparing)
             }
         }
     }

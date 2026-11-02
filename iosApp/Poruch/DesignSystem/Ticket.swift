@@ -226,6 +226,8 @@ struct TicketStamp: View {
 struct StampDrop: View {
     let stamp: TicketStamp
     let hit: Int
+    /// Удар уже чекає (`hit` зміниться наступним оновленням): до нього штамп прозорий, а не кадр у спокої перед ×2.4.
+    var armed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var impact = 0
 
@@ -234,7 +236,7 @@ struct StampDrop: View {
         let still = reduceMotion
         stamp
             .keyframeAnimator(initialValue: StampPose(), trigger: hit) { content, pose in
-                content.scaleEffect(pose.scale).rotationEffect(.degrees(pose.turn)).opacity(pose.opacity)
+                content.scaleEffect(pose.scale).rotationEffect(.degrees(pose.turn)).opacity(armed ? 0 : pose.opacity)
             } keyframes: { _ in
                 KeyframeTrack(\.scale) {
                     MoveKeyframe(still ? 1 : 2.4)
