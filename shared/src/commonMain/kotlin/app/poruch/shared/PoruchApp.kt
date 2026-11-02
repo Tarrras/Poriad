@@ -606,8 +606,8 @@ class PoruchApp internal constructor(
 
     // ---- Стос «Ваш тиждень» (docs/return-hooks.md, хвиля 2)
 
-    /** До [DeckRules.MAX] подій «Для вас» на тиждень. Порожньо — стосу не показувати. */
-    fun deckCards(): List<Event> = store.value.home.let { DeckRules.pick(it.suggested.ifEmpty { it.events }, Clock.System.now()) }
+    /** Перший стос після онбордингу: до [DeckRules.FIRST] подій «Для вас» на тиждень. Порожньо — стосу не показувати. */
+    fun deckCards(): List<Event> = store.value.home.let { DeckRules.pick(it.suggested.ifEmpty { it.events }, Clock.System.now(), DeckRules.FIRST) }
 
     /** Тиждень, у який стос відкрито: платформа пам'ятає його, щоб рядок на головній не кликав двічі за тиждень. */
     fun deckWeek(): String = DeckRules.week(Clock.System.now(), TimeZone.currentSystemDefault())

@@ -38,6 +38,7 @@ class DeckRulesTest {
     @Test fun tooFewMeansNoDeck() {
         assertTrue(DeckRules.pick(listOf(event("a"), event("b"), event("c")), now).isEmpty())
         assertEquals(DeckRules.MAX, DeckRules.pick((1..20).map { event("e$it", category = EventCategory.entries[it % 5]) }, now).size)
+        assertEquals(DeckRules.FIRST, DeckRules.pick((1..20).map { event("e$it", category = EventCategory.entries[it % 5]) }, now, DeckRules.FIRST).size)
     }
 
     @Test fun weekIsItsMonday() {

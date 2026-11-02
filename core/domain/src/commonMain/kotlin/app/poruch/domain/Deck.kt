@@ -15,6 +15,9 @@ import kotlinx.datetime.toLocalDateTime
 object DeckRules {
     const val MAX = 10
 
+    /** Перший стос після онбордингу (design-wow-1.5): п'ять, щоб до штампа й кінця доходили, а не тиснули «Пропустити». */
+    const val FIRST = 5
+
     /** Менше — стосу нема: три картки не «тиждень», а випадковість. */
     const val MIN = 4
 
@@ -24,10 +27,10 @@ object DeckRules {
     const val SAME_IN_ROW = 3
 
     /**
-     * До [MAX] подій з [events] (уже ранжовані за смаком, по одній на серію) на найближчі 7 днів, без скасованих і тих,
+     * До [limit] подій з [events] (уже ранжовані за смаком, по одній на серію) на найближчі 7 днів, без скасованих і тих,
      * що вже почались. Коли три поспіль одного жанру — наступна іншого підтягується вперед. Менше [MIN] — порожньо.
      */
-    fun pick(events: List<Event>, now: Instant): List<Event> {
+    fun pick(events: List<Event>, now: Instant, limit: Int = MAX): List<Event> {
         val until = now + HORIZON
         val rest = events.distinctBy { it.id }.filter { event ->
             // Кіно в стос не йде навіть за інтересом: «так» на сеанс о 19:40 — не план тижня (docs/cinema-import.md).
@@ -35,7 +38,7 @@ object DeckRules {
                 event.startInstant?.let { it in now..until } == true
         }.toMutableList()
         val deck = ArrayList<Event>()
-        while (deck.size < MAX && rest.isNotEmpty()) {
+        while (deck.size < limit && rest.isNotEmpty()) {
             val tail = deck.takeLast(SAME_IN_ROW)
             val streak = tail.size == SAME_IN_ROW && tail.all { it.category == tail.first().category }
             val next = if (streak) rest.firstOrNull { it.category != tail.first().category } ?: break else rest.first()
