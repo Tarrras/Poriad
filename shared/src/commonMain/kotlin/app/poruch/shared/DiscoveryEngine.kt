@@ -86,13 +86,15 @@ internal class DiscoveryEngine(
         val snapshot = query
         searchPlaces(snapshot)
         loadDistricts()
+        // До запуску, а не в ньому: між зміною міста й першим кроком завдання стан казав «місто нове, видача готова»,
+        // і перший стос брав картки попереднього міста.
+        store.update {
+            it.copy(
+                map = it.map.copy(loading = true),
+                home = if (shared) it.home.copy(loading = true) else it.home
+            )
+        }
         searchJob.launch {
-            store.update {
-                it.copy(
-                    map = it.map.copy(loading = true),
-                    home = if (shared) it.home.copy(loading = true) else it.home
-                )
-            }
             PoruchLog.d("discovery") {
                 "search ${snapshot.south},${snapshot.west}..${snapshot.north},${snapshot.east} " +
                         "category=${snapshot.category?.key ?: "all"} from=${snapshot.from ?: "now"} " +

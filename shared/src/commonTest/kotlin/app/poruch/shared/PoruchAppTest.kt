@@ -845,6 +845,19 @@ class PoruchAppTest {
         app.close()
     }
 
+    /** Нове місто одразу «вантажиться»: перший стос не бере видачу попереднього, поки завдання ще не стартувало. */
+    @Test fun newCityIsLoadingAtOnce()=runTest {
+        val events=Events(); val app=app(events,backgroundScope)
+        runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertFalse(app.state.value.home.loading)
+        app.selectCity(CityResult("Львів",49.8397,24.0297))
+        assertEquals("Львів",app.state.value.city.name)
+        assertTrue(app.state.value.home.loading)
+        advanceTimeBy(1000); runCurrent()
+        assertFalse(app.state.value.home.loading)
+        app.close()
+    }
+
     /** Заклад в іншому місті — лише перегляд: екран переходить туди, а збережене місто лишається як було. */
     @Test fun placeInAnotherCityDoesNotReplaceChosenCity()=runTest {
         val cities=Cities(); val events=Events(); val app=app(events,backgroundScope,cities=cities)
