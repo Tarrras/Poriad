@@ -1,5 +1,6 @@
 package app.poruch.android.ui
 
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.draw.clipToBounds
@@ -106,7 +107,9 @@ fun EventHeroCard(
                 Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Text(
                         event.cardTitle, style = if (printed) PoruchType.brandDisplay else PoruchType.brandTitle1, color = colors.ink,
-                        maxLines = if (printed || upright) 5 else 2, overflow = TextOverflow.Ellipsis
+                        // На вузькому екрані (до 375) — три рядки: у два «Вечір Імпровізації н…» губив, що це.
+                        maxLines = if (printed || upright) 5 else if (LocalConfiguration.current.screenWidthDp <= 375) 3 else 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                     HostLine(event)
                     EventDescriptor(event)

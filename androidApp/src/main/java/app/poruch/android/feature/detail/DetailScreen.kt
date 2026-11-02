@@ -14,11 +14,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.keyframes
-import androidx.compose.ui.platform.LocalView
-import android.os.Build
-import android.view.HapticFeedbackConstants
 import app.poruch.domain.ShareMode
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -441,54 +436,15 @@ private val STAMPED = setOf(DetailAction.LEAVE, DetailAction.REQUESTED, DetailAc
  */
 @Composable
 private fun JoinStamp(action: DetailAction, pending: Boolean, onShown: () -> Unit) {
-    val view = LocalView.current
-    val reduced = Poruch.reducedMotion
-    val stamped = action in STAMPED
-    val hits = pending && stamped && !reduced
-    // Початок удару — вже в першому кадрі нового стану: з ефекту штамп на кадр стояв би на місці, а тоді злітав.
-    val scale = remember(action) { Animatable(if (hits) 2.4f else 1f) }
-    // Поворот поверх власних −4° штампа.
-    val turn = remember(action) { Animatable(if (hits) -12f else 0f) }
-    val shown = remember(action) { Animatable(if (hits) 0f else 1f) }
-    LaunchedEffect(action) {
-        if (pending && stamped) onShown()
-        if (!hits) return@LaunchedEffect
-        val hit = CubicBezierEasing(0.55f, 0f, 0.9f, 0.45f)
-        val rebound = CubicBezierEasing(0.2f, 0.8f, 0.3f, 1f)
-        launch { shown.animateTo(1f, tween(STAMP_HIT_MS, easing = hit)) }
-        launch {
-            turn.animateTo(0f, keyframes {
-                durationMillis = STAMP_MS
-                -12f at 0 using hit; 1f at STAMP_HIT_MS using rebound; -0.5f at 374 using rebound
-            })
-        }
-        launch {
-            delay(STAMP_HIT_MS.toLong())
-            view.performHapticFeedback(
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.VIRTUAL_KEY
-            )
-        }
-        scale.animateTo(1f, keyframes {
-            durationMillis = STAMP_MS
-            2.4f at 0 using hit; 0.92f at STAMP_HIT_MS using rebound; 1.04f at 374 using rebound
-        })
-    }
+    LaunchedEffect(action) { if (pending && action in STAMPED) onShown() }
     val (word, tone) = when (action) {
         DetailAction.LEAVE -> R.string.going to BadgeTone.Success
         DetailAction.REQUESTED -> R.string.stamp_request to BadgeTone.Accent
         DetailAction.LEAVE_WAITLIST -> R.string.stamp_waitlist to BadgeTone.Accent
         else -> return
     }
-    TicketStamp(
-        stringResource(word), tone,
-        modifier = Modifier.graphicsLayer {
-            scaleX = scale.value; scaleY = scale.value; rotationZ = turn.value; alpha = shown.value
-        }
-    )
+    SlamStamp(stringResource(word), tone, key = action, play = pending)
 }
-
-private const val STAMP_MS = 520
-private const val STAMP_HIT_MS = 234
 
 /** Рядок під датою в нижній панелі: місця й черга для кімнати, ціна або причина відсутності кнопки для афіші. */
 @Composable

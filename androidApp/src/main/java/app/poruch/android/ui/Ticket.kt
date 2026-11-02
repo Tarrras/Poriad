@@ -1,5 +1,16 @@
 package app.poruch.android.ui
 
+import android.os.Build
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalView
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -351,7 +362,9 @@ fun TicketStamp(
         BadgeTone.Success -> colors.success
         BadgeTone.Accent -> colors.accentText
         BadgeTone.Danger -> colors.danger
-        BadgeTone.Brand, BadgeTone.Neutral -> colors.inkSecondary
+        // «ВАША ПОДІЯ» на квитку плану — чорнилом, як дія; нейтральні стани — тихіше.
+        BadgeTone.Brand -> colors.brand
+        BadgeTone.Neutral -> colors.inkSecondary
     }
     val shape = RoundedCornerShape(5.dp)
     Row(
@@ -378,6 +391,50 @@ fun TicketStamp(
         )
     }
 }
+
+/**
+ * [TicketStamp], що падає з розмаху (docs/design-wow-1.5.md, «Рух «Друк і штамп»»): ×2.4 −16° → удар ×0.92 на 45 % →
+ * відскок ×1.04 → спокій −4°, 520 мс, тактильний удар у мить удару. [play] читається в першій композиції з новим [key]:
+ * штамп одразу в стартовій позі, а не на кадр на місці. Без анімацій — просто стоїть. Запис на деталях і план на головній.
+ */
+@Composable
+fun SlamStamp(text: String, tone: BadgeTone, key: Any?, play: Boolean, modifier: Modifier = Modifier, icon: ImageVector? = null) {
+    val view = LocalView.current
+    val hits = play && !Poruch.reducedMotion
+    val scale = remember(key) { Animatable(if (hits) 2.4f else 1f) }
+    // Поворот поверх власних −4° штампа.
+    val turn = remember(key) { Animatable(if (hits) -12f else 0f) }
+    val shown = remember(key) { Animatable(if (hits) 0f else 1f) }
+    LaunchedEffect(key) {
+        if (!hits) return@LaunchedEffect
+        val hit = CubicBezierEasing(0.55f, 0f, 0.9f, 0.45f)
+        val rebound = CubicBezierEasing(0.2f, 0.8f, 0.3f, 1f)
+        launch { shown.animateTo(1f, tween(STAMP_HIT_MS, easing = hit)) }
+        launch {
+            turn.animateTo(0f, keyframes {
+                durationMillis = STAMP_MS
+                -12f at 0 using hit; 1f at STAMP_HIT_MS using rebound; -0.5f at 374 using rebound
+            })
+        }
+        launch {
+            delay(STAMP_HIT_MS.toLong())
+            view.performHapticFeedback(
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.VIRTUAL_KEY
+            )
+        }
+        scale.animateTo(1f, keyframes {
+            durationMillis = STAMP_MS
+            2.4f at 0 using hit; 0.92f at STAMP_HIT_MS using rebound; 1.04f at 374 using rebound
+        })
+    }
+    TicketStamp(
+        text, tone, icon,
+        modifier = modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value; rotationZ = turn.value; alpha = shown.value }
+    )
+}
+
+private const val STAMP_MS = 520
+private const val STAMP_HIT_MS = 234
 
 /** Фото людини або перша літера імені, поки фото нема чи воно ще їде. */
 @Composable

@@ -25,7 +25,7 @@ class OnboardingViewModel(private val app: PoruchApp) :
                 interests = taste.interests, times = taste.times, crowd = taste.crowd
             )
         }
-        // Місто ще не відоме (геолокацію питаємо після туру), тож артисти — ті, хто гастролює країною.
+        // Місто ще не відоме (геолокацію питаємо одразу після питань), тож артисти — ті, хто гастролює країною.
         app.loadPopularArtists(true)
         viewModelScope.launch {
             app.state.map { shared ->

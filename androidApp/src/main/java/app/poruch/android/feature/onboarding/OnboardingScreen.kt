@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import app.poruch.domain.EventCategory
 import app.poruch.android.R
@@ -67,7 +68,6 @@ fun OnboardingScreen(state: OnboardingState, onIntent: (OnboardingIntent) -> Uni
                         OnboardingStep.WELCOME -> Welcome()
                         OnboardingStep.INTERESTS -> Interests(state, onIntent)
                         OnboardingStep.TIMES -> Times(state, onIntent)
-                        OnboardingStep.CROWD -> CrowdStep(state, onIntent)
                         OnboardingStep.FOLLOW -> FollowStep(state, onIntent)
                     }
                 }
@@ -203,15 +203,23 @@ private fun Interests(state: OnboardingState, onIntent: (OnboardingIntent) -> Un
         // Ті самі плитки, що в шторці категорій. Плитка сама тримає 8 dp ціллю зверху й знизу, тож рядам проміжок не
         // потрібен: на 360 dp чотири в ряд — усі одинадцять видно без прокрутки.
         FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            categories.forEach { category ->
+            // ponytail: «Кіно» сховане, поки прапорець `cinema` вимкнений (1.5 без кіно, рішення ліда 02.11): вибір нічого не
+            // дав би. Повернути плитку, щойно прапорець увімкнемо.
+            categories.filter { it != EventCategory.CINEMA }.forEach { category ->
                 CategoryTile(category, category in state.interests) { onIntent(OnboardingIntent.ToggleInterest(category)) }
             }
         }
     }
 }
 
+/**
+ * «Коли вам зручно?» і під ним «Який формат?» — один екран: чотири рядки часу квадратами (можна кілька) і три чипи
+ * формату (рівно один, за замовчуванням «Будь-який»), під чипами — що означає обраний. На 360 × 640 dp — без прокрутки.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Times(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) {
+    val colors = Poruch.colors
     Question(stringResource(R.string.onboarding_times_title), stringResource(R.string.onboarding_times_hint)) {
         GroupedRows {
             timeSlots.forEachIndexed { index, (slot, labels) ->
@@ -222,19 +230,15 @@ private fun Times(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) 
                 if (index < timeSlots.lastIndex) HairLine(Modifier.padding(start = Spacing.lg))
             }
         }
-    }
-}
-
-@Composable
-private fun CrowdStep(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) {
-    Question(stringResource(R.string.onboarding_crowd_title), stringResource(R.string.onboarding_crowd_hint)) {
-        GroupedRows {
-            crowds.forEachIndexed { index, (crowd, labels) ->
-                ChoiceRow(
-                    stringResource(labels.first), stringResource(labels.second), crowd == state.crowd,
-                    multiple = false
-                ) { onIntent(OnboardingIntent.PickCrowd(crowd)) }
-                if (index < crowds.lastIndex) HairLine(Modifier.padding(start = Spacing.lg))
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            GroupLabel(stringResource(R.string.onboarding_crowd_title))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                crowds.forEach { (crowd, labels) ->
+                    PoruchChip(stringResource(labels.first), crowd == state.crowd, { onIntent(OnboardingIntent.PickCrowd(crowd)) })
+                }
+            }
+            crowds.firstOrNull { it.first == state.crowd }?.let { (_, labels) ->
+                Text(stringResource(labels.second), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
             }
         }
     }
@@ -255,7 +259,10 @@ private fun FollowStep(state: OnboardingState, onIntent: (OnboardingIntent) -> U
             PoruchSearchField(
                 state.query, { onIntent(OnboardingIntent.SearchArtists(it)) }, stringResource(R.string.radar_search), Modifier.fillMaxWidth()
             )
-            PopularArtistChips(state.artists, state.matches, state.query, { it in state.followed }, state.picked, dates = false) {
+            // На низькому екрані (до 700 dp) — вісім популярних: інакше «Райони» з містом ішли за згин. Решту знаходить
+            // поле вище.
+            val shownArtists = if (LocalConfiguration.current.screenHeightDp <= 700) state.artists?.take(ARTISTS_ON_SHORT_SCREEN) else state.artists
+            PopularArtistChips(shownArtists, state.matches, state.query, { it in state.followed }, state.picked, dates = false) {
                 onIntent(OnboardingIntent.ToggleArtist(it))
             }
         }
@@ -285,7 +292,8 @@ private fun ChoiceRow(title: String, hint: String, selected: Boolean, multiple: 
     Row(
         Modifier.fillMaxWidth()
             .selectable(selected, role = if (multiple) Role.Checkbox else Role.RadioButton, onClick = onClick)
-            .padding(Spacing.lg),
+            // Вертикально 8, а не 16: під чотирма рядками часу ще формат, і на 360 × 640 dp усе — без прокрутки. Ціль 58 dp.
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -318,3 +326,6 @@ private val crowds = listOf(
     Crowd.MEDIUM to (R.string.crowd_medium to R.string.crowd_medium_hint),
     Crowd.ANY to (R.string.crowd_any to R.string.crowd_any_hint)
 )
+
+/** Скільки популярних артистів показує «Про що сказати?» на екрані до 700 dp заввишки. */
+private const val ARTISTS_ON_SHORT_SCREEN = 8
