@@ -1008,6 +1008,13 @@ enum Copy {
     static let confirm_age_adult_action = "Підтвердити"
     static let media_make_cover_a11y = "Зробити обкладинкою"
     static let auth_or_password = "або поштою й паролем"
+    static let price_label = "Ціна, ₴ (необовʼязково)"
+    static let price_placeholder = "Безкоштовно"
+    static let price_hint = "Ціну побачать на сторінці події. Як оплатити, люди домовляться з вами напряму."
+    static func price_value(_ a0: String) -> String { "\(a0) ₴" }
+    static let price_fact = "Вхід"
+    static let price_pay_hint = "Оплата — напряму організатору"
+    static let err_price = "Ціна — від 1 до 100 000 ₴"
 
     // ---- Множини: `one` / `few` / `many` за українським правилом, число підставляється замість %d.
     static func media_failed(_ n: Int) -> String { ukrainianPlural(n, "Не вдалося додати \(n) файл. Спробуйте ще раз у редагуванні.", "Не вдалося додати \(n) файли. Спробуйте ще раз у редагуванні.", "Не вдалося додати \(n) файлів. Спробуйте ще раз у редагуванні.") }

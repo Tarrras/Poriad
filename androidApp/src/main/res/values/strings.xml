@@ -1288,4 +1288,12 @@
   <string name="media_make_cover_a11y">Зробити обкладинкою</string>
   <!-- Над формою з паролем: «або поштою» поруч із «Увійти кодом з пошти» читалось як те саме. -->
   <string name="auth_or_password">або поштою й паролем</string>
+  <!-- Ціна події від людей (docs/organizers-1.5.md, 1.7): лише ціна, оплату людина узгоджує з організатором напряму. -->
+  <string name="price_label">Ціна, ₴ (необовʼязково)</string>
+  <string name="price_placeholder">Безкоштовно</string>
+  <string name="price_hint">Ціну побачать на сторінці події. Як оплатити, люди домовляться з вами напряму.</string>
+  <string name="price_value">%1$s ₴</string>
+  <string name="price_fact">Вхід</string>
+  <string name="price_pay_hint">Оплата — напряму організатору</string>
+  <string name="err_price">Ціна — від 1 до 100 000 ₴</string>
 </resources>
