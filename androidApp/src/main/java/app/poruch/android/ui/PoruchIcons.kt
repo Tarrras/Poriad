@@ -1485,6 +1485,26 @@ object PoruchIcons {
             .build()
     }
 
+    /** «Ще дії»: три крапки в ряд, як системне меню. */
+    val more: ImageVector by lazy {
+        builder("more")
+            .fill {
+                moveTo(7.1f, 12f)
+                arcToRelative(1.6f, 1.6f, 0f, true, true, -3.2f, 0f)
+                arcToRelative(1.6f, 1.6f, 0f, true, true, 3.2f, 0f)
+                close()
+                moveTo(13.6f, 12f)
+                arcToRelative(1.6f, 1.6f, 0f, true, true, -3.2f, 0f)
+                arcToRelative(1.6f, 1.6f, 0f, true, true, 3.2f, 0f)
+                close()
+                moveTo(20.1f, 12f)
+                arcToRelative(1.6f, 1.6f, 0f, true, true, -3.2f, 0f)
+                arcToRelative(1.6f, 1.6f, 0f, true, true, 3.2f, 0f)
+                close()
+            }
+            .build()
+    }
+
     /** «Назад» у шапці. */
     val arrowLeft: ImageVector by lazy {
         builder("arrowLeft")

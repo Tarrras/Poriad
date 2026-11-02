@@ -45,7 +45,11 @@ import coil3.compose.AsyncImage
 
 // Крок 1 редактора: «Є готовий анонс?» і «Фото й відео» (docs/organizers-1.5.md, хвиля 2).
 
-/** Картка «Є готовий анонс?» над назвою, а після відповіді — рядок «Заповнили з анонсу…» з «Інший текст». */
+/**
+ * Рядок «Є готовий анонс?» над назвою: «Вставити» бере текст з буфера в мить кліку й одразу заповнює (рішення власника
+ * 02.11, docs/design-wow-1.5.md) — поля, щоб набирати анонс руками, нема. Android 12+ сам скаже тостом, що вставлено.
+ * Після відповіді — рядок «Заповнили з анонсу…» з «Інший текст».
+ */
 @Composable
 internal fun AnnounceCard(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     val colors = Poruch.colors
@@ -64,28 +68,35 @@ internal fun AnnounceCard(state: EditorState, onIntent: (EditorIntent) -> Unit) 
         }
         return
     }
-    Column(
-        Modifier.fillMaxWidth().cardSurface(Radius.md).padding(Spacing.lg),
-        verticalArrangement = Arrangement.spacedBy(Spacing.md)
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(stringResource(R.string.announce_title), style = MaterialTheme.typography.titleSmall, color = colors.ink)
-            Text(stringResource(R.string.announce_subtitle), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
-        }
-        // Біле поле на білій картці зникало: тут воно тихе, як у шторках.
-        CompositionLocalProvider(LocalFieldSurface provides colors.surfaceMuted) {
-            LabelledField(
-                stringResource(R.string.announce_field), state.announce, { onIntent(EditorIntent.SetAnnounce(it)) },
-                singleLine = false, minLines = 3
+    val context = LocalContext.current
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 64.dp).background(colors.brandContainer, Radius.lg).padding(Spacing.lg),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stringResource(R.string.announce_title), style = PoruchType.cardName, color = colors.ink)
+                // Без обрізання: на великому шрифті рядок росте, а не губить «дату й місце».
+                Text(stringResource(R.string.announce_subtitle), style = PoruchType.caption, color = colors.inkSecondary)
+            }
+            // Буфер читаємо в кліку, а не заздалегідь: Android показує, хто його читав, і зайвий доступ лякає.
+            SecondaryButton(
+                stringResource(if (state.announcing) R.string.announce_filling else android.R.string.paste),
+                { onIntent(EditorIntent.PasteAnnounce(context.clipboardText())) },
+                enabled = !state.announcing, compact = true, container = colors.surface
             )
         }
-        SecondaryButton(
-            stringResource(if (state.announcing) R.string.announce_filling else R.string.announce_fill),
-            { onIntent(EditorIntent.FillFromAnnounce) }, Modifier.fillMaxWidth(),
-            enabled = state.announce.isNotBlank() && !state.announcing, icon = PoruchIcons.sparkle
+        if (state.clipboardEmpty) Text(
+            stringResource(R.string.announce_failed), style = MaterialTheme.typography.bodySmall, color = colors.danger,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
         )
     }
 }
+
+/** Текст першого запису буфера; null — порожньо, картинка чи файл без тексту. */
+private fun android.content.Context.clipboardText(): String? =
+    getSystemService(android.content.ClipboardManager::class.java)?.primaryClip
+        ?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString()?.takeIf { it.isNotBlank() }
 
 @Composable
 private fun announceSummary(fill: AnnouncementFill): String = when (fill.failure) {
@@ -126,7 +137,10 @@ internal fun MediaSection(state: EditorState, onIntent: (EditorIntent) -> Unit) 
     val request = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Text(stringResource(R.string.media_title).uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
-        Text(stringResource(R.string.media_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+        // Підказка — лише до першого файлу: далі про обкладинку каже штамп на плитці.
+        if (state.form.media.isEmpty() && state.importing == 0) Text(
+            stringResource(R.string.media_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary
+        )
         val media by rememberUpdatedState(state.form.media)
         var dragged by remember { mutableStateOf<String?>(null) }
         var offset by remember { mutableFloatStateOf(0f) }
@@ -205,6 +219,11 @@ private fun MediaTile(
                 PoruchIcons.play, null, Modifier.align(Alignment.Center).size(28.dp).background(Color.Black.copy(alpha = 0.4f), CircleShape).padding(6.dp),
                 tint = Color.White
             )
+            // Штамп на самій плитці, як «ЗБЕРЕЖЕНО» на квитку: з'являється з першим файлом замість підказки.
+            if (first) TicketStamp(
+                stringResource(R.string.media_cover), onFill = true,
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = 6.dp, end = 6.dp, bottom = 8.dp).decorative()
+            )
             // Хрестик у куті: 24 dp кружок, а ціль дотику — 48.
             val remove = stringResource(R.string.media_remove_a11y)
             Box(
@@ -217,8 +236,6 @@ private fun MediaTile(
                 )
             }
         }
-        // Під плиткою, а не на ній: на 88 dp «Обкладинка» переносилась.
-        if (first) Text(stringResource(R.string.media_cover), style = MaterialTheme.typography.labelSmall, color = colors.ink, maxLines = 1)
         if (trimmed) Text(stringResource(R.string.media_video_trimmed), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
     }
 }

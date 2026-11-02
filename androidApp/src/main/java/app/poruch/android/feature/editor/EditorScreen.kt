@@ -80,19 +80,17 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         ) {
             // Квиток друкується згори, поки людина відповідає: той самий, що побачать у «Від людей».
             DraftTicket(state)
-            // Кожен крок — одне питання великим заголовком, як в онбордингу.
+            // Кожен крок — одне питання великим заголовком, як в онбордингу. «Крок 1 з 4» над ним нема: сегменти в шапці
+            // кажуть те саме, а TalkBack читає номер з них. На першому кроці й без підзаголовка — назву, опис і жанр
+            // називають підписи полів, а «Назва» має бути на першому екрані.
             Column(Modifier.padding(bottom = Spacing.xs), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                // Номер кроку словами: смужки згори кажуть «скільки», а не «котрий». Без капсу: «КРОК 1 З 4»
-                // у цьому шрифті читалось як «1 3 4».
-                Text(
-                    stringResource(R.string.onboarding_step, state.step.ordinal + 1, EditorStep.entries.size),
-                    style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary, modifier = Modifier.decorative()
-                )
                 Text(
                     stringResource(state.step.headline), style = PoruchType.brandDisplay, color = colors.ink,
                     modifier = Modifier.semantics { heading() }
                 )
-                Text(stringResource(state.step.hint), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+                if (state.step != EditorStep.ABOUT) Text(
+                    stringResource(state.step.hint), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
+                )
             }
             when (state.step) {
                 EditorStep.ABOUT -> AboutStep(state, onIntent)
@@ -550,9 +548,9 @@ private fun PeopleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
 
 /**
  * Квиток «Від людей», що друкується з форми: незаповнене — сірі смуги, як на порожньому квитку, заповнене проступає
- * текстом. Корінець одразу кольору жанру; година, день і місця — коли обрано початок. На «Де» і «Коли» — смужкою з
- * корінцем часу праворуч: повний квиток забирав чверть екрана, і мапа з датами йшли за згин. Для TalkBack він повтор
- * форми, тож прихований. Те саме, що `DraftTicket` на iOS.
+ * текстом. Корінець одразу кольору жанру; година, день і місця — коли обрано початок. На перших трьох кроках — смужкою
+ * з корінцем часу праворуч: повний квиток забирав чверть екрана, і поля йшли за згин. Повний — на останньому, прев'ю
+ * перед публікацією. Для TalkBack він повтор форми, тож прихований. Те саме, що `DraftTicket` на iOS.
  */
 @Composable
 private fun DraftTicket(state: EditorState) {
@@ -567,7 +565,7 @@ private fun DraftTicket(state: EditorState) {
     val (big, small) = start?.let { draftStubParts(it, words) } ?: ("––:––" to "")
     val motion = Motion.quick<IntSize>(Poruch.reducedMotion)
     val day = PoruchType.overline.copy(color = Color.White, letterSpacing = 0.6.sp)
-    if (state.step == EditorStep.PLACE || state.step == EditorStep.SCHEDULE) {
+    if (state.step != EditorStep.PEOPLE) {
         Ticket(
             categoryStub(form.category),
             stub = {

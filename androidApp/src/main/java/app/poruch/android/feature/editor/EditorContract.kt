@@ -134,11 +134,13 @@ data class EditorState(
     val taken: Int = 0,
     /** Скільки людей поруч почують про нову зустріч у цій крапці («Мої місця»). Null — менше трьох, не знаємо чи правимо. */
     val audience: Int? = null,
-    /** Текст у картці «Є готовий анонс?». */
+    /** Текст, вставлений у рядку «Є готовий анонс?». */
     val announce: String = "",
     val announcing: Boolean = false,
-    /** Що заповнив анонс: картка згорнута в рядок «Заповнили з анонсу…». Null — картка відкрита. */
+    /** Що заповнив анонс: рядок згорнутий у «Заповнили з анонсу…». Null — рядок із «Вставити». */
     val announced: AnnouncementFill? = null,
+    /** «Вставити», а в буфері нема тексту: рядок під кнопкою до наступної спроби. */
+    val clipboardEmpty: Boolean = false,
     /** Скільки обраних файлів ще стискаємо. */
     val importing: Int = 0,
     /** Котрийсь обраний файл не вдалося додати: рядок під плитками до наступного вибору. */
@@ -192,10 +194,9 @@ sealed interface EditorIntent {
     data class ConfirmDiscard(val what: Discard) : EditorIntent
     /** Відповідь системи на [EditorEffect.AskNotificationPermission]. */
     data class NotificationPermissionAnswered(val granted: Boolean) : EditorIntent
-    data class SetAnnounce(val text: String) : EditorIntent
-    /** «Заповнити» в картці анонсу. */
-    data object FillFromAnnounce : EditorIntent
-    /** «Інший текст»: картка знову відкрита. */
+    /** «Вставити»: текст з буфера, прочитаний у кліку (null — буфер порожній чи не текст), і одразу заповнення. */
+    data class PasteAnnounce(val text: String?) : EditorIntent
+    /** «Інший текст»: знову рядок із «Вставити». */
     data object ReopenAnnounce : EditorIntent
     /** Обране в системному виборі фото й відео. */
     data class AddMedia(val uris: List<Uri>) : EditorIntent

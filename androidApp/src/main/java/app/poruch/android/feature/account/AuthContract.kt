@@ -4,11 +4,9 @@ import app.poruch.android.navigation.AuthReason
 import app.poruch.domain.AccountRules
 
 data class AuthState(
-    val signup: Boolean = false,
     /** З якою дією прийшов гість: підзаголовок каже, навіщо профіль саме зараз. */
     val reason: AuthReason = AuthReason.GENERAL,
     val email: String = "",
-    val name: String = "",
     val password: String = "",
     val passwordRevealed: Boolean = false,
     val mutating: Boolean = false,
@@ -18,14 +16,17 @@ data class AuthState(
     val googleAvailable: Boolean = false,
     /** Увійшли через Google чи кодом, а віку в акаунта нема: замість форми — галочка «Мені вже є 18». */
     val askAdult: Boolean = false,
-    /** Галочка «Мені вже є 18»: при реєстрації й на кроці після входу. */
+    /** Галочка «Мені вже є 18» на кроці після входу. */
     val adult: Boolean = false,
     /** Пошта, на яку пішов лист після реєстрації. Поки є — замість форми показуємо наступний крок. */
     val awaitingConfirmation: String? = null,
     /** Крок «Забули пароль?»: та сама пошта, окремий екран, щоб кнопка не залежала від форми входу. */
     val resetting: Boolean = false,
-    /** «Увійти кодом з пошти»: пошта й «Надіслати код» замість форми. */
-    val codeMode: Boolean = false,
+    /**
+     * «Увійти з паролем» — для наявних акаунтів. За замовчуванням вхід кодом з пошти (рішення власника 02.11): новий
+     * профіль — кодом чи Google, реєстрації з паролем нема.
+     */
+    val passwordMode: Boolean = false,
     /** Пошта, на яку пішов код: поки є — поле коду. */
     val awaitingCode: String? = null,
     val code: String = "",
@@ -34,8 +35,7 @@ data class AuthState(
 ) {
     val emailValid get() = AccountRules.isEmail(email)
     /** Без `mutating`: під час запиту кнопка лишається кольоровою зі спінером, а не сірою. */
-    val canSubmit get() = emailValid && AccountRules.isPassword(password) &&
-        (!signup || (AccountRules.isName(name) && adult))
+    val canSubmit get() = emailValid && AccountRules.isPassword(password)
     /** Код з листа — цифри; довжину задає проєкт Supabase (6 за замовчуванням), тож не прибиваємо її. */
     val canVerify get() = code.length in CODE_LENGTH && code.all(Char::isDigit)
 
@@ -46,19 +46,17 @@ data class AuthState(
 
 sealed interface AuthIntent {
     data class SetEmail(val value: String) : AuthIntent
-    data class SetName(val value: String) : AuthIntent
     data class SetPassword(val value: String) : AuthIntent
     data class SetAdult(val value: Boolean) : AuthIntent
     data object TogglePasswordReveal : AuthIntent
-    data object ToggleMode : AuthIntent
     data object Submit : AuthIntent
     data object SignInWithGoogle : AuthIntent
     /** Аркуш Google повернув токен для nonce з [AuthEffect.RequestGoogleToken]. */
     data class GoogleToken(val idToken: String) : AuthIntent
     /** Галочка після входу через Google чи кодом. */
     data object ConfirmAdult : AuthIntent
-    /** «Увійти кодом з пошти» і назад до форми. */
-    data class ShowCode(val show: Boolean) : AuthIntent
+    /** «Увійти з паролем» і назад до коду. */
+    data class ShowPassword(val show: Boolean) : AuthIntent
     data class SetCode(val value: String) : AuthIntent
     /** «Надіслати код» і «Надіслати ще раз». */
     data object SendCode : AuthIntent
@@ -70,7 +68,7 @@ sealed interface AuthIntent {
     /** З кроку «перевірте пошту» назад до форми входу з тією ж поштою. */
     data object ConfirmedGoLogin : AuthIntent
     data object OpenMail : AuthIntent
-    /** Умови й політика з підпису під кнопкою реєстрації. */
+    /** Умови й політика з підпису під кнопкою входу. */
     data object OpenTerms : AuthIntent
     data object OpenPrivacy : AuthIntent
     data object Back : AuthIntent

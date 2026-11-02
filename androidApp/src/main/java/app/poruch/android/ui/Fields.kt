@@ -1,5 +1,8 @@
 package app.poruch.android.ui
 
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.semantics.contentType
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -172,7 +175,11 @@ fun LabelledField(
     focusRequester: FocusRequester? = null,
     /** Що не так із полем: під ним, кольором помилки. */
     error: String? = null,
-    trailing: @Composable (() -> Unit)? = null
+    trailing: @Composable (() -> Unit)? = null,
+    /** Свій голос поля замість тексту інтерфейсу: цифри коду з листа. */
+    textStyle: TextStyle? = null,
+    /** Що це за поле для автозаповнення системи: код з SMS чи листа. */
+    contentType: ContentType? = null
 ) {
     val colors = Poruch.colors
     val field = rememberBufferedText(value, onValueChange)
@@ -204,9 +211,12 @@ fun LabelledField(
                 minLines = minLines,
                 modifier = Modifier.weight(1f)
                     // Помилка — стан поля: TalkBack каже її разом із назвою, а не як окремий текст нижче.
-                    .semantics { contentDescription = label; if (error != null) error(error) }
+                    .semantics {
+                        contentDescription = label; if (error != null) error(error)
+                        contentType?.let { this.contentType = it }
+                    }
                     .let { if (focusRequester != null) it.focusRequester(focusRequester) else it },
-                textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.ink),
+                textStyle = (textStyle ?: MaterialTheme.typography.bodyLarge).copy(color = colors.ink),
                 cursorBrush = SolidColor(colors.ink),
                 keyboardOptions = keyboardOptions,
                 visualTransformation = visualTransformation,

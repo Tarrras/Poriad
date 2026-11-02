@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.poruch.android.EventMap
 import app.poruch.android.R
+import app.poruch.shared.DetailAction
 import app.poruch.android.ui.*
 import app.poruch.android.feature.mine.countdownOverline
 import app.poruch.android.feature.wallet.WalletTicketCard
@@ -82,7 +83,6 @@ import app.poruch.domain.RatingRules
 import app.poruch.domain.RatingTag
 import app.poruch.domain.ReportReason
 import app.poruch.domain.ShelterKind
-import app.poruch.domain.ShareMode
 
 // Секції екрана деталей: усе між обкладинкою й нижньою панеллю дії. Розрізано з DetailScreen.kt.
 
@@ -694,15 +694,11 @@ internal fun ExternalActions(state: DetailState, onIntent: (DetailIntent) -> Uni
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         RoundAction(PoruchIcons.calendar, stringResource(R.string.calendar_short), { onIntent(DetailIntent.AddToCalendar) }, Modifier.weight(1f), enabled = !state.screen.cancelled)
         RoundAction(PoruchIcons.directions, stringResource(R.string.open_in_maps), { onIntent(DetailIntent.OpenInMaps) }, Modifier.weight(1f))
-        // Хто чим ділиться (1.6, ShareMode): організатор своєї звичайної події поширює анонс — пост для Threads з посиланням
-        // для запису (з повними деталями: у картці нема фото й відео); усі інші діляться з другом особистим посиланням, як
-        // «Покликати» (docs/invites.md). Скасовану чи минулу — просто поділитися. Підказка лише з входом: посилання гостя не
-        // несе імені, і пояснювати нема що.
+        // Хто чим ділиться (1.6, ShareMode): організатор поширює з панелі дії (там його головна кнопка, `PrimaryAction`),
+        // тож тут у нього три дії. Решта ділиться з другом особистим посиланням, як «Покликати» (docs/invites.md).
+        // Скасовану чи минулу — просто поділитися. Підказка лише з входом: посилання гостя не несе імені, і пояснювати нема що.
         when {
-            state.screen.shareMode == ShareMode.PROMOTE -> RoundAction(
-                PoruchIcons.share, stringResource(R.string.share_promote), { onIntent(DetailIntent.ThreadsPost) },
-                Modifier.weight(1f), enabled = state.detailed
-            )
+            state.screen.action == DetailAction.ORGANIZER -> {}
             state.screen.canInvite -> RoundAction(
                 PoruchIcons.personAdd, stringResource(R.string.share_friend), { onIntent(DetailIntent.Share) },
                 Modifier.weight(1f).coachTarget(CoachTip.INVITE.takeIf { state.screen.signedIn }), loading = state.inviting
@@ -902,19 +898,16 @@ internal fun OrganizerActions(state: DetailState, onIntent: (DetailIntent) -> Un
             Modifier.fillMaxWidth(), enabled = !state.screen.mutating, icon = PoruchIcons.clock
         )
     }
-    // Окремо від «Поділитися»: там на своїй події «Покликати». Текст з посиланням і всі фото й відео — для свого посту.
-    // Як і «Редагувати» — з повними деталями: у картці стрічки нема фото й відео події.
-    if (state.screen.companionOf == null) SecondaryButton(
-        stringResource(R.string.threads_post), { onIntent(DetailIntent.ThreadsPost) }, Modifier.fillMaxWidth(),
-        enabled = state.detailed, icon = PoruchIcons.doc
-    )
+    // «Пост для Threads» тут більше нема: та сама функція — «Поширити анонс» на панелі дії. Одна функція — одне місце.
+    // Вужчі поля: на 360 dp з гліфом «Редагувати» рвалось посеред слова.
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
         if (editable) SecondaryButton(
-            stringResource(R.string.edit), { onIntent(DetailIntent.Edit) }, Modifier.weight(1f), enabled = state.detailed, icon = PoruchIcons.edit
+            stringResource(R.string.edit), { onIntent(DetailIntent.Edit) }, Modifier.weight(1f), enabled = state.detailed,
+            icon = PoruchIcons.edit, compact = true
         )
         SecondaryButton(
             stringResource(R.string.cancel_event), { onIntent(DetailIntent.ConfirmCancel(true)) },
-            Modifier.weight(1f), enabled = !state.screen.mutating, tone = colors.danger
+            Modifier.weight(1f), enabled = !state.screen.mutating, tone = colors.danger, compact = true
         )
     }
     if (state.confirmingCancel) PoruchConfirmSheet(

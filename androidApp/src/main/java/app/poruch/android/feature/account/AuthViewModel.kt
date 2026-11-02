@@ -47,21 +47,18 @@ class AuthViewModel(private val app: PoruchApp, reason: AuthReason = AuthReason.
     override fun onIntent(intent: AuthIntent) {
         when (intent) {
             is AuthIntent.SetEmail -> reduce { copy(email = intent.value) }
-            is AuthIntent.SetName -> reduce { copy(name = intent.value) }
             is AuthIntent.SetPassword -> reduce { copy(password = intent.value) }
             is AuthIntent.SetAdult -> reduce { copy(adult = intent.value) }
             AuthIntent.TogglePasswordReveal -> reduce { copy(passwordRevealed = !passwordRevealed) }
-            // Пароль не переживає зміну режиму.
-            AuthIntent.ToggleMode -> reduce { copy(signup = !signup, password = "") }
             AuthIntent.Submit -> state.value.let {
                 dismissedConfirmation = null
-                if (it.signup) app.signUp(it.email.trim(), it.password, it.name.trim())
-                else app.signIn(it.email.trim(), it.password)
+                app.signIn(it.email.trim(), it.password)
             }
             AuthIntent.SignInWithGoogle -> send(AuthEffect.RequestGoogleToken(app.idTokenNonce()))
             is AuthIntent.GoogleToken -> app.signInWithIdToken(IdProvider.GOOGLE, intent.idToken)
             AuthIntent.ConfirmAdult -> app.confirmAdult()
-            is AuthIntent.ShowCode -> reduce { copy(codeMode = intent.show, code = "") }
+            // Пароль не переживає повернення до коду.
+            is AuthIntent.ShowPassword -> reduce { copy(passwordMode = intent.show, password = "") }
             // Лише цифри: вставлений з листа код буває з пробілами.
             is AuthIntent.SetCode -> reduce { copy(code = intent.value.filter(Char::isDigit).take(AuthState.CODE_LENGTH.last)) }
             AuthIntent.SendCode -> {
@@ -79,7 +76,7 @@ class AuthViewModel(private val app: PoruchApp, reason: AuthReason = AuthReason.
             // Лист підтверджено: пошта вже в полі, лишається пароль.
             AuthIntent.ConfirmedGoLogin -> {
                 dismissedConfirmation = state.value.awaitingConfirmation
-                reduce { copy(awaitingConfirmation = null, signup = false, password = "") }
+                reduce { copy(awaitingConfirmation = null, passwordMode = true, password = "") }
             }
             AuthIntent.OpenMail -> send(AuthEffect.OpenMail)
             AuthIntent.OpenTerms -> send(AuthEffect.OpenLink(LegalLinks.TERMS))
@@ -87,8 +84,8 @@ class AuthViewModel(private val app: PoruchApp, reason: AuthReason = AuthReason.
             AuthIntent.Back -> state.value.let {
                 when {
                     it.resetting -> reduce { copy(resetting = false) }
-                    it.codeMode && it.awaitingCode != null && !it.askAdult -> onIntent(AuthIntent.OtherEmail)
-                    it.codeMode && !it.askAdult -> reduce { copy(codeMode = false) }
+                    it.passwordMode && !it.askAdult -> onIntent(AuthIntent.ShowPassword(false))
+                    it.awaitingCode != null && !it.askAdult -> onIntent(AuthIntent.OtherEmail)
                     // Закрили вхід: гість лишається в редакторі з чернеткою, а сама публікація скасована (спільний шар).
                     else -> { app.dismissConfirmationStep(); send(AuthEffect.Close) }
                 }

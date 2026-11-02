@@ -35,6 +35,11 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import app.poruch.android.R
 import app.poruch.android.ui.*
 import androidx.compose.foundation.selection.toggleable
@@ -46,29 +51,34 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 
+/**
+ * Вхід (рішення власника 02.11, docs/design-wow-1.5.md «Вхід кодом з пошти»): один шлях поштою — код з листа. Google, далі
+ * пошта й «Надіслати код» на першому екрані; пароль — текстовим посиланням для наявних акаунтів, реєстрації з паролем
+ * нема: новий профіль — кодом чи Google, і далі галочка 18+.
+ */
 @Composable
 fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     val colors = Poruch.colors
-    // Системний «назад» — як стрілка: з «Забули пароль?» до форми, з кроку листа — з його скиданням.
+    // Системний «назад» — як стрілка: з «Забули пароль?» до пароля, з пароля чи коду — до пошти, далі — закрити.
     BackHandler { onIntent(AuthIntent.Back) }
+    val confirming = state.awaitingConfirmation != null
+    val coding = state.awaitingCode != null && !state.passwordMode && !state.askAdult
     Column(Modifier.fillMaxSize().background(colors.canvas).imePadding().verticalScroll(rememberScrollState())) {
         // Знак застосунку й назва по центру, як вхід в Apple ID; «назад» окремо в кутку.
         Column(
             Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = Spacing.page).padding(bottom = Spacing.sm),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            val confirming = state.awaitingConfirmation != null
-            val coding = state.codeMode && !state.askAdult
             Box(Modifier.fillMaxWidth().padding(top = Spacing.md)) {
                 IconPill(PoruchIcons.arrowLeft, stringResource(R.string.back), size = 40.dp) { onIntent(AuthIntent.Back) }
             }
-            Box(Modifier.size(72.dp).background(colors.brand, CircleShape), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(64.dp).background(colors.brand, CircleShape), contentAlignment = Alignment.Center) {
                 Icon(
                     when {
                         confirming -> PoruchIcons.checkCircle; state.resetting -> PoruchIcons.lock
                         state.askAdult -> PoruchIcons.shield; coding -> PoruchIcons.mail; else -> PoruchIcons.pin
                     },
-                    null, Modifier.size(32.dp), tint = colors.onBrand
+                    null, Modifier.size(28.dp), tint = colors.onBrand
                 )
             }
             Text(
@@ -77,111 +87,110 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                         confirming -> R.string.auth_check_email_title
                         state.resetting -> R.string.auth_reset_title
                         state.askAdult -> R.string.auth_birth_date_title
-                        coding -> R.string.auth_code_title
-                        state.signup -> R.string.auth_create
+                        coding -> R.string.auth_code_field
                         else -> R.string.auth_welcome
                     }
                 ),
-                style = PoruchType.brandTitle1, color = colors.ink, textAlign = TextAlign.Center
+                style = PoruchType.brandTitle1, color = colors.ink, textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { heading() }
             )
             Text(
-                stringResource(
-                    when {
-                        confirming -> R.string.auth_check_email_subtitle
-                        state.resetting -> R.string.auth_reset_subtitle
-                        state.askAdult -> R.string.auth_adult_subtitle
-                        coding -> R.string.auth_code_subtitle
-                        // Навіщо профіль саме зараз: гість прийшов з дією, і рядок під заголовком — про неї.
-                        else -> when (state.reason) {
+                when {
+                    confirming -> stringResource(R.string.auth_check_email_subtitle)
+                    state.resetting -> stringResource(R.string.auth_reset_subtitle)
+                    state.askAdult -> stringResource(R.string.auth_adult_subtitle)
+                    coding -> stringResource(R.string.auth_code_sent, state.awaitingCode.orEmpty())
+                    // Навіщо профіль саме зараз: гість прийшов з дією, і рядок під заголовком — про неї.
+                    else -> stringResource(
+                        when (state.reason) {
                             // Гість уже заповнив редактор і натиснув «Опублікувати».
                             AuthReason.CREATE -> R.string.auth_subtitle_publish
                             AuthReason.JOIN -> R.string.auth_reason_join
                             AuthReason.FOLLOW -> R.string.auth_reason_follow
                             AuthReason.COMPANY -> R.string.auth_reason_company
-                            AuthReason.GENERAL -> if (state.signup) R.string.auth_subtitle_signup else R.string.auth_guest_note
+                            AuthReason.GENERAL -> R.string.auth_guest_note
                         }
-                    }
-                ),
+                    )
+                },
                 style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = Spacing.lg)
             )
         }
-        if (state.awaitingConfirmation != null) {
-            ConfirmationStep(state.awaitingConfirmation, onIntent)
-            return@Column
+        when {
+            confirming -> ConfirmationStep(state.awaitingConfirmation.orEmpty(), onIntent)
+            state.resetting -> ResetStep(state, onIntent)
+            state.askAdult -> AdultStep(state, onIntent)
+            state.passwordMode -> PasswordStep(state, onIntent)
+            coding -> CodeStep(state, state.awaitingCode.orEmpty(), onIntent)
+            else -> EmailStep(state, onIntent)
         }
-        if (state.resetting) {
-            ResetStep(state, onIntent)
-            return@Column
-        }
-        if (state.askAdult) {
-            AdultStep(state, onIntent)
-            return@Column
-        }
-        if (state.codeMode) {
-            if (state.awaitingCode != null) CodeStep(state, state.awaitingCode, onIntent) else CodeEmailStep(state, onIntent)
-            return@Column
-        }
-        // Фокус на перше поле: імʼя при реєстрації, пошта при вході.
-        val emailField = remember { FocusRequester() }
-        val nameField = remember { FocusRequester() }
-        LaunchedEffect(state.signup) {
-            runCatching { if (state.signup) nameField.requestFocus() else emailField.requestFocus() }
-        }
-        Column(Modifier.padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
-            // Google — найкоротший шлях, тож над формою; для нього вхід і реєстрація — одне й те саме.
-            if (state.googleAvailable) {
-                ProviderButton(
-                    painterResource(R.drawable.ic_google), stringResource(R.string.continue_with_google),
-                    { onIntent(AuthIntent.SignInWithGoogle) }, enabled = !state.mutating
-                )
-            }
-            // Код з пошти — той самий акаунт, що на сайті: хто записався на poriad.app поштою, пароля не має.
+    }
+}
+
+/** Перший екран: Google, «або поштою», пошта й «Надіслати код», згода дрібним і «Увійти з паролем» посиланням. */
+@Composable
+private fun EmailStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
+    val colors = Poruch.colors
+    Column(Modifier.padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+        if (state.googleAvailable) {
             ProviderButton(
-                rememberVectorPainter(PoruchIcons.mail), stringResource(R.string.auth_code_button),
-                { onIntent(AuthIntent.ShowCode(true)) }, enabled = !state.mutating, tint = colors.ink
+                painterResource(R.drawable.ic_google), stringResource(R.string.continue_with_google),
+                { onIntent(AuthIntent.SignInWithGoogle) }, enabled = !state.mutating
             )
-            // Згода одразу під кнопками: дотик до них уже створює профіль, а форма з кнопкою — нижче.
-            ConsentNote(onIntent)
-            OrDivider(stringResource(R.string.auth_or_password))
-            // Вхід і реєстрація — два рівноправні режими, тож перемикач угорі, а не кнопка під формою.
-            SegmentedPill(
-                listOf(stringResource(R.string.auth_tab_login), stringResource(R.string.auth_tab_signup)),
-                if (state.signup) 1 else 0, { onIntent(AuthIntent.ToggleMode) }
+            OrDivider(stringResource(R.string.auth_or_email))
+        }
+        // Без автофокусу: клавіатура закрила б Google і згоду, а пошту людина обирає сама.
+        LabelledField(
+            stringResource(R.string.email), state.email, { onIntent(AuthIntent.SetEmail(it)) },
+            placeholder = stringResource(R.string.email_placeholder),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false, imeAction = ImeAction.Send)
+        )
+        PrimaryButton(
+            stringResource(R.string.auth_code_send), { onIntent(AuthIntent.SendCode) },
+            Modifier.fillMaxWidth(), icon = PoruchIcons.mail, enabled = state.emailValid, loading = state.mutating
+        )
+        // Згода одразу під кнопками: дотик до них уже створює профіль.
+        ConsentNote(onIntent)
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            GhostButton(
+                stringResource(R.string.auth_password_link), { onIntent(AuthIntent.ShowPassword(true)) },
+                tone = colors.inkSecondary, enabled = !state.mutating
             )
-            if (state.signup) LabelledField(
-                stringResource(R.string.name), state.name, { onIntent(AuthIntent.SetName(it)) },
-                focusRequester = nameField,
-                placeholder = stringResource(R.string.name_placeholder)
+        }
+    }
+}
+
+/** «Увійти з паролем»: наявна форма входу — пошта, пароль, «Забули пароль?». Пошта переноситься з першого екрана. */
+@Composable
+private fun PasswordStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
+    val colors = Poruch.colors
+    val emailField = remember { FocusRequester() }
+    val passwordField = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { if (state.emailValid) passwordField.requestFocus() else emailField.requestFocus() } }
+    Column(Modifier.padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+        LabelledField(
+            stringResource(R.string.email), state.email, { onIntent(AuthIntent.SetEmail(it)) },
+            focusRequester = emailField,
+            placeholder = stringResource(R.string.email_placeholder),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false)
+        )
+        LabelledField(
+            stringResource(R.string.password_label), state.password, { onIntent(AuthIntent.SetPassword(it)) },
+            focusRequester = passwordField,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            visualTransformation = if (state.passwordRevealed) VisualTransformation.None else PasswordVisualTransformation(),
+            trailing = { PasswordRevealIcon(state.passwordRevealed) { onIntent(AuthIntent.TogglePasswordReveal) } }
+        )
+        PrimaryButton(
+            stringResource(R.string.login), { onIntent(AuthIntent.Submit) },
+            Modifier.fillMaxWidth(), enabled = state.canSubmit, loading = state.mutating
+        )
+        // По центру, як «Видалити обліковий запис» у профілі: текстова кнопка з лівим відступом виглядала зсунутою.
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            GhostButton(
+                stringResource(R.string.forgot_password), { onIntent(AuthIntent.ShowReset(true)) },
+                tone = colors.inkSecondary, enabled = !state.mutating
             )
-            LabelledField(
-                stringResource(R.string.email), state.email, { onIntent(AuthIntent.SetEmail(it)) },
-                focusRequester = emailField,
-                placeholder = stringResource(R.string.email_placeholder),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false)
-            )
-            LabelledField(
-                stringResource(R.string.password_label), state.password, { onIntent(AuthIntent.SetPassword(it)) },
-                // Вимогу до пароля кажемо лише тому, хто його вигадує.
-                hint = if (state.signup) stringResource(R.string.password_hint) else null,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                visualTransformation = if (state.passwordRevealed) VisualTransformation.None else PasswordVisualTransformation(),
-                trailing = { PasswordRevealIcon(state.passwordRevealed) { onIntent(AuthIntent.TogglePasswordReveal) } }
-            )
-            // Дату питаємо лише на події з віковими межами; тут — галочка, як на сайті.
-            if (state.signup) AdultCheck(state.adult) { onIntent(AuthIntent.SetAdult(it)) }
-            PrimaryButton(
-                stringResource(if (state.signup) R.string.register else R.string.login),
-                { onIntent(AuthIntent.Submit) },
-                Modifier.fillMaxWidth(), enabled = state.canSubmit, loading = state.mutating
-            )
-            // По центру, як «Видалити обліковий запис» у профілі: текстова кнопка з лівим відступом виглядала зсунутою.
-            if (!state.signup) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                GhostButton(
-                    stringResource(R.string.forgot_password), { onIntent(AuthIntent.ShowReset(true)) },
-                    tone = colors.inkSecondary, enabled = !state.mutating
-                )
-            }
         }
     }
 }
@@ -252,44 +261,29 @@ internal fun AdultCheck(checked: Boolean, onChange: (Boolean) -> Unit) {
     }
 }
 
-/** «Увійти кодом з пошти», крок 1: лише пошта. Вписана в форму переноситься. */
-@Composable
-private fun CodeEmailStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
-    val emailField = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { emailField.requestFocus() } }
-    Column(Modifier.padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
-        LabelledField(
-            stringResource(R.string.email), state.email, { onIntent(AuthIntent.SetEmail(it)) },
-            focusRequester = emailField,
-            placeholder = stringResource(R.string.email_placeholder),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false)
-        )
-        PrimaryButton(
-            stringResource(R.string.auth_code_send), { onIntent(AuthIntent.SendCode) },
-            Modifier.fillMaxWidth(), icon = PoruchIcons.mail, enabled = state.emailValid, loading = state.mutating
-        )
-        ConsentNote(onIntent)
-    }
-}
-
-/** Крок 2: код з листа. Поле одразу у фокусі, «Надіслати ще раз» — після хвилини, як дозволяє Supabase. */
+/**
+ * Крок 2: код з листа. Цифри — голосом корінця (Sofia Sans Extra Condensed, табличні, розрідка 6), поле одразу у фокусі,
+ * а система пропонує код сама. «Надіслати ще раз» — після хвилини, як дозволяє Supabase; поруч «Інша пошта».
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CodeStep(state: AuthState, email: String, onIntent: (AuthIntent) -> Unit) {
     val colors = Poruch.colors
     val codeField = remember { FocusRequester() }
     LaunchedEffect(email) { runCatching { codeField.requestFocus() } }
     Column(Modifier.padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
-        Text(stringResource(R.string.auth_code_sent, email), style = MaterialTheme.typography.bodyLarge, color = colors.ink)
         LabelledField(
             stringResource(R.string.auth_code_field), state.code, { onIntent(AuthIntent.SetCode(it)) },
             focusRequester = codeField,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done)
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done),
+            textStyle = PoruchType.numeral.copy(fontSize = 28.sp, lineHeight = 32.sp, letterSpacing = 6.sp),
+            contentType = ContentType.SmsOtpCode
         )
         PrimaryButton(
-            stringResource(R.string.auth_code_confirm), { onIntent(AuthIntent.VerifyCode) },
+            stringResource(R.string.login), { onIntent(AuthIntent.VerifyCode) },
             Modifier.fillMaxWidth(), enabled = state.canVerify, loading = state.mutating
         )
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
             GhostButton(
                 if (state.resendIn > 0) stringResource(R.string.auth_code_resend_in, state.resendIn) else stringResource(R.string.auth_code_resend),
                 { onIntent(AuthIntent.SendCode) }, tone = colors.inkSecondary, enabled = state.resendIn == 0 && !state.mutating
@@ -382,3 +376,15 @@ private fun ResetStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     }
 }
 
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun AuthEmailPreview() = PoruchTheme(dark = false) {
+    AuthScreen(AuthState(reason = AuthReason.CREATE, googleAvailable = true)) {}
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun AuthCodePreview() = PoruchTheme(dark = true) {
+    AuthScreen(AuthState(awaitingCode = "you@example.com", code = "482915", resendIn = 42)) {}
+}

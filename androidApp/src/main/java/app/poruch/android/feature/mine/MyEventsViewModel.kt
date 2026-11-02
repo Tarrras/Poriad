@@ -6,6 +6,9 @@ import app.poruch.android.feature.withMedia
 import app.poruch.domain.MyEventsTab
 import app.poruch.shared.MyEventsPresenter
 import app.poruch.shared.PoruchApp
+import app.poruch.domain.ShareMode
+import app.poruch.domain.ShareRules
+import kotlin.time.Clock
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -94,6 +97,11 @@ class MyEventsViewModel(private val app: PoruchApp) :
             // Картка «Моїх подій» медіа може не нести: спершу повні деталі, інакше повтор вийде без фото й відео.
             is MyEventsIntent.Repeat -> withMedia(intent.event) { send(MyEventsEffect.Repeat(it.id)) }
             is MyEventsIntent.ThreadsPost -> withMedia(intent.event) { send(MyEventsEffect.ThreadsPost(it, app.threadsPost(it))) }
+            is MyEventsIntent.Share -> intent.event.let { event ->
+                if (ShareRules.mode(event, app.state.value.session.userId, Clock.System.now()) == ShareMode.PROMOTE) onIntent(MyEventsIntent.ThreadsPost(event))
+                // Посилання дає спільний шар — особисте, а при збої звичайне — і сам рахує `share`.
+                else viewModelScope.launch { send(MyEventsEffect.Invite(event, app.inviteLink(event.id))) }
+            }
         }
     }
 

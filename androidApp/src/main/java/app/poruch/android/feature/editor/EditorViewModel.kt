@@ -247,8 +247,11 @@ class EditorViewModel(
                 if (intent.granted) app.setRemindersEnabled(true)
                 finish()
             }
-            is EditorIntent.SetAnnounce -> reduce { copy(announce = intent.text.take(AnnouncementRules.TEXT_MAX)) }
-            EditorIntent.FillFromAnnounce -> fillFromAnnounce()
+            is EditorIntent.PasteAnnounce -> {
+                val text = intent.text?.trim().orEmpty()
+                if (text.isEmpty()) reduce { copy(clipboardEmpty = true) }
+                else { reduce { copy(announce = text.take(AnnouncementRules.TEXT_MAX), clipboardEmpty = false) }; fillFromAnnounce() }
+            }
             EditorIntent.ReopenAnnounce -> reduce { copy(announced = null) }
             is EditorIntent.AddMedia -> addMedia(intent.uris)
             is EditorIntent.RemoveMedia -> {
@@ -267,7 +270,7 @@ class EditorViewModel(
         }
     }
 
-    /** «Заповнити»: функція розбирає анонс, і поля, яких у тексті нема, лишаються як були. Відповідь — і гостю. */
+    /** «Вставити»: функція розбирає анонс, і поля, яких у тексті нема, лишаються як були. Відповідь — і гостю. */
     private fun fillFromAnnounce() {
         val text = state.value.announce.trim()
         if (text.isEmpty() || state.value.announcing) return

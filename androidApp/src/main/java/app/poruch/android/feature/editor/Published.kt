@@ -1,6 +1,11 @@
 package app.poruch.android.feature.editor
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -9,6 +14,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -21,6 +28,7 @@ import androidx.lifecycle.viewModelScope
 import app.poruch.android.R
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.android.ui.*
+import app.poruch.domain.Event
 import app.poruch.domain.EventMedia
 import app.poruch.domain.MediaKind
 import app.poruch.domain.ShareMode
@@ -40,6 +48,8 @@ import kotlinx.coroutines.launch
 data class PublishedState(
     /** Зі спільного стану ([app.poruch.shared.AppState.published]); null — екран більше не потрібен. */
     val published: PublishedEvent? = null,
+    /** Сама подія для квитка під штампом: з «Моїх подій», деталей чи карток. Null — ще не приїхала, лишається назва. */
+    val event: Event? = null,
     /** «Поділитися з другом» чекає особисте посилання. */
     val sharing: Boolean = false
 )
@@ -70,7 +80,13 @@ class PublishedViewModel(private val app: PoruchApp) : MviViewModel<PublishedSta
     init {
         observe(app) { shared ->
             if (shared.published == null && !closed) { closed = true; send(PublishedEffect.Close) }
-            copy(published = shared.published ?: published)
+            val id = (shared.published ?: published)?.id
+            copy(
+                published = shared.published ?: published,
+                event = event ?: id?.let { id ->
+                    (shared.library.myEvents + listOfNotNull(shared.detail.event)).firstOrNull { it.id == id } ?: shared.cards[id]
+                }
+            )
         }
     }
 
@@ -109,42 +125,74 @@ class PublishedViewModel(private val app: PoruchApp) : MviViewModel<PublishedSta
     }
 }
 
+/**
+ * Згори вниз (docs/design-wow-1.5.md, «Публікація й «Подію створено»»): штамп С1, заголовок, справжній квиток події, що
+ * виїжджає з прорізу під заголовком (другий «вау» потоку), одна головна дія, одна другорядна, календар текстом, а
+ * «Готово» — текстовою кнопкою внизу, як і системне «назад».
+ */
 @Composable
 fun PublishedScreen(state: PublishedState, onIntent: (PublishedIntent) -> Unit) {
     val colors = Poruch.colors
     BackHandler { onIntent(PublishedIntent.Done) }
     val published = state.published ?: return
-    Column(
-        Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding().navigationBarsPadding()
-            .verticalScroll(rememberScrollState()).padding(Spacing.page),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)
-    ) {
-        Spacer(Modifier.height(Spacing.section))
-        // Раз; без анімацій — одразу останній кадр (штамп уже стоїть).
-        val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.published))
-        val reduced = Poruch.reducedMotion
-        val progress by animateLottieCompositionAsState(composition, isPlaying = !reduced)
-        LottieAnimation(composition, { if (reduced) 1f else progress }, Modifier.size(220.dp))
-        Text(
-            stringResource(R.string.published_title), style = PoruchType.brandTitle1, color = colors.ink, textAlign = TextAlign.Center,
-            modifier = Modifier.semantics { heading() }
+    Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding().navigationBarsPadding()) {
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.page).padding(top = Spacing.xl),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            // Раз; без анімацій — одразу останній кадр (штамп уже стоїть).
+            val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.published))
+            val reduced = Poruch.reducedMotion
+            val progress by animateLottieCompositionAsState(composition, isPlaying = !reduced)
+            LottieAnimation(composition, { if (reduced) 1f else progress }, Modifier.size(200.dp, 133.dp))
+            Text(
+                stringResource(R.string.published_title), style = PoruchType.brandDisplay, color = colors.ink, textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { heading() }
+            )
+            state.event?.let { PrintedTicket(it) { onIntent(PublishedIntent.Done) } } ?: Text(
+                TitleRules.display(published.title), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(Spacing.sm))
+            PrimaryButton(
+                stringResource(if (published.shareMode == ShareMode.PROMOTE) R.string.share_promote else R.string.share_friend),
+                { onIntent(PublishedIntent.Share) }, Modifier.fillMaxWidth(), icon = PoruchIcons.share, loading = state.sharing
+            )
+            SecondaryButton(stringResource(R.string.published_copy_link), { onIntent(PublishedIntent.Copy) }, Modifier.fillMaxWidth(), icon = PoruchIcons.link)
+            GhostButton(
+                stringResource(R.string.published_calendar), { onIntent(PublishedIntent.Calendar) },
+                tone = colors.inkSecondary, icon = PoruchIcons.calendar
+            )
+        }
+        GhostButton(
+            stringResource(R.string.published_done), { onIntent(PublishedIntent.Done) },
+            Modifier.align(Alignment.CenterHorizontally).padding(vertical = Spacing.sm), tone = colors.ink
         )
-        Text(TitleRules.display(published.title), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(Spacing.md))
-        PrimaryButton(
-            stringResource(if (published.shareMode == ShareMode.PROMOTE) R.string.share_promote else R.string.share_friend),
-            { onIntent(PublishedIntent.Share) }, Modifier.fillMaxWidth(), icon = PoruchIcons.share, loading = state.sharing
-        )
-        SecondaryButton(stringResource(R.string.published_copy_link), { onIntent(PublishedIntent.Copy) }, Modifier.fillMaxWidth(), icon = PoruchIcons.link)
-        SecondaryButton(stringResource(R.string.published_calendar), { onIntent(PublishedIntent.Calendar) }, Modifier.fillMaxWidth(), icon = PoruchIcons.calendar)
-        GhostButton(stringResource(R.string.published_done), { onIntent(PublishedIntent.Done) }, tone = colors.ink)
+    }
+}
+
+/**
+ * Квиток щойно створеної — як картка мапи, але пласко: він у потоці. Виїжджає з прорізу під заголовком, наче з каси:
+ * обрізаний контейнер і зсув на власну висоту, 1 с після паузи 0,35 с. Без анімацій — одразу на місці. Тап — деталі.
+ */
+@Composable
+private fun PrintedTicket(event: Event, onOpen: () -> Unit) {
+    val reduced = Poruch.reducedMotion
+    val printed = remember { MutableTransitionState(reduced) }.apply { targetState = true }
+    Box(Modifier.fillMaxWidth().clipToBounds()) {
+        AnimatedVisibility(
+            printed,
+            enter = slideInVertically(tween(1000, delayMillis = 350, easing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f))) { -it }
+        ) {
+            EventMapCard(event, Modifier.fillMaxWidth(), elevation = 0.dp, onClick = onOpen)
+        }
     }
 }
 
 @Preview(heightDp = 760)
 @Composable
 private fun PublishedPreview() = PoruchTheme(dark = false) {
-    PublishedScreen(PublishedState(PREVIEW_PUBLISHED)) {}
+    PublishedScreen(PublishedState(PREVIEW_PUBLISHED, PREVIEW_EVENT)) {}
 }
 
 @Preview(heightDp = 760)
@@ -156,4 +204,11 @@ private fun PublishedFriendDarkPreview() = PoruchTheme(dark = true) {
 private val PREVIEW_PUBLISHED = PublishedEvent(
     id = "preview", link = "https://poriad.app/e/preview", post = "", shareMode = ShareMode.PROMOTE,
     title = "Вечір настільних ігор у «Протісто»", startMillis = 0, endMillis = 0, timeZone = "Europe/Kyiv", location = "Київ"
+)
+
+private val PREVIEW_EVENT = Event(
+    id = "preview", title = PREVIEW_PUBLISHED.title, description = "", category = app.poruch.domain.EventCategory.GAMES,
+    city = "Київ", address = "вул. Велика Васильківська, 5", startsAt = "2026-11-07T19:00:00+02:00",
+    endsAt = "2026-11-07T22:00:00+02:00", timeZone = "Europe/Kyiv", status = app.poruch.domain.EventStatus.PUBLISHED,
+    latitude = 50.44, longitude = 30.52
 )

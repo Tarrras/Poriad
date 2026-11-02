@@ -9,11 +9,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -26,6 +32,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.foundation.layout.BoxWithConstraints
 import app.poruch.android.R
 import app.poruch.android.feature.wallet.TicketsSection
 import app.poruch.android.feature.detail.RatingSheet
@@ -41,6 +49,8 @@ import app.poruch.domain.MyEventsRules
 import app.poruch.domain.MyEventsSection
 import app.poruch.domain.MyEventsTab
 import app.poruch.domain.RatingRules
+import app.poruch.domain.ShareMode
+import app.poruch.domain.ShareRules
 import kotlin.time.Clock
 
 @Composable
@@ -355,7 +365,7 @@ private fun Section(
             MyEventsGroup.PAST -> {
                 val shown = if (state.allPast) events else events.take(MyEventsRules.PAST_PREVIEW)
                 Overline(R.string.section_past)
-                Rows(shown, state, onIntent)
+                Rows(shown, state, onIntent, past = true)
                 if (events.size > shown.size) GhostButton(
                     stringResource(R.string.show_all_past, events.size),
                     { onIntent(MyEventsIntent.ShowAllPast) }
@@ -384,25 +394,29 @@ private fun Overline(text: Int, modifier: Modifier = Modifier) = Text(
 )
 
 @Composable
-private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
+private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsIntent) -> Unit, past: Boolean = false) {
     if (events.isEmpty()) return
     val now = Clock.System.now()
-    // На великому шрифті «Оцінити» стає під рядок: поруч вона лишала назві кілька літер.
-    val stacked = LocalDensity.current.fontScale > STACK_FONT_SCALE
+    // На великому шрифті «Оцінити» й «Повторити» стають під рядок: поруч вони лишали назві кілька літер (на 1.3 —
+    // «M2 / reduc…»), тож від 1.3 включно.
+    val stacked = LocalDensity.current.fontScale >= STACK_FONT_SCALE
     GroupedRows {
         events.forEachIndexed { index, event ->
             val score = state.screen.myRatings[event.id]
             val rate =
                 state.tab == MyEventsTab.GOING && score == null && RatingRules.canRate(event, now)
-            // Своя спільнотна (не пошук компанії на афішу): щотижневий клуб не набирає подію наново.
-            val repeat = state.tab == MyEventsTab.ORGANIZING && event.repeatable
+            // Своя спільнотна (не пошук компанії на афішу): щотижневий клуб не набирає подію наново. Кнопкою — лише на
+            // минулих (повторити минулотижневу); на тих, що попереду, «Повторити» й «Поширити» — довгим натиском.
+            val organizing = state.tab == MyEventsTab.ORGANIZING
+            val repeat = organizing && event.repeatable && past
             // Запит до не найближчої події інакше видно лише в бейджі чипа.
             val asks =
                 if (state.tab == MyEventsTab.ORGANIZING) state.screen.requests.count { it.eventId == event.id } else 0
             val note = score?.let { stringResource(R.string.my_score, it) }
             val status = if (asks > 0) pluralStringResource(R.plurals.join_requests, asks, asks) to BadgeTone.Accent else null
+            var menu by remember(event.id) { mutableStateOf(false) }
             UnfoldSource(event.id, "mine", { onIntent(MyEventsIntent.OpenEvent(event.id)) }, bare = true) { source, open ->
-                EventRow(
+                Box { EventRow(
                     event,
                     source,
                     unread = state.screen.unread[event.id] ?: 0,
@@ -427,8 +441,16 @@ private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsI
                         else -> null
                     },
                     status = status,
+                    onLongClick = if (organizing && !past) ({ menu = true }) else null,
                     onClick = open
                 )
+                if (organizing && !past) ActionsMenu(
+                    menu, { menu = false },
+                    listOfNotNull(
+                        (stringResource(R.string.repeat_event) to { onIntent(MyEventsIntent.Repeat(event)) }).takeIf { event.repeatable },
+                        stringResource(if (event.promotes()) R.string.share_promote else R.string.share_friend) to { onIntent(MyEventsIntent.Share(event)) }
+                    )
+                ) }
             }
             if (rate && stacked) Box(Modifier.padding(start = Spacing.lg, bottom = Spacing.md)) {
                 RateButton { onIntent(MyEventsIntent.StartRating(event)) }
@@ -579,6 +601,59 @@ private fun PanelActions(content: @Composable (Modifier) -> Unit) {
     }
 }
 
+/**
+ * Дії панелі організатора в ряд: [content] — тонові кнопки з написами [labels], [trailing] — дві круглі праворуч. Коли найдовший напис
+ * не вміщається в свою частку ряду (вузький екран чи великий шрифт), тонові стають одна під одною на всю ширину, а круглі
+ * — своїм рядом під ними: інакше «Учасники» рвались посеред слова. [content] отримує модифікатор ширини кнопки.
+ */
+@Composable
+private fun OrganizerActions(labels: List<String>, trailing: @Composable () -> Unit, content: @Composable (Modifier) -> Unit) {
+    val measurer = rememberTextMeasurer()
+    val style = MaterialTheme.typography.labelLarge
+    val density = LocalDensity.current
+    BoxWithConstraints {
+        val share = (maxWidth - ROUND_ACTION * 2 - Spacing.sm * 3) / 2 - Spacing.lg * 2
+        val widest = labels.maxOf { with(density) { measurer.measure(it, style).size.width.toDp() } }
+        if (widest > share) Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            content(Modifier.fillMaxWidth())
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) { trailing() }
+        } else Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+            content(Modifier.weight(1f))
+            trailing()
+        }
+    }
+}
+
+private val ROUND_ACTION = 48.dp
+
+/** Кругла тонова кнопка 48 dp лише з гліфом; [label] — її назва для TalkBack. */
+@Composable
+private fun RoundIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    val colors = Poruch.colors
+    Box(
+        Modifier.size(ROUND_ACTION).background(colors.brandContainer, CircleShape).clip(CircleShape)
+            .semantics { contentDescription = label }.pressable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) { Icon(icon, null, Modifier.size(18.dp), tint = colors.ink) }
+}
+
+/** Меню «⋯» і довгого натиску: рідний `DropdownMenu` на поверхні квитка. [items] — підпис і дія. */
+@Composable
+private fun ActionsMenu(expanded: Boolean, onDismiss: () -> Unit, items: List<Pair<String, () -> Unit>>) {
+    val colors = Poruch.colors
+    DropdownMenu(expanded, onDismiss, shape = Radius.md, containerColor = colors.surfaceRaised) {
+        items.forEach { (label, action) ->
+            DropdownMenuItem(
+                { Text(label, style = MaterialTheme.typography.bodyLarge, color = colors.ink) },
+                { onDismiss(); action() }
+            )
+        }
+    }
+}
+
+/** Своя подія, яку поширюють анонсом, а не посиланням другові: та сама умова, що на деталях (організатор тут — я). */
+private fun Event.promotes() = ShareRules.mode(this, gathering?.organizerId, Clock.System.now()) == ShareMode.PROMOTE
+
 /** Найближча своя подія: квиток (місця — на корінці), перший запит із відповіддю на місці й дії організатора. */
 @Composable
 private fun OrganizerPanel(
@@ -590,8 +665,6 @@ private fun OrganizerPanel(
     mutating: Boolean,
     onIntent: (MyEventsIntent) -> Unit
 ) {
-    val colors = Poruch.colors
-    val context = LocalContext.current
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         HeroHead(event, {
             if (event.isCancelled) StatusBadge(
@@ -603,37 +676,23 @@ private fun OrganizerPanel(
         else requests.firstOrNull()?.let { request ->
             RequestRow(event, request, requests.size - 1, mutating, onIntent)
         }
-        PanelActions { weight ->
-            SecondaryButton(
-                stringResource(R.string.participants),
-                { onIntent(MyEventsIntent.OpenEvent(event.id)) },
-                weight,
-                icon = PoruchIcons.social
-            )
-            SecondaryButton(
-                if (unread > 0) stringResource(
-                    R.string.chat_short_unread,
-                    unread
-                ) else stringResource(R.string.chat_short),
-                { onIntent(MyEventsIntent.OpenChat(event.id)) },
-                weight,
-                icon = PoruchIcons.chat
-            )
-            val share = stringResource(R.string.share)
-            Box(
-                Modifier
-                    .size(52.dp)
-                    .background(colors.brandContainer, CircleShape)
-                    .clip(CircleShape)
-                    .semantics { contentDescription = share }
-                    .pressable { context.shareEvent(event) },
-                contentAlignment = Alignment.Center
-            ) { Icon(PoruchIcons.share, null, Modifier.size(18.dp), tint = colors.ink) }
-        }
-        // Дії організатора над своєю подією: наступна така сама і пост з посиланням на запис.
-        if (event.repeatable) PanelActions { weight ->
-            SecondaryButton(stringResource(R.string.repeat_event), { onIntent(MyEventsIntent.Repeat(event)) }, weight, icon = PoruchIcons.refresh)
-            SecondaryButton(stringResource(R.string.threads_post), { onIntent(MyEventsIntent.ThreadsPost(event)) }, weight, icon = PoruchIcons.doc)
+        val participants = stringResource(R.string.participants)
+        val chat = if (unread > 0) stringResource(R.string.chat_short_unread, unread) else stringResource(R.string.chat_short)
+        OrganizerActions(listOf(participants, chat), trailing = {
+            // Одна функція — одне місце: кругла «Поширити» робить те, що на деталях (анонс чи особисте посилання),
+            // а «Пост для Threads» окремою кнопкою більше не стоїть. «Повторити» — у «⋯».
+            RoundIcon(
+                PoruchIcons.share, stringResource(if (event.promotes()) R.string.share_promote else R.string.share_friend)
+            ) { onIntent(MyEventsIntent.Share(event)) }
+            if (event.repeatable) Box {
+                var more by remember { mutableStateOf(false) }
+                RoundIcon(PoruchIcons.more, stringResource(R.string.more_actions)) { more = true }
+                ActionsMenu(more, { more = false }, listOf(stringResource(R.string.repeat_event) to { onIntent(MyEventsIntent.Repeat(event)) }))
+            }
+        }) { weight ->
+            // Без гліфів і з вужчими полями: поруч дві круглі, і з гліфом «Учасники» на 360 dp не вміщались.
+            SecondaryButton(participants, { onIntent(MyEventsIntent.OpenEvent(event.id)) }, weight, compact = true)
+            SecondaryButton(chat, { onIntent(MyEventsIntent.OpenChat(event.id)) }, weight, compact = true)
         }
     }
 }
