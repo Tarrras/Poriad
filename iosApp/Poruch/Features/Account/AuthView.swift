@@ -6,7 +6,8 @@ import Shared
 enum AuthReason: Identifiable {
     /// Зайшов сам: з профілю, «Моїх подій», скарги.
     case general
-    /// Тап по «Організувати подію» чи «+»: гість найімовірніше новий, тож відкриваємо реєстрацію, а після неї — редактор.
+    /// «Опублікувати» в редакторі гостя: гість найімовірніше новий, тож відкриваємо реєстрацію, а після входу подія
+    /// публікується сама (`AppState.publishAfterSignIn`).
     case create
     case join, follow, company
 
@@ -15,8 +16,8 @@ enum AuthReason: Identifiable {
     /// `action` для `auth_wall`: гість вперся саме в цю дію. Зайшов сам — не стіна.
     var wall: String? {
         switch self {
-        case .general: nil
-        case .create: "create"
+        // `create` рахує сам спільний шар, коли гість тисне «Опублікувати».
+        case .general, .create: nil
         case .join: "join"
         case .follow: "follow"
         case .company: "companion"
@@ -44,8 +45,18 @@ struct AuthView: View {
     /// Збій Google чи Apple до того, як справа дійшла до сервера: банера спільного шару тут не буде.
     @State private var providerError: String?
     @State private var choosingMail = false
+    /// Крок «Увійти кодом з пошти»: пошта → «Надіслати код» → код з листа.
+    @State private var codeMode = false
+    /// Код уже пішов, а людина хоче на іншу пошту: знову поле пошти, хоч `awaitingCode` ще той.
+    @State private var changingCodeEmail = false
+    @State private var code = ""
+    /// Коли можна просити новий код: Supabase Auth шле не частіше за раз на 60 с.
+    @State private var resendAt = Date.distantPast
     /// `auth_wall` — раз на показ екрана, а не на кожну появу.
     @State private var walled = false
+    /// «Я підтвердив — увійти»: форма входу, хоч `awaitingConfirmation` ще стоїть. Без `dismissConfirmationStep`, бо той
+    /// скасував би й публікацію гостя з «Опублікувати»; крок зникне сам із входом.
+    @State private var confirmedLogin = false
 
     /// Встановлені поштовики; схеми перелічено в `LSApplicationQueriesSchemes`.
     private var mailApps: [(name: String, url: URL)] {
@@ -59,9 +70,10 @@ struct AuthView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
                 header
-                if let email = model.state?.session.awaitingConfirmation { confirmation(email) }
+                if let email = confirmingEmail { confirmation(email) }
                 else if resetting { reset }
-                else if askingBirthDate { birthDateStep }
+                else if askingBirthDate { adultStep }
+                else if codeMode { codeStep }
                 else { fields }
             }.padding(.bottom, Space.section)
         }
@@ -82,14 +94,23 @@ struct AuthView: View {
         .onChange(of: (model.state?.notice as? AppNoticeTold)?.message) { _, message in
             if message == .recoverySent { resetting = false }
         }
+        // Нова реєстрація чекає на лист — знову крок «перевірте пошту».
+        .onChange(of: model.state?.session.awaitingConfirmation) { _, email in if email != nil { confirmedLogin = false } }
+        // Код пішов (і на іншу пошту): поле коду, порожнє.
+        .onChange(of: model.state?.session.awaitingCode) { _, email in
+            guard email != nil else { return }
+            changingCodeEmail = false
+            code = ""
+        }
     }
 
-    private var confirming: Bool { model.state?.session.awaitingConfirmation != nil }
+    private var confirmingEmail: String? { confirmedLogin ? nil : model.state?.session.awaitingConfirmation }
+    private var confirming: Bool { confirmingEmail != nil }
     /// Навіщо профіль саме зараз: гість прийшов з дією, і перший рядок під заголовком — про неї.
     private var subtitle: String {
         switch reason {
         case .general: form.register ? Copy.auth_subtitle_signup : Copy.auth_guest_note
-        case .create: form.register ? Copy.auth_subtitle_create_signup : Copy.auth_subtitle_create_signin
+        case .create: Copy.auth_subtitle_publish
         case .join: Copy.auth_reason_join
         case .follow: Copy.auth_reason_follow
         case .company: Copy.auth_reason_company
@@ -101,22 +122,27 @@ struct AuthView: View {
         return !state.mutating && !state.session.askBirthDate && !state.session.passwordRecovery
     }
 
-    /// Знак застосунку й назва по центру, як вхід в Apple ID. У кутку — закрити аркуш; «назад» лише зі скидання пароля.
+    /// Скидання пароля чи вхід кодом: «назад» до форми замість «закрити».
+    private var inSubstep: Bool { (resetting || codeMode) && !confirming && !askingBirthDate }
+
+    /// Знак застосунку й назва по центру, як вхід в Apple ID. У кутку — закрити аркуш; «назад» — зі скидання пароля й коду.
     private var header: some View {
-        VStack(spacing: Space.md) {
-            IconPill(glyph: resetting ? PoruchIcons.chevronLeft : PoruchIcons.close, label: resetting ? Copy.back : Copy.close, size: 40) {
-                if resetting { resetting = false } else { dismiss() }
+        let coding = codeMode && !confirming && !askingBirthDate
+        return VStack(spacing: Space.md) {
+            IconPill(glyph: inSubstep ? PoruchIcons.chevronLeft : PoruchIcons.close, label: inSubstep ? Copy.back : Copy.close, size: 40) {
+                if resetting { resetting = false } else if coding { codeMode = false } else { dismiss() }
             }
                 .frame(maxWidth: .infinity, alignment: .leading)
-            PoruchIcon(glyph: confirming ? PoruchIcons.checkCircle : resetting ? PoruchIcons.lock : askingBirthDate ? PoruchIcons.calendar : PoruchIcons.pin, size: 32)
+            PoruchIcon(glyph: confirming ? PoruchIcons.checkCircle : resetting ? PoruchIcons.lock : askingBirthDate ? PoruchIcons.person
+                       : coding ? PoruchIcons.mail : PoruchIcons.pin, size: 32)
                 .foregroundStyle(Palette.onBrand)
                 .frame(width: 72, height: 72).background(Palette.brand, in: Circle())
                 .decorative()
             Text(confirming ? Copy.auth_check_email_title : resetting ? Copy.auth_reset_title : askingBirthDate ? Copy.auth_birth_date_title
-                 : form.register ? Copy.auth_create : Copy.auth_welcome)
+                 : coding ? Copy.auth_code_title : form.register ? Copy.auth_create : Copy.auth_welcome)
                 .font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
             Text(confirming ? Copy.auth_check_email_subtitle : resetting ? Copy.auth_reset_subtitle
-                 : askingBirthDate ? Copy.auth_birth_date_subtitle : subtitle)
+                 : askingBirthDate ? Copy.auth_adult_subtitle : coding ? Copy.auth_code_subtitle : subtitle)
                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
                 .padding(.horizontal, Space.lg)
         }
@@ -151,7 +177,7 @@ struct AuthView: View {
             }
             SecondaryButton(title: Copy.auth_confirmed_login) {
                 // Лист підтверджено: пошта вже в полі, лишається пароль.
-                model.app.dismissConfirmationStep()
+                confirmedLogin = true
                 form.register = false
                 form.password = ""
             }
@@ -208,6 +234,10 @@ struct AuthView: View {
                 .buttonStyle(PressableStyle())
                 .disabled(model.state?.mutating == true)
             }
+            // Третій шлях без пароля: той самий акаунт, що на сайті після запису поштою.
+            SecondaryButton(title: Copy.auth_code_button, glyph: PoruchIcons.mail) { providerError = nil; codeMode = true }
+                .frame(maxWidth: .infinity)
+                .disabled(model.state?.mutating == true)
             if let providerError {
                 Text(providerError).font(PoruchFont.caption).foregroundStyle(Palette.danger)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -236,22 +266,59 @@ struct AuthView: View {
         }
     }
 
+    /// Лист з кодом; відлік до наступного — з самого тапу, бо повтор на ту саму пошту `awaitingCode` не міняє.
+    private func send(_ email: String) {
+        resendAt = Date().addingTimeInterval(codeResendDelay)
+        model.app.sendSignInCode(email: email)
+    }
+
     private func failed(_ provider: String) {
         providerError = Copy.provider_sign_in_failed("\(provider)")
     }
 
-    /// Після входу через Google чи Apple: провайдер вік не каже, а «Поряд» — для повнолітніх. Та сама
-    /// дата, що при реєстрації поштою; «назад» лишає людину в акаунті, картка віку чекатиме в профілі.
-    private var birthDateStep: some View {
+    /// Після входу через Google, Apple чи код: провайдер вік не каже, а «Поряд» — для повнолітніх. Та сама
+    /// галочка, що при реєстрації поштою; «назад» лишає людину в акаунті, картка віку чекатиме в профілі.
+    private var adultStep: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
-            VStack(alignment: .leading, spacing: Space.sm) {
-                Text(Copy.birth_date.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                BirthDateField(date: $form.birthDate, range: form.earliestBirthDate...form.latestBirthDate)
-                Text(Copy.birth_date_hint)
-                    .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            AdultCheckbox(checked: $form.adult)
+            PrimaryButton(title: Copy.auth_birth_date_continue, loading: model.state?.mutating == true, enabled: form.adult) {
+                model.app.confirmAdult()
             }
-            PrimaryButton(title: Copy.auth_birth_date_continue, loading: model.state?.mutating == true, enabled: form.birthDate != nil) {
-                if let date = form.birthDate { model.app.declareBirthDate(birthDate: isoDay(date)) }
+        }.padding(.horizontal, Space.page)
+    }
+
+    /// Вхід кодом з пошти: ті самі `/auth/v1/otp` і `/verify`, що на сайті. Новий акаунт з'являється тут же, тож згода — як під Apple й Google.
+    private var codeStep: some View {
+        let mutating = model.state?.mutating == true
+        return VStack(alignment: .leading, spacing: Space.lg) {
+            if let sent = model.state?.session.awaitingCode, !changingCodeEmail {
+                Text(Copy.auth_code_sent(sent)).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                LabelledField(label: Copy.auth_code_field, text: $code, placeholder: "123456")
+                    .textContentType(.oneTimeCode).keyboardType(.numberPad)
+                PrimaryButton(title: Copy.auth_code_confirm, loading: mutating, enabled: AccountRules.shared.isCode(value: code)) {
+                    model.app.verifySignInCode(email: sent, code: code.trimmingCharacters(in: .whitespaces))
+                }
+                // Відлік щосекунди лише в цьому рядку, а не у всьому екрані.
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    let left = Int(resendAt.timeIntervalSince(context.date).rounded(.up))
+                    Button(left > 0 ? Copy.auth_code_resend_in("\(left)") : Copy.auth_code_resend) { send(sent) }
+                        .font(PoruchFont.button).foregroundStyle(left > 0 ? Palette.inkTertiary : Palette.inkSecondary)
+                        .frame(maxWidth: .infinity).frame(minHeight: 44)
+                        .disabled(left > 0 || mutating)
+                }
+                Button(Copy.auth_code_other_email) { changingCodeEmail = true }
+                    .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
+                    .frame(maxWidth: .infinity).frame(minHeight: 44)
+                    .disabled(mutating)
+            } else {
+                LabelledField(label: Copy.email, text: $form.email, placeholder: "you@example.com")
+                    .textContentType(.emailAddress).keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                PrimaryButton(title: Copy.auth_code_send, glyph: PoruchIcons.mail, loading: mutating, enabled: form.emailValid) {
+                    send(form.email)
+                }
+                consent
             }
         }.padding(.horizontal, Space.page)
     }
@@ -264,13 +331,8 @@ struct AuthView: View {
             if form.register {
                 LabelledField(label: Copy.name, text: $form.name, placeholder: Copy.name_placeholder)
                     .textContentType(.name)
-                // Питаємо раз, при реєстрації, і нікому не показуємо: на це спираються вікові межі й модерація.
-                VStack(alignment: .leading, spacing: Space.sm) {
-                    Text(Copy.birth_date.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                    BirthDateField(date: $form.birthDate, range: form.earliestBirthDate...form.latestBirthDate)
-                    Text(Copy.birth_date_hint)
-                        .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
-                }
+                // Галочка замість дати: дату спитаємо лише для події з віком від 19 чи верхньою межею.
+                AdultCheckbox(checked: $form.adult)
             }
             LabelledField(label: Copy.email, text: $form.email, placeholder: "you@example.com")
                 .textContentType(.emailAddress).keyboardType(.emailAddress)
@@ -324,27 +386,23 @@ struct AuthView: View {
     @Published var password = ""
     @Published var revealed = false
     @Published var register: Bool
-    /// Порожня, доки людина не обере: дата за замовчуванням пропускала б правило 18+ без відповіді.
-    @Published var birthDate: Date?
-
-    /// Мінімум задає сам контрол; база перевірить ще раз.
-    let latestBirthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
-    let earliestBirthDate = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
+    /// «Мені вже є 18»: знята, доки людина не поставить сама.
+    @Published var adult = false
 
     init(register: Bool = false) { self.register = register }
 
     var emailValid: Bool { AccountRules.shared.isEmail(value: email) }
     var canSubmit: Bool {
         emailValid && AccountRules.shared.isPassword(value: password) &&
-            (!register || (AccountRules.shared.isName(value: name) && birthDate.map { $0 <= latestBirthDate } == true))
+            (!register || (AccountRules.shared.isName(value: name) && adult))
     }
 
     /// Пароль не переживає зміну режиму.
     func toggleMode() { register.toggle(); password = "" }
 
     func submit(with app: PoruchApp) {
-        if register, let birthDate { app.signUp(email: email, password: password, name: name, birthDate: isoDay(birthDate)) }
-        else if !register { app.signIn(email: email, password: password) }
+        if register { app.signUp(email: email, password: password, name: name) }
+        else { app.signIn(email: email, password: password) }
     }
 }
 
@@ -360,6 +418,9 @@ struct PasswordRevealToggle: View {
         .accessibilityLabel(revealed ? Copy.hide_password : Copy.show_password)
     }
 }
+
+/// Supabase Auth шле код не частіше за раз на хвилину.
+private let codeResendDelay: TimeInterval = 60
 
 /// Дата народження їде як календарний день, без часу й поясу. День — той, що людина бачила в
 /// пікері, тобто в поясі пристрою: у UTC локальна північ Києва — ще вчора.

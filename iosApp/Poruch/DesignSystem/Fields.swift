@@ -86,6 +86,35 @@ struct BirthDateField: View {
     }
 }
 
+/// Галочка «Мені вже є 18» замість дати народження (docs/organizers-1.5.md, хвиля 2): реєстрація, крок після входу
+/// через Google, Apple чи код і картка віку в профілі. Дату питаємо лише для події з віком від 19 чи верхньою межею.
+struct AdultCheckbox: View {
+    @Binding var checked: Bool
+    var body: some View {
+        Button { checked.toggle() } label: {
+            HStack(alignment: .top, spacing: Space.md) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous).fill(checked ? Palette.brand : Palette.surface)
+                    RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(checked ? Palette.brand : Palette.inkTertiary, lineWidth: 2)
+                    if checked { PoruchIcon(glyph: PoruchIcons.check, size: 16).foregroundStyle(Palette.onBrand) }
+                }
+                .frame(width: 24, height: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Copy.adult_confirm).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                    Text(Copy.adult_confirm_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(minHeight: 44).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(checked ? [.isToggle, .isSelected] : .isToggle)
+        .motion(value: checked)
+    }
+}
+
 /// «Коли» одним полем: день і година — дві цілі й дві шторки, між ними перфорація, як лінія відриву на квитку. Годину
 /// видно й міняють одним дотиком, а не шукають у шторці за календарем. Поле, а не квиток: корінець кольору жанру
 /// належить квитку події згори, і поле, вбране так само, з ним зливалось. Частина години сталої ширини, тож поля

@@ -999,6 +999,7 @@ enum Copy {
     static let published_link_copied = "Посилання скопійовано"
     static let published_calendar = "Додати в календар"
     static let published_done = "Готово"
+    static let confirm_age_adult_action = "Підтвердити"
 
     // ---- Множини: `one` / `few` / `many` за українським правилом, число підставляється замість %d.
     static func media_failed(_ n: Int) -> String { ukrainianPlural(n, "Не вдалося додати \(n) файл. Спробуйте ще раз у редагуванні.", "Не вдалося додати \(n) файли. Спробуйте ще раз у редагуванні.", "Не вдалося додати \(n) файлів. Спробуйте ще раз у редагуванні.") }

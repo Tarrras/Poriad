@@ -18,9 +18,7 @@ struct ProfileView: View {
     @State private var changingPassword = false
     @State private var editingProfile = false
     @State private var sharingApp: ShareText?
-    @State private var birthDate: Date?
-    private let latestBirthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
-    private let earliestBirthDate = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
+    @State private var adult = false
 
     private var signedIn: Bool { model.state?.signedIn == true }
     private var recovering: Bool { model.state?.session.passwordRecovery == true }
@@ -122,15 +120,14 @@ struct ProfileView: View {
         }
     }
 
-    /// Старий акаунт без віку питаємо тут, раз, і кажемо чому. Відмовляє база.
+    /// Акаунт без віку (старий чи пропустив крок після входу) питаємо тут галочкою і кажемо чому. Відмовляє база.
     private var ageDeclaration: some View {
         VStack(alignment: .leading, spacing: Space.md) {
             Text(Copy.confirm_age_title).font(PoruchFont.cardName).foregroundStyle(Palette.ink)
-            Text(Copy.confirm_age_body)
-                .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
-            BirthDateField(date: $birthDate, range: earliestBirthDate...latestBirthDate)
-            PrimaryButton(title: Copy.confirm_age_action, enabled: birthDate != nil) {
-                if let birthDate { model.app.declareBirthDate(birthDate: isoDay(birthDate)) }
+            // Чому — каже підпис галочки.
+            AdultCheckbox(checked: $adult)
+            PrimaryButton(title: Copy.confirm_age_adult_action, loading: model.state?.mutating == true, enabled: adult) {
+                model.app.confirmAdult()
             }
         }
         .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
@@ -305,7 +302,8 @@ struct ChangePasswordSheet: View {
 /// Видалення облікового запису: що зникне, пароль для підтвердження, червона кнопка.
 /// Пароль перевіряє сервер (`deleteAccount`); хибний повертає звичайну відмову в банері.
 /// Акаунт без пароля підтверджує кнопкою, а акаунт Apple — ще й через Apple: свіжий код
-/// дає серверу відкликати токени Apple (App Store 5.1.1(v)).
+/// дає серверу відкликати токени Apple (App Store 5.1.1(v)). Вхід кодом з пошти — новим кодом: пароля в такого
+/// акаунта може й не бути, а без нього сервер видаляє лише перші хвилин 10 після входу.
 struct DeleteAccountSheet: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
@@ -313,10 +311,14 @@ struct DeleteAccountSheet: View {
     @State private var revealed = false
     @State private var apple = AppleReauthorization()
     @State private var appleFailed = false
+    @State private var code = ""
+    /// Код на пошту вже просили: поле коду замість «Надіслати код». Збій листа каже банер.
+    @State private var codeSent = false
 
     private var mutating: Bool { model.state?.mutating == true }
     private var passwordless: Bool { model.state?.session.passwordless == true }
     private var viaApple: Bool { model.state?.session.viaApple == true }
+    private var viaCode: Bool { model.state?.session.viaCode == true && !viaApple }
 
     var body: some View {
         ScrollView {
@@ -336,10 +338,12 @@ struct DeleteAccountSheet: View {
                 if appleFailed {
                     Text(Copy.apple_sign_in_failed).font(PoruchFont.caption).foregroundStyle(Palette.danger)
                 }
-                PrimaryButton(
-                    title: viaApple ? Copy.delete_account_apple : Copy.delete_account_confirm, glyph: viaApple ? nil : PoruchIcons.trash, symbol: viaApple ? "apple.logo" : nil,
-                    tone: Palette.danger, loading: mutating, enabled: passwordless || AccountRules.shared.isPassword(value: password)
-                ) { confirm() }
+                if viaCode { codeConfirmation } else {
+                    PrimaryButton(
+                        title: viaApple ? Copy.delete_account_apple : Copy.delete_account_confirm, glyph: viaApple ? nil : PoruchIcons.trash, symbol: viaApple ? "apple.logo" : nil,
+                        tone: Palette.danger, loading: mutating, enabled: passwordless || AccountRules.shared.isPassword(value: password)
+                    ) { confirm() }
+                }
                 SecondaryButton(title: Copy.delete_account_cancel, enabled: !mutating) { dismiss() }
             }
             .padding(Space.page).padding(.top, Space.sm)
@@ -365,6 +369,31 @@ struct DeleteAccountSheet: View {
         }
         .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading)
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
+    }
+
+    /// «Надіслати код» → код з листа → «Видалити»: свіжий код і є підтвердження власника.
+    @ViewBuilder private var codeConfirmation: some View {
+        if codeSent {
+            if let email = model.state?.library.profile?.email {
+                Text(Copy.auth_code_sent(email)).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            LabelledField(label: Copy.auth_code_field, text: $code, placeholder: "123456")
+                .textContentType(.oneTimeCode).keyboardType(.numberPad)
+            PrimaryButton(
+                title: Copy.delete_account_confirm, glyph: PoruchIcons.trash, tone: Palette.danger, loading: mutating,
+                enabled: AccountRules.shared.isCode(value: code)
+            ) { model.app.deleteAccountWithCode(code: code.trimmingCharacters(in: .whitespaces)) }
+            Button(Copy.auth_code_resend) { model.app.sendDeletionCode() }
+                .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
+                .frame(maxWidth: .infinity).frame(minHeight: 44)
+                .disabled(mutating)
+        } else {
+            PrimaryButton(title: Copy.auth_code_send, glyph: PoruchIcons.mail, tone: Palette.danger, loading: mutating) {
+                codeSent = true
+                model.app.sendDeletionCode()
+            }
+        }
     }
 
     private func confirm() {

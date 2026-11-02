@@ -72,16 +72,23 @@ extension PageHeader where Trailing == EmptyView {
 struct BrandAnimation: View {
     let name: String
     var loop = true
-    /// Стоп-кадр першого кадру: «зменшити рух».
+    /// Стоп-кадр: «зменшити рух».
     var still = false
+    /// Де стоїть стоп-кадр: 0 — перший, 1 — останній («Подію створено»: штамп уже стоїть).
+    var stillAt: AnimationProgressTime = 0
+    /// Колір корінця (шар `Stub`, запечений кольором музики) — жанр події. Nil — як запечено.
+    var stub: Color?
     var onFinish: (() -> Void)?
     @Environment(\.colorScheme) private var scheme
     var body: some View {
-        let lottie = LottieView(animation: .asset(name + (scheme == .dark ? "Dark" : "Light")))
+        var lottie = LottieView(animation: .asset(name + (scheme == .dark ? "Dark" : "Light")))
+        if let stub {
+            lottie = lottie.valueProvider(ColorValueProvider(UIColor(stub).lottieColorValue), for: AnimationKeypath(keypath: "**.Stub.**.Color"))
+        }
         if still {
-            lottie.paused(at: .frame(0))
+            return AnyView(lottie.paused(at: .progress(stillAt)))
         } else {
-            lottie.playing(loopMode: loop ? .loop : .playOnce).animationDidFinish { _ in onFinish?() }
+            return AnyView(lottie.playing(loopMode: loop ? .loop : .playOnce).animationDidFinish { _ in onFinish?() })
         }
     }
 }

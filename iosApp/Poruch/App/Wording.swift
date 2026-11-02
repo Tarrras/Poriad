@@ -6,6 +6,7 @@ extension AppNotice {
     var text: String {
         if let failed = self as? AppNoticeFailed { return failed.error.text }
         if let told = self as? AppNoticeTold { return told.message.text }
+        if let media = self as? AppNoticeMediaFailed { return Copy.media_failed(Int(media.count)) }
         return ""
     }
 }
@@ -36,6 +37,7 @@ extension AppError {
         case is AppErrorInvalidMessage: "Повідомлення порожнє або задовге (до 2000 символів)"
         case is AppErrorObjectionableContent: "Текст містить слова, які ми не публікуємо. Перепишіть, будь ласка."
         case is AppErrorLinkExpired: "Посилання застаріло або вже використане. Запросіть новий лист на цьому пристрої"
+        case is AppErrorInvalidCode: Copy.err_invalid_code
         case is AppErrorLinkOnAnotherDevice: "Відкрийте посилання з листа на тому самому пристрої, де ви реєструвались або запитували відновлення."
         case is AppErrorInvalidEmail: "Вкажіть коректний email"
         case is AppErrorInvalidName: "Вкажіть імʼя від 2 до 60 символів"

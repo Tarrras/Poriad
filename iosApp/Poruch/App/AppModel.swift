@@ -230,5 +230,14 @@ extension EnvironmentValues {
     func reloadAll() async { try? await app.reloadAll() }
     func reloadMyEvents() async { try? await app.reloadMyEvents() }
     func reloadEvent(id: String) async { try? await app.reloadEvent(id: id) }
+
+    /// Подія з повними фото й відео (`Event.mediaLoaded`): картки стрічки їх не несуть, тоді — деталі (`event_details`).
+    /// Деталі не доїхали — nil: «Повторити» й «Пост для Threads» не йдуть мовчки без медіа, а збій уже каже банер.
+    func withMedia(_ event: Event) async -> Event? {
+        guard !event.mediaLoaded else { return event }
+        await reloadEvent(id: event.id)
+        guard let detail = (app.state.value as? AppState)?.detail, detail.failure == nil, !detail.loading else { return nil }
+        return detail.event.flatMap { $0.id == event.id ? $0 : nil }
+    }
     deinit { network.cancel(); subscription?.close(); graph.close() }
 }

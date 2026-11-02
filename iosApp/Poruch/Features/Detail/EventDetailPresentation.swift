@@ -6,14 +6,27 @@ import Shared
 /// один `@Published`, тож деталі перемальовуються зі своїм станом, а не з кожною емісією `AppModel`.
 final class DetailScreenModel: ObservableObject {
     @Published private(set) var state = DetailScreenState.companion.Empty
+    /// `event_details` доїхали без збою: у події справжні `media`. Доти слот тримає картку з `media = []`, і правка з неї
+    /// стерла б фото й відео організатора (рев'ю M1-ios). `DetailScreenState` збою не несе, тож дивимось у сам стан —
+    /// він не старший за емісію презентера.
+    @Published private(set) var detailsLoaded = false
     private let presenter: DetailPresenter
+    private let app: PoruchApp
     private var subscription: Subscription?
 
     init(app: PoruchApp, eventID: String) {
+        self.app = app
         presenter = DetailPresenter(app: app, openedId: eventID)
         // Перший кадр — уже з подією: zoom з квитка не розгортається в порожнє полотно, поки колбек дійде.
         state = presenter.state.value as? DetailScreenState ?? state
-        subscription = presenter.observe { [weak self] state in self?.state = state }
+        subscription = presenter.observe { [weak self] state in self?.apply(state) }
+    }
+
+    private func apply(_ state: DetailScreenState) {
+        let detail = (app.state.value as? AppState)?.detail
+        let loaded = !state.loading && state.event != nil && detail?.failure == nil && detail?.event?.id == state.event?.id
+        if detailsLoaded != loaded { detailsLoaded = loaded }
+        self.state = state
     }
 
     /// Сеанс на екрані: усі дії (участь, збереження, скарга, мапа) ідуть на нього, не на картку, з якою відкрили.

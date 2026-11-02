@@ -12,13 +12,23 @@ struct EventEditor: View {
     @StateObject private var editor: EventEditorModel
     @State private var discardingChanges = false
     @State private var startingOver = false
+    /// Щойно опублікована подія: редактор показує «Подію створено» (`AppState.published`).
+    @State private var shownPublished: PublishedEvent?
 
-    init(event: Event?, app: PoruchApp, home: AppState?) {
+    /// [repeated] — чернетка «Повторити» (`PoruchApp.repeatDraft`): нова подія з полями й медіа іншої.
+    init(event: Event?, app: PoruchApp, home: AppState?, repeated: EventDraft? = nil) {
         self.event = event
-        _editor = StateObject(wrappedValue: EventEditorModel(app: app, event: event, home: home))
+        _editor = StateObject(wrappedValue: EventEditorModel(app: app, event: event, home: home, repeated: repeated))
     }
 
-    var body: some View {
+    /// Вхід лишається відкритим, поки людина не ввійшла чи поки сервер питає галочку віку (KDoc `publishAfterSignIn`).
+    private var waitsForSignIn: Bool {
+        guard let state = model.state, state.publishAfterSignIn else { return false }
+        return !state.signedIn || state.session.askBirthDate
+    }
+
+    /// Кроки редактора. Поки подія публікується — накладка з квитком, що друкується (1.6).
+    private var content: some View {
         VStack(spacing: 0) {
             wizardHeader
             ScrollViewReader { proxy in
@@ -41,7 +51,7 @@ struct EventEditor: View {
                             Text(editor.step.hint).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                         }.padding(.bottom, Space.xs)
                         switch editor.step {
-                        case .about: AboutStep(form: $editor.form, issues: editor.issueTexts)
+                        case .about: AboutStep(editor: editor)
                         case .place: PlaceStep(editor: editor)
                         case .schedule: ScheduleStep(form: $editor.form, issues: editor.issueTexts)
                         case .people: PeopleStep(form: $editor.form, issues: editor.issueTexts)
@@ -67,6 +77,23 @@ struct EventEditor: View {
             }
             actions
         }
+        .overlay {
+            if publishing {
+                PublishingOverlay(upload: model.state?.mediaUpload, stub: categoryStub(editor.form.category))
+            }
+        }
+        .motion(value: publishing)
+    }
+
+    var body: some View {
+        Group {
+            // Опубліковано — «Подію створено» тут же, замість кроків: друга шторка поверх цієї не відкрилась би.
+            if let shownPublished {
+                PublishedView(published: shownPublished) { finishPublished() }
+            } else {
+                content
+            }
+        }
         .background(Palette.canvas)
         // Редактор — аркуш над коренем, тож банер кореня з помилкою публікації лишався під ним.
         .notice(model.state?.notice?.presented) { model.app.clearNotice() }
@@ -78,17 +105,38 @@ struct EventEditor: View {
         }
         // При згортанні застосунку аркуш не зникає, тож відкладений запис дожимаємо самі.
         .onChange(of: scenePhase) { _, phase in if phase != .active { editor.persist() } }
-        .onDisappear { editor.persist() }
-        // Зміна закінчилась без підтвердженого запису — відмова: форма лишається редагованою й зберігається.
+        .onDisappear {
+            editor.persist()
+            // «Подію створено» змахнули вниз — те саме, що «Готово».
+            if shownPublished != nil { finishPublished(closing: false) }
+        }
+        // Зміна закінчилась без підтвердженого запису — відмова: форма лишається редагованою й зберігається. Гість, що
+        // чекає на вхід, — не відмова: подія опублікується сама, щойно він увійде.
         .onChange(of: model.state?.mutating) { _, mutating in
-            guard mutating == false, editor.submitted, model.state?.completedEventId == nil else { return }
+            guard mutating == false, editor.submitted, model.state?.completedEventId == nil,
+                  model.state?.publishAfterSignIn != true else { return }
             let error = (model.state?.notice as? AppNoticeFailed)?.error
             editor.failed(fields: (error as? AppErrorInvalidDraft)?.fields ?? [])
         }
         .onChange(of: model.state?.completedEventId) { _, id in
-            guard editor.submitted, id != nil else { return }
+            guard editor.submitted, let id else { return }
             editor.finish()
-            dismiss()
+            // Нова подія — «Подію створено»; правка — просто закриваємось.
+            guard !editor.editing, let published = model.state?.published, published.id == id else { return dismiss() }
+            // «Подію опубліковано» каже сам екран; збій файлів (MediaFailed) лишаємо — його треба побачити.
+            if model.state?.notice is AppNoticeTold { model.app.clearNotice() }
+            withMotion { shownPublished = published }
+            // VoiceOver: новий екран, а не та сама форма — і одразу його назва.
+            UIAccessibility.post(notification: .screenChanged, argument: Copy.published_title)
+        }
+        // «Опублікувати» в гостя: вхід поверх редактора з чернеткою під ним. Увійшов — вхід закривається сам, а подія
+        // публікується; закрив без входу — публікація скасована, людина лишається тут з тією самою чернеткою.
+        .sheet(isPresented: Binding(get: { waitsForSignIn }, set: { if !$0 { model.app.cancelPendingPublish() } })) {
+            NavigationStack { AuthView(reason: .create) }
+        }
+        .onChange(of: model.state?.publishAfterSignIn) { _, waits in
+            guard waits == false, model.state?.completedEventId == nil, model.state?.mutating != true else { return }
+            editor.failed(fields: [])
         }
         // Під час публікації аркуш не закривається: інакше відповідь сервера нікому було б прийняти,
         // чернетка лишалась би, і наступне «+» публікувало б ту саму подію вдруге.
@@ -100,6 +148,21 @@ struct EventEditor: View {
         .confirmationDialog(Copy.editor_start_over_title, isPresented: $startingOver, titleVisibility: .visible) {
             Button(Copy.editor_delete_draft, role: .destructive) { editor.startOver() }
         } message: { Text(Copy.editor_start_over_explain) }
+    }
+
+    /// Подія публікується: накладка з анімацією замість кроків. Гість, що чекає на вхід, ще нічого не публікує.
+    private var publishing: Bool {
+        editor.submitted && !editor.editing && !waitsForSignIn && model.state?.mutating == true
+    }
+
+    /// «Готово» чи змах униз на «Подію створено»: екран зникає (`publish_done {done}`), далі — деталі події. Деталі
+    /// відкриває той самий шлях, що й пуш: з будь-якої вкладки, після того як шторка закрилась.
+    private func finishPublished(closing: Bool = true) {
+        guard let published = shownPublished else { return }
+        shownPublished = nil
+        model.app.publishDone(action: .done)
+        if closing { dismiss() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { PushDelegate.open(eventId: published.id, chat: false) }
     }
 
     private func stepLabel(_ step: EditorStep) -> String {
@@ -144,14 +207,24 @@ struct EventEditor: View {
     private var actions: some View {
         // На великому шрифті дві кнопки поруч не вміщають напис — ставимо одна під одною.
         let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: Space.md)) : AnyLayout(HStackLayout(spacing: Space.md))
-        return layout {
+        return VStack(spacing: Space.sm) {
+            // Подію вже створено, файли йдуть по черзі: людина бачить, чого чекає.
+            if let upload = model.state?.mediaUpload {
+                Text(Copy.media_uploading("\(upload.current)", "\(upload.total)"))
+                    .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).monospacedDigit()
+            } else if editor.preparing > 0 && editor.step != .about {
+                // На першому кроці те саме каже секція «Фото й відео»; тут — чому «Опублікувати» чекає.
+                Text(Copy.media_compressing).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+            }
+            layout {
             if editor.step != .about { SecondaryButton(title: Copy.back) { editor.retreat() } }
             PrimaryButton(
                 title: !editor.step.isLast ? Copy.next : editor.editing ? Copy.save_changes : Copy.publish,
                 loading: model.state?.mutating == true,
-                // Не вимкнена, поки крок не заповнено: натискання показує, що саме не так.
-                enabled: model.state?.mutating != true
+                // Не вимкнена, поки крок не заповнено: натискання показує, що саме не так. Чекає лише на стиснення відео.
+                enabled: model.state?.mutating != true && !(editor.step.isLast && editor.preparing > 0)
             ) { if editor.step.isLast { editor.submit() } else { editor.advance() } }
+            }
         }
         .padding(Space.page)
         .background(Palette.surface.ignoresSafeArea(edges: .bottom))
@@ -252,6 +325,30 @@ private struct DraftTicket: View {
     }
 }
 
+/// Поки подія публікується: квиток друкується в петлі (`publishing.json`), під ним «Завантажуємо N з M» чи «Публікуємо
+/// подію…». «Зменшити рух» — надрукований квиток, кадр 0.
+private struct PublishingOverlay: View {
+    let upload: MediaUpload?
+    let stub: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var body: some View {
+        VStack(spacing: Space.lg) {
+            BrandAnimation(name: "Publishing", still: reduceMotion, stub: stub)
+                .frame(width: 300, height: 200)
+                .decorative()
+            Text(upload.map { Copy.media_uploading("\($0.current)", "\($0.total)") } ?? Copy.publishing_caption)
+                .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Непрозоро: крізь накладку просвічував той самий лічильник у нижній панелі редактора.
+        .background(Palette.canvas.ignoresSafeArea())
+        .accessibilityElement(children: .combine)
+        // Модально: поки публікується, «Назад» і поля під накладкою VoiceOver не активує.
+        .accessibilityAddTraits([.updatesFrequently, .isModal])
+        .transition(.opacity)
+    }
+}
+
 /// Якір верху прокрутки: новий крок відкривається з квитка й питання.
 private let scrollTop = "top"
 
@@ -266,41 +363,104 @@ private struct FieldIssue: View {
     }
 }
 
+/// «Що»: готовий анонс, назва, опис, фото й відео, жанр — текст і медіа, як у пості Threads.
 private struct AboutStep: View {
-    @Binding var form: EditorForm
-    /// Тексти під полями значенням, а не замиканням: замикання SwiftUI не порівнює, і крок не перемальовувався.
-    let issues: [DraftField: String]
+    @ObservedObject var editor: EventEditorModel
     @FocusState private var focus: DraftField?
     private var descriptionRange: KotlinIntRange { EventRules.shared.descriptionLength }
+    private var form: Binding<EditorForm> { $editor.form }
+    private var issues: [DraftField: String] { editor.issueTexts }
     var body: some View {
+        // Правка й повтор уже мають тексти: анонс — для нової з нуля.
+        if !editor.editing && !editor.repeating { AnnounceCard(editor: editor) }
         VStack(alignment: .leading, spacing: Space.sm) {
-            LabelledField(label: Copy.title, text: $form.title, placeholder: Copy.title_placeholder)
+            LabelledField(label: Copy.title, text: form.title, placeholder: Copy.title_placeholder)
                 .focused($focus, equals: .title)
                 .submitLabel(.next).onSubmit { focus = .description_ }
             FieldIssue(text: issues[.title])
         }.id(DraftField.title)
         VStack(alignment: .leading, spacing: Space.sm) {
             LabelledField(
-                label: Copy.description, text: $form.description,
+                label: Copy.description, text: form.description,
                 placeholder: Copy.description_placeholder,
-                hint: Copy.description_hint("\(descriptionRange.first)", "\(form.descriptionLength)", "\(descriptionRange.last)"),
+                hint: Copy.description_hint("\(descriptionRange.first)", "\(editor.form.descriptionLength)", "\(descriptionRange.last)"),
                 multiline: true
             )
             .focused($focus, equals: .description_)
             FieldIssue(text: issues[.description_])
         }.id(DraftField.description_)
+        MediaSection(editor: editor)
         VStack(alignment: .leading, spacing: Space.sm) {
             Text(Copy.category_single.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
             // Ті самі плитки, що в шторці категорій пошуку: жанр обирають однаково скрізь. Усі одинадцять видно одразу.
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 76), spacing: Space.sm)], spacing: Space.md) {
                 ForEach(categories, id: \.0) { category in
-                    CategoryTile(category: category.0, selected: form.category == category.0) {
-                        form.category = category.0
+                    CategoryTile(category: category.0, selected: editor.form.category == category.0) {
+                        editor.form.category = category.0
                     }
                 }
             }
             FieldIssue(text: issues[.category])
         }.id(DraftField.category)
+    }
+}
+
+/// «Є готовий анонс?» над назвою: організатор з Threads уже написав пост, тож поля заповнює він (`parse-announcement`).
+/// Після відповіді — рядок «Заповнили з анонсу: …» з «Інший текст».
+private struct AnnounceCard: View {
+    @ObservedObject var editor: EventEditorModel
+    private var limit: Int { Int(AnnouncementRules.shared.TEXT_MAX) }
+
+    var body: some View {
+        Group {
+            if let result = editor.announced { collapsed(result) } else { expanded }
+        }
+        .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading)
+        // Тоном, а не білою карткою: біле поле тексту на білій картці зникало.
+        .background(Palette.brandContainer, in: RoundedRectangle(cornerRadius: Corner.lg, style: .continuous))
+        .motion(value: editor.announced)
+    }
+
+    private var expanded: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            VStack(alignment: .leading, spacing: Space.xs) {
+                Text(Copy.announce_title).font(PoruchFont.cardName).foregroundStyle(Palette.ink).accessibilityAddTraits(.isHeader)
+                Text(Copy.announce_subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+            }
+            LabelledField(
+                label: Copy.announce_field,
+                text: Binding(get: { editor.announceText }, set: { editor.announceText = String($0.prefix(limit)) }),
+                multiline: true
+            )
+            HStack(spacing: Space.md) {
+                // Системна «Вставити»: бере з буфера без питання про доступ.
+                PasteButton(payloadType: String.self) { strings in
+                    guard let text = strings.first else { return }
+                    Task { @MainActor in editor.announceText = String(text.prefix(limit)) }
+                }
+                .labelStyle(.titleAndIcon).buttonBorderShape(.capsule).tint(Palette.ink)
+                Spacer(minLength: 0)
+                PrimaryButton(
+                    title: editor.announcing ? Copy.announce_filling : Copy.announce_fill, loading: editor.announcing,
+                    enabled: !editor.announceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !editor.announcing
+                ) { editor.fillFromAnnouncement() }
+                .fixedSize()
+            }
+        }
+    }
+
+    private func collapsed(_ result: AnnounceResult) -> some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+                PoruchIcon(glyph: result.failed ? PoruchIcons.alert : PoruchIcons.checkCircle, size: 18)
+                    .foregroundStyle(result.failed ? Palette.danger : Palette.success)
+                Text(result.text).font(PoruchFont.subhead).foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            Button(Copy.announce_other) { editor.reopenAnnouncement() }
+                .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).tapTarget()
+        }
     }
 }
 
@@ -484,8 +644,6 @@ private struct PeopleStep: View {
             .id(DraftField.contactUrl)
             FieldIssue(text: issues[.contactUrl])
         }
-        Text(Copy.photo_after_publish)
-            .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
     }
 }
 

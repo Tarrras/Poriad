@@ -15,6 +15,13 @@ extension EventDetailView {
         Color.clear
             // Низ обкладинки на `Corner.xl` ховається під аркушем секцій.
             .frame(height: max(heroHeight - topInset - Corner.xl, 0)).frame(maxWidth: .infinity)
+            // Фото й відео організатора — каруселлю тут, у стрічці, щоб гортались і тапались. Від краю екрана, як тло під
+            // нею: першу сторінку не відрізнити від обкладинки.
+            .background(alignment: .top) {
+                if !event.media.isEmpty {
+                    MediaCarousel(media: event.media, scroll: scroll).frame(height: heroHeight).offset(y: -topInset)
+                }
+            }
             // Назва лежить на затемненні обкладинки, як на великій картці головної: одна сцена, а не фото з підписом.
             // Текст їде зі стрічкою, а смуга статусу з'являється лише з аркушем: назва гасне, поки не дійшла до годинника.
             .overlay(alignment: .bottomLeading) {
@@ -40,6 +47,7 @@ extension EventDetailView {
                 HStack(spacing: Space.sm) {
                     ScrimButton(glyph: PoruchIcons.chevronLeft, label: Copy.back) { dismiss() }
                     Spacer()
+                    if event.media.count > 1 { MediaDots(count: event.media.count, scroll: scroll); Spacer() }
                     ScrimButton(
                         glyph: view.saved ? PoruchIcons.bookmarkFilled : PoruchIcons.bookmark,
                         label: view.saved ? Copy.unsave : Copy.save
@@ -252,17 +260,27 @@ extension EventDetailView {
 
     /// Ряд круглих дій із підписами, як панель під картою дня в Moonly.
     func externalActions(_ event: Event, _ view: DetailScreenState) -> some View {
-        HStack(spacing: Space.sm) {
+        // За верхом: підпис у два рядки не зсуває свого кола вище за сусідні.
+        HStack(alignment: .top, spacing: Space.sm) {
             Button { actions.openCalendar() } label: {
                 RoundAction(title: Copy.calendar_short, enabled: !view.cancelled) { PoruchIcon(glyph: PoruchIcons.calendar, size: 20) }
             }.buttonStyle(PressableStyle()).disabled(view.cancelled)
             Button { SystemActions.openInMaps(event) } label: {
                 RoundAction(title: Copy.rate_tag_route) { PoruchIcon(glyph: PoruchIcons.directions, size: 20) }
             }.buttonStyle(PressableStyle())
-            // Поділитися подією — і є покликати (docs/invites.md). Скасовану чи минулу — просто поділитися.
-            if view.canInvite {
+            // Хто чим ділиться (1.6, `shareMode`): організатор своєї події — «Поширити анонс» (пост для Threads з
+            // посиланням для запису, лише з повними деталями); усі інші — «Поділитися з другом», особисте посилання, як
+            // «Покликати» (docs/invites.md). Скасовану чи минулу — просто поділитися.
+            if view.canInvite && view.shareMode == .promote {
+                Button { threadsEvent = event } label: {
+                    RoundAction(title: Copy.share_promote, enabled: screen.detailsLoaded && threadsEvent == nil) {
+                        if threadsEvent != nil { ProgressView() } else { PoruchIcon(glyph: PoruchIcons.share, size: 20) }
+                    }
+                }.buttonStyle(PressableStyle())
+                .disabled(!screen.detailsLoaded || threadsEvent != nil)
+            } else if view.canInvite {
                 Button { invite(event) } label: {
-                    RoundAction(title: Copy.invite) {
+                    RoundAction(title: Copy.share_friend) {
                         if inviting { ProgressView() } else { PoruchIcon(glyph: PoruchIcons.personAdd, size: 20) }
                     }
                 }.buttonStyle(PressableStyle())
@@ -603,23 +621,14 @@ extension EventDetailView {
             Divider().overlay(Palette.hairline)
             // Час, місце й місткість супутника тримає сервер; після початку сервер не приймає правок. Лишається скасувати.
             let editable = view.companionOf == nil && !view.started
-            if editable {
-                PhotosPicker(selection: $photo, matching: .images) {
-                    Label(Copy.add_photo, systemImage: "camera")
-                        .font(PoruchFont.subhead.weight(.semibold)).foregroundStyle(Palette.ink)
-                        .frame(maxWidth: .infinity).frame(minHeight: 52)
-                        .background(Palette.brandContainer, in: buttonShape)
-                }.disabled(view.mutating)
-            }
-            if let error = actions.photoError {
-                Text(error).font(PoruchFont.caption).foregroundStyle(Palette.danger)
-            }
+            // Фото й відео — у редакторі; пост для Threads — «Поширити анонс» у ряду дій угорі (1.6).
             // Збір: організатор міняє лише час (R7б).
             if view.canMoveMeet, let event = view.event {
                 SecondaryButton(title: Copy.meet_change, glyph: PoruchIcons.clock) { movingMeet = MeetTarget(at: event.startsAt) }
             }
             HStack(spacing: Space.md) {
-                if editable { SecondaryButton(title: Copy.edit, glyph: PoruchIcons.edit) { editing = true } }
+                // Лише з повними деталями: з картки (media = []) правка стерла б фото й відео. Не доїхали — теж неактивна.
+                if editable { SecondaryButton(title: Copy.edit, glyph: PoruchIcons.edit, enabled: screen.detailsLoaded) { editing = true } }
                 SecondaryButton(title: Copy.delete_account_cancel, glyph: PoruchIcons.close, tone: Palette.danger) { cancelling = true }
             }
         }

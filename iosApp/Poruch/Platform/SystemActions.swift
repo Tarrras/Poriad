@@ -16,6 +16,28 @@ enum SystemActions {
         Copy.invite_share_text(event.displayTitle, eventDate(event), "\(event.city), \(event.address)", link)
     }
 
+    /// Файли події для системного меню («Пост для Threads») у теку [folder]: адреса в меню стала б посиланням, а не фото.
+    /// Що не завантажилось — без нього. Теку прибирає той, хто показав меню.
+    static func download(_ urls: [String], into folder: URL) async -> [URL] {
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var files: [URL] = []
+        for raw in urls {
+            guard !Task.isCancelled else { break }
+            guard let url = URL(string: raw), let (temp, _) = try? await downloads.download(from: url) else { continue }
+            let file = folder.appendingPathComponent(url.lastPathComponent)
+            if (try? FileManager.default.moveItem(at: temp, to: file)) != nil { files.append(file) } else { try? FileManager.default.removeItem(at: temp) }
+        }
+        return files
+    }
+
+    /// Меню не чекає довше, ніж людина згодна дивитись на неактивну кнопку: файл, що завис, просто пропускаємо.
+    private static let downloads: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 15
+        config.timeoutIntervalForResource = 45
+        return URLSession(configuration: config)
+    }()
+
     /// Маршрут будує системна мапа.
     @MainActor static func openInMaps(_ event: Event) {
         openInMaps(latitude: event.latitude, longitude: event.longitude, label: event.title)
@@ -31,9 +53,28 @@ enum SystemActions {
 /// Редактор EventKit: вибір календаря, нагадування й підтвердження лишаються в Apple. Копія в
 /// системному календарі переживає наші локальні сповіщення.
 struct CalendarEditor: UIViewControllerRepresentable {
-    let event: Event
+    let title: String
+    let notes: String?
+    let location: String
+    let timeZone: String
+    let start: Date
+    let end: Date
     let store: EKEventStore
     @Environment(\.dismiss) private var dismiss
+
+    init(event: Event, store: EKEventStore) {
+        let start = parseEventDate(event.startsAt) ?? Date()
+        self.init(
+            title: event.title, notes: event.description_, location: "\(event.city), \(event.address)", timeZone: event.timeZone,
+            start: start, end: parseEventDate(event.endsAt) ?? start.addingTimeInterval(defaultDuration), store: store
+        )
+    }
+
+    /// Щойно опублікована подія («Подію створено»): картки ще нема, поля дає `PublishedEvent`.
+    init(title: String, notes: String?, location: String, timeZone: String, start: Date, end: Date, store: EKEventStore) {
+        self.title = title; self.notes = notes; self.location = location; self.timeZone = timeZone
+        self.start = start; self.end = end; self.store = store
+    }
 
     func makeCoordinator() -> Coordinator { Coordinator { dismiss() } }
 
@@ -41,13 +82,12 @@ struct CalendarEditor: UIViewControllerRepresentable {
         let controller = EKEventEditViewController()
         controller.eventStore = store
         let entry = EKEvent(eventStore: store)
-        entry.title = event.title
-        entry.notes = event.description_
-        entry.location = "\(event.city), \(event.address)"
-        entry.timeZone = TimeZone(identifier: event.timeZone)
-        let start = parseEventDate(event.startsAt) ?? Date()
+        entry.title = title
+        entry.notes = notes
+        entry.location = location
+        entry.timeZone = TimeZone(identifier: timeZone)
         entry.startDate = start
-        entry.endDate = parseEventDate(event.endsAt) ?? start.addingTimeInterval(defaultDuration)
+        entry.endDate = end
         controller.event = entry
         controller.editViewDelegate = context.coordinator
         return controller
