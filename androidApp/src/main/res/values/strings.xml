@@ -1240,6 +1240,9 @@
   <string name="announce_filling">Заповнюємо…</string>
   <string name="announce_filled">Заповнили з анонсу: %1$s. Перевірте на кожному кроці.</string>
   <string name="announce_other">Інший текст</string>
+  <!-- Android сам підписує «Вставити» в рядку анонсу (на iOS напис дає системна PasteButton). -->
+  <string name="announce_paste">Вставити</string>
+  <string name="announce_clipboard_empty">У буфері нема тексту. Скопіюйте анонс і натисніть «Вставити».</string>
   <string name="announce_failed">Не вдалося розібрати анонс. Текст уже в описі — допишіть назву.</string>
   <string name="announce_limited">Забагато анонсів за годину. Текст уже в описі — допишіть назву.</string>
   <string name="announce_part_title">назву</string>

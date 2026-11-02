@@ -972,6 +972,8 @@ enum Copy {
     static let announce_filling = "Заповнюємо…"
     static func announce_filled(_ a0: String) -> String { "Заповнили з анонсу: \(a0). Перевірте на кожному кроці." }
     static let announce_other = "Інший текст"
+    static let announce_paste = "Вставити"
+    static let announce_clipboard_empty = "У буфері нема тексту. Скопіюйте анонс і натисніть «Вставити»."
     static let announce_failed = "Не вдалося розібрати анонс. Текст уже в описі — допишіть назву."
     static let announce_limited = "Забагато анонсів за годину. Текст уже в описі — допишіть назву."
     static let announce_part_title = "назву"
