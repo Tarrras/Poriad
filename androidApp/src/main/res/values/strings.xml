@@ -1216,12 +1216,16 @@
   <!-- Supabase Auth шле не частіше за раз на 60 с. -->
   <string name="auth_code_resend_in">Надіслати ще раз через %1$d с</string>
   <string name="auth_code_other_email">Інша пошта</string>
+  <!-- Простота 1.5 (docs/design-wow-1.5.md): вхід кодом за замовчуванням, пароль — посиланням для наявних акаунтів. -->
+  <string name="auth_password_link">Увійти з паролем</string>
+  <!-- Підпис круглої «⋯» у «Моїх подіях» для VoiceOver/TalkBack. -->
+  <string name="more_actions">Ще дії</string>
   <!-- Кнопка застосунку на «Ви в списку» тим, хто записався на сайті поштою. -->
   <string name="auth_code_same_email">Увійдіть тією самою поштою.</string>
   <!-- Галочка замість дати: реєстрація, крок після Google, Apple чи коду, картка віку в профілі. -->
   <string name="adult_confirm">Мені вже є 18</string>
   <string name="adult_confirm_hint">«Поряд» — для повнолітніх. Дату народження спитаємо лише для подій з віковими межами.</string>
-  <string name="auth_adult_subtitle">Підтвердьте, що вам уже є 18: «Поряд» — для повнолітніх.</string>
+  <string name="auth_adult_subtitle">Підтвердьте, що вам уже є 18.</string>
   <!-- AGE_REQUIRED на події з віком від 19 чи верхньою межею: вибір дати на деталях. -->
   <string name="age_date_title">Подія з віковими межами</string>
   <string name="age_date_body">Організатор обмежив вік, тож тут потрібна дата народження. Її ніхто не побачить.</string>

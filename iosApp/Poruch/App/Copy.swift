@@ -955,10 +955,12 @@ enum Copy {
     static let auth_code_resend = "Надіслати ще раз"
     static func auth_code_resend_in(_ a0: String) -> String { "Надіслати ще раз через \(a0) с" }
     static let auth_code_other_email = "Інша пошта"
+    static let auth_password_link = "Увійти з паролем"
+    static let more_actions = "Ще дії"
     static let auth_code_same_email = "Увійдіть тією самою поштою."
     static let adult_confirm = "Мені вже є 18"
     static let adult_confirm_hint = "«Поряд» — для повнолітніх. Дату народження спитаємо лише для подій з віковими межами."
-    static let auth_adult_subtitle = "Підтвердьте, що вам уже є 18: «Поряд» — для повнолітніх."
+    static let auth_adult_subtitle = "Підтвердьте, що вам уже є 18."
     static let age_date_title = "Подія з віковими межами"
     static let age_date_body = "Організатор обмежив вік, тож тут потрібна дата народження. Її ніхто не побачить."
     static let age_date_continue = "Зберегти й записатися"
