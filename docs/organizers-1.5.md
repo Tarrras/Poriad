@@ -645,6 +645,28 @@ Android `Navigator.createEvent` → `Auth(AuthReason.CREATE)`), і 70% гост�
    `/kabinet*`, `/api/geocode`) → сайт (`kabinet.html`, посилання «Організаторам» у шапці).
 3. Хвиля 2: збірки 1.5 (iOS і Android). Міграцій і функцій нема, усе вже на prod.
 
+### Реліз 1.5 — команди (стан на 02.11)
+
+Гілка `1.5` готова: версія 1.5.0, «Що нового» в `store/listing.md`, сайт на `?v=12` (на prod `?v=11`, піднімати не
+треба). `main` = `origin/main` = fa5f7603 і вже в `1.5`, тож злиття — перемотка. На prod чекають шість міграцій
+(20261117…20261121) і три функції. Хвилі 1 й 2 можна викотити разом: міграції сумісні зі старими збірками.
+
+1. **Ручні кроки вище**, якщо ще не зроблені. Без них не працюють: листи з кодом (Resend, SMTP, шаблон), Google на
+   вебі, «Вставити анонс» (`ANTHROPIC_API_KEY` — на dev теж нема, 02.11 функція відповідає «not set»).
+2. **Злиття `1.5` → `main`** — лід, після «так» власника.
+3. **База:**
+   `supabase db push --dry-run --linked --project-ref tzdogzdvctlumsqlqskr` — мають бути рівно 20261117…20261121 (6),
+   потім те саме без `--dry-run`. SQL-тести `supabase/tests/web_join.sql`, `event_media.sql` і решту нових проганяє лід.
+4. **Функції:**
+   `supabase functions deploy push --no-verify-jwt --use-api --project-ref tzdogzdvctlumsqlqskr`,
+   `supabase functions deploy parse-announcement --no-verify-jwt --use-api --project-ref tzdogzdvctlumsqlqskr`,
+   `supabase functions deploy delete-account --use-api --project-ref tzdogzdvctlumsqlqskr` (з перевіркою JWT).
+5. **Сайт:** `git push origin main` (Pages), дочекатись публікації.
+6. **Воркер:** `cd worker && npx wrangler deploy`; разом — маршрути статики з Worker = None (вище).
+7. **Перевірка твоїм акаунтом:** `/e/{id}` — «Йду» кодом і через Google, кабінет — створення з анонсу з фото.
+8. **Застосунки:** `iosApp/release.sh` і `androidApp/release.sh` (самі піднімають номер збірки й комітять) →
+   TestFlight і внутрішнє тестування → рев'ю; у Play — поступово з 20%.
+
 ## Свідомо не робимо
 
 | Що | Чому |
