@@ -681,8 +681,9 @@ Android `Navigator.createEvent` → `Auth(AuthReason.CREATE)`), і 70% гост�
 **02.11 ввечері хвиля 1 на prod** (власник: «роби деплой 1.5 на веб»): 6 міграцій (dry-run, потім push; схема й
 поради безпеки перевірені), функції `push` v20, `parse-announcement` v1 (працює з prod-ключем), `delete-account` v7 (з
 JWT), `main` = a2a04175 → Pages, воркер `poriad-web` 68cdbc04 на `poriad.app/*`. Наживо: головна, `/e/{id}` зі
-шторкою, `/kabinet` (noindex) — 200, CSP, без помилок у консолі. Лишились: маршрути статики з Worker = None, ліміт
-витрат Anthropic, Turnstile перед широким запуском, хвиля 2 — застосунки (`release.sh`).
+шторкою, `/kabinet` (noindex) — 200, CSP, без помилок у консолі. 02.11 також маршрути статики з Worker = None (8 шаблонів із
+`worker/README.md`; сторінки й `/.well-known/*` далі через воркер із CSP). Лишились: ліміт витрат Anthropic, Turnstile
+перед широким запуском, хвиля 2 — застосунки (`release.sh`).
 
 Гілка `1.5` готова: версія 1.5.0, «Що нового» в `store/listing.md`, сайт на `?v=12` (на prod `?v=11`, піднімати не
 треба). `main` = `origin/main` = fa5f7603 і вже в `1.5`, тож злиття — перемотка. На prod чекають шість міграцій
