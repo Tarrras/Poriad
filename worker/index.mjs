@@ -243,9 +243,13 @@ export function eventPage(e, now, shelters = [], invite = null) {
     head: `<meta name="robots" content="noindex">
 <meta name="apple-itunes-app" content="app-id=6813543772, affiliate-data=ct=${ct}&amp;pt=129478154, app-argument=${link}${by}">
 ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
+    // Обкладинка — сам квиток (design-wow-1.5): фото, назва display, надруковані поля й корінець жанру за перфорацією
+    // з вирізами. Жанр, «Від людей» / «Афіша» і вік друкуються на корінці; продавці — у «Джерело». Дата — на корінці панелі дії.
     body: `<article class="sheet-box">
-  <header class="cover-big cat-${category}">${media.length ? mediaCarousel(media, category) : `<div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img src="${esc(image)}" alt="">` : ""}</div>`}
-    ${invite ? `<p class="quiet"><b>${esc(invite.name)}</b> кличе тебе</p>` : ""}<p class="quiet"><span class="genre-word">${esc(CATEGORIES[category])}</span> · ${esc(imported ? `Афіша${sellers ? ` · ${sellers}` : ""}` : "Від людей")}${e.min_age ? ` · ${Number(e.min_age)}+` : ""}</p><h1>${esc(title)}</h1>
+  <header class="cover-big ticket v cat-${category}">${media.length ? mediaCarousel(media, category) : `<div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img src="${esc(image)}" alt="">` : ""}</div>`}
+    ${invite ? `<p class="quiet"><b>${esc(invite.name)}</b> кличе тебе</p>` : ""}<h1${title.length > 64 ? ` class="long"` : ""}>${esc(title)}</h1>
+    <div class="facts">${facts.map(([label, value, sub]) => `<div><span class="overline">${label}</span><b>${esc(value)}</b>${sub && sub !== value ? `<small>${esc(sub)}</small>` : ""}</div>`).join("")}</div>
+    <p class="stub"><span class="kind">${icon(category)}${esc(CATEGORIES[category])}</span><small>${imported ? "Афіша" : "Від людей"}${e.min_age ? ` · ${Number(e.min_age)}+` : ""}</small></p>
   </header>
   <div class="detail">
     ${notice ? `<p class="notice${calm ? " calm" : ""}">${notice}</p>` : ""}
@@ -257,9 +261,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
       <a href="poriad://event/${e.id}${by}"><i>${icon("bookmark")}</i>У «Поряд»</a>
       <a href="/afisha.html${e.city && e.city !== "Київ" ? `?city=${encodeURIComponent(e.city)}` : ""}" data-afisha><i>${icon("map")}</i>Афіша</a>
     </div>
-    <div class="facts">${facts.map(([label, value, sub]) => `<div><span class="overline">${label}</span><b>${esc(value)}</b>${sub && sub !== value ? `<small>${esc(sub)}</small>` : ""}</div>`).join("")}</div>
     ${!imported && e.approval_required ? `<p class="fine">Участь за підтвердженням організатора.</p>` : ""}
-    ${!imported && e.organizer_name ? `<p class="note">Організовує ${esc(e.organizer_name)}</p>` : ""}
     ${imported && !past ? sellersSection(live ? liveOffers : offers, !live, e.checked_at, e.time_zone) : ""}
     ${e.description ? `<div class="block"><h2>Опис</h2><p class="description">${esc(e.description)}</p></div>` : ""}
     ${live ? sheltersSection(shelters) : ""}
@@ -267,7 +269,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
       <ul><li>${icon("bell")}Нагадування за годину до початку</li><li>${icon("people")}«Шукаю компанію» — знайдіть, з ким піти</li><li>${icon("map")}Що ще відбувається поряд — на мапі</li></ul>
       <div class="stores">${storeButtons(ct)}</div></div>
   </div>
-  <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${spots && !cost ? `<small>Учасники</small><span data-spots>${esc(spots.replace("Учасників: ", ""))}</span>`
+  <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${imported ? "" : `<b class="stamp" data-going hidden></b>`}${spots && !cost ? `<small>Учасники</small><span data-spots>${esc(spots.replace("Учасників: ", ""))}</span>`
       : `${spots ? "" : "<small>Ціна</small>"}<span>${esc(cost || spots || "Вхід уточнюйте")}</span>`}</div>
     ${ticketUrl && live ? `<a class="btn primary" href="${esc(ticketHref(ticketUrl))}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
       : imported ? `<a class="btn primary" href="/app?from=${ct}">Завантажити «Поряд»</a>`
@@ -275,7 +277,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     ${open ? `<a class="open-app" href="poriad://event/${e.id}${by}">Уже є застосунок? Відкрити</a>` : ""}</div>
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>
-${imported ? "" : `${joinSheet(e, ct)}
+${imported ? "" : `${joinSheet(e, ct, now)}
 <script type="module" src="/js/join.js?v=12"></script>`}`,
   });
 }
@@ -329,9 +331,10 @@ function sheltersSection(shelters) {
  * постер і ▶, `preload="none"`, без автозапуску.
  */
 function mediaCarousel(media, category) {
-  const slides = media.map((m) => m.kind === "video"
+  // Перший кадр — одразу, решта — коли догорнуть: у Threads сторінку відкривають на мобільному інтернеті.
+  const slides = media.map((m, i) => m.kind === "video"
     ? `<video src="${esc(m.url)}"${m.poster ? ` poster="${esc(m.poster)}"` : ""} controls playsinline preload="none"></video>`
-    : `<img src="${esc(m.url)}" alt="">`).join("");
+    : `<img src="${esc(m.url)}" alt=""${i ? ` loading="lazy" decoding="async"` : ""}>`).join("");
   return `<div class="art media${media.length > 1 ? " many" : ""} cat-${category}"><div class="slides" tabindex="0" aria-label="Фото й відео від організатора">${slides}</div></div>`;
 }
 
@@ -339,7 +342,8 @@ function mediaCarousel(media, category) {
  * Шторка «Йду» (docs/organizers-1.5.md, 1.1): розмітка однакова для всіх і кешується зі сторінкою, а вхід, стан запису
  * й «Після запису» вмикає site/js/join.js. Він же робить `?unfollow` з листа, тож шторка є й на закритій події.
  */
-function joinSheet(e, ct) {
+function joinSheet(e, ct, now) {
+  const ticket = sheetTicket(e, now);
   const organizer = UUID.test(e.organizer_id ?? "") ? e.organizer_id : "";
   const name = e.organizer_name || "Організатор";
   const city = Object.entries(CITY_PAGES).find(([, [n]]) => n === e.city);
@@ -349,6 +353,7 @@ function joinSheet(e, ct) {
   <button class="round" type="button" data-close aria-label="Закрити">${icon("close")}</button>
   <section data-step="start">
     <h2 data-head>Записатися</h2>
+    ${ticket("")}
     <button class="btn secondary" type="button" data-google>${icon("google")}Продовжити з Google</button>
     <p class="in-app" data-in-app hidden>Вхід через Google — у Safari чи Chrome. <a data-browser href="/e/${e.id}">Відкрити в браузері</a><small>Не відкрилось? ⋯ → «Відкрити в браузері».</small></p>
     <p class="or"><span>або поштою</span></p>
@@ -373,6 +378,7 @@ function joinSheet(e, ct) {
   </section>
   <section data-step="status" hidden>
     <h2 data-title></h2>
+    ${ticket(`<b class="stamp" data-going hidden></b>`)}
     <p class="lead" data-text hidden></p>
     <button class="btn primary" type="button" data-waitlist hidden>Стати в чергу</button>
     <button class="btn primary" type="button" data-unfollow hidden>Не стежити</button>
@@ -389,6 +395,17 @@ function joinSheet(e, ct) {
   <p class="account" data-account hidden>Ви ввійшли як <b data-account-email></b> · <button class="link" type="button" data-signout>Вийти</button></p>
 </div>
 </dialog>`;
+}
+
+/**
+ * Квиток події в шторці «Йду» (design-wow-1.5): на кроці «Записатися» — що саме, на кроці стану на нього падає штамп
+ * «ВИ ЙДЕТЕ» / «ЗАПИТ» / «ЧЕРГА» (site/js/join.js). Повтор сторінки — для читача екрана прихований.
+ */
+function sheetTicket(e, now) {
+  const category = CATEGORIES[e.category] ? e.category : "social";
+  const [time, day] = stubParts(e, now);
+  return (stamp) => `<div class="ticket sheet-ticket cat-${category}" aria-hidden="true"><div class="face"><b class="name">${esc(displayTitle(e.title))}</b><small>${esc(e.address || e.city || "")}</small>${stamp}</div>
+      <div class="stub"><b class="t">${esc(time)}</b><small>${esc(day)}</small></div></div>`;
 }
 
 export function notFoundPage(message = "Подію не знайдено: її могли приховати або посилання неповне.") {

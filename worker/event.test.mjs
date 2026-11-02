@@ -48,7 +48,7 @@ const offers = [
   { source: "Http", url: "http://evil.example/", live: true },
 ];
 const many = eventPage({ ...afisha, state: "scheduled", offers, checked_at: "2026-09-28T06:00:00Z" }, now);
-assert.ok(many.includes("Афіша · Concert.ua, Karabas &lt;b&gt;"), "підпис — усі живі продавці, екрановано");
+assert.ok(many.includes('<span class="overline">Джерело</span><b>Concert.ua, Karabas &lt;b&gt;</b>'), "джерело на квитку — усі живі продавці, екрановано");
 assert.ok(many.includes("<h2>Квитки</h2>") && many.includes("від 450 ₴") && many.includes('href="https://karabas.com/y?utm_source=poriad"'), "рядок і ціна кожного, з міткою для продавця");
 assert.ok(!many.includes("badseller.net") && !many.includes("evil.example"), "знятий продавець і не-https — без рядка");
 assert.ok(many.includes("Перевірено пн, 28 вересня о 09:00."), "перевірено — датою в поясі події");

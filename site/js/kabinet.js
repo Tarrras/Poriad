@@ -2,7 +2,7 @@
 // комп'ютера. Маршрути в #: «#/» — мої події, «#/new», «#/e/{id}» — дії й учасники, «#/e/{id}/edit». Вхід — auth.js, дані —
 // ті самі функції бази, що в застосунку; сторінка перевіряє лише очевидне, решту каже сервер. Чисті правила вгорі (дати,
 // тривалість, медіа, текст для Threads) перевіряє `node tools/kabinet_test.mjs`; DOM — нижче, лише в браузері.
-import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent } from "./poriad.js?v=12";
+import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull } from "./poriad.js?v=12";
 import { session, sendCode, verifyCode, google, completeRedirect, rpc, upload, signOut, inAppBrowser } from "./auth.js?v=12";
 
 // ---- Дати. Усі п'ять міст в одному поясі; подія з іншим поясом (з застосунку) редагується у своєму.
@@ -354,9 +354,12 @@ function row(e, waiting) {
     `<span>Записалось ${e.attendee_count ?? 0}${e.capacity ? ` з ${e.capacity}` : ""}</span>`,
     waiting ? `<span class="kab-waiting">Чекають підтвердження: ${waiting}</span>` : "",
   ].join("");
-  return `<a class="kab-event" href="#/e/${esc(e.id)}">${ui.stubTile(e)}
-  <div class="kab-text"><h3>${esc(displayTitle(e.title))}</h3><p>${esc(overline(e, new Date(), true))} · ${esc(e.address || e.city || "")}</p><p class="kab-stats">${stats}</p></div>
-  ${ui.icon("chevron", "ico kab-go")}</a>`;
+  // Пачка корінців (DESIGN.md, My events): квиток із часом на корінці жанру; минула пробита, скасована — сірий корінець.
+  // Місця — словами в рядку під назвою, тож на корінці їх не дублюємо.
+  const kind = e.status === "cancelled" ? " void" : ended(e) ? " past" : "";
+  return `<a class="kab-event ticket cat-${esc(e.category)}${kind}" href="#/e/${esc(e.id)}">
+  <div class="face"><h3>${esc(displayTitle(e.title))}</h3><p>${esc(overline(e, new Date(), true))} · ${esc(e.address || e.city || "")}</p><p class="kab-stats">${stats}</p></div>
+  ${ui.stubPrint({ ...e, capacity: null })}</a>`;
 }
 
 // ---- Подія: дії й учасники
@@ -527,12 +530,23 @@ async function showDone(id) {
   const event = await ownEvent(id);
   if (!event) return void (location.hash = `#/e/${id}`);
   current = event;
-  $("[data-done-event]").textContent = `${displayTitle(event.title)} · ${overline(event, new Date(), true)}`;
+  $("[data-done-ticket]").innerHTML = doneTicket(event);
   $("[data-done-note]").textContent = fresh.failed
     ? `Не вдалося додати ${fresh.failed} ${fresh.failed === 1 ? "файл" : fresh.failed < 5 ? "файли" : "файлів"}. Спробуйте ще раз у редагуванні.` : "";
   $("[data-done-ics]").href = `/e/${event.id}.ics`;
   $("[data-done-ready]").href = `#/e/${event.id}`;
   animate($("[data-done-anim]"), "published", event.category);
+}
+
+/**
+ * Квиток щойно створеної події — такий, яким його побачать люди (design-wow-1.5): обкладинка, назва, місце й корінець
+ * жанру з часом. Друкується під штампом С1 (web.css, print-out); тап — сторінка події в новій вкладці.
+ */
+function doneTicket(e) {
+  const cover = httpsOrNull(e.image_url);
+  return `<a class="ticket v kab-ticket cat-${esc(e.category)}" href="/e/${esc(e.id)}" target="_blank" rel="noopener">
+    ${cover ? `<img src="${esc(cover)}" alt="">` : ""}<span class="face"><b>${esc(displayTitle(e.title))}</b><small>${esc([e.address, e.city].filter(Boolean).join(", "))}</small></span>
+    ${ui.stubPrint(e, { row: true })}</a>`;
 }
 
 // ---- Редактор: одна сторінка, чернетка в localStorage, файли — в IndexedDB (localStorage не тримає Blob, а вхід
