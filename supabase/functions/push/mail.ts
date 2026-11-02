@@ -32,6 +32,12 @@ export type Mail = { subject: string; html: string; text: string };
 const SITE = "https://poriad.app";
 const SUBJECT_MAX = 150;
 
+// Word joiner (U+2060) після кожної крапки: «Run.Club» чи «evil.com» у назві або імені поштовий клієнт інакше робить
+// посиланням у листі з нашої адреси. Людина бачить той самий текст.
+export function unlink(s: string): string {
+  return s.replace(/\./g, ".\u2060");
+}
+
 export function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
@@ -40,15 +46,20 @@ export function esc(s: string): string {
  * [title] і [body] — заголовок і текст пуша (заголовок — назва події), [who] — імʼя організатора для «Стежити».
  * Організатору (запит, питання) — кнопка в кабінет; учаснику — на сторінку події, де можна скасувати запис.
  * Організатору — фіксованим текстом, без імені й слів запитувача: лист іде з нашої адреси, і чужий текст у ньому —
- * готовий фішинг. Ім'я він побачить у кабінеті.
+ * готовий фішинг. Ім'я він побачить у кабінеті. Рядки від людей (назва, імена в тексті пуша) у тілі листа —
+ * без посилань ([unlink]); тема лишається як є: її поштові клієнти посиланнями не роблять.
  */
 export function mailText(kind: MailKind, eventId: string, title: string, body: string, who = ""): Mail {
   const page = `${SITE}/e/${eventId}`;
   const organizer = kind === "request" || kind === "question";
+  const lineOf = (t: string, b: string) => kind === "question" ? `Вам поставили питання про «${t}»` : kind === "request" ? `Нова заявка на «${t}»` : b;
+  const oneLine = (organizer ? lineOf(title, body) : `«${title}»: ${body}`).replace(/\s+/g, " ").trim();
+  const subject = oneLine.length <= SUBJECT_MAX ? oneLine : `${oneLine.slice(0, SUBJECT_MAX - 1).trimEnd()}…`;
+  [title, body, who] = [unlink(title), unlink(body), unlink(who)];
   const button = organizer ? { label: "Переглянути", url: `${SITE}/kabinet#/e/${eventId}` } : { label: "Відкрити подію", url: page };
   // Відповісти з вебу в першій версії не можна (1.2).
   const note = kind === "question" ? "Відповісти можна в застосунку «Поряд»." : "";
-  const line = kind === "question" ? `Вам поставили питання про «${title}»` : kind === "request" ? `Нова заявка на «${title}»` : body;
+  const line = lineOf(title, body);
   const why = organizer ? `Ви отримали цей лист, бо організовуєте «${title}».`
     : kind === "organizer" ? `Ви отримали цей лист, бо стежите за ${who || "організатором"}.`
     : kind === "declined" ? `Ви отримали цей лист, бо надіслали запит на «${title}».`
@@ -57,8 +68,6 @@ export function mailText(kind: MailKind, eventId: string, title: string, body: s
   const link = kind === "organizer" ? { label: "Не стежити", url: `${page}?unfollow` }
     : kind === "approved" || kind === "promoted" || kind === "moved" ? { label: "Скасувати запис", url: page } : null;
 
-  const oneLine = (organizer ? line : `«${title}»: ${body}`).replace(/\s+/g, " ").trim();
-  const subject = oneLine.length <= SUBJECT_MAX ? oneLine : `${oneLine.slice(0, SUBJECT_MAX - 1).trimEnd()}…`;
   const text = [title, line, ...(note ? [note] : []), `${button.label}: ${button.url}`, "", "—", why,
     ...(link ? [`${link.label}: ${link.url}`] : [])].join("\n");
   const p = (s: string, style = "") => `<p style="margin:0 0 16px;${style}">${esc(s)}</p>`;

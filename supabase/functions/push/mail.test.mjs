@@ -1,6 +1,6 @@
 // Перевірка листів без Deno: node supabase/functions/push/mail.test.mjs
 import assert from "node:assert/strict";
-import { esc, MAIL_KINDS, mailText, route } from "./mail.ts";
+import { esc, MAIL_KINDS, mailText, route, unlink } from "./mail.ts";
 
 const id = "6f1c2b9e-1111-4222-8333-944445555666";
 
@@ -45,6 +45,19 @@ assert.ok(!evil.html.includes("<img") && evil.html.includes("&lt;img src=x onerr
 assert.ok(!/[\r\n]/.test(evil.subject));
 const long = mailText("organizer", id, "Н".repeat(200), "Т");
 assert.ok(long.subject.length <= 150 && long.subject.endsWith("…"));
+
+// Назва й імена з крапкою в тілі листа не стають посиланням: після кожної «.» — U+2060, в HTML і в тексті; тема й наші
+// адреси — як є.
+const wj = "\u2060";
+assert.equal(unlink("Run.Club 2.0"), `Run.${wj}Club 2.${wj}0`);
+const linky = mailText("organizer", id, "Run.Club evil.com", "Нова подія від bad.guy.ua · сб, 8 листопада", "bad.guy.ua");
+assert.ok(linky.html.includes(`Run.${wj}Club evil.${wj}com`) && linky.text.includes(`Run.${wj}Club evil.${wj}com`), "title");
+assert.ok(linky.html.includes(`bad.${wj}guy.${wj}ua`) && linky.text.includes(`стежите за bad.${wj}guy.${wj}ua.`), "names");
+assert.ok(!/evil\.com|bad\.guy|Run\.Club/.test(linky.html + linky.text), "no plain domain left in the body");
+assert.equal(linky.subject, "«Run.Club evil.com»: Нова подія від bad.guy.ua · сб, 8 листопада");
+assert.ok(linky.html.includes(`href="https://poriad.app/e/${id}?unfollow"`) && linky.text.includes(`https://poriad.app/e/${id}?unfollow`)
+  && !linky.html.match(/href="[^"]*\u2060/), "our links stay intact");
+assert.equal(mailText("request", id, "Run.Club", "x").subject, "Нова заявка на «Run.Club»");
 
 // Кому пристрій, кому лист.
 const tok = (user_id, features = [], token = `t-${user_id}`) => ({ token, platform: "android", user_id, features });

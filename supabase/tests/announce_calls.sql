@@ -1,5 +1,5 @@
 -- Запускати адміністратором бази. Усе відкочується. Ліміт «Вставити анонс»: 20 на годину з адреси (IPv6 — з мережі /64),
--- 1000 на годину на всіх, старі виклики не рахуються й прибираються, клієнтам функція недоступна.
+-- 300 на годину на всіх, старі виклики не рахуються й прибираються, клієнтам функція недоступна.
 begin;
 -- Справжні виклики з бази не мають заважати стелі.
 delete from private.announce_calls;
@@ -19,10 +19,10 @@ do $$ begin
  assert (select count(distinct ip) = 2 from private.announce_calls where family(ip) = 6), 'stored as networks';
 end $$;
 
--- Стеля на всіх: 1000 викликів з різних адрес за годину — далі ніхто.
+-- Стеля на всіх: 300 викликів з різних адрес за годину — далі ніхто.
 insert into private.announce_calls(ip)
 select ('10.' || (i / 65536) || '.' || (i / 256 % 256) || '.' || (i % 256))::inet
-from generate_series(1, 1000 - (select count(*)::integer from private.announce_calls)) i;
+from generate_series(1, 300 - (select count(*)::integer from private.announce_calls)) i;
 do $$ begin
  assert not public.announce_call('198.51.100.1'), 'a fresh address is refused over the global ceiling';
 end $$;

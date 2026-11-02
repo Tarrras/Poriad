@@ -1,5 +1,5 @@
--- Запускати адміністратором бази. Усе відкочується. Видалення акаунта (Б1/Б2): RPC-запасний шлях
--- проходить крізь storage.protect_delete; скарги на видаленого користувача й на подію видаленого
+-- Запускати адміністратором бази. Усе відкочується. Видалення акаунта (Б1/Б2): RPC-запасний шлях (клієнтам закрито
+-- з 20261121120000, кличемо від імені бази з sub людини) проходить крізь storage.protect_delete; скарги на видаленого користувача й на подію видаленого
 -- організатора лишаються з subject_type і null-посиланням; каскад прибирає все інше. Плюс export і
 -- стирання тексту видаленого повідомлення.
 begin;
@@ -12,8 +12,9 @@ insert into auth.users(id,email,raw_user_meta_data) values
   jsonb_build_object('display_name','Member','birth_date',to_char(current_date - interval '24 years','YYYY-MM-DD'))),
  (current_setting('test.witness')::uuid,'poruch-test-witness-'||current_setting('test.witness')||'@example.invalid',
   jsonb_build_object('display_name','Witness','birth_date',to_char(current_date - interval '28 years','YYYY-MM-DD')));
--- Фото організатора: рядок у storage.objects, як після завантаження.
-insert into storage.objects(bucket_id,name) values ('event-images',current_setting('test.host')||'/'||current_setting('test.event')||'/cover.jpg');
+-- Фото й відео організатора: рядки в storage.objects, як після завантаження.
+insert into storage.objects(bucket_id,name) values ('event-images',current_setting('test.host')||'/'||current_setting('test.event')||'/cover.jpg'),
+ ('event-videos',current_setting('test.host')||'/'||current_setting('test.event')||'/clip.mp4');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub',current_setting('test.host'),true);
@@ -58,8 +59,8 @@ do $$ declare d jsonb := public.export_my_data(); begin
 end $$;
 
 -- Учасник, на якого скаржились, видаляє себе.
-select public.delete_my_account();
 reset role;
+select public.delete_my_account();
 do $$ begin
  assert not exists(select 1 from auth.users where id=current_setting('test.member')::uuid),'member deleted';
  assert not exists(select 1 from public.profiles where id=current_setting('test.member')::uuid),'profile gone';
@@ -70,24 +71,29 @@ do $$ begin
  assert (select subject_type='user' and subject_user_id is null from public.reports where id=current_setting('test.on_member')::uuid),'report on the member stays with a null subject';
 end $$;
 
--- Організатор з фото, подією, токеном і скаргою на подію видаляє себе.
-set local role authenticated;
+-- Організатор з фото, відео, подією, токеном і скаргою на подію видаляє себе.
 select set_config('request.jwt.claim.sub',current_setting('test.host'),true);
 select public.delete_my_account();
-reset role;
 do $$ begin
  assert not exists(select 1 from auth.users where id=current_setting('test.host')::uuid),'host deleted';
  assert not exists(select 1 from public.events where id=current_setting('test.event')::uuid),'own event gone';
  assert not exists(select 1 from public.event_members where event_id=current_setting('test.event')::uuid),'its members gone';
  assert not exists(select 1 from public.push_tokens where user_id=current_setting('test.host')::uuid),'push tokens gone';
- assert not exists(select 1 from storage.objects where name like current_setting('test.host')||'/%'),'photos gone';
+ assert not exists(select 1 from storage.objects where name like current_setting('test.host')||'/%'),'photos and videos gone';
  assert (select subject_type='event' and event_id is null from public.reports where id=current_setting('test.on_event')::uuid),'report on the event stays with a null event';
 end $$;
 
--- Гість не видаляє нікого.
+-- Ні гість, ні людина з токеном не кличуть RPC: він видаляє без файлів у Storage і без повторного входу, тож
+-- єдиний шлях — функція delete-account.
 set local role anon;
 do $$ begin
  begin perform public.delete_my_account(); raise exception 'expected no grant for anon';
+ exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+set local role authenticated;
+do $$ begin
+ begin perform public.delete_my_account(); raise exception 'expected no grant for authenticated';
  exception when insufficient_privilege then null; end;
 end $$;
 rollback;
