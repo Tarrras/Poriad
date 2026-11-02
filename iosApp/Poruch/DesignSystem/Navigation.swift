@@ -11,8 +11,6 @@ struct TabItem: Identifiable {
     var badge: Int = 0
     /// Є нове, але не справа, яку треба рахувати: крапка замість числа.
     var dot = false
-    /// Підказка першого знайомства, що вказує на цей пункт.
-    var tip: CoachTip?
 }
 
 /// Таббар плаває поверх застосунку, тож екран із власною нижньою панеллю (деталі) має сам
@@ -84,7 +82,6 @@ struct PoruchTabBar<Trailing: View>: View {
                         PoruchIcon(glyph: item.glyph, size: 22)
                         Text(item.label)
                     }
-                    .coachTarget(item.tip)
                 }
             }
             // Група вкладок для VoiceOver: «вкладка, 1 з 4», як у системного таббара.

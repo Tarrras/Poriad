@@ -16,7 +16,7 @@ struct HomeView: View, Equatable {
     var openProfile: () -> Void
     /// Вкладка «Мої події»: посилання біля блоку «Ваше».
     var openMyEvents: () -> Void
-    /// Редактор нової події; аргумент — звідки тап (`home_top`, `home_footer`) для аналітики. Гостя спершу веде до входу.
+    /// Редактор нової події; аргумент — звідки тап (`home_top`) для аналітики. Гостя спершу веде до входу.
     var createEvent: (String) -> Void
     /// Відкрити деталі; другий аргумент — квиток, з якого деталі виростають (`morphSource`). Шлях стосу тримає корінь
     /// (`RootView.homePath`).
@@ -211,7 +211,6 @@ private struct HomeHeader: View {
                         .buttonStyle(.plain)
                         .accessibilityLabel(Copy.a11y_city("\(view.cityName)"))
                         .accessibilityHint(Copy.a11y_change_city)
-                        .coachTarget(.city)
                     }
                     Spacer(minLength: Space.sm)
                     IconPill(glyph: PoruchIcons.search, label: Copy.search_scope("\(view.searchScope)"), action: startSearch)

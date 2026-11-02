@@ -54,6 +54,8 @@ struct EventHeroCard: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     let event: Event
     var eyebrow: String?
+    /// Рядків назви на квитку з фото; без фото й на великому шрифті — п'ять.
+    var titleLines = 2
     var height: CGFloat = 360
     var saved: Bool = false
     var onSave: (() -> Void)?
@@ -90,8 +92,7 @@ struct EventHeroCard: View {
                     VStack(alignment: .leading, spacing: Space.sm) {
                         Text(event.cardTitle).font(event.hasCover ? PoruchFont.brandTitle1 : PoruchFont.brandDisplay)
                             .foregroundStyle(Palette.ink)
-                            // З фото — три рядки: на SE у два «Вечір Імпровізації н…» обривався посеред назви.
-                            .multilineTextAlignment(.leading).lineLimit(!event.hasCover || upright ? 5 : 3)
+                            .multilineTextAlignment(.leading).lineLimit(!event.hasCover || upright ? 5 : titleLines)
                             .fixedSize(horizontal: false, vertical: true)
                         HostLine(event: event)
                         if let extra { extra.padding(.vertical, Space.xs) }

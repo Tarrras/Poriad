@@ -244,13 +244,15 @@ private struct NextPlanCard: View {
     /// Штамп ще не впав: план новий для головної. Рух — раз на план, а не на кожне відкриття, інакше він читався б затримкою.
     @State private var armed: Bool
     @State private var hit = 0
+    /// Квиток над таббаром: удар, якого не видно, пішов би в порожнечу, а план уже вважався б показаним.
+    @State private var onScreen = false
 
     init(row: PersonalRow, open: @escaping () -> Void, chat: @escaping () -> Void) {
         self.row = row
         self.open = open
         self.chat = chat
         // «Зменшити рух» — штамп одразу на місці, без удару.
-        _armed = State(initialValue: UserDefaults.standard.string(forKey: shownPlanKey) != row.event.id && !UIAccessibility.isReduceMotionEnabled)
+        _armed = State(initialValue: !PlanStamps.shown(row.event.id) && !UIAccessibility.isReduceMotionEnabled)
     }
 
     private var event: Event { row.event }
@@ -269,9 +271,9 @@ private struct NextPlanCard: View {
         return event.placeLabel
     }
 
-    /// Роль штампом, як на деталях: «Ваша подія», «Ви йдете»; запити, що чекають, важливіші. Скасовану — гасимо.
+    /// Роль штампом, як на деталях: «Ваша подія», «Ви йдете»; запити, що чекають, важливіші. Скасованої тут не буває:
+    /// `HomeRules.isLead` її не пропускає.
     private var stamp: TicketStamp {
-        if event.isCancelled { return TicketStamp(text: Copy.cancelled_short, tone: .danger) }
         if row.requests > 0 { return TicketStamp(text: Copy.home_requests_short("\(row.requests)"), tone: .accent, glyph: PoruchIcons.personAdd) }
         return row.organizing
             ? TicketStamp(text: Copy.home_role_organizer, tone: .brand)
@@ -307,8 +309,18 @@ private struct NextPlanCard: View {
             }
             .buttonStyle(PressableStyle(pressedScale: 1))
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(ticketA11yLabel(event, state: stamp.text))
+            // Квиток — одне речення; відлік і нове в чаті — те, що на ньому видно понад звичайний квиток.
+            .accessibilityLabel(
+                [ticketA11yLabel(event, state: stamp.text), today ? countdownOverline(event) : nil, row.chat != nil ? subtitle : nil]
+                    .compactMap { $0 }.joined(separator: ", ")
+            )
             .accessibilityAddTraits(.isButton)
+            // Видно — коли центр квитка над таббаром: цілком на SE він часто не вміщається під «З ким піти».
+            .onGeometryChange(for: Bool.self) { proxy in
+                let frame = proxy.frame(in: .scrollView)
+                let height = proxy.bounds(of: .scrollView)?.height ?? .infinity
+                return frame.midY > 0 && frame.midY < height - tabBarClearance
+            } action: { onScreen = $0 }
             // Великий шрифт: дії одна під одною, як у «Моїх подіях», — три в ряд обрізали б «Маршрут» до «Ма…».
             let actions = upright ? AnyLayout(VStackLayout(spacing: Space.sm)) : AnyLayout(HStackLayout(spacing: Space.sm))
             actions {
@@ -326,20 +338,29 @@ private struct NextPlanCard: View {
                 }
             }
         }
-        .task {
-            guard UserDefaults.standard.string(forKey: shownPlanKey) != event.id else { return }
-            UserDefaults.standard.set(event.id, forKey: shownPlanKey)
-            guard armed else { return }
+        // Стрічка не лінива: `.task` спрацював би на вставці, поза екраном. Удар — коли квиток видно.
+        .task(id: onScreen) {
+            guard onScreen, !PlanStamps.shown(event.id) else { return }
             // Хай головна спершу ляже: удар у першому ж кадрі губився б у появі стрічки.
-            try? await Task.sleep(for: .milliseconds(350))
-            armed = false
-            hit += 1
+            if armed { guard (try? await Task.sleep(for: .milliseconds(350))) != nil else { return } }
+            PlanStamps.remember(event.id)
+            if armed { armed = false; hit += 1 }
         }
     }
 }
 
-/// Id плану, на який штамп уже падав: наступне відкриття головної того ж плану — без руху.
-private let shownPlanKey = "poruch.home.shownPlan"
+/// Таббар плаває над низом стрічки: квиток під ним не видно.
+private let tabBarClearance: CGFloat = 92
+
+/// Плани, на які штамп уже падав: A → B → A — без другого удару. Останні 20, щоб список не ріс.
+private enum PlanStamps {
+    private static let key = "poruch.home.shownPlans"
+    static func shown(_ id: String) -> Bool { (UserDefaults.standard.stringArray(forKey: key) ?? []).contains(id) }
+    static func remember(_ id: String) {
+        let ids = (UserDefaults.standard.stringArray(forKey: key) ?? []).filter { $0 != id } + [id]
+        UserDefaults.standard.set(Array(ids.suffix(20)), forKey: key)
+    }
+}
 
 /// Своя подія: категорія плиткою, час, назва, роль першим словом підпису («Ваша подія · Будинок Актора»). Праворуч — лише
 /// лічильник чату чи шеврон: бейдж ролі з'їдав ~110 pt і рвав назву на SE.

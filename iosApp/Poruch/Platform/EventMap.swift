@@ -666,15 +666,16 @@ struct EventMap: UIViewRepresentable {
     }
     /// Людина ще не відповідала на системне питання.
     var undecided: Bool { manager.authorizationStatus == .notDetermined }
-    /// Дозволила: місто ось-ось прийде з геокодера.
-    var allowed: Bool { [.authorizedWhenInUse, .authorizedAlways].contains(manager.authorizationStatus) }
+    /// Останній запит завершився: місто прийшло, відмова чи збій. Його чекає перший стос (`RootView.openFirstDeck`).
+    private(set) var settled = false
     func request() {
         announced = nil
         point = nil
         wanted = true
+        settled = false
         switch manager.authorizationStatus {
         case .notDetermined: manager.requestWhenInUseAuthorization()
-        case .denied, .restricted: message = Copy.location_denied_hint
+        case .denied, .restricted: message = Copy.location_denied_hint; settled = true
         default: locate()
         }
     }
@@ -689,7 +690,9 @@ struct EventMap: UIViewRepresentable {
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways: locate()
         // Відмову в системному питанні місто приймає мовчки, а «Ближче до мене» мусить зняти вибір і сказати чому.
-        case .denied, .restricted: if !resolvesCity { message = Copy.location_denied_hint }
+        case .denied, .restricted:
+            settled = true
+            if !resolvesCity { message = Copy.location_denied_hint }
         default: break
         }
     }
@@ -699,6 +702,7 @@ struct EventMap: UIViewRepresentable {
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         // Останній відомий уже спрацював: мовчимо.
         if announced == nil && point == nil { message = Copy.location_failed_hint }
+        settled = true
     }
 
     private func resolve(_ location: CLLocation) {
@@ -712,6 +716,7 @@ struct EventMap: UIViewRepresentable {
             guard place.city != announced else { return }
             announced = place.city
             city = CityResult(name: place.city, latitude: place.latitude, longitude: place.longitude)
+            settled = true
             return
         }
         geocoder.reverseGeocodeLocation(location, preferredLocale: Locale(identifier: "uk_UA")) { [weak self] places, error in
@@ -719,6 +724,7 @@ struct EventMap: UIViewRepresentable {
                 guard let self else { return }
                 // Скасоване наступним виміром — не відповідь.
                 if (error as? CLError)?.code == .geocodeCanceled { return }
+                defer { self.settled = true }
                 let locality = places?.first?.locality.flatMap { $0.isEmpty ? nil : $0 }
                 // Геокодер змовчав, а місто вже є: заглушка його не перебиває.
                 if locality == nil && self.announced != nil { return }

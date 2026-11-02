@@ -15,8 +15,9 @@ struct OnboardingView: View {
     @State private var places: Set<Int64> = []
     /// Шторка міст з кроку «Про що сказати?»: місто ще типове (геолокацію питаємо після «Готово»), а райони — його.
     @State private var citySearch = false
-    /// Невисокий екран (SE): артистів менше, щоб «Райони» з чипом міста були на першому екрані.
-    @State private var short = false
+    /// Невисокий екран (SE): артистів менше, щоб «Райони» з чипом міста були на першому екрані. Перший замір: клавіатура
+    /// поля «Знайти артиста» стискає корінь, і чипи інакше зникали б посеред вибору.
+    @State private var short: Bool?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -46,7 +47,7 @@ struct OnboardingView: View {
         }
         .padding(.horizontal, Space.page)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .onGeometryChange(for: Bool.self) { $0.size.height <= 700 } action: { short = $0 }
+        .onGeometryChange(for: Bool.self) { $0.size.height <= 700 } action: { if short == nil { short = $0 } }
         .background(Palette.canvas.ignoresSafeArea())
         .motion(value: step)
         // Місто ще не відоме (геолокацію питаємо після «Готово»), тож артисти — ті, хто гастролює країною.
@@ -57,7 +58,9 @@ struct OnboardingView: View {
         .onAppear {
             // Відкрито з профілю: починаємо з минулих відповідей і одразу з питань — знайомі вже знайомі.
             guard let taste = model.state?.taste else { return }
-            interests = taste.interests
+            // ponytail: «Кіно» сховане з вибору, поки вимкнений прапорець `cinema`, тож і зі збереженого смаку його знімаємо —
+            // інакше його не прибрати. Повернути разом з плиткою.
+            interests = taste.interests.filter { $0 != .cinema }
             times = taste.times
             crowd = taste.crowd
             if !interests.isEmpty || !times.isEmpty || crowd != .any { step = .interests }
@@ -123,7 +126,7 @@ struct OnboardingView: View {
         question(Copy.onboarding_times_title, Copy.onboarding_times_hint) {
             GroupedRows {
                 ForEach(Array(timeSlots.enumerated()), id: \.element.slot) { index, option in
-                    ChoiceRow(title: option.title, hint: option.hint, selected: times.contains(option.slot), multiple: true) {
+                    ChoiceRow(title: option.title, hint: option.hint, selected: times.contains(option.slot)) {
                         times = times.toggling(option.slot)
                     }
                     if index < timeSlots.count - 1 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg) }
@@ -189,7 +192,7 @@ struct OnboardingView: View {
     }
 
     /// До 8 артистів на невисокому екрані, 12 — на решті: решту знаходить поле «Знайти артиста».
-    private var artistLimit: Int { short ? 8 : onboardingArtists }
+    private var artistLimit: Int { short == true ? 8 : onboardingArtists }
 
     private var cityChip: some View {
         Chip(
@@ -250,12 +253,11 @@ private enum OnboardingStep: Int, CaseIterable {
 /// Скільки популярних артистів показати в онбордингу: під ними ще райони, решту знаходить поле.
 private let onboardingArtists = 12
 
-/// Одна відповідь рядком групового списку. Квадрат — можна кілька, коло — рівно одну.
+/// Одна відповідь рядком групового списку; квадрат — можна кілька. Один вибір («Формат») — чипами.
 private struct ChoiceRow: View {
     let title: String
     let hint: String
     let selected: Bool
-    let multiple: Bool
     let action: () -> Void
 
     var body: some View {
@@ -277,7 +279,7 @@ private struct ChoiceRow: View {
 
     @ViewBuilder private var mark: some View {
         // Радіус явний, не токен: `Corner.xs` = 12 робив із квадрата 24 pt коло, і «кілька» не відрізнялось від «одну».
-        let shape = RoundedRectangle(cornerRadius: multiple ? 7 : 12, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
         ZStack {
             // Невибране — контуром: тиха заливка вночі зливалась із рядком (1,2:1), і не було видно, що тут щось обирають.
             if selected { shape.fill(Palette.brand) } else { shape.strokeBorder(Palette.inkTertiary, lineWidth: 1.5) }

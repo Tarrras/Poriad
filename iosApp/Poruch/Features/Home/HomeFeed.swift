@@ -118,6 +118,8 @@ struct HomeCityFeed: View {
     private var model: AppModel { appModel! }
     /// На accessibility-розмірах сітка в одну колонку: у дві назви рвались посеред слова.
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// Екран до 375 pt (SE): назві великого квитка — три рядки, у два «Вечір Імпровізації н…» обривався.
+    @State private var narrow = false
 
     var body: some View {
         if !view.feed.isEmpty {
@@ -196,7 +198,7 @@ struct HomeCityFeed: View {
             HStack(spacing: Space.md) {
                 ForEach(picks, id: \.event.id) { entry in
                     EventHeroCard(
-                        event: entry.event, eyebrow: lane(entry),
+                        event: entry.event, eyebrow: lane(entry), titleLines: narrow ? 3 : 2,
                         saved: view.isSaved(entry.event), onSave: { model.app.toggleSaved(id: entry.event.id) }
                     ) { open(entry.event.id, "home_hero") }
                     .morphSource("home_hero/\(entry.event.id)")
@@ -209,6 +211,7 @@ struct HomeCityFeed: View {
             .scrollTargetLayout()
         }
         .scrollTargetBehavior(.viewAligned)
+        .onGeometryChange(for: Bool.self) { $0.size.width <= 375 } action: { narrow = $0 }
         .railContentPadding(spread: 0)
         .morphScrollable()
         .zIndex(1)
@@ -307,8 +310,9 @@ private struct PosterCard: View {
     /// корінцем 1,5× (горизонтальний квиток на AX5 рвав «П'ЯТНИЦЮ» і так само).
     private var wide: Bool { typeSize.isAccessibilitySize }
 
-    /// Друкована сторона без фото дає назві три рядки (рейка ~270 pt); квиток на всю ширину на великому шрифті — без стелі.
-    private var titleLines: Int? { wide ? nil : (printed ? 3 : 2) }
+    /// Квиток рейки (`printedOnly`) — три рядки назви, щоб рейка була ~270 pt; інший без фото — чотири; квиток на всю
+    /// ширину на великому шрифті — без стелі.
+    private var titleLines: Int? { wide ? nil : printedOnly ? 3 : printed ? 4 : 2 }
 
     /// Штамп — лише стан квитка: скасовано, «Ви йдете», «Лишилось 2». Чому квиток тут — [reason], тихим рядком.
     @ViewBuilder private func stampView(onFill: Bool) -> some View {
