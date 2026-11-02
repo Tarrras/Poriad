@@ -612,9 +612,17 @@ Android `Navigator.createEvent` → `Auth(AuthReason.CREATE)`), і 70% гост�
 
 - **Поштовий сервіс** (наприклад Resend): акаунт, домен `poriad.app` (DNS-записи в Cloudflare), SMTP у Supabase →
   Auth → SMTP Settings, ключ API в секретах для листів з `push`. Вбудована пошта Supabase шле лише кілька листів на
-  годину, тож без цього кроку хвиля 1 не працює.
-- Шаблон листа з кодом у Supabase → Auth → Email Templates; відправник у SMTP Settings — `noreply@poriad.app`,
-  імʼя «Поряд». У Resend той самий відправник (`MAIL_FROM`) для листів з `push`.
+  годину, тож без цього кроку хвиля 1 не працює. **02.11: Resend і SMTP для реєстрації налаштовано** (prod: листи
+  підтвердження доходять за ~15 с). Лишились секрети функції `push`: `RESEND_API_KEY` і `MAIL_FROM`.
+- Шаблони листів у Supabase → Auth → Email Templates; відправник у SMTP Settings — `noreply@poriad.app`,
+  імʼя «Поряд». У Resend той самий відправник (`MAIL_FROM`) для листів з `push`. Код потрібен у **двох** шаблонах:
+  `/otp` для наявної пошти шле «Magic Link», а для нової (`create_user: true`) — «Confirm signup». Без `{{ .Token }}`
+  у «Confirm signup» новий гість з вебу чи застосунку 1.5 отримає посилання замість коду й не ввійде. Посилання
+  `{{ .ConfirmationURL }}` у «Confirm signup» лишається, поки в сторах 1.4 з реєстрацією паролем:
+  - обидва: тема «Код для входу в «Поряд»: {{ .Token }}», угорі великим `{{ .Token }}`, внизу «Якщо ви не просили
+    код, просто проігноруйте цей лист»;
+  - лише «Confirm signup»: між ними «Реєструєтесь у застосунку з паролем? <a href="{{ .ConfirmationURL }}">Підтвердьте
+    пошту</a>».
 - **Google на вебі:** у Google Cloud веб-клієнт OAuth (якщо ще нема) з адресою повернення
   `https://{проєкт}.supabase.co/auth/v1/callback` для dev і prod; його ID і секрет — у Supabase → Auth → Providers →
   Google (поруч з ID застосунків); Supabase → Auth → URL Configuration → Redirect URLs: `https://poriad.app/**`.
