@@ -161,7 +161,9 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     item(key = "yours") { PersonalSection(state, onIntent) }
                     // Стрічка закінчується «Показати ще»: «Усі N» біля «У місті» веде на мапу, а «Організувати подію» —
                     // квиток рейки й «+» (підвал «Далі» дублював обидва, рішення власника 02.11).
-                    cityFeed(state, onIntent, columns, chipsStuck)
+                    // Лямбдою: прочитане тут стає залежністю вмісту списку, а значення — з його ж виміру, тож у простої
+                    // список перемірявся щокадру (~25 кадрів/с, ANR на 360-емуляторі). Читає сам ряд чипів.
+                    cityFeed(state, onIntent, columns) { chipsStuck }
                 }
             }
         }
@@ -941,7 +943,7 @@ private fun lane(source: FeedSource, followName: String?): String? = when (sourc
 /** «У місті»: великі картки, що гортаються (сусідня визирає), чипи, далі сітка постерів у дві колонки. */
 private const val FEED_CHIPS = "feed-chips"
 
-private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> Unit, columns: Int, chipsStuck: Boolean) {
+private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> Unit, columns: Int, chipsStuck: () -> Boolean) {
     when {
         state.screen.feed.isNotEmpty() -> {
             val picks = state.screen.feed.take(HomeRules.HERO_COUNT)
@@ -966,7 +968,7 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
             if (state.screen.chips.isNotEmpty()) stickyHeader(key = FEED_CHIPS) {
                 Box(Modifier.fillMaxWidth().background(Poruch.colors.canvas).padding(top = Spacing.md, bottom = Spacing.sm)) {
                     FeedChips(state, onIntent)
-                    if (chipsStuck) HairLine(Modifier.align(Alignment.BottomCenter).offset(y = Spacing.sm))
+                    if (chipsStuck()) HairLine(Modifier.align(Alignment.BottomCenter).offset(y = Spacing.sm))
                 }
             }
             val rows = rest.take(state.feedLimit).chunked(columns)
