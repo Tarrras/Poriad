@@ -897,11 +897,26 @@ a.row:hover { background: var(--surface-muted); }
 .kab-auth > div { display: flex; flex-direction: column; gap: 14px; }
 .kab-auth .kab-row .btn { flex: 1; }
 
+/* Публікація й «Подію створено» (1.6): квиток Lottie 240×160 (3:2) друкується, потім на нього падає штамп. */
+.kab-anim { width: 240px; max-width: 100%; aspect-ratio: 3 / 2; margin: 0 auto; }
+.kab-anim.big { width: 360px; }
+.kab-publishing { margin: auto; width: min(380px, calc(100vw - 32px)); padding: 28px 24px 24px; border-radius: var(--r-xl); background: var(--surface-raised);
+  box-shadow: var(--shadow-overlay); text-align: center; }
+.kab-publishing-title { margin-top: 14px; font: 800 26px/30px var(--cond); letter-spacing: -.01em; }
+.kab-publishing .kab-note { margin-top: 6px; min-height: 20px; font-variant-numeric: tabular-nums; }
+.kab-publishing .kab-note:empty { display: block; }
+.kab-created { max-width: 640px; margin: 0 auto; padding-top: 8px; text-align: center; }
+.kab-created h1 { margin-top: 8px; font-size: clamp(36px, 4vw, 52px); line-height: 1; letter-spacing: -.02em; }
+.kab-created .kab-note { margin-top: 10px; color: var(--danger); }
+.kab-created-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 28px 0 14px; }
+.kab-created-actions .btn.primary, .kab-created-actions [data-done-ready] { grid-column: 1 / -1; }
+
 @media (max-width: 900px) {
   .kab-grid { grid-template-columns: minmax(0, 1fr); }
   .kab-preview { display: none; }
 }
 @media (max-width: 640px) {
+  .kab-created-actions { grid-template-columns: minmax(0, 1fr); }
   .kab-card { padding: 18px 16px 20px; }
   .kab-event { gap: 12px; padding: 10px 12px 10px 10px; }
   .kab-event h3 { font-size: 19px; line-height: 22px; }

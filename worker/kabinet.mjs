@@ -10,9 +10,10 @@ export function kabinetPage(response) {
 }
 
 // Photon — той самий геокодер, що в застосунку й імпорті (публічний komoot): чесний User-Agent і кеш на добу, щоб
-// організатор, який набирає адресу по літері, не впирався в його ліміти.
+// організатор, який набирає адресу по літері, не впирався в його ліміти. User-Agent свій, не імпорту (PoriadBot,
+// tools/ingest/fetch.py): якщо komoot заблокує кабінет за зловживання, геокодинг імпорту працюватиме далі.
 const PHOTON = "https://photon.komoot.io/api/";
-const USER_AGENT = "PoriadBot/0.1 (+https://poriad.app/bot; hello@poriad.app)";
+const USER_AGENT = "PoriadKabinet/1.0 (+https://poriad.app; hello@poriad.app)";
 const DAY = 86400;
 // Як `PhotonGeoSearchRepository`: коротший запит нічого не звужує; просимо із запасом, бо частину відкидаємо.
 const MIN_QUERY = 3;
@@ -30,10 +31,13 @@ export async function geocode(request, env, ctx) {
   const key = new Request(`${url.origin}/api/geocode?${new URLSearchParams({ city: name, q })}`);
   const cached = await caches.default.match(key);
   if (cached) return cached;
-  // Кожен новий запит іде в komoot, а той за зловживання блокує наш User-Agent для всіх. Тож повз кеш — не більше
-  // ліміту на адресу (GEOCODE_LIMIT у wrangler.toml, у межах однієї локації Cloudflare). Без binding-а — без ліміту.
-  const limited = env.GEOCODE_LIMIT && !(await env.GEOCODE_LIMIT.limit({ key: request.headers.get("cf-connecting-ip") ?? "local" })).success;
-  if (limited) return answer({ error: "rate" }, 429);
+  // Кожен новий запит іде в komoot, а той за зловживання блокує наш User-Agent для всіх. Тож повз кеш — ліміт на
+  // адресу (GEOCODE_LIMIT) і загальна стеля (GEOCODE_GLOBAL) з wrangler.toml, обидва в межах локації Cloudflare.
+  // Без binding-ів — без ліміту.
+  const over = async (limiter, key) => limiter && !(await limiter.limit({ key })).success;
+  if (await over(env.GEOCODE_LIMIT, clientKey(request.headers.get("cf-connecting-ip"))) || await over(env.GEOCODE_GLOBAL, "global")) {
+    return answer({ error: "rate" }, 429);
+  }
   const city = cityOf(name);
   let found;
   try {
@@ -48,6 +52,20 @@ export async function geocode(request, env, ctx) {
   const out = answer(found);
   ctx.waitUntil(caches.default.put(key, out.clone()));
   return out;
+}
+
+/**
+ * Ключ ліміту на людину: IPv4 як є, IPv6 — мережа /64. Провайдер видає абоненту цілу /64, і нова адреса в ній нічого
+ * не коштує, тож ліміт на окрему IPv6 обходився б перебором адрес.
+ */
+export function clientKey(ip) {
+  if (!ip) return "local";
+  if (!ip.includes(":") || ip.includes(".")) return ip;
+  const [head, tail] = ip.split("::");
+  const left = head ? head.split(":") : [];
+  const right = tail ? tail.split(":") : [];
+  const groups = tail === undefined ? left : [...left, ...Array(Math.max(0, 8 - left.length - right.length)).fill("0"), ...right];
+  return `${groups.slice(0, 4).map((g) => parseInt(g || "0", 16).toString(16)).join(":")}::/64`;
 }
 
 /** Рядки Photon → підказки: вулиця з будинком, інакше назва; без виключених країн і повторів. */

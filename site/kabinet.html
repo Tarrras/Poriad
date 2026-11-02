@@ -2,6 +2,8 @@
 <html lang="uk">
 <head>
 <meta charset="utf-8">
+<!-- Друга лінія, якщо сторінку віддасть Pages без воркера: та сама політика, що CSP.kabinet у worker/index.mjs, і ще dev-проєкт (сайт на localhost ходить у dev); frame-ancestors у meta не діє — його дає лише заголовок. Перевірка — worker/kabinet.test.mjs. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://tzdogzdvctlumsqlqskr.supabase.co/storage/v1/object/public/ https://ojadoyxeahepycpmjuvf.supabase.co/storage/v1/object/public/; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com https://tiles.openfreemap.org https://tzdogzdvctlumsqlqskr.supabase.co https://ojadoyxeahepycpmjuvf.supabase.co; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; worker-src blob:; child-src blob:; media-src https://tzdogzdvctlumsqlqskr.supabase.co/storage/v1/object/public/ https://ojadoyxeahepycpmjuvf.supabase.co/storage/v1/object/public/ blob:">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Кабінет організатора — Поряд</title>
 <meta name="description" content="Створіть подію з комп’ютера: з готового анонсу, з фото й відео. Учасники, «Повторити» і «Пост для Threads».">
@@ -140,12 +142,34 @@
         </fieldset>
 
         <p class="kab-error" data-form-error role="alert"></p>
-        <div class="kab-row"><button class="btn primary" type="submit" data-submit>Опублікувати</button><p class="kab-note" data-progress role="status"></p></div>
+        <div class="kab-row"><button class="btn primary" type="submit" data-submit>Опублікувати</button></div>
       </form>
       <aside class="kab-preview" aria-label="Квиток-чернетка"><p class="overline">Так подію побачать у застосунку</p><div data-preview inert></div></aside>
     </div>
   </section>
+
+  <!-- Подію створено (1.6): штамп «ОПУБЛІКОВАНО» і що робити далі -->
+  <section class="kab-created" data-view="done" hidden>
+    <div class="kab-anim big" data-done-anim aria-hidden="true"></div>
+    <h1>Подію створено</h1>
+    <p class="kab-place" data-done-event></p>
+    <p class="kab-note" data-done-note role="status"></p>
+    <div class="kab-created-actions">
+      <button class="btn primary" type="button" data-done-share><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-share"/></svg>Поширити анонс</button>
+      <button class="btn" type="button" data-done-copy><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-external"/></svg>Скопіювати посилання</button>
+      <a class="btn" data-done-ics><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-calendar"/></svg>Додати в календар</a>
+      <a class="btn" data-done-ready>Готово</a>
+    </div>
+    <p class="kab-hint">«Поширити анонс» відкриває Threads з готовим текстом і посиланням для запису; фото додайте в пості самі.</p>
+  </section>
 </main>
+
+<!-- Публікація (1.6): квиток друкується, поки вантажаться файли -->
+<dialog class="kab-publishing" data-publishing aria-labelledby="kab-publishing-title">
+  <div class="kab-anim" data-publishing-anim aria-hidden="true"></div>
+  <p class="kab-publishing-title" id="kab-publishing-title" data-publishing-title>Публікуємо подію</p>
+  <p class="kab-note" data-progress role="status"></p>
+</dialog>
 
 <!-- Вхід: Google або код з пошти; вперше — імʼя й «Мені вже є 18» -->
 <dialog class="install" data-auth>

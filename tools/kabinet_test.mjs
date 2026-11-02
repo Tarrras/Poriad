@@ -2,8 +2,9 @@
 import assert from "node:assert/strict";
 import {
   instant, local, repeatTimes, endAfter, durationLabel, DURATIONS, mediaProblem, videoTooLong, fit, MEDIA,
-  threadsPost, threadsIntent, firstLine, rosterText, errorText, publishPlan, writeDraft, forgetDraft,
+  threadsPost, threadsIntent, firstLine, rosterText, errorText, publishPlan, writeDraft, forgetDraft, recolorStub,
 } from "../site/js/kabinet.js";
+import { readFileSync } from "node:fs";
 
 // Місцевий час Києва ↔ UTC, і в обидва боки переходу на зимовий (25.10.2026, 04:00 → 03:00).
 assert.equal(instant("2026-10-24", "19:00"), "2026-10-24T16:00:00.000Z", "літній час, UTC+3");
@@ -91,4 +92,18 @@ assert.equal(store.size, 0);
 assert.deepEqual(deleted, ["poriad.kabinet"]);
 globalThis.indexedDB = undefined;
 forgetDraft(); // без IndexedDB (приватне вікно) — без помилки
+// Анімації публікації (1.6): копії сайту — ті самі файли, що в design/lottie; корінець — кольором жанру.
+const lottieFile = (dir, name) => readFileSync(new URL(`../${dir}/${name}.json`, import.meta.url), "utf8");
+for (const name of ["publishing", "publishing_dark", "published", "published_dark"]) {
+  assert.equal(lottieFile("site/vendor/lottie", name), lottieFile("design/lottie", name), `site/vendor/lottie/${name}.json розійшовся з design/lottie`);
+}
+const colors = (data, layer) => JSON.stringify(data.layers.find((l) => l.nm === layer)).match(/"c":\{"a":0,"k":\[[^\]]*\]/g).join();
+const music = JSON.parse(lottieFile("design/lottie", "publishing"));
+const games = recolorStub(music, "#2957AC");
+const games_k = [0x29, 0x57, 0xac].map((v) => v / 255);
+assert.ok(colors(music, "Stub").includes("0.376") && !colors(games, "Stub").includes("0.376"), "колір музики з корінця зник");
+assert.ok(colors(games, "Stub").includes(String(games_k[0])), "корінець — кольором ігор");
+assert.equal(colors(games, "Body"), colors(music, "Body"), "квиток не чіпаємо");
+assert.ok(colors(music, "Stub").includes("0.376"), "вихідні дані не змінено");
+assert.equal(recolorStub(music, ""), music, "жанру нема (CSS-змінна порожня) — як є");
 console.log("kabinet ok");
