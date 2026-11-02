@@ -81,13 +81,13 @@ internal fun AnnounceCard(state: EditorState, onIntent: (EditorIntent) -> Unit) 
             }
             // Буфер читаємо в кліку, а не заздалегідь: Android показує, хто його читав, і зайвий доступ лякає.
             SecondaryButton(
-                stringResource(if (state.announcing) R.string.announce_filling else android.R.string.paste),
+                stringResource(if (state.announcing) R.string.announce_filling else R.string.announce_paste),
                 { onIntent(EditorIntent.PasteAnnounce(context.clipboardText())) },
                 enabled = !state.announcing, compact = true, container = colors.surface
             )
         }
         if (state.clipboardEmpty) Text(
-            stringResource(R.string.announce_failed), style = MaterialTheme.typography.bodySmall, color = colors.danger,
+            stringResource(R.string.announce_clipboard_empty), style = MaterialTheme.typography.bodySmall, color = colors.danger,
             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
         )
     }
