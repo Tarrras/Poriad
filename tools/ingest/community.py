@@ -84,7 +84,9 @@ def _ical_datetime(line: str, default_tz: str) -> str | None:
         if raw.endswith("Z"):
             parsed = parsed.replace(tzinfo=dt.timezone.utc)
         else:
-            parsed = parsed.replace(tzinfo=ZoneInfo(tzid))
+            # Лише Київ (див. вище), і завжди новою назвою: стару «Europe/Kiev» свіжі tzdata (Ubuntu 24.04 на CI)
+            # винесли в tzdata-legacy, і ZoneInfo її там не знаходить.
+            parsed = parsed.replace(tzinfo=ZoneInfo("Europe/Kyiv"))
     except (ValueError, KeyError):
         return None
     return parsed.isoformat()
