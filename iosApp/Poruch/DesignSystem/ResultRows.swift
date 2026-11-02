@@ -27,6 +27,8 @@ struct EventResultRow: View {
         if let listing = event.listing, listing.isFree?.boolValue == true || listing.priceMin != nil {
             let price = listingPrice(listing)
             parts.append(price.prefix(1).lowercased() + price.dropFirst())
+        } else if let price = event.gathering.flatMap(gatheringPrice) {
+            parts.append(price)
         }
         return parts.joined(separator: " · ")
     }

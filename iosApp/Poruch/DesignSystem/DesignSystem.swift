@@ -843,6 +843,11 @@ func eventScarce(_ event: Event) -> Bool {
 /// Ціна одним рядком: «безкоштовно», «від N» або «джерело не сказало». Останнє — не нуль.
 func listingPrice(_ listing: Listing) -> String { priceLabel(isFree: listing.isFree, price: listing.priceMin) }
 
+/// Ціна зустрічі від людей: «300 ₴» — точна, без «від» (docs/organizers-1.5.md, 1.7). Nil — безкоштовно.
+func gatheringPrice(_ room: Gathering) -> String? {
+    room.price.map { Copy.price_value(EventRules.shared.formatPrice(price: $0.int32Value)) }
+}
+
 /// Ціна одного продавця: «від 400 ₴» у рядку «Квитки».
 func offerPrice(_ offer: Offer) -> String { priceLabel(isFree: offer.isFree, price: offer.priceMin) }
 

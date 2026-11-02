@@ -284,9 +284,10 @@ private struct PosterCard: View {
     private var event: Event { entry.event }
     private var printed: Bool { printedOnly || !event.hasCover }
 
-    /// «Від 390 ₴» лише коли джерело сказало ціну. Місця зустрічі — на корінці.
+    /// «Від 390 ₴» лише коли джерело сказало ціну; зустріч — точна ціна «300 ₴». Місця зустрічі — на корінці.
     private var price: String? {
-        guard event.gathering == nil, let listing = event.listing,
+        if let room = event.gathering { return gatheringPrice(room) }
+        guard let listing = event.listing,
               listing.isFree?.boolValue == true || listing.priceMin != nil else { return nil }
         return listingPrice(listing)
     }

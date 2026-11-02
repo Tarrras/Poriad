@@ -194,12 +194,18 @@ extension EventDetailView {
         if let room = event.gathering {
             cells.append((Copy.organizer_short, room.organizerName.isEmpty ? Copy.organizer_short : room.organizerName))
             cells.append((Copy.capacity_label, Copy.attendees_short("\(room.attendeeCount)", "\(room.capacity)")))
+            // «Вхід: 300 ₴» і як платити — напряму організатору (1.7).
+            if let price = gatheringPrice(room) { cells.append((Copy.price_fact, price)) }
         }
         return LazyVGrid(columns: [GridItem(.flexible(), alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)], spacing: Space.xl) {
             ForEach(Array(cells.enumerated()), id: \.offset) { _, cell in
                 VStack(alignment: .leading, spacing: Space.xs) {
                     Text(cell.0.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                     Text(cell.1).font(PoruchFont.title3).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+                    if cell.0 == Copy.price_fact {
+                        Text(Copy.price_pay_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityElement(children: .combine)
@@ -778,9 +784,16 @@ extension EventDetailView {
     }
 
     private func summary(_ view: DetailScreenState) -> some View {
-        Text(view.seatsSummary).font(PoruchFont.subhead)
-            .foregroundStyle(view.event?.isCalledOff == true ? Palette.danger : Palette.inkSecondary)
-            .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 2) {
+            // Ціна — на панелі, де вирішують: «300 ₴».
+            if let price = view.room.flatMap(gatheringPrice) {
+                Text(price).font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(1)
+            }
+            Text(view.seatsSummary).font(PoruchFont.subhead)
+                .foregroundStyle(view.event?.isCalledOff == true ? Palette.danger : Palette.inkSecondary)
+                .lineLimit(3)
+        }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     /// Та сама дія, що `primaryAction`, тихішою кнопкою: квиток поруч із «Шукаю компанію».

@@ -306,6 +306,7 @@ struct EventMapCard: View {
                         // Склад замість місця: на слоті картки місця для обох нема, а хто виступає каже більше.
                         else if let artists = artistsLine(event) { MetaLine(glyph: PoruchIcons.person, text: artists) }
                         else { EventDescriptor(event: event) }
+                        if let price = event.gathering.flatMap(gatheringPrice) { MetaLine(glyph: PoruchIcons.ticket, text: price) }
                     }
                     Spacer(minLength: 0)
                 }
