@@ -28,6 +28,8 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalConfiguration
@@ -201,7 +203,7 @@ private fun Question(title: String, hint: String, content: @Composable ColumnSco
 private fun Interests(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) {
     Question(stringResource(R.string.onboarding_interests_title), stringResource(R.string.onboarding_interests_hint)) {
         // Ті самі плитки, що в шторці категорій. Плитка сама тримає 8 dp ціллю зверху й знизу, тож рядам проміжок не
-        // потрібен: на 360 dp чотири в ряд — усі одинадцять видно без прокрутки.
+        // потрібен: на 360 dp чотири в ряд — усі видно без прокрутки.
         FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             // ponytail: «Кіно» сховане, поки прапорець `cinema` вимкнений (1.5 без кіно, рішення ліда 02.11): вибір нічого не
             // дав би. Повернути плитку, щойно прапорець увімкнемо.
@@ -237,8 +239,12 @@ private fun Times(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) 
                     PoruchChip(stringResource(labels.first), crowd == state.crowd, { onIntent(OnboardingIntent.PickCrowd(crowd)) })
                 }
             }
+            // Що означає обраний: TalkBack каже його, щойно вибір змінився, — у чипі пояснення нема.
             crowds.firstOrNull { it.first == state.crowd }?.let { (_, labels) ->
-                Text(stringResource(labels.second), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+                Text(
+                    stringResource(labels.second), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                )
             }
         }
     }

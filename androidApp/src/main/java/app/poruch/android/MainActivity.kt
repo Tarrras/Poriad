@@ -2,6 +2,8 @@
 
 package app.poruch.android
 
+import androidx.compose.runtime.mutableLongStateOf
+import android.os.SystemClock
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.withTimeoutOrNull
@@ -123,6 +125,8 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) handle(intent)
+        // Нова активність без збереженого стану (процес живий, «Назад» на API ≤ 30) знову показує сплеш.
+        if (savedInstanceState == null) LaunchSplash.gone = false
         // Записи стека збираємо зі скоупу Activity один раз, до композиції.
         val entryProvider = getEntryProvider<NavKey>()
         val navigator = scope.get<Navigator>()
@@ -288,9 +292,11 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     // як ефект дайджесту нижче порахує цей запуск, тож на першому тут 0.
     val newcomer = remember { context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE).getInt(LAUNCHES, 0) < 2 }
     // Геолокацію питаємо одразу після питань, у першому кадрі головної: місто відоме до стосу й туру (рішення власника
-    // 02.11). [located] — відповідь є і місто з неї вже поставлено (чи його не буде).
-    var located by remember { mutableStateOf(false) }
-    LocationPrompt(app, appState) { located = true }
+    // 02.11). [answeredAt] — коли людина відповіла про дозвіл (чи питати вже не треба), [located] — місто з відповіді вже
+    // поставлено (чи його не буде). Обидва переживають поворот і зміну теми: інакше стос і тур губились до кінця сесії.
+    var answeredAt by rememberSaveable { mutableLongStateOf(0L) }
+    var located by rememberSaveable { mutableStateOf(false) }
+    LocationPrompt(app, appState, onAnswered = { if (answeredAt == 0L) answeredAt = SystemClock.elapsedRealtime() }) { located = true }
     var digestAsk by remember { mutableStateOf(false) }
     DigestPrompt(app, appState, navigator, digestAsk) { digestAsk = it }
     NotificationPromptAfter(appState, FOLLOW_ASKED) { it.library.followsMade }
@@ -301,22 +307,28 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     ReviewPrompt(app, appState)
     PasswordRecoveryEffect(navigator, appState)
     // Стос «Ваш тиждень» на 5 карток (`DeckRules.FIRST`): раз, у першій сесії, після відповіді про геолокацію й першої
-    // видачі вже для визначеного міста. Не встигла за [DECK_PATIENCE_MS] — стосу нема, лишається рядок на головній.
-    // Картки живуть у [FirstDeck], а не в `remember`: поворот перестворює активність, і стос не зникає. «Показано»
-    // пишемо, коли стос справді закрили. [deckDecided] — стос показали й закрили чи його не буде: лише тоді тур.
+    // видачі вже для визначеного міста. [DECK_PATIENCE_MS] рахуємо від відповіді про дозвіл (геокодер і свіже положення
+    // можуть думати десятки секунд); не встигли — стосу нема, лишається рядок на головній. Те саме, якщо людина вже пішла з
+    // головної (деталі, редактор): стос поверх них був би чужим. Картки живуть у [FirstDeck], а не в `remember`: поворот
+    // перестворює активність, і стос не зникає. «Показано» пишемо, коли стос справді закрили. [deckDecided] — стос
+    // показали й закрили чи його не буде: лише тоді тур.
     val deck = FirstDeck.cards
     val onboarding by remember { derivedStateOf { appState.value.needsOnboarding } }
-    var deckDecided by remember { mutableStateOf(!newcomer) }
-    LaunchedEffect(onboarding, located) {
+    var deckDecided by rememberSaveable { mutableStateOf(!newcomer) }
+    LaunchedEffect(onboarding, answeredAt) {
         val prompts = context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE)
         if (!newcomer || onboarding || FirstDeck.cards != null) return@LaunchedEffect
         if (prompts.getBoolean(DECK_DONE, false)) return@LaunchedEffect run { deckDecided = true }
-        if (!located) return@LaunchedEffect
-        val cards = withTimeoutOrNull(DECK_PATIENCE_MS) {
-            snapshotFlow { appState.value.home }.first { it.loaded && !it.loading }
+        if (answeredAt == 0L) return@LaunchedEffect
+        val left = DECK_PATIENCE_MS - (SystemClock.elapsedRealtime() - answeredAt)
+        val cards = withTimeoutOrNull(left.coerceAtLeast(1)) {
+            snapshotFlow { located }.first { it }
+            // Зі спільного стану, а не з `appState`: та копія збирається з життєвим циклом і на кадр відстає зі старим
+            // «завантажено» попереднього міста.
+            app.state.first { it.home.loaded && !it.home.loading }
             app.deckCards()
         }
-        if (cards == null || cards.size < DeckRules.MIN) {
+        if (cards == null || cards.size < DeckRules.MIN || navigator.current != Home) {
             prompts.edit { putBoolean(DECK_DONE, true) }
             deckDecided = true
             return@LaunchedEffect
@@ -360,10 +372,11 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
  * онбордингу (рішення власника 02.11). [onSettled] — відповідь є й місто з неї поставлено, або його не буде.
  */
 @Composable
-private fun LocationPrompt(app: PoruchApp, appState: State<AppState>, onSettled: () -> Unit) {
+private fun LocationPrompt(app: PoruchApp, appState: State<AppState>, onAnswered: () -> Unit, onSettled: () -> Unit) {
     val context = LocalContext.current
     val state by appState
     val nearby = stringResource(R.string.nearby)
+    val answered by rememberUpdatedState(onAnswered)
     val settled by rememberUpdatedState(onSettled)
     val locate = {
         context.lastKnownPosition({ lat, lon, _ ->
@@ -371,18 +384,19 @@ private fun LocationPrompt(app: PoruchApp, appState: State<AppState>, onSettled:
         }, { settled() })
     }
     val locationPermission =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { if (it) locate() else settled() }
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { answered(); if (it) locate() else settled() }
     // Один раз на запуск, а не на кожен поворот. Обране руками місто спільний код не перебиває.
     var asked by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.needsOnboarding) {
         if (state.needsOnboarding || asked) return@LaunchedEffect
         asked = true
         if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            answered()
             return@LaunchedEffect locate()
         }
         // Питаємо раз; далі — лише кнопкою «Поруч» на мапі.
         val prompts = context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE)
-        if (prompts.getBoolean(LOCATION_ASKED, false)) return@LaunchedEffect settled()
+        if (prompts.getBoolean(LOCATION_ASKED, false)) return@LaunchedEffect run { answered(); settled() }
         prompts.edit { putBoolean(LOCATION_ASKED, true) }
         locationPermission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
     }

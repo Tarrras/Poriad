@@ -65,7 +65,7 @@ sealed interface HomeIntent {
     data object ShowMoreFeed : HomeIntent
     /** Чип над сіткою. */
     data class SelectFeedFilter(val filter: FeedFilter) : HomeIntent
-    /** Плашка «Організувати подію» вгорі й підвал стрічки: новий редактор, гостя спершу до входу. [from] — `home_top` чи `home_footer`. */
+    /** Квиток «Організувати подію» в рейці: новий редактор, гостя спершу до входу. [from] — звідки, для аналітики (`home_top`). */
     data class CreateEvent(val from: String) : HomeIntent
     data object OpenMap : HomeIntent
     /** «Усі N» біля «Від людей»: мапа лише зі зустрічами від людей з вільним місцем. */

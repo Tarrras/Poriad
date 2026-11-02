@@ -1,5 +1,9 @@
 package app.poruch.android.feature.home
 
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.currentStateAsState
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.boundsInWindow
@@ -64,7 +68,6 @@ import org.koin.compose.koinInject
 import app.poruch.android.feature.explore.CitySearchSheet
 import app.poruch.android.feature.explore.SEARCH_SETTLE_MS
 import app.poruch.android.feature.explore.dateFilters
-import app.poruch.android.feature.mine.countdownOverline
 import app.poruch.android.feature.wallet.TodayTickets
 import app.poruch.android.platform.openInMaps
 import app.poruch.android.ui.*
@@ -692,19 +695,20 @@ private fun YourRow(
 @Composable
 private fun PlanRow(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
     val event = row.event
-    // Моя роль у події; після кінця вона нічого не каже. Скасована — замість ролі.
+    // Моя роль у події; після кінця вона нічого не каже. Скасована, перенесена чи переїхала — стан замість ролі.
     val role = when {
         event.isCancelled -> stringResource(R.string.cancelled_short)
         event.hasEnded(kotlin.time.Clock.System.now()) -> null
-        row.organizing -> stringResource(R.string.home_role_organizer)
-        else -> stringResource(R.string.going)
+        else -> event.listing?.let { listingStamp(it)?.first }
+            ?: stringResource(if (row.organizing) R.string.home_role_organizer else R.string.going)
     }
-    // Що чекає на людину: нове в чаті, запити, а інакше — де.
-    val detail = row.chat?.let { chat ->
-        val body = chat.lastBody.replace('\n', ' ')
-        if (body.isBlank()) pluralStringResource(R.plurals.chat_unread_count, chat.unread, chat.unread)
-        else stringResource(R.string.home_chat_preview, chat.lastAuthorName.ifBlank { stringResource(R.string.chat_member) }, body)
-    } ?: row.requests.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.requests_count, it, it) } ?: event.placeLabel
+    // Що чекає на людину: спершу запити (на них чекають люди), потім нове в чаті, а інакше — де.
+    val detail = row.requests.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.requests_count, it, it) }
+        ?: row.chat?.let { chat ->
+            val body = chat.lastBody.replace('\n', ' ')
+            if (body.isBlank()) pluralStringResource(R.plurals.chat_unread_count, chat.unread, chat.unread)
+            else stringResource(R.string.home_chat_preview, chat.lastAuthorName.ifBlank { stringResource(R.string.chat_member) }, body)
+        } ?: event.placeLabel
     val subtitle = listOfNotNull(role, detail.takeIf { it.isNotBlank() }).joinToString(" · ")
     UnfoldSource(event.id, "home_your", { onIntent(HomeIntent.OpenEvent(event.id, "home_your")) }, bare = true) { source, open ->
         YourRow(
@@ -716,7 +720,8 @@ private fun PlanRow(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
                 .size(YourTile)
                 .clip(Radius.sm), glyphSize = 24.dp) },
             modifier = source,
-            chat = row.chat?.let { it.unread to { onIntent(HomeIntent.OpenChat(event.id)) } },
+            // Лічильник — кнопка в чат, поки в підписі не запити: вони важливіші, і рядок веде до них.
+            chat = row.chat?.takeIf { row.requests == 0 }?.let { it.unread to { onIntent(HomeIntent.OpenChat(event.id)) } },
             brandTitle = true
         ) { Chevron() }
     }
@@ -786,8 +791,11 @@ private fun NextPlanCard(row: PersonalRow, modifier: Modifier, open: () -> Unit,
             it.lastBody.replace('\n', ' ')
         )
     }
+    // Стан квитка важливіший за роль: скасована — «СКАСОВАНО», перенесена чи переїхала афіша — її штамп, як скрізь.
+    val listingState = event.listing?.let { listingStamp(it) }
     val stamp = when {
-        event.isCalledOff -> stringResource(R.string.cancelled_short) to BadgeTone.Danger
+        event.isCancelled -> stringResource(R.string.cancelled_short) to BadgeTone.Danger
+        listingState != null -> listingState
         row.requests > 0 -> stringResource(R.string.home_requests_short, row.requests) to BadgeTone.Accent
         row.organizing -> stringResource(R.string.home_role_organizer) to BadgeTone.Brand
         else -> stringResource(R.string.going) to BadgeTone.Success
@@ -798,15 +806,22 @@ private fun NextPlanCard(row: PersonalRow, modifier: Modifier, open: () -> Unit,
     val prompts = remember { context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE) }
     val fresh = remember(event.id) { prompts.getString(PLAN_STAMPED, null) != event.id }
     var seen by remember(event.id) { mutableStateOf(false) }
-    // Видно над таббаром і сплеш уже пішов: на холодному старті головна вантажиться під ним.
-    var inView by remember(event.id) { mutableStateOf(false) }
-    LaunchedEffect(inView, LaunchSplash.gone) { if (inView && LaunchSplash.gone) seen = true }
+    // Видно над таббаром — про місце на екрані, а не про план: новий план на тому самому місці (прийшов запит) видно
+    // одразу, без перерозміщення. Удар — лише коли сплеш пішов і над головною нічого нема: ні системного питання (застосунок
+    // не RESUMED), ні стосу чи іншого діалогу (вікно без фокуса). Інакше удар пройшов би під ними, а id уже записався б.
+    var inView by remember { mutableStateOf(false) }
+    val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    val front = lifecycle.isAtLeast(Lifecycle.State.RESUMED) && LocalWindowInfo.current.isWindowFocused
+    LaunchedEffect(event.id, inView, LaunchSplash.gone, front) { if (inView && LaunchSplash.gone && front) seen = true }
     LaunchedEffect(event.id, seen) { if (seen) prompts.edit { putString(PLAN_STAMPED, event.id) } }
     val window = LocalWindowInfo.current.containerSize.height
     val density = LocalDensity.current
-    val covered = with(density) { TabBarClearance.toPx() } + WindowInsets.navigationBars.getBottom(density)
-    // Чекає на удар — ще не видно: прозорий, щоб не стояв на місці до того, як упасти.
-    val waiting = fresh && !seen && !Poruch.reducedMotion
+    // Верх самого таббара (56 і відступ під ним), а не запас стрічки під ним: штамп між ними вже видно, і прозорим він
+    // стояв би порожнім місцем. Широке вікно — таббар зліва.
+    val bar = if (LocalWideLayout.current) 0.dp else 56.dp + Spacing.md
+    val covered = with(density) { bar.toPx() } + WindowInsets.navigationBars.getBottom(density)
+    // Чекає на удар — ще не видно: прозорий, щоб не стояв на місці до того, як упасти. У прев'ю — уже побачено.
+    val waiting = fresh && !seen && !Poruch.reducedMotion && !LocalInspectionMode.current
     // Великий шрифт (як accessibility-розміри iOS): корінець знизу, як у постера, — праворуч він з'їдав ширину назви.
     val upright = stackedHome()
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
