@@ -628,7 +628,7 @@ Android `Navigator.createEvent` → `Auth(AuthReason.CREATE)`), і 70% гост�
   (web)» (`…-irvrrok6…`, він уже перший у Client IDs на dev і prod) — адреси повернення обох проєктів. Лишилось
   власнику: секрет цього клієнта (Google більше не показує старий `****RX6Y` → «Add secret») у Supabase → Google →
   Client Secret (prod і dev); `RESEND_API_KEY` і `ANTHROPIC_API_KEY` у секретах функцій. `MAIL_FROM` не потрібен —
-  у `push` той самий відправник за замовчуванням. Site URL на prod — `http://localhost:3000`.
+  у `push` той самий відправник за замовчуванням. Site URL на prod — `https://poriad.app` (був `http://localhost:3000`).
 - **Google на вебі:** у Google Cloud веб-клієнт OAuth (якщо ще нема) з адресою повернення
   `https://{проєкт}.supabase.co/auth/v1/callback` для dev і prod; його ID і секрет — у Supabase → Auth → Providers →
   Google (поруч з ID застосунків); Supabase → Auth → URL Configuration → Redirect URLs: `https://poriad.app/**`.
