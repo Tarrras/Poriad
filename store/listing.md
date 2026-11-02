@@ -150,7 +150,7 @@ UGC: так. Спілкування між користувачами: так (�
 • Фото й відео в події: до п'яти, перше стане обкладинкою. На сторінці події їх можна гортати, відео грає без звуку.
 • «Повторити» в «Моїх подіях» створює таку саму подію з усіма полями, фото й відео, на тиждень пізніше — лише перевірте дату.
 • «Пост для Threads»: готовий текст анонсу з посиланням і фото, щоб поділитися одним дотиком.
-• Вхід кодом з пошти — без пароля. Замість дати народження — позначка «Мені вже є 18».
+• Вхід кодом з пошти — без пароля. Дату народження питаємо лише для подій з віковими межами.
 • Повідомимо, коли організатор схвалив чи відхилив ваш запит або для вас звільнилось місце.
 • Подію створено — одразу посилання, календар і «Поширити».
 • На головній ваш найближчий план — квиток зі штампом. Перший запуск коротший: менше питань і одна підказка.
@@ -164,7 +164,7 @@ UGC: так. Спілкування між користувачами: так (�
 • Photos and videos on events: up to five, and the first becomes the cover. Swipe through them on the event page; videos play muted.
 • "Repeat" in My events creates the same event a week later, with all its fields, photos and videos. Just check the date.
 • "Post for Threads": a ready announcement with the link and photos, shared in one tap.
-• Sign in with a code from your email, no password needed. Instead of your date of birth, just confirm "I'm 18 or older".
+• Sign in with a code from your email, no password needed. We only ask for your date of birth for age-restricted events.
 • We'll let you know when an organiser approves or declines your request, or when a spot opens up for you.
 • Event created: the link, calendar and "Share" are right there.
 • Your next plan sits on the home screen as a ticket with a stamp. The first launch is shorter: fewer questions and a single tip.
