@@ -126,6 +126,8 @@ struct EventEditor: View {
             // «Подію опубліковано» каже сам екран; збій файлів (MediaFailed) лишаємо — його треба побачити.
             if model.state?.notice is AppNoticeTold { model.app.clearNotice() }
             withMotion { shownPublished = published }
+            // VoiceOver: новий екран, а не та сама форма — і одразу його назва.
+            UIAccessibility.post(notification: .screenChanged, argument: Copy.published_title)
         }
         // «Опублікувати» в гостя: вхід поверх редактора з чернеткою під ним. Увійшов — вхід закривається сам, а подія
         // публікується; закрив без входу — публікація скасована, людина лишається тут з тією самою чернеткою.
@@ -341,7 +343,8 @@ private struct PublishingOverlay: View {
         // Непрозоро: крізь накладку просвічував той самий лічильник у нижній панелі редактора.
         .background(Palette.canvas.ignoresSafeArea())
         .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.updatesFrequently)
+        // Модально: поки публікується, «Назад» і поля під накладкою VoiceOver не активує.
+        .accessibilityAddTraits([.updatesFrequently, .isModal])
         .transition(.opacity)
     }
 }

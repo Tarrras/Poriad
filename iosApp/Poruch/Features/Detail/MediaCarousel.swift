@@ -38,7 +38,8 @@ struct MediaCarousel: View {
         .scrollPosition(id: Binding(get: { scroll.mediaPage }, set: { scroll.mediaPage = $0 ?? 0 }))
         // Назва лежить на затемненні, як на обкладинці. Дотиків не забирає.
         .overlay(photoScrim.allowsHitTesting(false))
-        .fullScreenCover(item: $playing) { FullScreenVideo(url: $0.url) }
+        // З диска, якщо кеш уже наповнився: повний перегляд не тягне файл зі Storage вдруге.
+        .fullScreenCover(item: $playing) { FullScreenVideo(url: VideoCache.cached($0.url) ?? $0.url) }
         .onAppear { onScreen = true }
         .onDisappear { onScreen = false }
     }
@@ -83,30 +84,36 @@ private struct PlayingVideo: Identifiable {
     var id: URL { url }
 }
 
-/// Відео сторінки з кешу на диску: доки файл їде, видно постер під ним.
+/// Відео сторінки: з диска, якщо вже в кеші, інакше — одразу з мережі, а кеш наповнюється у фоні для наступних разів.
 private struct CachedVideo: View {
     let remote: URL
-    @State private var local: URL?
     var body: some View {
-        // Основа — прозора, а не порожній Group: на порожньому `.task` не стартує.
-        Color.clear
-            .overlay { if let local { LoopingVideo(url: local) } }
-            .task(id: remote) { local = await VideoCache.file(for: remote) }
+        LoopingVideo(url: VideoCache.cached(remote) ?? remote)
+            .onAppear { VideoCache.prefetch(remote) }
     }
 }
 
-/// Відео каруселі файлом у Caches: петля, повернення на сторінку й повторне відкриття події грають з диска, а не тягнуть
-/// файл зі Storage знову — кожен перегляд там наш трафік, а Spend Cap обмежує весь проєкт (docs/organizers-1.5.md, 1.3).
-/// Коли разом понад [limit], геть те, що грало найдавніше.
-enum VideoCache {
+/// Відео каруселі файлом у Caches: повернення на сторінку, повторне відкриття події й повний перегляд грають з диска, а
+/// не тягнуть файл зі Storage знову — кожен перегляд там наш трафік, а Spend Cap обмежує весь проєкт
+/// (docs/organizers-1.5.md, 1.3). Коли разом понад [limit], геть те, що грало найдавніше.
+///
+/// Першого разу відео грає з мережі одразу, а файл качається окремо: одне завантаження на адресу, без скасування при
+/// прокрутці, з `resumeData` після обриву — відео з кабінету (до 50 МБ) на повільній мережі колись таки ляже на диск.
+/// ponytail: перший перегляд — два потоки (плеєр і кеш); один потік — через `AVAssetResourceLoader`, якщо трафік болітиме.
+@MainActor enum VideoCache {
     /// З запасом на кілька відео з кабінету (до 50 МБ без стиснення) і на десятки з застосунку (до 8 МБ).
     private static let limit = 100 * 1024 * 1024
+    /// Довгі таймаути: повільна мережа не повинна вбивати завантаження, яке нікого не тримає.
     private static let session: URLSession = {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 15
-        config.timeoutIntervalForResource = 120
+        config.timeoutIntervalForRequest = 60
+        config.timeoutIntervalForResource = 60 * 60
         return URLSession(configuration: config)
     }()
+    /// Завантаження в дорозі — по одному на адресу.
+    private static var inFlight: Set<URL> = []
+    /// Що вже встигло доїхати до обриву: наступна спроба продовжує звідти.
+    private static var resumeData: [URL: Data] = [:]
 
     private static var directory: URL {
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -115,19 +122,40 @@ enum VideoCache {
         return directory
     }
 
-    /// Локальний файл відео: з кешу або щойно завантажений. Не вийшло — nil, і сторінка лишається постером.
-    static func file(for remote: URL) async -> URL? {
-        // Подія й імʼя файлу: імена — uuid, тож збігу між подіями нема, а адреса бакета лишається поза іменем.
-        let file = directory.appendingPathComponent(remote.pathComponents.suffix(2).joined(separator: "-"))
-        if FileManager.default.fileExists(atPath: file.path) {
-            try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: file.path)
-            return file
+    /// Подія й імʼя файлу: імена — uuid, тож збігу між подіями нема, а адреса бакета лишається поза іменем.
+    private static func file(for remote: URL) -> URL {
+        directory.appendingPathComponent(remote.pathComponents.suffix(2).joined(separator: "-"))
+    }
+
+    /// Файл з кешу, якщо вже є (і він тепер «грав найпізніше»). Нема — nil: граємо з мережі.
+    static func cached(_ remote: URL) -> URL? {
+        let file = file(for: remote)
+        guard FileManager.default.fileExists(atPath: file.path) else { return nil }
+        try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: file.path)
+        return file
+    }
+
+    /// Покласти відео в кеш у фоні. Уже є чи вже качається — нічого. Обірвалось — наступний виклик продовжить.
+    static func prefetch(_ remote: URL) {
+        let target = file(for: remote)
+        guard !inFlight.contains(remote), !FileManager.default.fileExists(atPath: target.path) else { return }
+        inFlight.insert(remote)
+        let finish: @Sendable (URL?, URLResponse?, Error?) -> Void = { temp, response, error in
+            // Переносимо тут же: тимчасовий файл живе лише до кінця цього обробника.
+            var saved = false
+            if let temp, (response as? HTTPURLResponse).map({ (200...299).contains($0.statusCode) }) ?? false {
+                saved = (try? FileManager.default.moveItem(at: temp, to: target)) != nil
+            }
+            let partial = (error as NSError?)?.userInfo[NSURLSessionDownloadTaskResumeData] as? Data
+            Task { @MainActor in
+                inFlight.remove(remote)
+                resumeData[remote] = saved ? nil : partial
+                if saved { prune() }
+            }
         }
-        guard let (temp, response) = try? await session.download(from: remote),
-              (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
-        if (try? FileManager.default.moveItem(at: temp, to: file)) == nil { try? FileManager.default.removeItem(at: temp) }
-        prune()
-        return FileManager.default.fileExists(atPath: file.path) ? file : nil
+        let task = resumeData.removeValue(forKey: remote).map { session.downloadTask(withResumeData: $0, completionHandler: finish) }
+            ?? session.downloadTask(with: remote, completionHandler: finish)
+        task.resume()
     }
 
     private static func prune() {

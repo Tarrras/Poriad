@@ -508,6 +508,8 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     /// Стор підтвердив запис: чернетка більше не потрібна.
     func finish() {
         UserDefaults.standard.removeObject(forKey: storageKey)
+        // Збережено: втрачати нічого, тож і «Подію створено» після повтору зі зміненими полями закривається змахом.
+        original = form
         // Нове вже в теці події: локальні копії більше не потрібні.
         DraftFiles.delete(form.media ?? [])
         // Після цього екран закривається, і `onDisappear` кличе `persist`: без прапорця він
