@@ -33,6 +33,8 @@ export const STATUS = {
 };
 /** Напис на кнопці внизу сторінки. */
 const LABELS = { none: "Йду", approved: "Ви в списку", requested: "Заявку надіслано", waitlist: "Ви в черзі" };
+/** Штамп стану на квитку шторки й панелі (DESIGN.md, Ticket Stamp): участь — success, запит і черга — штампова фарба. */
+export const STAMPS = { approved: ["Ви йдете", "success"], requested: ["Запит", "accent"], waitlist: ["Черга", "accent"] };
 
 /** Помилки входу й дрібних дій — текстом під формою. */
 const MESSAGES = {
@@ -109,6 +111,7 @@ export function start(sheet) {
   let shown = null; // що зараз у шторці
   let version = 0; // скільки разів мінявся стан: тихе оновлення не перезаписує свіжішого
   let working = false;
+  let fresh = false; // щойно записались: штамп на панелі ще не падав
   let resendTimer;
 
   /** Одна дія за раз: подвійний тап не шле двох листів і не записує двічі. */
@@ -156,6 +159,15 @@ export function start(sheet) {
     state = next;
     version += 1;
     if (bar) bar.textContent = LABELS[next];
+    // Записаний — на квитку штамп, а «Йду» стає тоновою: головна дія вже зроблена.
+    document.querySelector(".bar")?.setAttribute("data-state", next);
+    const [word, tone] = STAMPS[next] ?? ["", ""];
+    for (const stamp of [$("[data-going]"), document.querySelector(".bar [data-going]")]) {
+      if (!stamp) continue;
+      stamp.textContent = word;
+      stamp.className = `stamp ${tone}`;
+      stamp.hidden = !word;
+    }
   }
   function show(kind) {
     const s = STATUS[kind];
@@ -199,6 +211,9 @@ export function start(sheet) {
     }
     // Запит пройшов, а в списку людини нема: не «нема звʼязку», а «не вийшло».
     if (!(await refresh())) throw Object.assign(new Error("Після запису людини нема в списку"), { status: 200 });
+    // Штамп на панелі падає, коли шторку закриють: за шторкою його не видно (web.css, slam).
+    document.querySelector(".bar")?.removeAttribute("data-fresh");
+    fresh = true;
     show(state);
   }
   /**
@@ -392,7 +407,11 @@ export function start(sheet) {
   }));
   $("[data-close]").addEventListener("click", () => sheet.close());
   // Закрили шторку — передумали: наступне перезавантаження не відкриває крок з кодом.
-  sheet.addEventListener("close", () => sessionStorage.removeItem(PENDING));
+  sheet.addEventListener("close", () => {
+    sessionStorage.removeItem(PENDING);
+    if (fresh) document.querySelector(".bar")?.setAttribute("data-fresh", "");
+    fresh = false;
+  });
   sheet.addEventListener("click", (event) => { if (event.target === sheet) sheet.close(); });
   $("[data-google]").addEventListener("click", task(() => google(location.origin + location.pathname, { event: id, action })));
   $('[data-form="email"]').addEventListener("submit", task((event) => send(event.target.email.value.trim())));

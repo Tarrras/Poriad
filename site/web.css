@@ -552,19 +552,22 @@ a.row:hover { background: var(--surface-muted); }
   outline: 1.5px dashed color-mix(in srgb, var(--ink-tertiary) 65%, transparent); outline-offset: -8px; }
 .event-shell .app-only .stores { margin-top: 4px; }
 .event-shell .bar { position: sticky; left: auto; right: auto; bottom: 12px; margin: 0 0 16px; }
-/* Стара розмітка worker/ — панель без корінця з часом: корінець тут — смуга кольору жанру за перфорацією. */
-.event-shell .bar:not(:has(.ticket)) { padding: 12px; border-radius: var(--r-xl); background: var(--surface-raised);
-  border: 1px solid var(--edge); border-right: 28px solid var(--stub, var(--ink)); }
-.event-shell .bar:not(:has(.ticket))::after { content: ""; position: absolute; top: 12px; bottom: 12px; right: -3px; border-left: 3px dotted var(--canvas); }
-.event-shell .bar:not(:has(.ticket)) .meta small { color: var(--cat-ink, var(--ink-tertiary)); }
-.event-page:has(.cover-big.cat-music) .bar { --stub: var(--cat-music-stub); } .event-page:has(.cover-big.cat-sport) .bar { --stub: var(--cat-sport-stub); }
-.event-page:has(.cover-big.cat-art) .bar { --stub: var(--cat-art-stub); } .event-page:has(.cover-big.cat-food) .bar { --stub: var(--cat-food-stub); }
-.event-page:has(.cover-big.cat-games) .bar { --stub: var(--cat-games-stub); } .event-page:has(.cover-big.cat-outdoors) .bar { --stub: var(--cat-outdoors-stub); }
-.event-page:has(.cover-big.cat-social) .bar { --stub: var(--cat-social-stub); } .event-page:has(.cover-big.cat-comedy) .bar { --stub: var(--cat-comedy-stub); }
-.event-page:has(.cover-big.cat-kids) .bar { --stub: var(--cat-kids-stub); } .event-page:has(.cover-big.cat-tours) .bar { --stub: var(--cat-tours-stub); }
-.event-page:has(.cover-big.cat-conference) .bar { --stub: var(--cat-conference-stub); }
-.event-shell .cover-big { border-bottom: 24px solid var(--stub, var(--ink)); }
-.event-shell .cover-big::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; border-top: 3px dotted var(--canvas); }
+/* Обкладинка — сам квиток (design-wow-1.5): назва display на поверхні, корінець жанру 56 за перфорацією з вирізами,
+   на ньому білим — гліф і жанр, «Від людей» чи «Афіша» й вік. Квиток у потоці плаский. */
+.event-shell .cover-big { --stub-h: 56px; --r: var(--r-lg); }
+.event-shell .cover-big > .stub { margin: 0; padding: 0 18px; gap: 12px; }
+.cover-big > .stub .kind { display: inline-flex; align-items: center; gap: 9px; min-width: 0; font: 800 17px/20px var(--cond); letter-spacing: .8px; text-transform: uppercase; white-space: nowrap; }
+.cover-big > .stub .kind .ico { width: 24px; height: 24px; }
+.cover-big > .stub small { overflow: hidden; text-overflow: ellipsis; }
+.event-shell .cover-big h1 { margin: 20px 20px 24px; font: 800 clamp(34px, 8.6vw, 46px)/1.04 var(--cond); letter-spacing: -.02em; }
+.event-shell .cover-big:not(:has(.art img)) h1 { margin-top: 28px; font-size: clamp(44px, 12vw, 64px); line-height: .98; }
+.event-shell .cover-big h1.long, .event-shell .cover-big:not(:has(.art img)) h1.long { font-size: clamp(27px, 6.4vw, 34px); line-height: 1.1; }
+.event-shell .cover-big .quiet + h1 { margin-top: 6px; }
+/* Поля квитка: «Коли», «Де», хто й скільки — надруковані на поверхні дві колонки, волосина між клітинками. */
+.event-shell .cover-big .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); border: 0; border-top: 1px solid var(--hairline); border-radius: 0; }
+.event-shell .cover-big .facts > div { padding: 14px 20px 16px; }
+/* На телефоні «Коли» й «Де» — на всю ширину: довга дата й адреса в пів квитка ламались на три рядки. */
+@media (max-width: 480px) { .event-shell .cover-big .facts > div:nth-child(-n+2) { grid-column: 1 / -1; } }
 .notice { margin: 0; background: var(--danger-container); color: var(--danger); padding: 12px 16px; border-radius: var(--r-md); font-weight: 600; }
 .notice.calm { background: var(--surface-muted); color: var(--ink); font-weight: 500; }
 .note { font: 400 15px/21px var(--font); color: var(--ink-secondary); }
@@ -785,6 +788,25 @@ a.row:hover { background: var(--surface-muted); }
 .app-pitch { display: flex; flex-direction: column; gap: 10px; padding-top: 16px; border-top: 1px solid var(--hairline); }
 .app-pitch b { font: 700 22px/26px var(--cond); }
 .join-sheet .week { padding-top: 16px; border-top: 1px solid var(--hairline); }
+/* Записаний (design-wow-1.5): над числом місць — штамп стану, «Ви в списку» — тоном, бо головну дію вже зроблено. */
+.bar .meta .stamp { align-self: flex-start; margin: 0 0 5px 1px; }
+.bar .meta:has(.stamp:not([hidden])) small { display: none; }
+.bar:is([data-state="approved"], [data-state="requested"], [data-state="waitlist"]) [data-join] { background: color-mix(in srgb, var(--ink) 9%, var(--surface-raised)); color: var(--ink); }
+.bar:is([data-state="approved"], [data-state="requested"], [data-state="waitlist"]) [data-join]:hover { background: color-mix(in srgb, var(--ink) 14%, var(--surface-raised)); }
+/* Квиток події в шторці: на папері полотна, перфорація й вирізи пробиті до шторки, час — на корінці жанру. */
+.sheet-ticket { --stub-w: 92px; --r: var(--r-lg); --ground: var(--surface-raised); background: var(--canvas); min-height: 96px; flex: none; }
+.sheet-ticket > .face { position: relative; padding: 14px 16px; gap: 4px; justify-content: center; }
+.sheet-ticket .name { font: 700 20px/23px var(--cond); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sheet-ticket .face small { font: 400 13px/18px var(--font); color: var(--ink-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sheet-ticket .stub .t { font-size: 30px; line-height: 32px; }
+.sheet-ticket .stub small { font-size: 10px; letter-spacing: .4px; }
+.sheet-ticket .stamp { position: absolute; right: 10px; bottom: 10px; font-size: 15px; line-height: 17px; padding: 4px 9px; border-width: 2px; background: var(--canvas); }
+.sheet-ticket .face:has(.stamp:not([hidden])) small { margin-right: 92px; }
+/* Цілі 44: «Стежити» й текстові дії шторки візуально менші, а натискна зона — повна. */
+.join-sheet .row .act { position: relative; }
+.join-sheet .row .act::after { content: ""; position: absolute; inset: -4px 0; }
+.join-sheet .link { display: inline-flex; align-items: center; min-height: 44px; }
+
 /* Панель сторінки: дрібне «Уже є застосунок?» під «Йду», а на закритій події — напис замість кнопки. */
 .bar .open-app { align-self: center; font: 500 13px/18px var(--font); color: var(--ink-secondary); text-decoration: underline; text-underline-offset: 3px; }
 .bar .closed { flex: 1 0 auto; text-align: right; font: 600 15px/20px var(--font); color: var(--ink-secondary); }
@@ -816,19 +838,23 @@ a.row:hover { background: var(--surface-muted); }
 .kab-error { font: 500 15px/21px var(--font); color: var(--danger); }
 .kab-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .kab-danger { color: var(--danger); }
+.btn.kab-danger:hover { background: var(--danger-container); }
 .kab-wide { width: 100%; }
 
 /* Мої події: рядок — малий корінець і назва, лічильники під нею. */
-[data-upcoming], [data-past] { display: flex; flex-direction: column; gap: 10px; }
-.kab-event { display: flex; align-items: center; gap: 16px; padding: 12px 16px 12px 12px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--edge); transition: transform .28s var(--spring); }
-.kab-event:hover { transform: translateY(-1px); }
-.kab-event .kab-text { flex: 1; min-width: 0; }
+[data-upcoming], [data-past] { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 12px; }
+.kab-event { --stub-w: 96px; --r: var(--r-lg); min-height: 104px; transition: transform .28s var(--spring); }
+.kab-event:hover { transform: translateY(-2px); }
+.kab-event:active { transform: scale(.99); }
+.kab-event > .face { justify-content: center; gap: 2px; padding: 14px 18px; }
 .kab-event h3 { font-size: 22px; line-height: 25px; }
 .kab-event p { font: 400 15px/21px var(--font); color: var(--ink-secondary); margin-top: 2px; }
 .kab-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
 .kab-stats span:not(.stamp) { color: var(--ink); }
 .kab-stats .kab-waiting { color: var(--accent-text); font-weight: 600; }
-.kab-go { transform: rotate(-90deg); color: var(--ink-tertiary); }
+/* Минула пробита: кругле пробиття 10 у корінці кольору полотна; скасована — погашений сірий корінець і штамп. */
+.kab-event.past > .stub::after { content: ""; position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: var(--ground); }
+.kab-event.void > .stub { background: var(--void-stub); }
 
 /* Подія: дії, «опубліковано», учасники таблицею. */
 .kab-done { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 16px 0 0; padding: 14px 18px; border-radius: var(--r-md); background: var(--success-container); color: var(--on-success-container); font: 400 15px/21px var(--font); }
@@ -878,6 +904,8 @@ a.row:hover { background: var(--surface-muted); }
 .kab-play { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 26px; text-shadow: 0 1px 6px rgba(0,0,0,.5); pointer-events: none; }
 .kab-x { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.5); color: #fff; }
 .kab-x .ico { width: 16px; height: 16px; }
+/* Цілі 44 на плитці медіа: «×» і «Першим» візуально менші. */
+.kab-x::after, .kab-chip-btn::after { content: ""; position: absolute; inset: -7px; }
 .kab-chip-btn { position: absolute; left: 6px; bottom: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: rgba(0,0,0,.5); color: #fff; font: 600 13px/16px var(--font); }
 .kab-add { width: 100%; aspect-ratio: 4 / 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 10px; border: 1.5px dashed var(--ink-tertiary); border-radius: var(--r-sm);
   color: var(--ink); font: 600 14px/18px var(--font); text-align: center; transition: background .2s; }
@@ -899,14 +927,24 @@ a.row:hover { background: var(--surface-muted); }
 
 /* Публікація й «Подію створено» (1.6): квиток Lottie 240×160 (3:2) друкується, потім на нього падає штамп. */
 .kab-anim { width: 240px; max-width: 100%; aspect-ratio: 3 / 2; margin: 0 auto; }
-.kab-anim.big { width: 360px; }
 .kab-publishing { margin: auto; width: min(380px, calc(100vw - 32px)); padding: 28px 24px 24px; border-radius: var(--r-xl); background: var(--surface-raised);
   box-shadow: var(--shadow-overlay); text-align: center; }
 .kab-publishing-title { margin-top: 14px; font: 800 26px/30px var(--cond); letter-spacing: -.01em; }
 .kab-publishing .kab-note { margin-top: 6px; min-height: 20px; font-variant-numeric: tabular-nums; }
 .kab-publishing .kab-note:empty { display: block; }
 .kab-created { max-width: 640px; margin: 0 auto; padding-top: 8px; text-align: center; }
-.kab-created h1 { margin-top: 8px; font-size: clamp(36px, 4vw, 52px); line-height: 1; letter-spacing: -.02em; }
+.kab-created h1 { margin-top: 4px; font-size: clamp(44px, 6vw, 64px); line-height: .98; letter-spacing: -.02em; }
+/* Квиток створеної події (design-wow-1.5): обкладинка, назва display, місце й корінець жанру з часом, днем і місцями. */
+/* Проріз, з якого виїжджає квиток: обгортка обрізає, поле 6 — для підйому під курсором і кільця фокуса. */
+.kab-done-ticket { display: flex; justify-content: center; margin-top: 18px; padding: 6px; overflow: hidden; }
+.kab-ticket { --stub-h: 64px; --r: var(--r-lg); width: min(400px, 100%); text-align: left; transition: transform .28s var(--spring); }
+.kab-ticket:hover { transform: translateY(-2px); }
+.kab-ticket > img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--wash); }
+.kab-ticket > .face { padding: 16px 18px 18px; gap: 4px; }
+.kab-ticket > .face b { font: 800 28px/30px var(--cond); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.kab-ticket > .face small { font: 400 15px/21px var(--font); color: var(--ink-secondary); }
+.kab-ticket > .stub { padding: 0 16px; }
+.kab-ticket > .stub .t { font-size: 34px; line-height: 36px; }
 .kab-created .kab-note { margin-top: 10px; color: var(--danger); }
 .kab-created-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 28px 0 14px; }
 .kab-created-actions .btn.primary, .kab-created-actions [data-done-ready] { grid-column: 1 / -1; }
@@ -918,8 +956,38 @@ a.row:hover { background: var(--surface-muted); }
 @media (max-width: 640px) {
   .kab-created-actions { grid-template-columns: minmax(0, 1fr); }
   .kab-card { padding: 18px 16px 20px; }
-  .kab-event { gap: 12px; padding: 10px 12px 10px 10px; }
+  .kab-event { --stub-w: 84px; min-height: 96px; }
+  .kab-event > .face { padding: 12px 14px; }
   .kab-event h3 { font-size: 19px; line-height: 22px; }
   .kab-tools .btn { flex: 1 1 auto; }
   .kab-map { height: 300px; }
 }
+
+/* ================= Рух «Друк і штамп» (design-wow-1.5, docs/design-wow-1.5.md) ================= */
+/* Один язик руху на сайті й у застосунках: квиток друкується, корінець відривається, штамп падає з розмаху. Кінцевий
+   стан — звичайна розмітка: без руху (prefers-reduced-motion) усе одразу на місці, штамп просто стоїть. */
+@media (prefers-reduced-motion: no-preference) {
+  /* Сторінка події: корінець жанру заливається від перфорації, друк на ньому проявляється слідом. */
+  .event-shell .cover-big > .stub { animation: flood .55s var(--ease) .1s backwards; }
+  .event-shell .cover-big > .stub > * { animation: print-in .4s var(--ease) .4s backwards; }
+  /* Панель «Йду» виїжджає відірваним корінцем — з легким перекосом, пружиною. */
+  .event-shell .bar { animation: tear-up .75s var(--spring) .3s backwards; }
+  /* Штамп стану падає з розмаху: ×2,4 → 1, з −16° на −4°; квиток під ним просідає від удару. */
+  .sheet-ticket .stamp:not([hidden]), .bar[data-fresh] .meta .stamp { animation: slam .52s linear .12s backwards; }
+  .sheet-ticket:has(.stamp:not([hidden])) { animation: thud .3s var(--ease) .23s; }
+  /* «Подію створено»: квиток події виїжджає з прорізу під заголовком, першим — корінець із часом. */
+  .kab-ticket { animation: feed 1s cubic-bezier(.25, .1, .25, 1) .35s backwards; }
+}
+@keyframes flood { from { clip-path: inset(0 0 100% 0); } }
+@keyframes print-in { from { opacity: 0; transform: translateY(-6px); } }
+@keyframes tear-up { from { transform: translateY(calc(100% + 28px)) rotate(1.5deg); } }
+/* Розгін до удару (ease-in), удар на 45 %, відскок і спокій — криві на кожному відрізку. */
+@keyframes slam {
+  0% { opacity: 0; transform: rotate(-16deg) scale(2.4); animation-timing-function: cubic-bezier(.55, 0, .9, .45); }
+  45% { opacity: 1; transform: rotate(-3deg) scale(.92); animation-timing-function: cubic-bezier(.2, .8, .3, 1); }
+  72% { transform: rotate(-4.5deg) scale(1.04); animation-timing-function: ease-in-out; }
+  100% { opacity: 1; transform: rotate(-4deg) scale(1); }
+}
+@keyframes thud { 40% { transform: translateY(2px) scale(.985); } }
+/* Квиток стартує повністю над прорізом (обгортка .kab-done-ticket обрізає), видно лише те, що вже «вийшло». */
+@keyframes feed { from { transform: translateY(calc(-100% - 6px)); } }

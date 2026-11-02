@@ -31,6 +31,8 @@
   --cat-tours: #5F7F1F; --cat-tours-stub: #54701B; --cat-tours-wash: #ECF0E4;
   --cat-conference: #933FA8; --cat-conference-stub: #813794; --cat-conference-wash: #F2E8F5;
   --cat-unknown: #6B675E; --cat-unknown-stub: #5E5B53; --cat-unknown-wash: #EDEBE4;
+  /* Погашений корінець скасованої події (`voidStub`): білий друк на ньому тримає ≥ 5:1. */
+  --void-stub: #5E5E66;
   /* Тінь одна — широка й бліда, лише на тому, що плаває. */
   --shadow-raised: 0 3px 8px rgba(0,0,0,.08);
   --shadow-overlay: 0 8px 24px rgba(0,0,0,.12);
@@ -48,7 +50,7 @@
   --accent: #FF8A5B; --accent-text: #FF8A5B; --accent-container: #3F2419; --on-accent-container: #FFD9C8;
   --success: #5DC389; --success-container: #16311F; --on-success-container: #BFEBD0;
   --danger: #FF6B5B; --danger-container: #3C1A16;
-  --edge: #2E2D35;
+  --edge: #2E2D35; --void-stub: #4A4950;
   --shadow-raised: 0 3px 8px rgba(0,0,0,.4); --shadow-overlay: 0 8px 24px rgba(0,0,0,.5);
   color-scheme: dark;
 } }
@@ -59,7 +61,7 @@
   --accent: #FF8A5B; --accent-text: #FF8A5B; --accent-container: #3F2419; --on-accent-container: #FFD9C8;
   --success: #5DC389; --success-container: #16311F; --on-success-container: #BFEBD0;
   --danger: #FF6B5B; --danger-container: #3C1A16;
-  --edge: #2E2D35;
+  --edge: #2E2D35; --void-stub: #4A4950;
   --shadow-raised: 0 3px 8px rgba(0,0,0,.4); --shadow-overlay: 0 8px 24px rgba(0,0,0,.5);
   color-scheme: dark;
 }
