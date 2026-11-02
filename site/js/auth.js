@@ -2,7 +2,7 @@
 // з вебу (join.js) і кабінет організатора (kabinet.js). Сесія — у localStorage `poriad.session`: її бачить кожна сторінка
 // домену, тому воркер дає всім суворий CSP. Verifier PKCE і намір («записатися на…») чекають повернення від Google у
 // sessionStorage вкладки. Перевірка — `node tools/auth_test.mjs`.
-import { SUPABASE } from "./poriad.js?v=12";
+import { SUPABASE } from "./poriad.js?v=13";
 
 const SESSION = "poriad.session";
 const PKCE = "poriad.pkce";
