@@ -157,6 +157,7 @@ class PoruchApp internal constructor(
         discovery.onQueryChanged = library::dismiss
         library.afterAccountLoad = eventUseCases::publishPending
         safetyUseCases.onAgeDeclared = eventUseCases::publishPending
+        sessionUseCases.confirmAdult = { safetyUseCases.confirmed(tell = false) }
         identity.start()
         pushSync.retryPending()
         pushSync.start()
@@ -823,9 +824,12 @@ class PoruchApp internal constructor(
     /** SHA-256 нового nonce для запиту до Google чи Apple; сирий чекає на [signInWithIdToken]. */
     fun idTokenNonce(): String = sessionUseCases.idTokenNonce()
 
-    /** ID-токен від Google чи Apple. [name] — імʼя, яке Apple дає лише при першому вході. */
-    fun signInWithIdToken(provider: IdProvider, idToken: String, name: String? = null) =
-        sessionUseCases.signInWithIdToken(provider, idToken, name)
+    /**
+     * ID-токен від Google чи Apple. [name] — імʼя, яке Apple дає лише при першому вході. [adult] — галочка «Мені вже є
+     * 18» на першому екрані входу: новому акаунту її поставимо самі, без окремого кроку.
+     */
+    fun signInWithIdToken(provider: IdProvider, idToken: String, name: String? = null, adult: Boolean = false) =
+        sessionUseCases.signInWithIdToken(provider, idToken, name, adult)
 
     /** [birthDate] — ISO-8601. Платформа лише для дорослих. Збірки з галочкою кличуть [signUp] без дати. */
     fun signUp(email: String, password: String, name: String, birthDate: String) =
@@ -840,8 +844,8 @@ class PoruchApp internal constructor(
      */
     fun sendSignInCode(email: String) = sessionUseCases.sendSignInCode(email)
 
-    /** Код з листа. Новий акаунт — без віку: екран входу далі питає галочку ([SessionState.askBirthDate]). */
-    fun verifySignInCode(email: String, code: String) = sessionUseCases.verifySignInCode(email, code)
+    /** Код з листа. [adult] — як у [signInWithIdToken]; без нього новий акаунт далі питає галочку ([SessionState.askBirthDate]). */
+    fun verifySignInCode(email: String, code: String, adult: Boolean = false) = sessionUseCases.verifySignInCode(email, code, adult)
 
     /** Людина повернулась до форми або закрила екран: крок «перевірте пошту» більше не показуємо. */
     fun dismissConfirmationStep() {

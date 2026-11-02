@@ -960,6 +960,7 @@ enum Copy {
     static let auth_code_same_email = "Увійдіть тією самою поштою."
     static let adult_confirm = "Мені вже є 18"
     static let adult_confirm_hint = "«Поряд» — для повнолітніх. Дату народження спитаємо лише для подій з віковими межами."
+    static let adult_confirm_needed = "Позначте, що вам уже є 18."
     static let auth_adult_subtitle = "Підтвердьте, що вам уже є 18."
     static let age_date_title = "Подія з віковими межами"
     static let age_date_body = "Організатор обмежив вік, тож тут потрібна дата народження. Її ніхто не побачить."

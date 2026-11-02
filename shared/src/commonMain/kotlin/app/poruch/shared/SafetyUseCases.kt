@@ -46,7 +46,13 @@ internal class SafetyUseCases(
      * Галочка «Мені вже є 18» (хвиля 2): після входу через Google, Apple чи код і з картки віку в профілі. Подія з віком
      * від 19 чи верхньою межею однаково попросить дату ([AppError.AgeRequired] → [declareBirthDate]).
      */
-    fun confirmAdult() = store.mutate {
+    fun confirmAdult() = store.mutate { confirmed(tell = true) }
+
+    /**
+     * Сама галочка. [tell] — «Вік підтверджено»: так з картки віку в профілі й кроку після входу; вхід з галочкою на
+     * першому екрані ([SessionUseCases.confirmAdult]) — мовчки, щоб вік не ставав окремою подією.
+     */
+    suspend fun confirmed(tell: Boolean) {
         repository().confirmAdult()
         store.update {
             val account = it.library.account
@@ -55,7 +61,7 @@ internal class SafetyUseCases(
                 session = it.session.copy(askBirthDate = false)
             )
         }
-        store.tell(AppMessage.AGE_CONFIRMED)
+        if (tell) store.tell(AppMessage.AGE_CONFIRMED)
         ageDeclared()
     }
 

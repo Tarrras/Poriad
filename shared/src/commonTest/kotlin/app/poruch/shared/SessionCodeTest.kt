@@ -43,6 +43,35 @@ class SessionCodeTest {
     }
 
     /**
+     * Галочку «Мені вже є 18» відмітили на першому екрані входу: новий акаунт її отримує сам — без кроку галочки й без
+     * «Вік підтверджено». Збій — крок, як раніше.
+     */
+    @Test fun theCheckboxOnTheFirstScreenConfirmsAgeQuietly()=runTest {
+        val auth=Auth(); auth.session.value=null
+        val safety=Safety(AccountFacts())
+        val app=testApp(Events(),backgroundScope,auth,safety=safety)
+        runCurrent()
+        app.verifySignInCode("web@poriad.app","123456",adult=true); runCurrent()
+        assertEquals("code-user",app.state.value.session.userId)
+        assertEquals(1,safety.adultConfirmations)
+        assertFalse(app.state.value.session.askBirthDate,"no separate step")
+        assertTrue(app.state.value.library.account.ageDeclared)
+        assertEquals(AppNotice.Told(AppMessage.SIGNED_IN),app.state.value.notice,"no «age confirmed» toast")
+        app.close()
+    }
+
+    @Test fun aCheckboxThatDidNotSaveFallsBackToTheStep()=runTest {
+        val auth=Auth(); auth.session.value=null
+        val safety=object: SafetyRepository by Safety(AccountFacts()) { override suspend fun confirmAdult() = fail(AppError.Network) }
+        val app=testApp(Events(),backgroundScope,auth,safety=safety)
+        runCurrent()
+        app.verifySignInCode("web@poriad.app","123456",adult=true); runCurrent()
+        assertTrue(app.state.value.signedIn)
+        assertTrue(app.state.value.session.askBirthDate)
+        app.close()
+    }
+
+    /**
      * Акаунт з коду (запис з вебу) пароля може не мати: пароль не питаємо. Видалення — через новий код на пошту з профілю,
      * без пароля; хибний код нічого не видаляє.
      */

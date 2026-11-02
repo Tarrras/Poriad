@@ -1225,6 +1225,7 @@
   <!-- Галочка замість дати: реєстрація, крок після Google, Apple чи коду, картка віку в профілі. -->
   <string name="adult_confirm">Мені вже є 18</string>
   <string name="adult_confirm_hint">«Поряд» — для повнолітніх. Дату народження спитаємо лише для подій з віковими межами.</string>
+  <string name="adult_confirm_needed">Позначте, що вам уже є 18.</string>
   <string name="auth_adult_subtitle">Підтвердьте, що вам уже є 18.</string>
   <!-- AGE_REQUIRED на події з віком від 19 чи верхньою межею: вибір дати на деталях. -->
   <string name="age_date_title">Подія з віковими межами</string>
