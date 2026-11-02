@@ -64,8 +64,11 @@ import java.time.LocalDateTime
 @Composable
 fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     val colors = Poruch.colors
-    // Системний «назад» — крок назад, з першого кроку — закрити майстер тим самим шляхом, що й хрестик.
-    BackHandler { onIntent(if (state.step != EditorStep.ABOUT) EditorIntent.Back else EditorIntent.Close) }
+    // Системний «назад» — крок назад, з першого кроку — закрити майстер тим самим шляхом, що й хрестик. Поки публікується,
+    // ковтаємо його: інакше кроки гортались би під накладкою, і відмова сервера показалась би не на тому кроці.
+    BackHandler {
+        if (!state.publishing) onIntent(if (state.step != EditorStep.ABOUT) EditorIntent.Back else EditorIntent.Close)
+    }
     Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding().imePadding()) {
         WizardHeader(state, onIntent)
         val scroll = rememberScrollState()

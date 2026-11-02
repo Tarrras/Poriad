@@ -24,6 +24,8 @@ import app.poruch.android.ui.*
 import app.poruch.domain.EventMedia
 import app.poruch.domain.MediaKind
 import app.poruch.domain.ShareMode
+import app.poruch.domain.TitleRules
+import app.poruch.android.feature.known
 import app.poruch.shared.PoruchApp
 import app.poruch.shared.PublishAction
 import app.poruch.shared.PublishedEvent
@@ -75,14 +77,16 @@ class PublishedViewModel(private val app: PoruchApp) : MviViewModel<PublishedSta
     override fun onIntent(intent: PublishedIntent) {
         val published = state.value.published ?: return
         when (intent) {
-            PublishedIntent.Share -> {
+            PublishedIntent.Share -> if (!state.value.sharing) {
                 app.publishDone(PublishAction.SHARE)
-                if (published.shareMode == ShareMode.PROMOTE) send(PublishedEffect.Promote(media(published.id), published.post))
-                else if (!state.value.sharing) viewModelScope.launch {
+                viewModelScope.launch {
                     reduce { copy(sharing = true) }
-                    val link = app.inviteLink(published.id)
-                    reduce { copy(sharing = false) }
-                    send(PublishedEffect.Friend(link))
+                    val effect = try {
+                        if (published.shareMode == ShareMode.PROMOTE) PublishedEffect.Promote(media(published.id), published.post)
+                        // Особисте посилання — від сервера; без мережі — звичайне, а не падіння.
+                        else PublishedEffect.Friend(runCatching { app.inviteLink(published.id) }.getOrDefault(published.link))
+                    } finally { reduce { copy(sharing = false) } }
+                    send(effect)
                 }
             }
             PublishedIntent.Copy -> { app.publishDone(PublishAction.COPY); send(PublishedEffect.Copy(published.link)) }
@@ -95,10 +99,13 @@ class PublishedViewModel(private val app: PoruchApp) : MviViewModel<PublishedSta
         }
     }
 
-    /** Фото й відео щойно опублікованої: деталі й «Мої події» перечитуються одразу після публікації. Ще не приїхали — пост без них. */
-    private fun media(id: String): List<EventMedia> = app.state.value.let { state ->
-        val event = state.detail.event?.takeIf { it.id == id } ?: state.library.myEvents.firstOrNull { it.id == id }
-        event?.let { it.media.ifEmpty { listOfNotNull(it.imageUrl?.let { url -> EventMedia(MediaKind.PHOTO, url) }) } }.orEmpty()
+    /**
+     * Фото й відео щойно опублікованої — лише з повних деталей ([known]); ще не приїхали — дочитуємо. Не вдалось — пост з
+     * текстом без файлів (текст однаково в буфері), а збій каже банер.
+     */
+    private suspend fun media(id: String): List<EventMedia> {
+        val event = app.known(id) ?: run { app.reloadEvent(id); app.known(id) }
+        return event?.let { it.media.ifEmpty { listOfNotNull(it.imageUrl?.let { url -> EventMedia(MediaKind.PHOTO, url) }) } }.orEmpty()
     }
 }
 
@@ -122,7 +129,7 @@ fun PublishedScreen(state: PublishedState, onIntent: (PublishedIntent) -> Unit) 
             stringResource(R.string.published_title), style = PoruchType.brandTitle1, color = colors.ink, textAlign = TextAlign.Center,
             modifier = Modifier.semantics { heading() }
         )
-        Text(published.title, style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary, textAlign = TextAlign.Center)
+        Text(TitleRules.display(published.title), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary, textAlign = TextAlign.Center)
         Spacer(Modifier.height(Spacing.md))
         PrimaryButton(
             stringResource(if (published.shareMode == ShareMode.PROMOTE) R.string.share_promote else R.string.share_friend),

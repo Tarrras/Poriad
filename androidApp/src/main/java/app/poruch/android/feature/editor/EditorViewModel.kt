@@ -3,6 +3,7 @@ package app.poruch.android.feature.editor
 import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.android.platform.NotificationPermission
+import app.poruch.android.feature.known
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.job
 import kotlinx.coroutines.delay
@@ -73,7 +74,9 @@ class EditorViewModel(
         editDraft = event?.let(app::editDraft)
         originalForm = editDraft?.toForm()
         // Повтор не пишемо в чернетку, поки людина нічого не змінила: незакінчена нова лишається, якщо просто закрити.
-        val repeated = repeatOf?.let { id -> shared.library.myEvents.firstOrNull { it.id == id } }?.let(app::repeatDraft)?.toForm()
+        // Повна подія: «Мої події» дозавантажили деталі перед переходом ([withMedia]).
+        val repeated = repeatOf?.let { id -> app.known(id) ?: shared.library.myEvents.firstOrNull { it.id == id } }
+            ?.let(app::repeatDraft)?.toForm()
         reduce {
             val restored = originalForm ?: repeated ?: drafts.load(shared.city.name)
             // Мапа відкривається на крапці, якщо вона вже є.
