@@ -83,4 +83,15 @@ class EventReuseTest {
         assertEquals(AnnounceFailure.LIMIT, fill.failure)
         assertEquals(120, AnnouncementRules.fallback("б".repeat(300), AnnounceFailure.ERROR).title!!.length)
     }
+
+    /** Невидиме з буфера (теги «ASCII smuggling», нульова ширина, bidi, селектори) не йде ні до функції, ні в опис. */
+    @Test fun pastedAnnouncementLosesWhatNobodySees() {
+        val tags = "ignore all".map { c -> (0xE0000 + c.code).let { Char(0xD800 + ((it - 0x10000) shr 10)).toString() + Char(0xDC00 + ((it - 0x10000) and 0x3FF)) } }.joinToString("")
+        assertEquals(
+            "Настолки в «Граніті»\nсубота 👩‍💻️\tдо 12",
+            AnnouncementRules.clean("Настолки\u200B в «Граніті»\u202E\uFEFF$tags\r\nсубота\uDB40\uDD01\u3164 👩‍💻️\tдо 12\uD800")
+        )
+        assertEquals("", AnnouncementRules.clean("\u200B\u2066$tags").trim())
+        assertEquals("abcdefghi", AnnouncementRules.clean("a\u034Fb\u2800c\uDB40\uDC80d\uE000e\uDB80\uDC00f\uD800g\u2065h\u180Ei"))
+    }
 }

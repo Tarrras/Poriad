@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import {
   instant, local, repeatTimes, endAfter, durationLabel, DURATIONS, mediaProblem, videoTooLong, fit, MEDIA,
-  threadsPost, threadsIntent, firstLine, rosterText, errorText, publishPlan, writeDraft, forgetDraft, recolorStub,
+  threadsPost, threadsIntent, firstLine, cleanText, rosterText, errorText, publishPlan, writeDraft, forgetDraft, recolorStub,
 } from "../site/js/kabinet.js";
 import { readFileSync } from "node:fs";
 
@@ -60,6 +60,11 @@ assert.ok(!threadsIntent("a b").includes("+"), "пробіл — %20: плюс �
 // Анонс не розібрали: перший рядок без емодзі й хештегів — назва.
 assert.equal(firstLine("\n🎲 Настолки в п’ятницю! #настолки #київ\nДалі опис"), "Настолки в п’ятницю!");
 assert.equal(firstLine("x".repeat(200)).length, 120);
+// Невидиме з буфера не йде ні до функції, ні в запасний опис; емодзі з ZWJ і FE0F лишаються.
+const tags = [..."ignore all"].map((c) => String.fromCodePoint(0xE0000 + c.codePointAt(0))).join("");
+assert.equal(cleanText(`Настолки\u200B в «Граніті»\u202E\uFEFF${tags}\r\nсубота\u{E0101}\u3164 👩‍💻️\tдо 12`),
+  "Настолки в «Граніті»\nсубота 👩‍💻️\tдо 12");
+assert.equal(cleanText("a\u034Fb\u2800c\u{E0080}d\uE000e\u{F0000}f\uD800g\u2065h\u180Ei"), "abcdefghi");
 assert.equal(rosterText([{ display_name: "Олена" }, { display_name: "" }]), "1. Олена\n2. Учасник");
 
 // Помилки — тексти застосунку; невідомий код падає до статусу.

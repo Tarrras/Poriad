@@ -49,6 +49,45 @@ object AnnouncementRules {
         return AnnouncementFill(title, description, failure = failure)
     }
 
+    /**
+     * Текст без того, чого людина не бачить, але прочитає модель чи покаже опис: керівних символів (крім переносу й
+     * табуляції), форматних і ігнорованих (теги U+E0000 «ASCII smuggling», нульова ширина, bidi, BOM, селектори
+     * варіанта, порожні літери; крім ZWJ і FE0F в емодзі), приватних, непарних сурогатів і порожнього Брайля. Те саме,
+     * що `clean` у `supabase/functions/parse-announcement/announce.ts` (там — `\p{DI}`, тут — його діапазони): функція
+     * чистить і сама, а тут — щоб і запасний опис був чистий.
+     */
+    fun clean(text: String): String = buildString {
+        var i = 0
+        while (i < text.length) {
+            val c = text[i]
+            if (c.isHighSurrogate() && i + 1 < text.length && text[i + 1].isLowSurrogate()) {
+                val code = 0x10000 + ((c.code - 0xD800) shl 10) + (text[i + 1].code - 0xDC00)
+                if (HIDDEN_ABOVE.none { code in it }) append(c).append(text[i + 1])
+                i += 2
+                continue
+            }
+            if (c == '\r') {
+                if (text.getOrNull(i + 1) != '\n') append('\n')
+            } else if (c == '\n' || c == '\t' || c == '\u200D' || c == '\uFE0F' || c.isVisible()) append(c)
+            i++
+        }
+    }
+
+    private fun Char.isVisible() = !isSurrogate() && category != CharCategory.CONTROL && category != CharCategory.FORMAT &&
+        category != CharCategory.PRIVATE_USE && HIDDEN.none { code in it }
+
+    /** Ігноровані й порожні в базовій площині, яких нема серед форматних: CGJ, порожні літери, монгольські селектори… */
+    private val HIDDEN = listOf(
+        0x034F..0x034F, 0x115F..0x1160, 0x17B4..0x17B5, 0x180B..0x180F, 0x2065..0x2065, 0x2800..0x2800,
+        0x3164..0x3164, 0xFE00..0xFE0E, 0xFFA0..0xFFA0, 0xFFF0..0xFFF8
+    )
+
+    /** Поза базовою площиною: форматні (Кайтхі, ієрогліфи, стенографія, музичні), теги й селектори, приватні площини. */
+    private val HIDDEN_ABOVE = listOf(
+        0x110BD..0x110BD, 0x110CD..0x110CD, 0x13430..0x1343F, 0x1BCA0..0x1BCA3, 0x1D173..0x1D17A, 0xE0000..0xE0FFF,
+        0xF0000..0x10FFFF
+    )
+
     private val TRAILING_TAGS = Regex("""(\s*#[\p{L}\p{N}_]+)+$""")
     private val SPACES = Regex("""\s+""")
 

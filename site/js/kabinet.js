@@ -99,6 +99,16 @@ export function recolorStub(data, hex) {
   return out;
 }
 
+/**
+ * Вставлений анонс без того, чого людина не бачить: керівних і форматних символів, ігнорованих (DI: нульова ширина,
+ * теги U+E0000, селектори варіанта, порожні літери), приватних, непарних сурогатів і порожнього Брайля — крім переносу,
+ * табуляції, ZWJ і FE0F. Те саме, що `clean` у supabase/functions/parse-announcement/announce.ts: функція чистить і
+ * сама, а тут — щоб і запасний опис був чистий.
+ */
+export function cleanText(text) {
+  return text.replace(/\r\n?/g, "\n").replace(/[\p{Cc}\p{Cf}\p{DI}\p{Co}\p{Cs}\u2800]/gu, (c) => ("\n\t\u200D\uFE0F".includes(c) ? c : ""));
+}
+
 /** Анонс не розібрали: перший непорожній рядок без емодзі й хештегів — назва (до 120). */
 export function firstLine(text) {
   const line = text.split("\n").map((l) => l.replace(/\p{Extended_Pictographic}|️|‍|#[\p{L}\p{N}_]+/gu, "").replace(/\s+/g, " ").trim()).find(Boolean) ?? "";
@@ -909,7 +919,7 @@ const PARTS = { title: "назву", description: "опис", category: "жан�
 
 async function fillFromAnnouncement() {
   const f = form(), note = $("[data-announce-note]"), button = $("[data-fill]");
-  const text = $("[data-announce]").value.trim();
+  const text = cleanText($("[data-announce]").value).trim();
   if (!text || button.disabled) return;
   button.disabled = true;
   note.textContent = "Заповнюємо…";

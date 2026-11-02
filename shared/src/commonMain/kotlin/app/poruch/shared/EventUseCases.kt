@@ -280,7 +280,8 @@ internal class EventUseCases(
      * Не через [AppStore.mutate]: це не дія над подією, і чернетку з редактора вона не блокує.
      */
     suspend fun announce(text: String, city: String, timeZone: String): AnnouncementFill {
-        val body = text.trim().take(AnnouncementRules.TEXT_MAX)
+        // Межа не різатиме емодзі навпіл: непарний сурогат функція викинула б, а запасний опис — ні.
+        val body = AnnouncementRules.clean(text).trim().take(AnnouncementRules.TEXT_MAX).let { if (it.lastOrNull()?.isHighSurrogate() == true) it.dropLast(1) else it }
         if (body.isEmpty()) return AnnouncementFill(null, null, failure = AnnounceFailure.ERROR)
         val zone = runCatching { TimeZone.of(timeZone) }.getOrDefault(TimeZone.currentSystemDefault())
         val started = TimeSource.Monotonic.markNow()
