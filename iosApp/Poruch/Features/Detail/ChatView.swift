@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 import Shared
 
 /// Маршрут чату в стеку: з деталей і з головної він відкривається як повний екран, а не шторка.
@@ -23,6 +24,12 @@ struct ChatView: View {
     @State private var deleting: ChatMessage?
     @State private var blocking: ChatMessage?
     @FocusState private var composing: Bool
+    /// Скріншот оплати з пікера (docs/organizer-events.md): лише в моїй розмові події з оплатою онлайн.
+    @State private var proofItem: PhotosPickerItem?
+    @State private var preparingProof = false
+    @State private var proofProblem: String?
+    /// Скріншот на весь екран: звірити суму й імʼя з банком.
+    @State private var viewing: ProofImage?
 
     /// Подія з будь-якого списку стану: чат відкривають з деталей, з головної і з пушу.
     private var event: Event? {
@@ -33,6 +40,7 @@ struct ChatView: View {
     }
     private var chat: ChatState? { model.state?.chat.flatMap { $0.eventId == eventID && $0.thread == thread ? $0 : nil } }
     private var userId: String? { model.state?.session.userId }
+    private var canSendProof: Bool { model.state?.canSendProof() == true }
     private var organizer: Bool { event.flatMap { model.state?.organizes(event: $0) } ?? false }
     /// Той самий поріг, що на сервері: тиждень після кінця.
     private var readOnly: Bool {
@@ -77,6 +85,25 @@ struct ChatView: View {
             }.presentationDetents([.medium, .large])
         }
         .notice(model.state?.notice?.presented) { model.app.clearNotice() }
+        // Скріншот: JPEG без метаданих, довша сторона до PROOF_SIDE; текст поля — підписом.
+        .onChange(of: proofItem) { _, item in
+            guard let item else { return }
+            preparingProof = true
+            proofProblem = nil
+            Task {
+                switch await pickedJPEG(item, maxPixel: CGFloat(ChatRules.shared.PROOF_SIDE)) {
+                case .success(let jpeg):
+                    let text = draft
+                    draft = ""
+                    model.app.sendProof(jpeg: jpeg, text: text)
+                case .failure(let problem):
+                    proofProblem = problem.message
+                }
+                preparingProof = false
+                proofItem = nil
+            }
+        }
+        .fullScreenCover(item: $viewing) { proof in ProofViewer(image: proof.image) }
     }
 
     // ---- Шапка
@@ -105,9 +132,8 @@ struct ChatView: View {
         if let thread {
             // Організатор бачить, хто питає; той, хто питає, — що розмова лише на двох.
             guard organizer else { return Copy.question_subtitle }
-            let name = chat?.messages.first { $0.authorId == thread }?.authorName
-                ?? model.state?.detail.questions.first { $0.askerId == thread }?.askerName
-            return Copy.question_from(name.flatMap { $0.isEmpty ? nil : $0 } ?? Copy.chat_member)
+            // З розмови, розмов, заявок чи учасників: організатор міг написати першим.
+            return Copy.question_from(model.state?.askerName(eventId: eventID, thread: thread) ?? Copy.chat_member)
         }
         guard let room = event?.gathering else { return Copy.contact_label }
         // Організатор і підтверджені: саме вони бачать цей екран.
@@ -202,6 +228,11 @@ struct ChatView: View {
                 if !mine && !continued {
                     Text(name).font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
                 }
+                if let path = message.image {
+                    ProofThumb(bytes: chat?.proofs[path], missing: chat?.missingProofs.contains(path) == true, mine: mine) { image in
+                        viewing = ProofImage(id: path, image: image)
+                    }
+                }
                 Text(message.body).font(PoruchFont.bodyText).foregroundStyle(mine ? Palette.onBrand : Palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     // Не вужче за час, щоб він не вилазив за ліве поле короткого «Так».
@@ -213,6 +244,17 @@ struct ChatView: View {
                             .offset(y: 15)
                     }
                     .padding(.bottom, 12)
+                // Реквізити від іншої сторони: «Поряд» за оплату не відповідає, скарга — тут же.
+                if message.paymentDetails && !mine {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(Copy.payment_warning).font(PoruchFont.caption).foregroundStyle(Palette.danger)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button { reporting = message } label: { Text(Copy.chat_report).font(PoruchFont.caption.weight(.semibold)) }
+                            .foregroundStyle(Palette.danger)
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 8)
+                    .background(Palette.danger.opacity(0.1), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
             }
             .padding(.horizontal, Space.md).padding(.top, Space.sm).padding(.bottom, Space.sm)
             .background(mine ? Palette.brand : Palette.surface, in: BubbleShape(mine: mine, continued: continued))
@@ -263,35 +305,119 @@ struct ChatView: View {
     private var composer: some View {
         let sending = chat?.sending == true
         let canSend = ChatRules.shared.isBody(text: draft) && !sending
-        return HStack(alignment: .bottom, spacing: Space.sm) {
-            TextField(thread == nil ? Copy.chat_placeholder : organizer ? Copy.question_reply_placeholder : Copy.question_placeholder,
-                      text: $draft, axis: .vertical)
-                .lineLimit(1...5)
-                .focused($composing)
-                .font(PoruchFont.bodyText).foregroundStyle(Palette.ink).tint(Palette.ink)
-                .padding(.horizontal, Space.lg).padding(.vertical, 11)
-                .background(Palette.canvas, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(composing ? Palette.ink.opacity(0.35) : Palette.hairline, lineWidth: 1))
-            Button {
-                let text = draft
-                draft = ""
-                model.app.sendMessage(text: text)
-            } label: {
-                Group {
-                    if sending { ProgressView().tint(Palette.onBrand) }
-                    else { PoruchIcon(glyph: PoruchIcons.arrowUp, size: 20) }
-                }
-                .foregroundStyle(Palette.onBrand).frame(width: 44, height: 44)
-                .background(canSend ? Palette.brand : Palette.inkTertiary, in: Circle())
+        return VStack(alignment: .leading, spacing: Space.sm) {
+            if canSendProof {
+                Text(proofProblem ?? Copy.proof_hint).font(PoruchFont.caption)
+                    .foregroundStyle(proofProblem == nil ? Palette.inkSecondary : Palette.danger)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .buttonStyle(PressableStyle())
-            .disabled(!canSend)
-            .motion(value: canSend)
-            .accessibilityLabel(Copy.rate_send)
+            HStack(alignment: .bottom, spacing: Space.sm) {
+                if canSendProof {
+                    PhotosPicker(selection: $proofItem, matching: .images) {
+                        Group {
+                            if preparingProof { ProgressView().tint(Palette.ink) }
+                            else { PoruchIcon(glyph: PoruchIcons.plus, size: 20) }
+                        }
+                        .foregroundStyle(Palette.ink).frame(width: 44, height: 44)
+                        .background(Palette.surfaceMuted, in: Circle())
+                    }
+                    .disabled(sending || preparingProof)
+                    .accessibilityLabel(Copy.proof_attach)
+                }
+                TextField(thread == nil ? Copy.chat_placeholder : organizer ? Copy.question_reply_placeholder : Copy.question_placeholder,
+                          text: $draft, axis: .vertical)
+                    .lineLimit(1...5)
+                    .focused($composing)
+                    .font(PoruchFont.bodyText).foregroundStyle(Palette.ink).tint(Palette.ink)
+                    .padding(.horizontal, Space.lg).padding(.vertical, 11)
+                    .background(Palette.canvas, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(composing ? Palette.ink.opacity(0.35) : Palette.hairline, lineWidth: 1))
+                Button {
+                    let text = draft
+                    draft = ""
+                    model.app.sendMessage(text: text)
+                } label: {
+                    Group {
+                        if sending { ProgressView().tint(Palette.onBrand) }
+                        else { PoruchIcon(glyph: PoruchIcons.arrowUp, size: 20) }
+                    }
+                    .foregroundStyle(Palette.onBrand).frame(width: 44, height: 44)
+                    .background(canSend ? Palette.brand : Palette.inkTertiary, in: Circle())
+                }
+                .buttonStyle(PressableStyle())
+                .disabled(!canSend)
+                .motion(value: canSend)
+                .accessibilityLabel(Copy.rate_send)
+            }
         }
         .padding(.horizontal, Space.page).padding(.top, Space.sm).padding(.bottom, Space.sm)
         .background(Palette.surface)
         .overlay(alignment: .top) { Rectangle().fill(Palette.hairline).frame(height: 1) }
+    }
+}
+
+/// Скріншот оплати, відкритий на весь екран.
+struct ProofImage: Identifiable {
+    let id: String
+    let image: UIImage
+}
+
+/// Скріншот у бульбашці: байти зі спільного шару (`ChatState.proofs`) → зменшене зображення поза головним потоком.
+/// Поки вантажиться — тонова плашка, недоступний — підпис. Тап — на весь екран.
+private struct ProofThumb: View {
+    let bytes: KotlinByteArray?
+    let missing: Bool
+    let mine: Bool
+    let open: (UIImage) -> Void
+    @State private var image: UIImage?
+    @State private var broken = false
+
+    var body: some View {
+        Group {
+            if let image {
+                Button { open(image) } label: {
+                    Image(uiImage: image).resizable().scaledToFill()
+                        .frame(maxWidth: 240, maxHeight: 320)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Copy.proof_open)
+            } else if missing || broken {
+                Text(Copy.proof_unavailable).font(PoruchFont.caption)
+                    .foregroundStyle(mine ? Palette.onBrand.opacity(0.75) : Palette.inkSecondary)
+            } else {
+                RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.surfaceMuted)
+                    .frame(width: 160, height: 120)
+                    .overlay { ProgressView() }
+            }
+        }
+        .task(id: bytes != nil) {
+            guard image == nil, let bytes else { return }
+            let data = Bytes_iosKt.dataOf(bytes: bytes)
+            let decoded = await Task.detached(priority: .userInitiated) { ThumbnailCache.downsample(data, to: 1600) }.value
+            if let decoded { image = decoded } else { broken = true }
+        }
+    }
+}
+
+/// Скріншот на весь екран: зображення цілком на чорному, «Закрити» вгорі.
+private struct ProofViewer: View {
+    let image: UIImage
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+            Image(uiImage: image).resizable().scaledToFit().frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityLabel(Copy.proof_open)
+            Button { dismiss() } label: {
+                PoruchIcon(glyph: PoruchIcons.close, size: 18).foregroundStyle(.white)
+                    .frame(width: 44, height: 44).background(.white.opacity(0.2), in: Circle())
+            }
+            .padding(Space.lg)
+            .accessibilityLabel(Copy.close)
+        }
+        .onTapGesture { dismiss() }
     }
 }
 

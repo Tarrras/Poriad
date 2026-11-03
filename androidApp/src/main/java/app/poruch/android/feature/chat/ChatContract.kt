@@ -38,7 +38,15 @@ data class ChatState(
     /** Картка автора: тап по аватару. */
     val person: PersonState? = null,
     /** Люди, за якими стежу: кнопка «Стежити» на картці автора. */
-    val followedOrganizers: Set<String> = emptySet()
+    val followedOrganizers: Set<String> = emptySet(),
+    /** Моя розмова з організатором події з оплатою онлайн: у полі вводу — «Надіслати скріншот оплати». */
+    val canSendProof: Boolean = false,
+    /** Скріншоти оплати: шлях → JPEG (вантажить спільний шар з токеном). */
+    val proofs: Map<String, ByteArray> = emptyMap(),
+    /** Скріншоти, яких не вийшло завантажити: заглушка замість картинки. */
+    val missingProofs: Set<String> = emptySet(),
+    /** Відкритий на весь екран скріншот (шлях). */
+    val viewing: String? = null
 ) {
     fun isMine(message: ChatMessage) = message.authorId == userId
     fun canDelete(message: ChatMessage) = organizer || isMine(message)
@@ -64,6 +72,10 @@ sealed interface ChatIntent {
     data class ToggleFollowPerson(val userId: String, val name: String) : ChatIntent
     /** Ціль їде всередині: шторка спершу закривається (і скидає [ChatState.reporting]), а вже потім шле це. */
     data class SendReport(val message: ChatMessage, val reason: ReportReason, val details: String) : ChatIntent
+    /** Скріншот оплати з Photo Picker: уже JPEG без метаданих. Текст поля йде підписом. */
+    class SendProof(val jpeg: ByteArray) : ChatIntent
+    /** Скріншот на весь екран; `null` — закрити. */
+    data class ViewProof(val path: String?) : ChatIntent
 }
 
 sealed interface ChatEffect {

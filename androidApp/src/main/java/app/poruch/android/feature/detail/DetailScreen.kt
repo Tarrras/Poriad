@@ -293,6 +293,10 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit, focusRequ
     }
     state.screen.person?.let { person ->
         val request = state.screen.organizer && state.screen.requests.any { it.userId == person.userId }
+        // Організатор пише першим тому, хто записався чи подав заявку: оплата онлайн — реквізити в розмові.
+        val writable = state.screen.organizer && person.userId != state.screen.userId &&
+            (request || state.screen.attendees.any { it.userId == person.userId })
+        val payOnline = state.screen.event?.gathering?.payOnline == true
         PersonSheet(
             person, isMe = person.userId == state.screen.userId,
             onDismiss = { onIntent(DetailIntent.ClosePerson) },
@@ -302,6 +306,10 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit, focusRequ
                 onIntent(DetailIntent.ToggleFollowPerson(person.userId, person.profile?.name.orEmpty()))
             }
         ) { sheet ->
+            if (writable) SecondaryButton(
+                stringResource(R.string.person_write), { sheet.close { onIntent(DetailIntent.OpenQuestion(person.userId)) } },
+                Modifier.fillMaxWidth()
+            )
             if (request) {
                 Text(stringResource(R.string.person_request), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -310,7 +318,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit, focusRequ
                         Modifier.weight(1f), enabled = !state.screen.mutating
                     )
                     PrimaryButton(
-                        stringResource(R.string.approve), { sheet.close { onIntent(DetailIntent.ApproveRequest(person.userId)) } },
+                        stringResource(if (payOnline) R.string.approve_paid else R.string.approve), { sheet.close { onIntent(DetailIntent.ApproveRequest(person.userId)) } },
                         Modifier.weight(1f), enabled = !state.screen.mutating
                     )
                 }

@@ -541,6 +541,15 @@
   <string name="err_chat_closed">Чат закрито: подія давно минула</string>
   <string name="err_too_many_messages">Забагато повідомлень поспіль. Зачекайте хвилину</string>
   <string name="err_invalid_message">Повідомлення порожнє або задовге (до 2000 символів)</string>
+  <string name="err_payment_details">Реквізити для оплати надсилають лише в розмові на двох події з оплатою онлайн</string>
+  <!-- Оплата онлайн у розмові з організатором (docs/organizer-events.md): скріншот оплати й застереження під реквізитами. -->
+  <string name="proof_attach">Надіслати скріншот оплати</string>
+  <string name="proof_hint">Оплатили? Надішліть скріншот кнопкою «+» — його побачить лише організатор.</string>
+  <string name="proof_open">Скріншот оплати</string>
+  <string name="proof_unavailable">Скріншот недоступний</string>
+  <string name="payment_warning">Реквізити для оплати. «Поряд» не приймає оплату й не відповідає за неї — не переказуйте гроші, якщо сумніваєтесь в організаторі.</string>
+  <string name="approve_paid">Оплату отримано</string>
+  <string name="person_write">Написати</string>
   <string name="contact_confirm_title">Відкрити посилання від організатора?</string>
   <string name="contact_confirm_body">Ви переходите на %1$s. Це посилання додав організатор події. «Поряд» не перевіряє його і не відповідає за вміст сторінки чи чату за ним. Не переходьте, якщо не довіряєте організатору.</string>
   <string name="contact_confirm_open">Перейти</string>

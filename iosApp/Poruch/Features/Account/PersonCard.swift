@@ -57,6 +57,8 @@ private func memberSince(_ iso: String?) -> String? {
 struct PersonRequest {
     let approve: () -> Void
     let decline: () -> Void
+    /// Оплата онлайн: схвалення — це «Оплату отримано» (docs/organizer-events.md).
+    var approveTitle: String = Copy.approve
 }
 
 /// Картка людини зі стану (`state.person`). Скарга й блокування — для всіх, крім себе.
@@ -65,6 +67,8 @@ struct PersonSheet: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
     var request: PersonRequest?
+    /// «Написати» — організатор пише першим тому, хто записався чи подав заявку (розмова на двох).
+    var write: (() -> Void)?
     var onBlocked: (String) -> Void = { _ in }
     @State private var reporting = false
     @State private var blocking = false
@@ -112,11 +116,14 @@ struct PersonSheet: View {
                                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
                         }.frame(maxWidth: .infinity)
                     }
+                    if !person.loading, let write {
+                        SecondaryButton(title: Copy.person_write) { dismiss(); write() }
+                    }
                     if !person.loading, let request {
                         Text(Copy.person_request).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                         HStack(spacing: Space.sm) {
                             SecondaryButton(title: Copy.decline, enabled: model.state?.mutating != true) { request.decline(); dismiss() }
-                            PrimaryButton(title: Copy.approve, enabled: model.state?.mutating != true) { request.approve(); dismiss() }
+                            PrimaryButton(title: request.approveTitle, enabled: model.state?.mutating != true) { request.approve(); dismiss() }
                         }
                     }
                     if !person.loading && !isMe {
@@ -153,12 +160,14 @@ extension View {
     /// Шторка картки людини. Прапорець свій у кожного екрана: стан один на застосунок, а деталі
     /// лишаються в стосі під чатом — без прапорця шторку намагались би показати обидва.
     /// Закриття жестом закриває й картку в стані.
-    func personSheet(_ model: AppModel, isPresented: Binding<Bool>, request: @escaping (String) -> PersonRequest? = { _ in nil }, onBlocked: @escaping (String) -> Void = { _ in }) -> some View {
+    func personSheet(_ model: AppModel, isPresented: Binding<Bool>, request: @escaping (String) -> PersonRequest? = { _ in nil },
+                     write: @escaping (String) -> (() -> Void)? = { _ in nil }, onBlocked: @escaping (String) -> Void = { _ in }) -> some View {
         sheet(isPresented: Binding(
             get: { isPresented.wrappedValue && model.state?.person != nil },
             set: { if !$0 { isPresented.wrappedValue = false; model.app.closePerson() } }
         )) {
-            PersonSheet(request: model.state?.person.flatMap { request($0.userId) }, onBlocked: onBlocked)
+            PersonSheet(request: model.state?.person.flatMap { request($0.userId) }, write: model.state?.person.flatMap { write($0.userId) },
+                        onBlocked: onBlocked)
                 .presentationDetents([.medium, .large])
         }
     }

@@ -93,6 +93,8 @@ struct EventDetailView: View, Equatable {
     @State var loaderShown = false
     /// Збіг «Піти разом»: супутник, куди сервер записав обох, — відкриваємо його, там чат.
     @State var matched: EventRoute?
+    /// Розмова, яку організатор відкрив з картки людини («Написати»).
+    @State private var writingTo: ChatRoute?
     /// Системне «Поділитися» з готовим текстом: щойно створений супутник чи «Покликати».
     @State var sharing: ShareText?
     /// «Покликати» чекає посилання від сервера: повторний тап нічого не робить.
@@ -185,8 +187,15 @@ struct EventDetailView: View, Equatable {
             guard let event = view.event, view.organizer, view.requests.contains(where: { $0.userId == userId }) else { return nil }
             return PersonRequest(
                 approve: { model.app.approveMember(eventId: event.id, userId: userId) },
-                decline: { model.app.declineMember(eventId: event.id, userId: userId) }
+                decline: { model.app.declineMember(eventId: event.id, userId: userId) },
+                approveTitle: event.gathering?.payOnline == true ? Copy.approve_paid : Copy.approve
             )
+        }, write: { userId in
+            // Організатор пише першим тому, хто записався чи подав заявку: оплата онлайн — реквізити в розмові.
+            guard let event = view.event, view.organizer, userId != model.state?.session.userId,
+                  view.requests.contains(where: { $0.userId == userId }) || view.attendees.contains(where: { $0.userId == userId })
+            else { return nil }
+            return { writingTo = ChatRoute(id: event.id, thread: userId) }
         }, onBlocked: { userId in
             // Організатор — разом із подією; учасник зникає лише з ростеру.
             if userId == view.event?.organizerId { dismiss() }
@@ -205,6 +214,7 @@ struct EventDetailView: View, Equatable {
             matched = EventRoute(id: id)
         }
         .navigationDestination(item: $matched) { EventDetailView(app: model.app, eventID: $0.id).equatable().id($0.id) }
+        .navigationDestination(item: $writingTo) { ChatView(eventID: $0.id, thread: $0.thread) }
         .sheet(isPresented: $seekingCompany) { if let event = view.event { CompanionSheet(event: event) } }
         .sheet(item: $movingMeet) { target in
             if let event = view.event, let parent = view.companionOf, let start = parent.startsAt {

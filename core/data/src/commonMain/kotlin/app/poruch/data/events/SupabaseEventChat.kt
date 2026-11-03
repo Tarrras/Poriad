@@ -1,6 +1,9 @@
 package app.poruch.data.events
 
+import app.poruch.data.api.ImageStorage
+import app.poruch.domain.AppError
 import app.poruch.domain.AppFailure
+import app.poruch.domain.AuthRepository
 import app.poruch.domain.ChatMessage
 import app.poruch.domain.ChatRules
 import app.poruch.domain.ChatUnread
@@ -12,9 +15,16 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import app.poruch.domain.fail
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
-/** Чат події через RPC. Хто читає й пише — вирішує сервер; тут лише транспорт. */
-internal class SupabaseEventChat(private val rpc: EventRpc) : EventChat {
+/** Чат події через RPC. Хто читає й пише — вирішує сервер; тут лише транспорт. Скріншоти оплати — Storage. */
+internal class SupabaseEventChat(
+    private val rpc: EventRpc,
+    private val auth: AuthRepository,
+    private val storage: ImageStorage
+) : EventChat {
 
     // `p_thread` лише для розмови: без нього той самий запит іде й на сервер до 20261116 (загальний чат).
     override suspend fun messages(eventId: String, after: String?, thread: String?): List<ChatMessage> =
@@ -28,11 +38,27 @@ internal class SupabaseEventChat(private val rpc: EventRpc) : EventChat {
             })
         ).map { it.domain() }
 
-    override suspend fun send(eventId: String, body: String, thread: String?): String =
+    // `p_image` лише зі скріншотом: без нього той самий запит іде й на сервер до 20261125130000.
+    override suspend fun send(eventId: String, body: String, thread: String?, image: String?): String =
         rpc.call("send_message", buildJsonObject {
             put("p_event_id", eventId); put("p_body", body)
             if (thread != null) put("p_thread", thread)
+            if (image != null) put("p_image", image)
         }).jsonPrimitive.content
+
+    @OptIn(ExperimentalUuidApi::class)
+    override suspend fun uploadProof(eventId: String, jpeg: ByteArray): String {
+        val me = auth.session.value?.userId ?: fail(AppError.SessionRequired)
+        val token = auth.accessToken() ?: fail(AppError.SessionRequired)
+        if (jpeg.isEmpty() || jpeg.size > app.poruch.domain.ImageRules.MAX_BYTES) fail(AppError.ImageUploadFailed)
+        // Перша тека — власник: так `delete-account` прибирає скріншоти разом з рештою файлів людини.
+        val path = "$me/$eventId/${Uuid.random()}.jpg"
+        storage.upload(path, jpeg, "image/jpeg", token, ImageStorage.PROOFS)
+        return path
+    }
+
+    override suspend fun proof(path: String): ByteArray =
+        storage.download(ImageStorage.PROOFS, path, auth.accessToken() ?: fail(AppError.SessionRequired))
 
     override suspend fun delete(messageId: String) {
         rpc.call("delete_message", buildJsonObject { put("p_message_id", messageId) })

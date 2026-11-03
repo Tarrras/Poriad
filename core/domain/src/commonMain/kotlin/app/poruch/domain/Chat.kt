@@ -8,7 +8,14 @@ data class ChatMessage(
     val authorName: String,
     val avatarUrl: String?,
     val body: String,
-    val createdAt: String
+    val createdAt: String,
+    /**
+     * Реквізити для оплати (картка, IBAN, банка) — лише в розмові онлайн-події (docs/organizer-events.md). Під чужим таким
+     * повідомленням екран показує застереження й «Поскаржитись».
+     */
+    val paymentDetails: Boolean = false,
+    /** Скріншот оплати: шлях у приватному бакеті `payment-proofs`; байти — [ChatState.proofs]. */
+    val image: String? = null
 )
 
 /** Ліміти чату. Сервер перевіряє ті самі. */
@@ -20,6 +27,15 @@ object ChatRules {
 
     /** Пауза між перечитуваннями, поки екран відкритий. Без сокетів: розмова перед подією, а не месенджер. */
     const val POLL_INTERVAL_MS = 5_000L
+
+    /**
+     * Підпис скріншота оплати, коли людина нічого не написала: сервер просить текст, а старі збірки картинки не покажуть,
+     * але скажуть, що вона була.
+     */
+    const val PROOF_BODY = "Скріншот оплати"
+
+    /** Довша сторона скріншота: досить, щоб прочитати суму й імʼя в банківській квитанції. */
+    const val PROOF_SIDE = 2048
 
     /** Що зберігаємо: обрізане. Порожнє — нема чого слати. */
     fun normalize(text: String): String = text.trim()
@@ -65,8 +81,15 @@ interface ChatNotifier {
 interface EventChat {
     /** Хвіст чату; з [after] — лише пізніше за цей момент (ISO-8601). Старіші вгорі. */
     suspend fun messages(eventId: String, after: String? = null, thread: String? = null): List<ChatMessage>
-    suspend fun send(eventId: String, body: String, thread: String? = null): String
+    /** [image] — шлях скріншота оплати з [uploadProof]; сервер приймає його лише від людини в її розмові онлайн-події. */
+    suspend fun send(eventId: String, body: String, thread: String? = null, image: String? = null): String
     suspend fun delete(messageId: String)
+
+    /** Скріншот оплати (JPEG) у приватний бакет: `<я>/<подія>/<uuid>.jpg`. Повертає шлях для [send]. */
+    suspend fun uploadProof(eventId: String, jpeg: ByteArray): String
+
+    /** Байти скріншота з приватного бакета з токеном: бачать лише той, хто надіслав, і організатор події. */
+    suspend fun proof(path: String): ByteArray
 
     /** Події з непрочитаним у загальному чаті, свіжіші першими. Сервер без міграції — порожній список. */
     suspend fun unread(): List<ChatUnread>

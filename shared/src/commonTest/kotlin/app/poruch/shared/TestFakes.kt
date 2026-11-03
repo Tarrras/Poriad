@@ -62,7 +62,13 @@ internal class Events: EventDiscovery, SavedEvents, EventAuthoring, EventPartici
     var failSend=false
     var slowSend=false
     val sentThreads=mutableListOf<String?>()
-    override suspend fun send(eventId:String,body:String,thread:String?):String { if(slowSend) delay(100); if(failSend) fail(AppError.Network); sent+=eventId to body; sentThreads+=thread; val m=ChatMessage("m${sent.size}",eventId,"user","Я",null,body,"2026-09-16T10:0${sent.size}:00Z"); chatMessages=chatMessages+m; return m.id }
+    val sentImages=mutableListOf<String?>()
+    override suspend fun send(eventId:String,body:String,thread:String?,image:String?):String { if(slowSend) delay(100); if(failSend) fail(AppError.Network); sent+=eventId to body; sentThreads+=thread; sentImages+=image; val m=ChatMessage("m${sent.size}",eventId,"user","Я",null,body,"2026-09-16T10:0${sent.size}:00Z",image=image); chatMessages=chatMessages+m; return m.id }
+    val uploadedProofs=mutableListOf<Pair<String,ByteArray>>()
+    var proofFiles=emptyMap<String,ByteArray>()
+    override suspend fun uploadProof(eventId:String,jpeg:ByteArray):String { val path="user/$eventId/p${uploadedProofs.size+1}.jpg"; uploadedProofs+=path to jpeg; return path }
+    val proofDownloads=mutableListOf<String>()
+    override suspend fun proof(path:String):ByteArray { proofDownloads+=path; return proofFiles[path] ?: fail(AppError.NotOwner) }
     override suspend fun delete(messageId:String) { chatMessages=chatMessages.filterNot { it.id==messageId } }
     var unreadChats=emptyList<ChatUnread>()
     val readMarks=mutableListOf<String>()

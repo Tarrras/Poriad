@@ -28,11 +28,8 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
                 title = event?.title ?: title,
                 members = event?.gathering?.let { it.attendeeCount + 1 } ?: members,
                 messages = chat?.messages ?: messages,
-                // Організатор бачить, хто питає: з розмови або з деталей, поки вона вантажиться.
-                askerName = thread?.let { asker ->
-                    chat?.messages?.firstOrNull { it.authorId == asker }?.authorName
-                        ?: shared.detail.questions.firstOrNull { it.askerId == asker }?.askerName
-                } ?: askerName,
+                // Організатор бачить, хто питає: з розмови, розмов, заявок чи учасників (міг написати першим).
+                askerName = thread?.let { shared.askerName(eventId, it) } ?: askerName,
                 loading = chat?.loading ?: loading,
                 sending = chat?.sending ?: false,
                 available = chat?.available ?: available,
@@ -42,7 +39,10 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
                 // Той самий поріг, що на сервері: тиждень після кінця.
                 readOnly = event != null && (event.isCancelled || event.endInstant?.let { it + CHAT_GRACE < now } == true),
                 person = shared.person,
-                followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId }
+                followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId },
+                canSendProof = chat != null && shared.canSendProof(),
+                proofs = chat?.proofs ?: proofs,
+                missingProofs = chat?.missingProofs ?: missingProofs
             )
         }
         // Текст, що не пішов, повертається в поле, якщо людина ще не почала нове.
@@ -85,6 +85,13 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
                 reduce { copy(reporting = null) }
                 app.reportMessage(intent.message.id, intent.reason, intent.details)
             }
+            is ChatIntent.SendProof -> {
+                if (!state.value.canSendProof || state.value.sending) return
+                val text = state.value.draft
+                reduce { copy(draft = "") }
+                app.sendProof(intent.jpeg, text)
+            }
+            is ChatIntent.ViewProof -> reduce { copy(viewing = intent.path) }
         }
     }
 

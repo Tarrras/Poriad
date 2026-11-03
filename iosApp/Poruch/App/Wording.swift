@@ -35,6 +35,7 @@ extension AppError {
         case is AppErrorChatClosed: "Чат закрито: подія давно минула"
         case is AppErrorTooManyMessages: "Забагато повідомлень поспіль. Зачекайте хвилину"
         case is AppErrorInvalidMessage: "Повідомлення порожнє або задовге (до 2000 символів)"
+        case is AppErrorPaymentDetails: "Реквізити для оплати надсилають лише в розмові на двох події з оплатою онлайн"
         case is AppErrorObjectionableContent: "Текст містить слова, які ми не публікуємо. Перепишіть, будь ласка."
         case is AppErrorLinkExpired: "Посилання застаріло або вже використане. Запросіть новий лист на цьому пристрої"
         case is AppErrorInvalidCode: Copy.err_invalid_code

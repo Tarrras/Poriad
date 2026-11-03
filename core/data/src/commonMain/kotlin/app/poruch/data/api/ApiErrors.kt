@@ -59,6 +59,9 @@ private val SERVER_ERRORS: Map<String, AppError> = mapOf(
     // Організатор переніс початок події (чи збір супутника) понад 5 разів за добу.
     "TOO_MANY_MOVES" to AppError.TooManyAttempts,
     "INVALID_MESSAGE" to AppError.InvalidMessage,
+    // Оплата онлайн (20261125120000, 20261125130000): реквізити не там і чужий чи неіснуючий скріншот.
+    "PAYMENT_DETAILS" to AppError.PaymentDetails,
+    "INVALID_IMAGE" to AppError.ImageUploadFailed,
     "OBJECTIONABLE_CONTENT" to AppError.ObjectionableContent,
     "INVALID_IMAGE_URL" to AppError.ImageUploadFailed,
     "CHAT_CLOSED" to AppError.ChatClosed,

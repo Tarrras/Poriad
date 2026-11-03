@@ -97,6 +97,29 @@ data class AppState(
     fun isWaitlisted(id: String) = id in library.waitlistedIds
     fun organizes(event: Event) = session.userId != null && event.organizerId == session.userId
 
+    /**
+     * Відкрита моя розмова з організатором події з оплатою онлайн: можна надіслати скріншот оплати (docs/organizer-events.md).
+     * Організатор картинок не надсилає — так і сервер (`send_message`, `p_image`).
+     */
+    /**
+     * Хто в розмові [thread] події [eventId] — для шапки організатора: з повідомлень, розмов, заявок чи учасників
+     * (організатор міг написати першим, і повідомлень людини ще нема).
+     */
+    fun askerName(eventId: String, thread: String): String? =
+        chat?.takeIf { it.eventId == eventId }?.messages?.firstOrNull { it.authorId == thread }?.authorName?.takeIf { it.isNotBlank() }
+            ?: detail.takeIf { it.event?.id == eventId }?.let { d ->
+                d.questions.firstOrNull { it.askerId == thread }?.askerName?.takeIf { it.isNotBlank() }
+                    ?: d.joinRequests.firstOrNull { it.userId == thread }?.name?.takeIf { it.isNotBlank() }
+                    ?: d.attendees.firstOrNull { it.userId == thread }?.name?.takeIf { it.isNotBlank() }
+            }
+
+    fun canSendProof(): Boolean {
+        val open = chat ?: return false
+        if (open.thread == null || open.thread != session.userId) return false
+        val event = detail.event?.takeIf { it.id == open.eventId } ?: library.myEvents.firstOrNull { it.id == open.eventId }
+        return event?.gathering?.payOnline == true
+    }
+
     /** Своя подія: організую або йду. Це і є «плани» на головній і в нагадуваннях. */
     fun concerns(event: Event) = event.gathering?.joined == true || organizes(event)
 

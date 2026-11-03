@@ -1210,6 +1210,42 @@ class PoruchAppTest {
         app.close()
     }
 
+    /**
+     * Скріншот оплати (docs/organizer-events.md): лише в моїй розмові події з оплатою онлайн. Вивантажити, надіслати з
+     * текстом поля чи «Скріншот оплати»; свій видно одразу, чужий вантажиться раз, недоступний — заглушка без повторів.
+     */
+    @Test fun paymentScreenshotGoesOnlyIntoMyThreadOfAnOnlineEvent()=runTest {
+        val events=Events()
+        val online=event("ev",EventCategory.GAMES,"2090-01-05T19:00:00Z").let { it.copy(gathering=it.gathering!!.copy(price=300,payOnline=true)) }
+        events.results=listOf(online); events.detailsById=mapOf("ev" to online)
+        events.chatMessages=listOf(
+            ChatMessage("o1","ev","organizer","Організатор",null,"Картка 4111…","2026-09-16T09:00:00Z",paymentDetails=true),
+            ChatMessage("o2","ev","organizer","Організатор",null,"Старий скрін","2026-09-16T09:01:00Z",image="organizer/ev/gone.jpg")
+        )
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.openEvent("ev"); advanceTimeBy(1000); runCurrent()
+        app.openQuestion("ev","user"); runCurrent()
+        assertTrue(app.state.value.canSendProof(),"моя розмова, оплата онлайн")
+        assertTrue(app.state.value.chat!!.messages.first().paymentDetails)
+        assertEquals(setOf("organizer/ev/gone.jpg"),app.state.value.chat!!.missingProofs,"недоступний — заглушка")
+
+        val jpeg=byteArrayOf(1,2,3)
+        app.sendProof(jpeg,"  "); runCurrent()
+        assertEquals("user/ev/p1.jpg",events.uploadedProofs.single().first)
+        assertEquals(listOf("ev" to ChatRules.PROOF_BODY),events.sent,"порожнє поле — «Скріншот оплати»")
+        assertEquals(listOf<String?>("user/ev/p1.jpg"),events.sentImages)
+        assertTrue(app.state.value.chat!!.proofs["user/ev/p1.jpg"].contentEquals(jpeg),"свій видно одразу")
+        advanceTimeBy(ChatRules.POLL_INTERVAL_MS*2); runCurrent()
+        assertEquals(listOf("organizer/ev/gone.jpg"),events.proofDownloads,"свій не вантажимо назад, недоступний не просимо вдруге")
+
+        // Загальний чат і подія на місці — ні.
+        app.closeChat("ev"); runCurrent(); app.openChat("ev"); runCurrent()
+        assertFalse(app.state.value.canSendProof(),"загальний чат")
+        app.sendProof(jpeg,"x"); runCurrent()
+        assertEquals(1,events.uploadedProofs.size)
+        app.close()
+    }
+
     /** Пуш з чату в чат: старий екран закривається вже після того, як новий відкрив свій, і не має його закрити. */
     @Test fun closingTheOldChatScreenKeepsTheNewChatOpen()=runTest {
         val events=Events(); val app=app(events,backgroundScope)

@@ -385,9 +385,12 @@ internal data class ChatMessageDto(
     @SerialName("author_name") val authorName: String = "",
     @SerialName("avatar_url") val avatarUrl: String? = null,
     val body: String = "",
-    @SerialName("created_at") val createdAt: String = ""
+    @SerialName("created_at") val createdAt: String = "",
+    // Міграції 20261125120000 і 20261125130000. Старий сервер полів не несе.
+    @SerialName("payment_details") val paymentDetails: Boolean = false,
+    val image: String? = null
 ) {
-    fun domain() = app.poruch.domain.ChatMessage(id, eventId, authorId, authorName, avatarUrl, body, createdAt)
+    fun domain() = app.poruch.domain.ChatMessage(id, eventId, authorId, authorName, avatarUrl, body, createdAt, paymentDetails, image)
 }
 
 /** Рядок `public.chat_unread_result` з `my_chat_unread`. */

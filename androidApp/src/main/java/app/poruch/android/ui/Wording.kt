@@ -69,6 +69,7 @@ private val AppError.resource: Int
         AppError.ChatClosed -> R.string.err_chat_closed
         AppError.TooManyMessages -> R.string.err_too_many_messages
         AppError.InvalidMessage -> R.string.err_invalid_message
+        AppError.PaymentDetails -> R.string.err_payment_details
         AppError.ObjectionableContent -> R.string.err_objectionable
         is AppError.InvalidDraft -> R.string.err_rejected
     }
