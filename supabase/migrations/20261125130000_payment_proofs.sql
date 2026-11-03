@@ -13,24 +13,40 @@
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values('payment-proofs','payment-proofs',false,5242880,array['image/jpeg']);
 
+-- Один розбір шляху на всі перевірки (політики, колонка, send_message): `<власник>/<подія>/<uuid>.jpg` → власник і
+-- подія; інший шлях — null.
+create function private.proof_owner(p_name text) returns uuid
+language sql immutable set search_path='' as $$
+ select case when p_name ~ '^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/){2}[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$'
+  then split_part(p_name,'/',1)::uuid end;
+$$;
+create function private.proof_event(p_name text) returns uuid
+language sql immutable set search_path='' as $$
+ select case when private.proof_owner(p_name) is not null then split_part(p_name,'/',2)::uuid end;
+$$;
+
 create function private.can_upload_proof(p_name text) returns boolean
 language sql stable security definer set search_path='' as $$
  select auth.uid() is not null
-  and p_name ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}\.jpg$'
-  and split_part(p_name,'/',1) = auth.uid()::text
+  and private.proof_owner(p_name) = auth.uid()
   and exists(select 1 from public.events e join public.event_members m on m.event_id=e.id and m.user_id=auth.uid()
-   where e.id::text = split_part(p_name,'/',2) and e.pay_online and e.status='published'
+   where e.id = private.proof_event(p_name) and e.pay_online and e.status='published'
    and e.ends_at > now() - interval '7 days' and not private.blocked_between(auth.uid(), e.organizer_id))
+  -- Тека людини — діапазоном імені (байтово «/» < «0»), а не split_part: індекс (bucket_id, name collate "C") Storage
+  -- читає лише її файли, а не весь бакет.
   and (select count(*) from storage.objects o where o.bucket_id='payment-proofs'
-   and split_part(o.name,'/',1) = auth.uid()::text and o.created_at > now() - interval '1 day') < 20;
+   and o.name collate "C" >= auth.uid()::text || '/' and o.name collate "C" < auth.uid()::text || '0'
+   and o.created_at > now() - interval '1 day') < 20;
 $$;
 create function private.can_read_proof(p_name text) returns boolean
 language sql stable security definer set search_path='' as $$
- select auth.uid() is not null and (split_part(p_name,'/',1) = auth.uid()::text
-  or exists(select 1 from public.events e where e.id::text = split_part(p_name,'/',2) and e.organizer_id = auth.uid()));
+ select auth.uid() is not null and (private.proof_owner(p_name) = auth.uid()
+  or exists(select 1 from public.events e where e.id = private.proof_event(p_name) and e.organizer_id = auth.uid()));
 $$;
-revoke all on function private.can_upload_proof(text), private.can_read_proof(text) from public, anon, authenticated;
-grant execute on function private.can_upload_proof(text), private.can_read_proof(text) to authenticated;
+revoke all on function private.proof_owner(text), private.proof_event(text), private.can_upload_proof(text), private.can_read_proof(text)
+ from public, anon, authenticated;
+grant execute on function private.proof_owner(text), private.proof_event(text), private.can_upload_proof(text), private.can_read_proof(text)
+ to authenticated;
 
 create policy poruch_proof_insert on storage.objects for insert to authenticated
  with check (bucket_id='payment-proofs' and private.can_upload_proof(name));
@@ -41,8 +57,7 @@ create policy poruch_proof_delete on storage.objects for delete to authenticated
  using (bucket_id='payment-proofs' and split_part(name,'/',1)=(select auth.uid())::text);
 
 -- ───── Повідомлення з картинкою
-alter table public.event_messages add column image text
- check (image is null or image ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}\.jpg$');
+alter table public.event_messages add column image text check (image is null or private.proof_owner(image) is not null);
 
 -- Старі сигнатури зникають: PostgREST не має вибирати між двома, а старий клієнт (без `p_image`) потрапляє в нову.
 drop function if exists public.send_message(uuid,text,uuid);
@@ -87,7 +102,7 @@ begin
  if v_details and not (v_event.pay_online and p_thread is not null) then raise exception 'PAYMENT_DETAILS' using errcode='22023'; end if;
  -- Скріншот оплати — лише від людини в її розмові онлайн-події і лише свій уже вивантажений файл цієї події.
  if p_image is not null and (p_thread is null or v_user <> p_thread or not v_event.pay_online
-     or p_image !~ ('^' || v_user::text || '/' || p_event_id::text || '/[0-9a-f-]{36}\.jpg$')
+     or private.proof_owner(p_image) is distinct from v_user or private.proof_event(p_image) is distinct from p_event_id
      or not exists(select 1 from storage.objects o where o.bucket_id='payment-proofs' and o.name=p_image)) then
   raise exception 'INVALID_IMAGE' using errcode='22023'; end if;
  -- Двадцять на хвилину — розмова; більше — скрипт. Видалені й розмови теж рахуються.

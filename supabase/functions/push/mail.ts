@@ -3,7 +3,7 @@
 // «чому ви це отримали». Окремо від index.ts: чиста логіка без Deno й мережі, тож її перевіряє
 // `node supabase/functions/push/mail.test.mjs`.
 
-// `answer` і `proof` — лише листи: пуш про них має вид `question` (застосунки вже його знають) з `toAsker` чи `proof`.
+// `answer` і `proof` — лише листи: пуш про них має вид `question` (застосунки вже його знають), а вид листа — `mail`.
 export type MailKind = "request" | "question" | "answer" | "proof" | "approved" | "declined" | "promoted" | "moved" | "cancelled" | "organizer";
 export const MAIL_KINDS: readonly string[] = ["request", "question", "approved", "declined", "promoted", "moved", "cancelled", "organizer"];
 // Пуші, які випущені клієнти не покажуть (Android невідомий kind мовчки відкидає): лише на токени з прапорцем
@@ -11,25 +11,38 @@ export const MAIL_KINDS: readonly string[] = ["request", "question", "approved",
 const FEATURE: Record<string, string> = { companion: "companion", company: "company", approved: "decision", declined: "decision", promoted: "decision" };
 
 export type TokenRow = { token: string; platform: "android" | "ios"; user_id: string; features: string[] };
-type Routed = { kind: string; threadId?: string; change?: string; toAsker?: boolean };
+type Routed = { kind: string; change?: string };
 
 /**
  * [tokens] — усі токени [recipients]. Людина з будь-яким пристроєм листа не отримує, навіть якщо її застосунок цього
- * виду ще не знає. Розмова на двох: питання — організатору, а повідомлення організатора (`toAsker`) — тому, хто питав
- * (threadId): відповісти він може й на сторінці події. Зміна афіші (change) — тим, хто її зберіг у застосунку, а
- * листом — лише спільнотна подія, куди записались.
+ * виду ще не знає. Розмова на двох: адресат — завжди інша сторона (організатор чи той, хто питав, — відповісти він
+ * може й на сторінці події). Зміна афіші (change) — тим, хто її зберіг у застосунку, а листом — лише спільнотна подія,
+ * куди записались.
  */
 export function route(push: Routed, recipients: string[], tokens: TokenRow[]) {
   const feature = FEATURE[push.kind];
   const withDevice = new Set(tokens.map((t) => t.user_id));
   const devices = tokens.filter((t) => !feature || t.features.includes(feature)).map(({ token, platform }) => ({ token, platform }));
   const mailTo = MAIL_KINDS.includes(push.kind) && !push.change
-    ? recipients.filter((id) => !withDevice.has(id) && !(push.kind === "question" && !push.toAsker && id === push.threadId))
+    ? recipients.filter((id) => !withDevice.has(id))
     : [];
   return { devices, mailTo };
 }
 
 export type Mail = { subject: string; html: string; text: string };
+
+/** Листи організатору: кнопка в кабінет. */
+const TO_ORGANIZER: readonly MailKind[] = ["request", "question", "proof"];
+/** Листи з фіксованим рядком замість тексту пуша (див. [mailText]): `line` — з назви події, `note` — що робити далі. */
+const FIXED: Partial<Record<MailKind, { line: (title: string) => string; note?: string }>> = {
+  request: { line: (t) => `Нова заявка на «${t}»` },
+  question: { line: (t) => `Вам поставили питання про «${t}»`, note: "Відповісти можна в кабінеті на poriad.app чи в застосунку «Поряд»." },
+  proof: { line: (t) => `Вам надіслали скріншот оплати за «${t}»`, note: "Звірте надходження в банку й натисніть «Оплату отримано» в кабінеті." },
+  answer: {
+    line: (t) => `Організатор написав вам про «${t}»`,
+    note: "«Поряд» не приймає оплату й не відповідає за неї. Не переказуйте гроші, якщо сумніваєтесь в організаторі.",
+  },
+};
 
 const SITE = "https://poriad.app";
 const SUBJECT_MAX = 150;
@@ -54,18 +67,15 @@ export function esc(s: string): string {
  */
 export function mailText(kind: MailKind, eventId: string, title: string, body: string, who = ""): Mail {
   const page = `${SITE}/e/${eventId}`;
-  const organizer = kind === "request" || kind === "question" || kind === "proof";
-  const lineOf = (t: string, b: string) => kind === "question" ? `Вам поставили питання про «${t}»` : kind === "request" ? `Нова заявка на «${t}»`
-    : kind === "answer" ? `Організатор написав вам про «${t}»` : kind === "proof" ? `Вам надіслали скріншот оплати за «${t}»` : b;
-  const oneLine = (organizer || kind === "answer" ? lineOf(title, body) : `«${title}»: ${body}`).replace(/\s+/g, " ").trim();
+  const fixed = FIXED[kind];
+  const organizer = TO_ORGANIZER.includes(kind);
+  const oneLine = (fixed ? fixed.line(title) : `«${title}»: ${body}`).replace(/\s+/g, " ").trim();
   const subject = oneLine.length <= SUBJECT_MAX ? oneLine : `${oneLine.slice(0, SUBJECT_MAX - 1).trimEnd()}…`;
   [title, body, who] = [unlink(title), unlink(body), unlink(who)];
   const button = organizer ? { label: "Переглянути", url: `${SITE}/kabinet#/e/${eventId}` }
     : kind === "answer" ? { label: "Відкрити розмову", url: `${page}?ask` } : { label: "Відкрити подію", url: page };
-  const note = kind === "question" ? "Відповісти можна в кабінеті на poriad.app чи в застосунку «Поряд»."
-    : kind === "proof" ? "Звірте надходження в банку й натисніть «Оплату отримано» в кабінеті."
-    : kind === "answer" ? "«Поряд» не приймає оплату й не відповідає за неї. Не переказуйте гроші, якщо сумніваєтесь в організаторі." : "";
-  const line = lineOf(title, body);
+  const note = fixed?.note ?? "";
+  const line = fixed ? fixed.line(title) : body;
   const why = organizer ? `Ви отримали цей лист, бо організовуєте «${title}».`
     : kind === "organizer" ? `Ви отримали цей лист, бо стежите за ${who || "організатором"}.`
     : kind === "declined" ? `Ви отримали цей лист, бо надіслали запит на «${title}».`

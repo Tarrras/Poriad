@@ -57,7 +57,7 @@ function page({ minAge = 18, maxAge = "", search = "", share = false } = {}) {
     doc["[data-copy-link]"] = element({ hidden: true, lastChild: { textContent: "Скопіювати посилання" } });
     doc["[data-afisha]"] = element();
   }
-  document = { querySelector: (s) => doc[s] ?? null };
+  document = { querySelector: (s) => doc[s] ?? null, addEventListener() {}, hidden: false };
   location = { hostname: "poriad.app", origin: "https://poriad.app", pathname: `/e/${ID}`, href: `https://poriad.app/e/${ID}${search}` };
   history = { state: null, replaceState(state, title, url) { location.href = String(url); } };
   const step = () => steps.find((e) => !e.hidden)?.dataset.step;

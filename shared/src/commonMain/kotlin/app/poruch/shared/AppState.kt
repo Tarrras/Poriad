@@ -97,10 +97,9 @@ data class AppState(
     fun isWaitlisted(id: String) = id in library.waitlistedIds
     fun organizes(event: Event) = session.userId != null && event.organizerId == session.userId
 
-    /**
-     * Відкрита моя розмова з організатором події з оплатою онлайн: можна надіслати скріншот оплати (docs/organizer-events.md).
-     * Організатор картинок не надсилає — так і сервер (`send_message`, `p_image`).
-     */
+    /** Подія [id] з того, що вже в памʼяті: відкриті деталі чи «Мої події». */
+    fun knownEvent(id: String): Event? = detail.event?.takeIf { it.id == id } ?: library.myEvents.firstOrNull { it.id == id }
+
     /**
      * Хто в розмові [thread] події [eventId] — для шапки організатора: з повідомлень, розмов, заявок чи учасників
      * (організатор міг написати першим, і повідомлень людини ще нема).
@@ -113,11 +112,16 @@ data class AppState(
                     ?: d.attendees.firstOrNull { it.userId == thread }?.name?.takeIf { it.isNotBlank() }
             }
 
+    /**
+     * Відкрита моя розмова з організатором події з оплатою онлайн, де я записався (заявка чи місце): можна надіслати
+     * скріншот оплати (docs/organizer-events.md). Так і сервер: `can_upload_proof`, `send_message` з `p_image`.
+     * Організатор картинок не надсилає.
+     */
     fun canSendProof(): Boolean {
         val open = chat ?: return false
         if (open.thread == null || open.thread != session.userId) return false
-        val event = detail.event?.takeIf { it.id == open.eventId } ?: library.myEvents.firstOrNull { it.id == open.eventId }
-        return event?.gathering?.payOnline == true
+        val room = knownEvent(open.eventId)?.gathering ?: return false
+        return room.payOnline && room.membership != Membership.NONE
     }
 
     /** Своя подія: організую або йду. Це і є «плани» на головній і в нагадуваннях. */

@@ -5,7 +5,7 @@
 
 // Назви, дати й ціна — ті самі правила, що на сайті (site/js/poriad.js, порт TitleRules і формату застосунку).
 // wrangler збирає цей імпорт у воркер; той самий файл сайт віддає браузеру.
-import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS, icsFile } from "../site/js/poriad.js";
+import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS, icsFile, payNote, PAY_ONLINE_FINE } from "../site/js/poriad.js";
 import { kabinetPage, geocode } from "./kabinet.mjs";
 export { esc };
 
@@ -345,13 +345,6 @@ function mediaCarousel(media, category) {
 }
 
 /**
- * Як платити за подію від людей (docs/organizer-events.md): на місці — без передоплати; онлайн — організатору напряму,
- * реквізити в розмові, а «Поряд» за оплату не відповідає (власник 03.11). Однаково на сторінці, у шторці й у розмові.
- */
-export const PAY_ONLINE_FINE = "Оплата онлайн: організатор надішле реквізити в розмові після запису. «Поряд» не приймає оплату й не відповідає за неї.";
-export const payNote = (e) => (e.pay_online ? "Оплата онлайн організатору" : "Оплата на місці, без передоплати");
-
-/**
  * Шторка «Йду» (docs/organizers-1.5.md, 1.1): розмітка однакова для всіх і кешується зі сторінкою, а вхід, стан запису
  * й «Після запису» вмикає site/js/join.js. Він же робить `?unfollow` з листа, тож шторка є й на закритій події.
  */
@@ -413,8 +406,8 @@ function joinSheet(e, ct, now) {
     <div class="thread" data-thread aria-live="polite"></div>
     <form data-form="ask"><label class="field"><span class="sr">Повідомлення</span><textarea name="body" rows="3" maxlength="2000" placeholder="Напишіть організатору" required></textarea></label>
       <button class="btn primary" type="submit">Надіслати</button></form>
-    ${e.pay_online ? `<label class="btn secondary proof-pick">${icon("plus")}Надіслати скріншот оплати<input type="file" accept="image/*" data-proof hidden></label>
-    <p class="fine">Скріншот бачите лише ви й організатор.</p>` : ""}
+    ${e.pay_online ? `<div class="proof-box" data-proof-pick hidden><label class="btn secondary proof-pick">${icon("plus")}Надіслати скріншот оплати<input type="file" accept="image/*" data-proof hidden></label>
+    <p class="fine">Скріншот бачите лише ви й організатор.</p></div>` : ""}
   </section>
   <p class="error" data-error role="alert" hidden></p>
   <p class="account" data-account hidden>Ви ввійшли як <b data-account-email></b> · <button class="link" type="button" data-signout>Вийти</button></p>

@@ -16,8 +16,11 @@ internal class ChatEngine(
     private var sending: Job? = null
     /** Лічильник опитувань: кожне [FULL_EVERY] читає весь хвіст, щоб видалені зникали й у інших. */
     private var polls = 0
-    /** Скріншоти, що вантажаться зараз: опитування кожні 5 с не має просити той самий файл удруге. */
-    private val loadingProofs = mutableSetOf<String>()
+    /**
+     * Скріншоти відкритого чату, що вантажаться зараз: опитування після відправлення й за таймером не просять той самий
+     * файл удвох. Новий набір на кожне відкриття: завантаження закритого чату не зачепить відкритого.
+     */
+    private var loadingProofs = mutableSetOf<String>()
 
     val openEventId: String? get() = store.value.chat?.eventId
 
@@ -43,15 +46,21 @@ internal class ChatEngine(
     /** Зупиняє опитування. Відправлення в дорозі доїде: закрити екран — не те саме, що передумати. */
     fun close() {
         polling?.cancel(); polling = null
-        loadingProofs.clear()
+        loadingProofs = mutableSetOf()
         if (store.value.chat != null) store.update { it.copy(chat = null) }
     }
 
-    /** Відправлення поза [AppStore.mutate]: спінер на кнопці чату, а не на всьому застосунку. */
-    fun send(text: String) {
+    /**
+     * Відправлення поза [AppStore.mutate]: спінер на кнопці чату, а не на всьому застосунку. [jpeg] — скріншот оплати
+     * (docs/organizer-events.md): лише в моїй розмові з організатором події з оплатою онлайн ([AppState.canSendProof]),
+     * уже JPEG без метаданих (платформа перекодовує, як фото події). Він іде в приватний бакет, а повідомлення — з текстом
+     * поля або [ChatRules.PROOF_BODY]; свій скріншот видно одразу, без завантаження назад.
+     */
+    fun send(text: String, jpeg: ByteArray? = null) {
         val eventId = openEventId ?: return
+        if (jpeg != null && !store.value.canSendProof()) return
         val thread = store.value.chat?.thread
-        val body = ChatRules.normalize(text)
+        val body = ChatRules.normalize(text).ifEmpty { if (jpeg != null) ChatRules.PROOF_BODY else "" }
         if (!ChatRules.isBody(body)) {
             store.failed(AppError.InvalidMessage)
             return
@@ -60,45 +69,15 @@ internal class ChatEngine(
         sending = scope.launch {
             update(eventId) { copy(sending = true) }
             try {
-                chat.send(eventId, body, thread)
+                val image = jpeg?.let { bytes ->
+                    chat.uploadProof(eventId, bytes).also { path -> update(eventId) { copy(proofs = proofs + (path to bytes)) } }
+                }
+                chat.send(eventId, body, thread, image)
                 poll(eventId, thread)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 // Платформа чистить поле до відповіді: текст повертається через стан, а не губиться.
-                update(eventId) { copy(failedDraft = text) }
-                store.failed(e.asAppError(), byPerson = true)
-            } finally {
-                update(eventId) { copy(sending = false) }
-            }
-        }
-    }
-
-    /**
-     * Скріншот оплати (docs/organizer-events.md): лише в моїй розмові з організатором події з оплатою онлайн
-     * ([AppState.canSendProof]). [jpeg] — уже JPEG без метаданих (платформа перекодовує, як фото події). Вивантажує
-     * в приватний бакет і надсилає з текстом поля або [ChatRules.PROOF_BODY]. Свій скріншот видно одразу, без завантаження назад.
-     */
-    fun sendProof(jpeg: ByteArray, text: String) {
-        val eventId = openEventId ?: return
-        if (!store.value.canSendProof()) return
-        val thread = store.value.chat?.thread ?: return
-        val body = ChatRules.normalize(text).ifEmpty { ChatRules.PROOF_BODY }
-        if (!ChatRules.isBody(body)) {
-            store.failed(AppError.InvalidMessage)
-            return
-        }
-        if (sending?.isActive == true) return
-        sending = scope.launch {
-            update(eventId) { copy(sending = true) }
-            try {
-                val path = chat.uploadProof(eventId, jpeg)
-                update(eventId) { copy(proofs = proofs + (path to jpeg)) }
-                chat.send(eventId, body, thread, path)
-                poll(eventId, thread)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
                 if (text.isNotBlank()) update(eventId) { copy(failedDraft = text) }
                 store.failed(e.asAppError(), byPerson = true)
             } finally {
@@ -108,14 +87,16 @@ internal class ChatEngine(
     }
 
     /**
-     * Байти скріншотів, яких ще нема в [ChatState.proofs]: з приватного бакета з токеном, кожен раз. Недоступний (видалено,
-     * нема права) — у [ChatState.missingProofs], екран показує заглушку й більше не просить.
+     * Байти скріншотів, яких ще нема в [ChatState.proofs]: з приватного бакета з токеном, паралельно, у корутині
+     * опитування — закриття чату їх скасовує. У памʼяті лише поки чат відкритий: скріншот — до 5 МБ. Недоступний
+     * (видалено, нема права) — у [ChatState.missingProofs], екран показує заглушку й більше не просить.
      */
-    private fun loadProofs(eventId: String) {
-        val open = store.value.chat?.takeIf { it.eventId == eventId } ?: return
+    private suspend fun loadProofs(eventId: String) = coroutineScope {
+        val open = store.value.chat?.takeIf { it.eventId == eventId } ?: return@coroutineScope
+        val loading = loadingProofs
         for (path in open.messages.mapNotNull { it.image }.distinct()) {
-            if (path in open.proofs || path in open.missingProofs || !loadingProofs.add(path)) continue
-            scope.launch {
+            if (path in open.proofs || path in open.missingProofs || !loading.add(path)) continue
+            launch {
                 try {
                     val bytes = chat.proof(path)
                     update(eventId) { copy(proofs = proofs + (path to bytes)) }
@@ -125,7 +106,7 @@ internal class ChatEngine(
                     // Без мережі — спробуємо з наступним опитуванням; інше — не наше чи вже нема.
                     if (e.asAppError() !is AppError.Network) update(eventId) { copy(missingProofs = missingProofs + path) }
                 } finally {
-                    loadingProofs.remove(path)
+                    loading.remove(path)
                 }
             }
         }
@@ -166,12 +147,12 @@ internal class ChatEngine(
             update(eventId) {
                 copy(messages = if (full) ChatRules.merge(emptyList(), fresh) else ChatRules.merge(messages, fresh), loading = false, available = true, offline = false)
             }
-            loadProofs(eventId)
             // Прочитано до зараз: при відкритті і щоразу, коли приїхало чуже нове.
             val me = store.value.session.userId
             if (current.loading || fresh.any { it.authorId != me }) {
                 try { chat.markRead(eventId, thread) } catch (e: CancellationException) { throw e } catch (e: Exception) { /* best-effort */ }
             }
+            loadProofs(eventId)
         } catch (e: CancellationException) {
             throw e
         } catch (e: AppFailure) {

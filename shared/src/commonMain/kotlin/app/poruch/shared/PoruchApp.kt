@@ -408,7 +408,7 @@ class PoruchApp internal constructor(
      * Скріншот оплати в моїй розмові з організатором онлайн-події ([AppState.canSendProof]): [jpeg] — JPEG без метаданих,
      * [text] — що в полі (порожнє — «Скріншот оплати»).
      */
-    fun sendProof(jpeg: ByteArray, text: String) = chatEngine.sendProof(jpeg, text)
+    fun sendProof(jpeg: ByteArray, text: String) = chatEngine.send(text, jpeg)
 
     /** Текст, що не пішов (див. [ChatState.failedDraft]), для поля вводу. Віддає раз. */
     fun consumeFailedDraft(): String? = chatEngine.consumeFailedDraft()

@@ -246,26 +246,25 @@ create or replace function public.event_messages(p_event_id uuid,p_after timesta
  ) tail order by created_at,id;
 $$;
 
--- ───── 4. Лист тому, хто питав: окремий лічильник, один лист на годину на розмову (функція `push`, `answer_mail_due`).
-create table private.answer_mails (
- event_id uuid not null references public.events(id) on delete cascade,
- thread_user_id uuid not null references public.profiles(id) on delete cascade,
- sent_at timestamptz not null default now(),
- primary key (event_id, thread_user_id)
-);
-revoke all on private.answer_mails from public, anon, authenticated;
+-- ───── 4. Лист тому, хто питав: той самий лічильник `question_mails` (20261120130000), але свій рядок (`to_asker`) —
+-- інакше відповідь на свіже питання мовчала б годину. Один лист на годину на розмову в кожен бік (функція `push`).
+alter table private.question_mails add column to_asker boolean not null default false;
+alter table private.question_mails drop constraint question_mails_pkey, add primary key (event_id, thread_user_id, to_asker);
 
-create function private.answer_mail_due(p_event uuid, p_thread uuid) returns boolean
+-- Новий параметр — з типовим значенням: функція `push` до цієї версії кличе з двома й потрапляє сюди ж.
+drop function public.question_mail_due(uuid, uuid);
+drop function private.question_mail_due(uuid, uuid);
+create function private.question_mail_due(p_event uuid, p_thread uuid, p_to_asker boolean default false) returns boolean
 language plpgsql security definer set search_path='' as $$
 declare v_due boolean;
 begin
- insert into private.answer_mails as a (event_id, thread_user_id) values (p_event, p_thread)
- on conflict (event_id, thread_user_id) do update set sent_at = now() where a.sent_at <= now() - interval '1 hour'
+ insert into private.question_mails as q (event_id, thread_user_id, to_asker) values (p_event, p_thread, p_to_asker)
+ on conflict (event_id, thread_user_id, to_asker) do update set sent_at = now() where q.sent_at <= now() - interval '1 hour'
  returning true into v_due;
  return coalesce(v_due, false);
 end $$;
-create function public.answer_mail_due(p_event uuid, p_thread uuid) returns boolean
-language sql security invoker set search_path='' as $$ select private.answer_mail_due(p_event, p_thread); $$;
-revoke all on function private.answer_mail_due(uuid, uuid), public.answer_mail_due(uuid, uuid) from public, anon, authenticated;
+create function public.question_mail_due(p_event uuid, p_thread uuid, p_to_asker boolean default false) returns boolean
+language sql security invoker set search_path='' as $$ select private.question_mail_due(p_event, p_thread, p_to_asker); $$;
+revoke all on function private.question_mail_due(uuid, uuid, boolean), public.question_mail_due(uuid, uuid, boolean) from public, anon, authenticated;
 -- Лише функція `push` ключем service role.
-grant execute on function private.answer_mail_due(uuid, uuid), public.answer_mail_due(uuid, uuid) to service_role;
+grant execute on function private.question_mail_due(uuid, uuid, boolean), public.question_mail_due(uuid, uuid, boolean) to service_role;

@@ -21,7 +21,7 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
     init {
         if (thread != null) app.openQuestion(eventId, thread) else app.openChat(eventId)
         observe(app) { shared ->
-            val event = (listOf(shared.detail.event) + shared.library.myEvents).firstOrNull { it?.id == eventId }
+            val event = shared.knownEvent(eventId)
             val chat = shared.chat?.takeIf { it.eventId == eventId && it.thread == thread }
             val now = Clock.System.now()
             copy(

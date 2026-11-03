@@ -188,13 +188,10 @@ struct EventDetailView: View, Equatable {
             return PersonRequest(
                 approve: { model.app.approveMember(eventId: event.id, userId: userId) },
                 decline: { model.app.declineMember(eventId: event.id, userId: userId) },
-                approveTitle: event.gathering?.payOnline == true ? Copy.approve_paid : Copy.approve
+                approveTitle: view.payOnline ? Copy.approve_paid : Copy.approve
             )
         }, write: { userId in
-            // Організатор пише першим тому, хто записався чи подав заявку: оплата онлайн — реквізити в розмові.
-            guard let event = view.event, view.organizer, userId != model.state?.session.userId,
-                  view.requests.contains(where: { $0.userId == userId }) || view.attendees.contains(where: { $0.userId == userId })
-            else { return nil }
+            guard let event = view.event, view.canWriteTo(userId: userId) else { return nil }
             return { writingTo = ChatRoute(id: event.id, thread: userId) }
         }, onBlocked: { userId in
             // Організатор — разом із подією; учасник зникає лише з ростеру.

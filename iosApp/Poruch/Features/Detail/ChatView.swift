@@ -244,8 +244,9 @@ struct ChatView: View {
                             .offset(y: 15)
                     }
                     .padding(.bottom, 12)
-                // Реквізити від іншої сторони: «Поряд» за оплату не відповідає, скарга — тут же.
-                if message.paymentDetails && !mine {
+                // Реквізити від організатора тому, хто платить: «Поряд» за оплату не відповідає, скарга — тут же.
+                // Сам організатор застереження не бачить (як кабінет на вебі).
+                if message.paymentDetails && !mine && !organizer {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(Copy.payment_warning).font(PoruchFont.caption).foregroundStyle(Palette.danger)
                             .fixedSize(horizontal: false, vertical: true)
@@ -393,7 +394,7 @@ private struct ProofThumb: View {
         }
         .task(id: bytes != nil) {
             guard image == nil, let bytes else { return }
-            let data = Bytes_iosKt.dataOf(bytes: bytes)
+            let data = swiftData(bytes)
             let decoded = await Task.detached(priority: .userInitiated) { ThumbnailCache.downsample(data, to: 1600) }.value
             if let decoded { image = decoded } else { broken = true }
         }
@@ -410,12 +411,7 @@ private struct ProofViewer: View {
             Color.black.ignoresSafeArea()
             Image(uiImage: image).resizable().scaledToFit().frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityLabel(Copy.proof_open)
-            Button { dismiss() } label: {
-                PoruchIcon(glyph: PoruchIcons.close, size: 18).foregroundStyle(.white)
-                    .frame(width: 44, height: 44).background(.white.opacity(0.2), in: Circle())
-            }
-            .padding(Space.lg)
-            .accessibilityLabel(Copy.close)
+            IconPill(glyph: PoruchIcons.close, label: Copy.close, size: 40) { dismiss() }.padding(Space.page)
         }
         .onTapGesture { dismiss() }
     }

@@ -1216,7 +1216,7 @@ class PoruchAppTest {
      */
     @Test fun paymentScreenshotGoesOnlyIntoMyThreadOfAnOnlineEvent()=runTest {
         val events=Events()
-        val online=event("ev",EventCategory.GAMES,"2090-01-05T19:00:00Z").let { it.copy(gathering=it.gathering!!.copy(price=300,payOnline=true)) }
+        val online=event("ev",EventCategory.GAMES,"2090-01-05T19:00:00Z").let { it.copy(gathering=it.gathering!!.copy(price=300,payOnline=true,membership=Membership.REQUESTED)) }
         events.results=listOf(online); events.detailsById=mapOf("ev" to online)
         events.chatMessages=listOf(
             ChatMessage("o1","ev","organizer","Організатор",null,"Картка 4111…","2026-09-16T09:00:00Z",paymentDetails=true),
@@ -1237,6 +1237,10 @@ class PoruchAppTest {
         assertTrue(app.state.value.chat!!.proofs["user/ev/p1.jpg"].contentEquals(jpeg),"свій видно одразу")
         advanceTimeBy(ChatRules.POLL_INTERVAL_MS*2); runCurrent()
         assertEquals(listOf("organizer/ev/gone.jpg"),events.proofDownloads,"свій не вантажимо назад, недоступний не просимо вдруге")
+
+        // Не записався (лише питав) — ні: сховище не прийме файл (`can_upload_proof`).
+        val asking=online.copy(gathering=online.gathering!!.copy(membership=Membership.NONE))
+        assertFalse(app.state.value.copy(detail=app.state.value.detail.copy(event=asking)).canSendProof(),"лише записаним")
 
         // Загальний чат і подія на місці — ні.
         app.closeChat("ev"); runCurrent(); app.openChat("ev"); runCurrent()

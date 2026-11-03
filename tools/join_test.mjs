@@ -1,6 +1,7 @@
 // Правила шторки «Йду» (site/js/join.js) без браузера: node tools/join_test.mjs
 import assert from "node:assert/strict";
-import { outcome, STATUS, STAMPS, ageLimit, needsBirthDate, weekPool, weekPicks, weekRow, shareMode, unfollowTitle, statusKind, bubble } from "../site/js/join.js";
+import { outcome, STATUS, STAMPS, ageLimit, needsBirthDate, weekPool, weekPicks, weekRow, shareMode, unfollowTitle, statusKind } from "../site/js/join.js";
+import { bubble } from "../site/js/chat.js";
 
 // Таблиця «Інші відповіді на запис» (docs/organizers-1.5.md, 1.1).
 for (const [code, kind] of [
@@ -85,6 +86,8 @@ assert.ok(theirs.includes("«Поряд» не приймає оплату й н
 const own = bubble({ ...msg, author_id: "me" }, "me", "org", new Date("2026-11-05T12:00:00Z"));
 assert.ok(own.startsWith('<div class="msg mine" data-id="m1"><small>Ви · 3 лист') && !own.includes("pay-warn"), "своє — без застереження, інший день — з датою");
 assert.ok(!bubble({ ...msg, payment_details: false }, "me", "org").includes("pay-warn"));
+assert.ok(!bubble({ ...msg, author_id: "me" }, "org", "org").includes("pay-warn"), "організатор у кабінеті застереження не бачить");
+assert.ok(!bubble(msg, "org", "org").includes("pay-warn"), "і під своїми реквізитами теж");
 // Скріншот оплати: лише шлях у data-атрибуті (src — з токеном, blob:), без прямого посилання на сховище.
 const shot = bubble({ ...msg, author_id: "me", payment_details: false, image: "me/e1/f.jpg", body: "Скріншот оплати" }, "me", "org");
 assert.ok(shot.includes('<button class="proof" type="button" data-proof-open><img alt="Скріншот оплати" data-proof-path="me/e1/f.jpg"></button>'));

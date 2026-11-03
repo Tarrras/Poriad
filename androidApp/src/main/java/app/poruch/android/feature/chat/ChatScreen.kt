@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.window.Dialog
@@ -54,6 +55,8 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Чат події: повний екран зі своєю шапкою, стрічкою по днях і полем унизу.
@@ -187,9 +190,12 @@ private fun Feed(state: ChatState, onIntent: (ChatIntent) -> Unit) {
             Column {
                 row.day?.let { DayLabel(it) }
                 Spacer(Modifier.height(if (row.continued) 3.dp else Spacing.md))
+                val mine = state.isMine(row.message)
                 Bubble(
-                    row.message, row.continued, state.isMine(row.message), onIntent,
-                    proof = row.message.image?.let { state.proofs[it] }, missing = row.message.image?.let { it in state.missingProofs } == true
+                    row.message, row.continued, mine, onIntent,
+                    proof = row.message.image?.let { state.proofs[it] }, missing = row.message.image?.let { it in state.missingProofs } == true,
+                    // Застереження — для того, хто платить: організатор його не бачить (як кабінет на вебі).
+                    payWarning = row.message.paymentDetails && !mine && !state.organizer
                 )
             }
         }
@@ -240,7 +246,9 @@ private fun DayLabel(day: LocalDate) {
 private fun Bubble(
     message: ChatMessage, continued: Boolean, mine: Boolean, onIntent: (ChatIntent) -> Unit,
     /** Скріншот оплати, якщо вже завантажено; [missing] — не вийшло (заглушка). */
-    proof: ByteArray? = null, missing: Boolean = false
+    proof: ByteArray? = null, missing: Boolean = false,
+    /** Реквізити від організатора тому, хто платить: застереження й «Поскаржитись». */
+    payWarning: Boolean = false
 ) {
     val colors = Poruch.colors
     val name = message.authorName.ifBlank { stringResource(R.string.chat_member) }
@@ -274,8 +282,8 @@ private fun Bubble(
             if (!mine && !continued) Text(name, style = MaterialTheme.typography.labelMedium, color = colors.inkSecondary)
             message.image?.let { path -> ProofThumb(path, proof, missing, mine, onIntent) }
             Text(message.body, style = MaterialTheme.typography.bodyLarge, color = if (mine) colors.onBrand else colors.ink)
-            // Реквізити від іншої сторони (docs/organizer-events.md): «Поряд» за оплату не відповідає, скарга — тут же.
-            if (message.paymentDetails && !mine) PaymentWarning { onIntent(ChatIntent.ShowReport(message)) }
+            // Реквізити (docs/organizer-events.md): «Поряд» за оплату не відповідає, скарга — тут же.
+            if (payWarning) PaymentWarning { onIntent(ChatIntent.ShowReport(message)) }
             // Час у правому нижньому куті, як у месенджерах.
             Text(
                 time, style = PoruchType.caption,
@@ -291,7 +299,8 @@ private fun Bubble(
 @Composable
 private fun ProofThumb(path: String, bytes: ByteArray?, missing: Boolean, mine: Boolean, onIntent: (ChatIntent) -> Unit) {
     val colors = Poruch.colors
-    val image = remember(bytes) { bytes?.let { runCatching { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }.getOrNull() } }
+    val decoded = rememberProof(bytes, THUMB_SIDE)
+    val image = decoded?.image
     val label = stringResource(R.string.proof_open)
     when {
         image != null -> Image(
@@ -300,7 +309,7 @@ private fun ProofThumb(path: String, bytes: ByteArray?, missing: Boolean, mine: 
                 .clickable(onClickLabel = label) { onIntent(ChatIntent.ViewProof(path)) },
             contentScale = ContentScale.Crop
         )
-        missing || bytes != null -> Text(
+        missing || decoded != null -> Text(
             stringResource(R.string.proof_unavailable), style = PoruchType.caption,
             color = if (mine) colors.onBrand.copy(alpha = 0.75f) else colors.inkSecondary
         )
@@ -310,7 +319,7 @@ private fun ProofThumb(path: String, bytes: ByteArray?, missing: Boolean, mine: 
     }
 }
 
-/** Під реквізитами від іншої сторони: «Поряд» не приймає оплату й не відповідає за неї; «Поскаржитись» — одразу. */
+/** Під реквізитами від організатора: «Поряд» не приймає оплату й не відповідає за неї; «Поскаржитись» — одразу. */
 @Composable
 private fun PaymentWarning(onReport: () -> Unit) {
     val colors = Poruch.colors
@@ -329,18 +338,39 @@ private fun PaymentWarning(onReport: () -> Unit) {
 /** Скріншот на весь екран: звірити суму й імʼя з банком. Тап чи «назад» — закрити. */
 @Composable
 private fun ProofViewer(bytes: ByteArray, onClose: () -> Unit) {
-    val image = remember(bytes) { runCatching { BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }.getOrNull() } ?: return
+    val image = rememberProof(bytes, ChatRules.PROOF_SIDE)?.image ?: return
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(Modifier.fillMaxSize().background(Color.Black).clickable(onClick = onClose), contentAlignment = Alignment.Center) {
             Image(image, stringResource(R.string.proof_open), Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-            Box(
-                Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(Spacing.lg).size(44.dp).background(Color.White.copy(alpha = 0.2f), CircleShape)
-                    .clickable(onClick = onClose),
-                contentAlignment = Alignment.Center
-            ) { Icon(PoruchIcons.close, stringResource(R.string.close), Modifier.size(20.dp), tint = Color.White) }
+            Box(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(Spacing.md)) {
+                ScrimButton(PoruchIcons.close, stringResource(R.string.close), onClose)
+            }
         }
     }
 }
+
+/** Розкодований скріншот; [image] null — байти не картинка. */
+private class DecodedProof(val image: ImageBitmap?)
+
+/** Мініатюра: 240×320 dp — до ~960 px на щільному екрані; повний розмір — лише на весь екран. */
+private const val THUMB_SIDE = 960
+
+/**
+ * JPEG скріншота → картинка поза головним потоком, довша сторона не менша за [side] (грубо, `inSampleSize`): у
+ * мініатюрі не тримаємо повних 2048 px. null — ще декодуємо чи байтів нема.
+ */
+@Composable
+private fun rememberProof(bytes: ByteArray?, side: Int): DecodedProof? = produceState<DecodedProof?>(null, bytes, side) {
+    value = bytes?.let { data -> withContext(Dispatchers.Default) { DecodedProof(decodeProof(data, side)) } }
+}.value
+
+private fun decodeProof(bytes: ByteArray, side: Int): ImageBitmap? = runCatching {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    var sample = 1
+    while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= side) sample *= 2
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+}.getOrNull()
 
 /** Бульбашка з «хвостиком»: кут біля співрозмовника гострий, у продовженні серії — усі округлі. */
 private fun bubbleShape(mine: Boolean, continued: Boolean): RoundedCornerShape {

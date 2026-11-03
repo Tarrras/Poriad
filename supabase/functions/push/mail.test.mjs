@@ -82,11 +82,10 @@ assert.deepEqual(route({ kind: "request" }, ["org"], []).mailTo, ["org"]);
 // Зміна афіші — лише на пристрої тим, хто зберіг; спільнотна подія (без change) — і листом.
 assert.deepEqual(route({ kind: "cancelled", change: "cancelled" }, ["saver"], []).mailTo, []);
 assert.deepEqual(route({ kind: "cancelled" }, ["member"], []).mailTo, ["member"]);
-// Розмова: питання — листом організатору; повідомлення організатора (toAsker) — тому, хто питав.
-assert.deepEqual(route({ kind: "question", threadId: "asker" }, ["org"], []).mailTo, ["org"]);
-assert.deepEqual(route({ kind: "question", threadId: "asker" }, ["asker"], []).mailTo, [], "without toAsker the asker is not mailed");
-assert.deepEqual(route({ kind: "question", threadId: "asker", toAsker: true }, ["asker"], []).mailTo, ["asker"]);
-assert.deepEqual(route({ kind: "question", threadId: "asker", toAsker: true }, ["asker"], [tok("asker")]).mailTo, [], "with the app — push only");
+// Розмова: лист — іншій стороні без застосунку (адресатів обирає forMessage).
+assert.deepEqual(route({ kind: "question" }, ["org"], []).mailTo, ["org"]);
+assert.deepEqual(route({ kind: "question" }, ["asker"], []).mailTo, ["asker"]);
+assert.deepEqual(route({ kind: "question" }, ["asker"], [tok("asker")]).mailTo, [], "with the app — push only");
 // Два пристрої однієї людини — два пуші й жодного листа.
 assert.deepEqual(route({ kind: "organizer" }, ["a", "b"], [tok("a", [], "t1"), tok("a", [], "t2")]),
   { devices: [{ token: "t1", platform: "android" }, { token: "t2", platform: "android" }], mailTo: ["b"] });

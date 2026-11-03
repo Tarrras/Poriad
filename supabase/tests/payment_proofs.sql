@@ -73,6 +73,24 @@ begin
 end $$;
 reset role;
 
+-- Ліміт — 20 файлів на добу в теці людини; чужі теки не рахуються (діапазон імені, не весь бакет).
+insert into storage.objects(bucket_id,name) select 'payment-proofs',
+ current_setting('test.host')||'/'||current_setting('test.online')||'/'||gen_random_uuid()||'.jpg' from generate_series(1,25);
+set local role authenticated;
+do $$ begin
+ perform set_config('request.jwt.claim.sub',current_setting('test.guest'),true);
+ assert private.can_upload_proof(current_setting('test.guest')||'/'||current_setting('test.online')||'/'||gen_random_uuid()||'.jpg'),'foreign files do not count';
+end $$;
+reset role;
+insert into storage.objects(bucket_id,name) select 'payment-proofs',
+ current_setting('test.guest')||'/'||current_setting('test.online')||'/'||gen_random_uuid()||'.jpg' from generate_series(1,19);
+set local role authenticated;
+do $$ begin
+ perform set_config('request.jwt.claim.sub',current_setting('test.guest'),true);
+ assert not private.can_upload_proof(current_setting('test.guest')||'/'||current_setting('test.online')||'/'||gen_random_uuid()||'.jpg'),'20 a day';
+end $$;
+reset role;
+
 do $$ begin
  assert (select count(*)=1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='send_message'),'one send_message for PostgREST';
  assert (select not public from storage.buckets where id='payment-proofs'),'bucket is private';

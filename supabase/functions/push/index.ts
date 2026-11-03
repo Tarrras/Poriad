@@ -58,8 +58,10 @@ type Change = "cancelled" | "postponed" | "moved" | "corrected";
 const CHANGES: readonly string[] = ["cancelled", "postponed", "moved", "corrected"];
 
 // who — лише для листа: за ким стежить людина.
-type Push = { kind: "chat" | "question" | "request" | "joined" | "organizer" | "place" | "artist" | "companion" | "company" | "winback" | "zone" | EventKind | Decision; eventId?: string; placeId?: string; artistId?: string; threadId?: string; change?: Change; step?: number; title: string; body: string; key: string; who?: string; toAsker?: boolean; proof?: boolean };
+type Push = { kind: "chat" | "question" | "request" | "joined" | "organizer" | "place" | "artist" | "companion" | "company" | "winback" | "zone" | EventKind | Decision; eventId?: string; placeId?: string; artistId?: string; threadId?: string; change?: Change; step?: number; title: string; body: string; key: string; who?: string; mail?: ThreadMail };
 type Token = { token: string; platform: "android" | "ios" };
+// Розмова на двох шле пуш виду `question` (застосунки його знають), а лист — за тим, хто кому написав (mail.ts).
+type ThreadMail = "question" | "answer" | "proof";
 
 const PREVIEW = 120;
 // Скільки запитів до провайдерів водночас і скільки чекати кожен: тригер кличе функцію
@@ -120,7 +122,7 @@ Deno.serve(async (req) => {
     // Розмова — не частіше за лист на годину на розмову: пишуть і по 20 повідомлень на хвилину. Організатору й тому,
     // хто питав, — окремі лічильники, інакше відповідь на свіже питання мовчала б годину.
     if (push.kind === "question" && mailTo.length > 0) {
-      const { data: due } = await db.rpc(push.toAsker ? "answer_mail_due" : "question_mail_due", { p_event: push.eventId, p_thread: push.threadId });
+      const { data: due } = await db.rpc("question_mail_due", { p_event: push.eventId, p_thread: push.threadId, p_to_asker: push.mail === "answer" });
       if (due !== true) mailTo = [];
     }
     if (list.length === 0 && mailTo.length === 0) return json({ sent: 0, reason: "no tokens" });
@@ -177,7 +179,7 @@ async function forMessage(db: ReturnType<typeof createClient>, p: Extract<Payloa
         kind: "question" as const, eventId: e.id as string, threadId: m.thread_user_id as string, title: e.title as string,
         // Скріншот оплати (20261125130000) шле лише людина; організатор звіряє з банком і тисне «Оплату отримано».
         body: fromOrganizer ? `Організатор написав: ${text}` : m.image ? `Скріншот оплати від ${who}` : `${who} питає: ${text}`,
-        key: m.id as string, toAsker: fromOrganizer, proof: Boolean(m.image) && !fromOrganizer,
+        key: m.id as string, mail: (fromOrganizer ? "answer" : m.image ? "proof" : "question") as ThreadMail,
       },
       recipients,
     };
@@ -560,8 +562,7 @@ async function sendMails(db: ReturnType<typeof createClient>, people: string[], 
     const users = await Promise.all(people.slice(i, i + CONCURRENCY).map((id) => db.auth.admin.getUserById(id)));
     for (const { data } of users) if (data.user?.email && data.user.email_confirmed_at) emails.push(data.user.email);
   }
-  const kind = push.kind === "question" ? (push.toAsker ? "answer" : push.proof ? "proof" : "question") : push.kind;
-  const mail = mailText(kind as MailKind, push.eventId!, push.title, push.body, push.who);
+  const mail = mailText((push.mail ?? push.kind) as MailKind, push.eventId!, push.title, push.body, push.who);
   let mailed = 0, failed = 0;
   for (let i = 0; i < emails.length; i += MAIL_BATCH) {
     const batch = emails.slice(i, i + MAIL_BATCH);

@@ -8,6 +8,7 @@ import app.poruch.domain.ChatMessage
 import app.poruch.domain.ChatRules
 import app.poruch.domain.ChatUnread
 import app.poruch.domain.EventChat
+import app.poruch.domain.ImageRules
 import app.poruch.domain.QuestionThread
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.builtins.ListSerializer
@@ -50,7 +51,7 @@ internal class SupabaseEventChat(
     override suspend fun uploadProof(eventId: String, jpeg: ByteArray): String {
         val me = auth.session.value?.userId ?: fail(AppError.SessionRequired)
         val token = auth.accessToken() ?: fail(AppError.SessionRequired)
-        if (jpeg.isEmpty() || jpeg.size > app.poruch.domain.ImageRules.MAX_BYTES) fail(AppError.ImageUploadFailed)
+        if (jpeg.isEmpty() || jpeg.size > ImageRules.MAX_BYTES) fail(AppError.ImageUploadFailed)
         // Перша тека — власник: так `delete-account` прибирає скріншоти разом з рештою файлів людини.
         val path = "$me/$eventId/${Uuid.random()}.jpg"
         storage.upload(path, jpeg, "image/jpeg", token, ImageStorage.PROOFS)

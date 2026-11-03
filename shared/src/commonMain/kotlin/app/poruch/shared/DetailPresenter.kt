@@ -148,6 +148,14 @@ data class DetailScreenState(
     val canMoveMeet: Boolean get() = organizer && companionOf?.startsAt != null && !cancelled && !started
     val myRating: EventRating? get() = ratings.firstOrNull { it.mine }
     val cancelled: Boolean get() = event?.isCancelled == true
+    /** Подія з оплатою онлайн: заявка — «чекає оплати», схвалити — «Оплату отримано» (docs/organizer-events.md). */
+    val payOnline: Boolean get() = room?.payOnline == true
+    /**
+     * «Написати» в картці людини: організатор пише першим тому, хто записався чи подав заявку (`send_message`) — з оплатою
+     * онлайн так надсилають реквізити.
+     */
+    fun canWriteTo(userId: String): Boolean =
+        organizer && userId != this.userId && (requests.any { it.userId == userId } || attendees.any { it.userId == userId })
     /**
      * «Вже маєте квиток?» під продавцями: квиток купили раніше, на касі чи отримали від друга, а картка «Купили квиток?»
      * з'являється лише після нашого продавця. Лише афіша, що попереду й не скасована, і без квитка в телефоні.

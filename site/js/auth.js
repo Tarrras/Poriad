@@ -17,7 +17,6 @@ const MAIL_TTL = 24 * 3600_000;
 export const MIN_PASSWORD = 8;
 export const MAX_PASSWORD = 72;
 export const isEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value ?? "").trim());
-export const isPassword = (value) => typeof value === "string" && value.length >= MIN_PASSWORD && value.length <= MAX_PASSWORD;
 
 const read = () => { try { return JSON.parse(localStorage.getItem(SESSION)); } catch { return null; } };
 const write = (value) => { value ? localStorage.setItem(SESSION, JSON.stringify(value)) : localStorage.removeItem(SESSION); return value; };
@@ -44,15 +43,19 @@ async function failure(response) {
     { status: response.status, code: body.error_code || body.message || body.error || null, reasons: body.weak_password?.reasons ?? null });
 }
 
-async function auth(path, body, token = null, method = "POST") {
+/** Тіло відповіді; порожнє (void, 204) — null. */
+const json = async (response) => { const text = await response.text(); return text ? JSON.parse(text) : null; };
+/** Сесії вже нема: людині — «увійдіть ще раз», а не той самий запит гостем. */
+const expired = () => Object.assign(new Error("Сесія закінчилась, увійдіть ще раз"), { status: 401, code: "session_expired" });
+
+async function auth(path, body, token = null) {
   const response = await fetch(`${SUPABASE.url}/auth/v1/${path}`, {
-    method,
-    headers: { apikey: SUPABASE.key, ...(body ? { "content-type": "application/json" } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
+    method: "POST",
+    headers: { apikey: SUPABASE.key, "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(body),
   });
   if (!response.ok) throw await failure(response);
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
+  return json(response);
 }
 const redirect = (path, returnTo) => `${path}?${new URLSearchParams({ redirect_to: returnTo })}`;
 
@@ -226,12 +229,10 @@ export async function requestRecovery(email, returnTo, intent = null) {
 
 /** Запит до /auth/v1 від імені людини; без сесії — `session_expired`. */
 async function own(method, path = "user", body = null) {
-  if (!(await session())) throw Object.assign(new Error("Сесія закінчилась, увійдіть ще раз"), { status: 401, code: "session_expired" });
-  const response = await signed((current) => fetch(`${SUPABASE.url}/auth/v1/${path}`, {
+  if (!(await session())) throw expired();
+  return json(await signed((current) => fetch(`${SUPABASE.url}/auth/v1/${path}`, {
     method, headers: headers(current, body ? { "content-type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined,
-  }));
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
+  })));
 }
 
 /** Свій рядок Auth: пошта, `identities` (якими провайдерами входить), `user_metadata`. */
@@ -287,7 +288,7 @@ async function signed(send) {
   let response = await send(current);
   if (response.status === 401 && current) {
     const renewed = await session(true);
-    if (!renewed) throw Object.assign(new Error("Сесія закінчилась, увійдіть ще раз"), { status: 401, code: "session_expired" });
+    if (!renewed) throw expired();
     response = await send(renewed);
   }
   if (!response.ok) throw await failure(response);
@@ -296,16 +297,17 @@ async function signed(send) {
 
 /** RPC бази з токеном людини. Порожня відповідь (void) — null. */
 export async function rpc(name, args = {}) {
-  const response = await signed((current) => fetch(`${SUPABASE.url}/rest/v1/rpc/${name}`, {
+  return json(await signed((current) => fetch(`${SUPABASE.url}/rest/v1/rpc/${name}`, {
     method: "POST", headers: headers(current, { "content-type": "application/json" }), body: JSON.stringify(args),
-  }));
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
+  })));
 }
+
+/** `бакет/тека/файл` для адреси Storage: кожна частина — окремо, слеші лишаються. */
+const objectPath = (bucket, path) => `${encodeURIComponent(bucket)}/${path.split("/").map(encodeURIComponent).join("/")}`;
 
 /** Файл у Storage (REST) → публічна адреса: бакети подій публічні. Наявний файл не перезаписує. */
 export async function upload(bucket, path, blob) {
-  const target = `${encodeURIComponent(bucket)}/${path.split("/").map(encodeURIComponent).join("/")}`;
+  const target = objectPath(bucket, path);
   await signed((current) => fetch(`${SUPABASE.url}/storage/v1/object/${target}`, {
     method: "POST", headers: headers(current, { "content-type": blob.type || "application/octet-stream" }), body: blob,
   }));
@@ -314,8 +316,7 @@ export async function upload(bucket, path, blob) {
 
 /** Файл із приватного бакета (скріншот оплати) з токеном людини → Blob; читати можуть лише ті, кого пускає RLS Storage. */
 export async function download(bucket, path) {
-  const target = `${encodeURIComponent(bucket)}/${path.split("/").map(encodeURIComponent).join("/")}`;
-  const response = await signed((current) => fetch(`${SUPABASE.url}/storage/v1/object/authenticated/${target}`, { headers: headers(current, {}) }));
+  const response = await signed((current) => fetch(`${SUPABASE.url}/storage/v1/object/authenticated/${objectPath(bucket, path)}`, { headers: headers(current, {}) }));
   return response.blob();
 }
 

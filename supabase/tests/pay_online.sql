@@ -93,8 +93,8 @@ reset role;
 
 -- Лист тому, хто питав: перший — так, другий за годину — ні; лічильник окремий від листів організатору.
 do $$ begin
- assert public.answer_mail_due(current_setting('test.online')::uuid,current_setting('test.guest')::uuid),'first answer mail';
- assert not public.answer_mail_due(current_setting('test.online')::uuid,current_setting('test.guest')::uuid),'one per hour';
+ assert public.question_mail_due(current_setting('test.online')::uuid,current_setting('test.guest')::uuid,true),'first answer mail';
+ assert not public.question_mail_due(current_setting('test.online')::uuid,current_setting('test.guest')::uuid,true),'one per hour';
  assert public.question_mail_due(current_setting('test.online')::uuid,current_setting('test.guest')::uuid),'organizer mails counted apart';
  assert (select count(*)=1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_event'),'one create_event for PostgREST';
  assert (select count(*)=1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='update_event'),'one update_event for PostgREST';

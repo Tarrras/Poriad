@@ -300,7 +300,7 @@ function foldLine(line) {
 // ---- «Пост для Threads» (docs/organizers-1.5.md, 1.5) — той самий текст, що `ThreadsPost` у застосунку. Ним діляться
 // кабінет і організатор на сторінці своєї події (1.6, «Поширити анонс»).
 const POST_WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "нд"];
-const POST_MONTHS = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
+export const POST_MONTHS = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
 export const ABOUT_MAX = 200;
 export function threadsPost(event) {
   const tz = event.time_zone || "Europe/Kyiv";
@@ -311,10 +311,19 @@ export function threadsPost(event) {
   const description = (event.description ?? "").trim();
   const about = event.blurb?.trim() || (description.length <= ABOUT_MAX ? description : description.slice(0, ABOUT_MAX).trimEnd() + "…");
   // Подія від людей з ціною (1.7) — рядок під датою; в афіші price_min — ціна продавця «від», її не пишемо.
-  const cost = event.origin !== "import" && Number(event.price_min) > 0 ? `Вхід — ${priceText(event.price_min)}, оплата на місці` : null;
+  const cost = event.origin !== "import" && Number(event.price_min) > 0 ? `Вхід — ${priceText(event.price_min)}, ${payWay(event)}` : null;
   return [[displayTitle(event.title), [when, place].filter(Boolean).join(" · "), cost].filter(Boolean).join("\n"), about, `Запис: poriad.app/e/${event.id}`]
     .filter(Boolean).join("\n\n");
 }
+/**
+ * Як платити за подію від людей (docs/organizer-events.md): на місці — без передоплати; онлайн — організатору напряму,
+ * реквізити в розмові, а «Поряд» за оплату не відповідає (власник 03.11). Однаково на сторінці, у шторці, в кабінеті й
+ * у пості для Threads (`ThreadsPost` у застосунку).
+ */
+export const payWay = (e) => (e.pay_online ? "оплата онлайн" : "оплата на місці");
+export const payNote = (e) => (e.pay_online ? "Оплата онлайн організатору" : "Оплата на місці, без передоплати");
+export const PAY_ONLINE_FINE = "Оплата онлайн: організатор надішле реквізити в розмові після запису. «Поряд» не приймає оплату й не відповідає за неї.";
+
 /** Інтент Threads приймає лише текст; фото організатор перетягує сам. */
 export const threadsIntent = (text) => `https://www.threads.net/intent/post?text=${encodeURIComponent(text)}`;
 

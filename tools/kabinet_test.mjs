@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import {
   instant, local, repeatTimes, endAfter, durationLabel, DURATIONS, mediaProblem, videoTooLong, fit, MEDIA,
   threadsPost, threadsIntent, firstLine, cleanText, rosterText, errorText, publishPlan, writeDraft, forgetDraft, recolorStub,
-  priceProblem, priceParam, PRICE_TEXT, eventDraft, repeatDraft, passwordProblem, passwordMode, providersText, editorDefaults, sinceText, plural,
-  weakPasswordText, redirectErrorText, payPlan, TALK_PAYMENT_DETAILS, talkStatus, talkFacts,
+  priceProblem, priceParam, PRICE_TEXT, eventDraft, repeatDraft, passwordProblem, passwordMode, providersText, editorDefaults, sinceText,
+  weakPasswordText, redirectErrorText, payPlan, TALK_PAYMENT_DETAILS, talkStatus, talkFacts, payWords, nameProblem, contactOk,
 } from "../site/js/kabinet.js";
 import { readFileSync } from "node:fs";
 
@@ -129,6 +129,7 @@ assert.equal(priceParam(repeatDraft(pricedEvent).price), 450, "«Повтори�
 assert.equal(eventDraft({ ...pricedEvent, price_min: null }).price, "");
 assert.equal(errorText({ status: 400, code: "INVALID_PRICE" }), PRICE_TEXT);
 assert.equal(threadsPost(pricedEvent), "Настолки «Каркасон»\nпн, 2 листопада, 19:00 · Хрещатик, 22\nВхід — 450 ₴, оплата на місці\n\nГраємо в Каркасон і Колонізаторів. Правила пояснимо.\n\nЗапис: poriad.app/e/e1");
+assert.ok(threadsPost({ ...pricedEvent, pay_online: true }).includes("Вхід — 450 ₴, оплата онлайн\n"), "пост не каже «на місці» про оплату онлайн");
 assert.ok(!threadsPost({ ...pricedEvent, origin: "import" }).includes("Вхід"), "ціна продавця в афіші — «від», не пишемо");
 
 // Вхід і акаунт організатора.
@@ -150,8 +151,9 @@ assert.deepEqual(editorDefaults({ kabinet: { contact: "https://t.me/a b" } }), {
 assert.deepEqual(editorDefaults(undefined), {});
 assert.equal(sinceText("2026-09-30T22:30:00Z"), "з нами з жовтня 2026", "місяць — за Києвом");
 assert.equal(sinceText(null), "");
-assert.deepEqual([1, 2, 5, 11, 12, 21, 22, 25, 111].map((n) => plural(n, ["подія", "події", "подій"])),
-  ["подія", "події", "подій", "подій", "подій", "подія", "події", "подій", "подій"]);
+assert.equal(nameProblem("Олена"), "");
+assert.match(nameProblem("О"), /від 2 до 60/);
+assert.ok(contactOk("https://t.me/club") && !contactOk("http://t.me/club") && !contactOk("https://t.me/a b"));
 assert.match(weakPasswordText(["pwned"]), /витоках/);
 assert.match(weakPasswordText(["characters"]), /літери/);
 assert.equal(errorText({ status: 422, code: "weak_password", reasons: ["length"] }), "Пароль — щонайменше 8 символів");
@@ -177,6 +179,8 @@ const people = { roster: [{ user_id: "a", joined_at: "2026-11-02T10:00:00Z", via
 assert.deepEqual(talkStatus("g", { ...people, payOnline: true }), { stamp: "Чекає оплати", tone: "accent", at: "2026-11-03T09:00:00Z", via: "web", pending: true });
 assert.equal(talkStatus("a", { ...people, payOnline: true }).stamp, "Оплачено");
 assert.equal(talkStatus("a", people).stamp, "У списку");
+assert.equal(payWords(true).approve, "Оплату отримано", "таблиця й розмова — тими самими словами");
+assert.equal(payWords(false).done, "Схвалено");
 assert.equal(talkStatus("g", people).stamp, "Заявка");
 assert.deepEqual(talkStatus("x", people), { stamp: "Питає", tone: "", at: null, via: null, pending: false });
 assert.deepEqual(talkFacts({ member_since: "2026-09-12T10:00:00Z", attended: 3, organized: 0 }, talkStatus("g", { ...people, payOnline: true })),

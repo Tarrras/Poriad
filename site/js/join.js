@@ -2,8 +2,9 @@
 // кешує зі сторінкою, а цей скрипт входить (auth.js), записує, показує стан запису й «Після запису». Він же робить
 // `?unfollow` з листа. На сторінці без шторки (афіша) нічого не робить. Правила без DOM — експорти, перевірка —
 // `node tools/join_test.mjs`.
-import { session, sendCode, verifyCode, google, completeRedirect, rpc, upload, download, signOut, inAppBrowser, browserLinks } from "./auth.js?v=17";
+import { session, sendCode, verifyCode, google, completeRedirect, rpc, signOut, inAppBrowser, browserLinks } from "./auth.js?v=17";
 import { SUPABASE, discover, fold, cardsByIds, esc, displayTitle, stubParts, timeOf, CATEGORIES, price, threadsPost, threadsIntent } from "./poriad.js?v=17";
+import { threadFeed, sendProof, forgetProofs, openProof } from "./chat.js?v=17";
 
 /** Відповідь бази на запис → стан шторки (таблиця «Інші відповіді на запис»). Невідома — null: показуємо помилку. */
 const OUTCOMES = {
@@ -56,60 +57,9 @@ const MESSAGES = {
   TOO_MANY_MESSAGES: "Забагато повідомлень. Зачекайте хвилину.", CHAT_CLOSED: "Розмову закрито: подія давно минула.",
   INVALID_MESSAGE: "Повідомлення — до 2000 символів.", OBJECTIONABLE_CONTENT: "Текст містить слова, які ми не публікуємо. Перепишіть, будь ласка.",
   NOT_MEMBER: "Написати організатору зараз не можна.",
-  PROOF_NOT_IMAGE: "Оберіть зображення — скріншот оплати.", PROOF_TOO_BIG: "Скріншот завеликий навіть після стиснення.",
+  NOT_IMAGE: "Оберіть зображення — скріншот оплати.", TOO_BIG: "Скріншот завеликий навіть після стиснення.",
   INVALID_IMAGE: "Скріншот не вдалося надіслати. Спробуйте ще раз.",
 };
-
-/**
- * Повідомлення розмови з організатором. Текст — лише текстом: посилання не клікаються, бо в розмові може писати
- * будь-хто. Під реквізитами від іншої сторони — застереження й «Поскаржитись» (docs/organizer-events.md); кабінет
- * організатора (`warn` false) їх не показує: застереження — для того, хто платить.
- */
-export function bubble(m, me, organizer, now = new Date(), warn = true) {
-  const mine = m.author_id === me;
-  const who = mine ? "Ви" : m.author_id === organizer ? "Організатор" : m.author_name || "Учасник";
-  const at = new Date(m.created_at);
-  const when = new Intl.DateTimeFormat("uk-UA", { timeZone: "Europe/Kyiv", ...(at.toDateString() === now.toDateString() ? {} : { day: "numeric", month: "short" }), hour: "2-digit", minute: "2-digit" }).format(at);
-  const note = warn && m.payment_details && !mine
-    ? `<p class="pay-warn">Реквізити для оплати. «Поряд» не приймає оплату й не відповідає за неї — не переказуйте гроші, якщо сумніваєтесь в організаторі. <button class="link" type="button" data-report="${esc(m.id)}">Поскаржитись</button></p>`
-    : "";
-  // Скріншот оплати — з приватного бакета: `src` ставить hydrateProofs із токеном, тут лише шлях.
-  const image = m.image ? `<button class="proof" type="button" data-proof-open><img alt="Скріншот оплати" data-proof-path="${esc(m.image)}"></button>` : "";
-  return `<div class="msg${mine ? " mine" : ""}" data-id="${esc(m.id)}"><small>${esc(who)} · ${esc(when)}</small>${image}<p>${esc(m.body)}</p>${note}</div>`;
-}
-
-/** Скріншоти в розмові: завантажити з токеном у blob:; тап — відкрити повністю. Недоступний — підпис замість картинки. */
-export function hydrateProofs(root) {
-  for (const img of root.querySelectorAll("img[data-proof-path]:not([data-loading])")) {
-    img.dataset.loading = "1";
-    download("payment-proofs", img.dataset.proofPath)
-      .then((blob) => { img.src = URL.createObjectURL(blob); })
-      .catch(() => { img.closest("[data-proof-open]")?.replaceWith(Object.assign(document.createElement("small"), { textContent: "Скріншот недоступний" })); });
-  }
-}
-export function openProof(event) {
-  const src = event.target.closest("[data-proof-open]")?.querySelector("img")?.src;
-  if (src) window.open(src, "_blank", "noopener");
-  return Boolean(src);
-}
-
-/** Скріншот → JPEG без метаданих (EXIF з геолокацією теж), довша сторона до 2048, до 5 МБ — як фото події. */
-async function proofJpeg(file) {
-  if (!file.type.startsWith("image/")) throw Object.assign(new Error("not an image"), { code: "PROOF_NOT_IMAGE" });
-  const bitmap = await createImageBitmap(file).catch(() => { throw Object.assign(new Error("cannot decode"), { code: "PROOF_NOT_IMAGE" }); });
-  try {
-    const scale = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
-    const canvas = Object.assign(document.createElement("canvas"), { width: Math.round(bitmap.width * scale), height: Math.round(bitmap.height * scale) });
-    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    for (const quality of [0.85, 0.7, 0.55]) {
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
-      if (blob && blob.size <= 5 * 1024 * 1024) return blob;
-    }
-    throw Object.assign(new Error("too big"), { code: "PROOF_TOO_BIG" });
-  } finally {
-    bitmap.close();
-  }
-}
 
 /**
  * Хто чим ділиться (docs/organizers-1.5.md, 1.6) — та сама умова, що `ShareRules.mode` у застосунку: «Поширити анонс»
@@ -171,7 +121,6 @@ export function start(sheet) {
   const bar = document.querySelector("[data-join]");
   let action = "join"; // що зробити після входу: join, unfollow чи ask (написати організатору)
   const payOnline = "payOnline" in data;
-  let thread = { me: null, last: null, ids: new Set(), timer: null };
   let state = "none";
   let shown = null; // що зараз у шторці
   let version = 0; // скільки разів мінявся стан: тихе оновлення не перезаписує свіжішого
@@ -224,6 +173,8 @@ export function start(sheet) {
     state = next;
     version += 1;
     if (bar) bar.textContent = LABELS[statusKind(next, payOnline)];
+    const proofPick = $("[data-proof-pick]");
+    if (proofPick) proofPick.hidden = !["approved", "requested"].includes(next);
     // Записаний — на квитку штамп, а «Йду» стає тоновою: головна дія вже зроблена.
     document.querySelector(".bar")?.setAttribute("data-state", next);
     const [word, tone] = STAMPS[statusKind(next, payOnline)] ?? ["", ""];
@@ -248,7 +199,7 @@ export function start(sheet) {
     const unfollowButton = $("[data-unfollow]"); // сторінка з кешу могла прийти ще без цієї кнопки
     if (unfollowButton) unfollowButton.hidden = !s.unfollow;
     const askButton = $("[data-open-ask]");
-    if (askButton) askButton.hidden = !s.ask || !$("[data-thread]");
+    if (askButton) askButton.hidden = !s.ask || !feed;
     const leave = $("[data-leave]");
     leave.textContent = s.leave ?? "";
     leave.hidden = !s.leave;
@@ -266,41 +217,21 @@ export function start(sheet) {
     return action === "unfollow" ? askUnfollow() : action === "ask" ? openAsk() : join();
   }
 
-  // ---- Розмова з організатором («Поряд» — міст: пошти й телефону одне одного не видно). Оновлюємо раз на 8 с, поки
-  // розмова на екрані; потім — лише нове (`p_after`).
+  // ---- Розмова з організатором («Поряд» — міст: пошти й телефону одне одного не видно). Стрічка — chat.js.
+  const threadBox = $("[data-thread]"); // сторінка з кешу могла прийти ще без розмови
+  const feed = threadBox && threadFeed(threadBox, {
+    empty: `<p class="fine" data-empty>${payOnline ? "Організатор напише тут, як оплатити. Можете й самі спитати щось про подію." : "Спитайте про подію — відповідь прийде сюди й на пошту."}</p>`,
+    alive: () => sheet.open && !$('[data-step="ask"]').hidden,
+  });
   async function openAsk() {
-    if (!$("[data-thread]")) return; // сторінка з кешу без розмови
-    if (!(await session())) { action = "ask"; return open("start"); }
-    open("ask");
-    await loadThread(true);
-    clearInterval(thread.timer);
-    thread.timer = setInterval(() => {
-      if (sheet.open && !sheet.querySelector('[data-step="ask"]').hidden) loadThread().catch(() => {});
-      else clearInterval(thread.timer);
-    }, 8000);
-    sheet.querySelector('[data-form="ask"] textarea')?.focus();
-  }
-  async function loadThread(reset = false) {
+    if (!feed) return;
     const me = (await session())?.user?.id;
-    const box = $("[data-thread]");
-    if (!me || !box) return;
-    if (reset || thread.me !== me) {
-      thread = { ...thread, me, last: null, ids: new Set() };
-      box.innerHTML = "";
-    }
-    const rows = (await rpc("event_messages", { p_event_id: id, p_after: thread.last, p_limit: 100, p_thread: me })) ?? [];
-    const fresh = rows.filter((m) => !thread.ids.has(m.id));
-    if (!fresh.length) {
-      if (!box.children.length) box.innerHTML = `<p class="fine" data-empty>${payOnline ? "Організатор напише тут, як оплатити. Можете й самі спитати щось про подію." : "Спитайте про подію — відповідь прийде сюди й на пошту."}</p>`;
-      return;
-    }
-    box.querySelector("[data-empty]")?.remove();
-    for (const m of fresh) thread.ids.add(m.id);
-    box.insertAdjacentHTML("beforeend", fresh.map((m) => bubble(m, me, data.organizer)).join(""));
-    hydrateProofs(box);
-    thread.last = fresh.at(-1).created_at;
-    box.scrollTop = box.scrollHeight;
-    rpc("mark_chat_read", { p_event_id: id, p_thread: me }).catch(() => {});
+    if (!me) { action = "ask"; return open("start"); }
+    // З листа розмову відкривають без стану запису, а скріншот можна лише записаним (як `can_upload_proof`).
+    if (state === "none") refresh().catch(() => {});
+    open("ask");
+    await feed.show({ event: id, thread: me, me, organizer: data.organizer });
+    $('[data-form="ask"] textarea')?.focus();
   }
   /** «Не стежити» з листа — лише після підтвердження: посилання могли відкрити випадково чи підсунути. */
   function askUnfollow() {
@@ -359,10 +290,8 @@ export function start(sheet) {
     details = null;
     follows = null;
     mode = "friend";
-    clearInterval(thread.timer);
-    thread = { me: null, last: null, ids: new Set(), timer: null };
-    const box = $("[data-thread]");
-    if (box) box.innerHTML = "";
+    feed?.clear();
+    forgetProofs();
     const ask = document.querySelector("[data-ask]");
     if (ask) ask.hidden = false;
     if (shareButton) shareButton.lastChild.textContent = "Поділитися з другом";
@@ -539,9 +468,9 @@ export function start(sheet) {
     $("[data-error]").hidden = true;
     await rpc("send_message", { p_event_id: id, p_body: body, p_thread: me });
     form.reset();
-    await loadThread();
+    await feed.load();
   }));
-  // Скріншот оплати: стиснути, вивантажити в приватний бакет (`<uid>/<подія>/<uuid>.jpg`) і надіслати з текстом поля.
+  // Скріншот оплати — з текстом поля.
   $("[data-proof]")?.addEventListener("change", task(async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -549,15 +478,13 @@ export function start(sheet) {
     const me = (await session())?.user?.id;
     if (!me) { action = "ask"; return open("start"); }
     $("[data-error]").hidden = true;
-    const path = `${me}/${id}/${crypto.randomUUID()}.jpg`;
-    await upload("payment-proofs", path, await proofJpeg(file));
     const form = $('[data-form="ask"]');
-    await rpc("send_message", { p_event_id: id, p_body: form.body.value.trim() || "Скріншот оплати", p_thread: me, p_image: path });
+    await sendProof({ event: id, me, file, body: form.body.value.trim() });
     form.reset();
-    await loadThread();
+    await feed.load();
   }));
-  $("[data-thread]")?.addEventListener("click", (event) => { if (openProof(event)) event.preventDefault(); });
-  $("[data-thread]")?.addEventListener("click", task(async (event) => {
+  threadBox?.addEventListener("click", (event) => { if (openProof(event)) event.preventDefault(); });
+  threadBox?.addEventListener("click", task(async (event) => {
     const button = event.target.closest("[data-report]");
     if (!button) return;
     if (!confirm("Поскаржитись на це повідомлення як на шахрайство? Модератори побачать його текст.")) return;
@@ -566,7 +493,7 @@ export function start(sheet) {
   }));
   // Закрили шторку — передумали: наступне перезавантаження не відкриває крок з кодом.
   sheet.addEventListener("close", () => {
-    clearInterval(thread.timer);
+    feed?.stop();
     sessionStorage.removeItem(PENDING);
     if (fresh) document.querySelector(".bar")?.setAttribute("data-fresh", "");
     fresh = false;
@@ -636,7 +563,7 @@ export function start(sheet) {
     }
     const url = new URL(location.href);
     // «Відкрити розмову» з листа: організатор написав.
-    if (url.searchParams.has("ask") && $("[data-thread]")) {
+    if (url.searchParams.has("ask") && feed) {
       url.searchParams.delete("ask");
       history.replaceState(history.state, "", url);
       action = "ask";

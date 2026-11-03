@@ -86,7 +86,7 @@ object ThreadsPost {
      * ```
      * {Назва}
      * {нд, 2 листопада, 19:00} · {Місце}
-     * Вхід — {300} ₴, оплата на місці — лише з ціною, як у кабінеті (`threadsPost` у site/js/poriad.js)
+     * Вхід — {300} ₴, оплата на місці (чи «оплата онлайн») — лише з ціною, як у кабінеті (`threadsPost` у site/js/poriad.js)
      *
      * {blurb або перші 200 символів опису}
      *
@@ -96,11 +96,14 @@ object ThreadsPost {
      */
     fun text(event: Event): String = text(
         event.id, event.displayTitle, event.startsAt, event.timeZone, event.placeLabel, event.blurb, event.description,
-        event.gathering?.price
+        event.gathering?.price, event.gathering?.payOnline == true
     )
 
     /** Те саме з полів: щойно опублікована подія ([EventDraft]) ще не має картки. */
-    fun text(id: String, title: String, startsAt: String, timeZone: String, place: String, blurb: String?, description: String, price: Int?): String {
+    fun text(
+        id: String, title: String, startsAt: String, timeZone: String, place: String, blurb: String?, description: String, price: Int?,
+        payOnline: Boolean = false
+    ): String {
         val zone = runCatching { TimeZone.of(timeZone) }.getOrDefault(TimeZone.UTC)
         val start = runCatching { Instant.parse(startsAt) }.getOrNull()?.toLocalDateTime(zone)
         val date = start?.let {
@@ -113,7 +116,7 @@ object ThreadsPost {
         return listOfNotNull(
             listOfNotNull(
                 title, listOfNotNull(date, place.takeIf { it.isNotBlank() }).joinToString(" · "),
-                price?.let { "Вхід — " + EventRules.formatPrice(it) + " ₴, оплата на місці" }
+                price?.let { "Вхід — " + EventRules.formatPrice(it) + " ₴, " + if (payOnline) "оплата онлайн" else "оплата на місці" }
             ).joinToString("\n"),
             about.takeIf { it.isNotEmpty() },
             "Запис: " + EventLinks.url(id).removePrefix("https://")
