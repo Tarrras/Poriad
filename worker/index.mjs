@@ -280,7 +280,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>
 ${imported ? "" : `${joinSheet(e, ct, now)}
-<script type="module" src="/js/join.js?v=13"></script>`}`,
+<script type="module" src="/js/join.js?v=14"></script>`}`,
   });
 }
 
@@ -581,8 +581,8 @@ function layout({ title, description, image, url, head, body }) {
 <meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=13">
-<link rel="stylesheet" href="/web.css?v=13">
+<link rel="stylesheet" href="/tokens.css?v=14">
+<link rel="stylesheet" href="/web.css?v=14">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">

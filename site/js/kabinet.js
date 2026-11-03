@@ -1,9 +1,11 @@
 // Кабінет організатора poriad.app/kabinet (docs/organizers-1.5.md, 1.2, 1.4, 1.5): створити й вести спільнотну подію з
-// комп'ютера. Маршрути в #: «#/» — мої події, «#/new», «#/e/{id}» — дії й учасники, «#/e/{id}/edit». Вхід — auth.js, дані —
+// комп'ютера. Маршрути в #: «#/» — мої події, «#/new», «#/e/{id}» — дії й учасники, «#/e/{id}/edit», «#/account» — акаунт
+// організатора. Вхід (Google або пошта з паролем, docs/web-auth.md) — auth.js, дані —
 // ті самі функції бази, що в застосунку; сторінка перевіряє лише очевидне, решту каже сервер. Чисті правила вгорі (дати,
 // тривалість, медіа, текст для Threads) перевіряє `node tools/kabinet_test.mjs`; DOM — нижче, лише в браузері.
-import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText } from "./poriad.js?v=13";
-import { session, sendCode, verifyCode, google, completeRedirect, rpc, upload, signOut, inAppBrowser } from "./auth.js?v=13";
+import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText } from "./poriad.js?v=14";
+import { session, verifyCode, google, completeRedirect, rpc, upload, signOut, inAppBrowser, browserLinks, signInWithPassword, signUp, resendSignup,
+  requestRecovery, updatePassword, reauthenticate, verifyPassword, currentUser, updateMetadata, signInMethods, isEmail, MIN_PASSWORD, MAX_PASSWORD } from "./auth.js?v=14";
 
 // ---- Дати. Усі п'ять міст в одному поясі; подія з іншим поясом (з застосунку) редагується у своєму.
 export const TZ = "Europe/Kyiv";
@@ -89,7 +91,7 @@ export function priceProblem(price) {
 export const priceParam = (price) => String(price ?? "").trim() ? Math.round(Number(price)) : 0;
 
 // ---- «Пост для Threads» (1.5) — у poriad.js: той самий текст ділить і сторінка події (1.6).
-export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=13";
+export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=14";
 
 // ---- Анімації публікації (1.6, design/lottie/LICENSES.md): корінець запечений кольором музики — фарбуємо в жанр.
 const MUSIC_STUB = [0x60, 0x41, 0xb1].map((v) => v / 255);
@@ -151,6 +153,7 @@ export const rosterText = (people) => people.map((p, i) => `${i + 1}. ${p.displa
 
 // ---- Помилки сервера тими самими текстами, що в застосунку (ApiErrors.kt + strings.xml).
 const SESSION = "Увійдіть у свій профіль";
+const LINK_EXPIRED = "Посилання застаріло або вже використане. Надішліть новий лист";
 const ERRORS = {
   AUTH_REQUIRED: SESSION, session_expired: SESSION,
   ACCOUNT_RESTRICTED: "Обліковий запис обмежено. Напишіть у підтримку",
@@ -170,12 +173,25 @@ const ERRORS = {
   EVENT_FULL: "Вільних місць уже немає",
   TOO_MANY_MOVES: "Забагато спроб. Спробуйте трохи пізніше",
   otp_expired: "Код не підійшов або застарів. Надішліть новий",
-  over_email_send_rate_limit: "Забагато спроб. Спробуйте трохи пізніше",
+  over_email_send_rate_limit: "Забагато листів за годину. Спробуйте трохи пізніше",
   over_request_rate_limit: "Забагато спроб. Спробуйте трохи пізніше",
   email_address_invalid: "Вкажіть коректний email",
   validation_failed: "Вкажіть коректний email",
+  // Пошта з паролем (Supabase Auth, `error_code`).
+  invalid_credentials: "Неправильна пошта або пароль. Пароля ще нема? Натисніть «Забули пароль?»",
+  user_already_exists: "Акаунт з цією поштою вже є. Увійдіть з паролем чи через Google",
+  signup_disabled: "Реєстрація зараз недоступна. Напишіть нам: hello@poriad.app",
+  user_banned: "Обліковий запис обмежено. Напишіть у підтримку",
+  same_password: "Новий пароль збігається з поточним",
+  current_password_mismatch: "Поточний пароль не підходить",
+  current_password_required: "Введіть поточний пароль",
+  reauthentication_not_valid: "Код не підійшов або застарів. Надішліть новий",
+  pkce_missing: "Вхід почався в іншій вкладці чи браузері. Відкрийте посилання там, де його просили, або почніть ще раз тут",
+  flow_state_expired: LINK_EXPIRED,
+  flow_state_not_found: LINK_EXPIRED,
 };
 export function errorText(error) {
+  if (error?.code === "weak_password") return weakPasswordText(error.reasons);
   if (ERRORS[error?.code]) return ERRORS[error.code];
   const status = error?.status;
   if (!status) return "Немає звʼязку. Перевірте інтернет і спробуйте ще раз";
@@ -183,6 +199,69 @@ export function errorText(error) {
   if (status === 403) return ERRORS.NOT_ORGANIZER;
   if (status === 429) return ERRORS.TOO_MANY_MOVES;
   return status < 500 ? "Не вдалося виконати дію. Перевірте дані та час події" : "Сервіс тимчасово недоступний. Спробуйте ще раз";
+}
+
+/** Слабкий пароль словами (`weak_password` з `reasons`): витік — окремо, бо довжина там може бути й достатня. */
+export function weakPasswordText(reasons) {
+  if (reasons?.includes("pwned")) return "Цей пароль є серед зламаних у відомих витоках. Оберіть інший";
+  if (reasons?.includes("characters")) return "Пароль надто простий: додайте великі й малі літери, цифри чи символи";
+  return `Пароль — щонайменше ${MIN_PASSWORD} символів`;
+}
+/** Відмова з повернення від Google чи з листа: протухле посилання каже `otp_expired` так само, як хибний код. */
+export function redirectErrorText(error) {
+  return ["otp_expired", "flow_state_expired", "flow_state_not_found"].includes(error?.code) ? LINK_EXPIRED : errorText(error);
+}
+
+// ---- Пароль і акаунт: правила без DOM.
+
+/** Новий пароль і повтор → текст помилки або "" (межі — як `AccountRules` у застосунку). */
+export function passwordProblem(password, repeat = password) {
+  if (!password || password.length < MIN_PASSWORD) return `Пароль — щонайменше ${MIN_PASSWORD} символів`;
+  if (password.length > MAX_PASSWORD) return `Пароль — до ${MAX_PASSWORD} символів`;
+  if (password !== repeat) return "Паролі не збігаються";
+  return "";
+}
+/**
+ * Як змінювати пароль у цій сесії (`amr`): `recovery` — відкрили посилання з листа, поточний не потрібен; `change` —
+ * увійшли паролем, поточний обовʼязковий (його й перевіряємо, як застосунок); `set` — Google чи код з пошти: пароля може
+ * й не бути, тож поточний — лише якщо він є.
+ */
+export const passwordMode = (methods) => (methods.includes("recovery") ? "recovery" : methods.includes("password") ? "change" : "set");
+
+/** Способи входу акаунта словами — з `identities` і `app_metadata.providers` Auth. */
+export function providersText(user) {
+  const names = { email: "пошта", google: "Google", apple: "Apple" };
+  const found = new Set([...(user?.identities ?? []).map((i) => i?.provider), ...(user?.app_metadata?.providers ?? [])].filter(Boolean));
+  const order = Object.keys(names);
+  return [...found].sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99)).map((p) => names[p] ?? p).join(" · ") || "—";
+}
+
+/**
+ * Налаштування нових подій організатора: `user_metadata.kabinet` акаунта (Auth), тож вони ті самі на будь-якому
+ * компʼютері. Чужі чи биті значення (метадані пише сам клієнт) відкидаємо.
+ */
+export function editorDefaults(meta) {
+  const d = meta?.kabinet;
+  if (!d || typeof d !== "object") return {};
+  const out = {};
+  if (CITIES.some((c) => c.name === d.city)) out.city = d.city;
+  if (typeof d.contact === "string" && d.contact.length <= 500 && !/\s/.test(d.contact) && httpsOrNull(d.contact)) out.contact = d.contact;
+  if (typeof d.approval === "boolean") out.approval = d.approval;
+  return out;
+}
+
+const MONTHS = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
+/** «з нами з жовтня 2026», як шапка профілю в застосунку. */
+export function sinceText(iso, tz = TZ) {
+  const ms = Date.parse(iso ?? "");
+  if (Number.isNaN(ms)) return "";
+  const { year, month } = parts(ms, tz);
+  return `з нами з ${MONTHS[Number(month) - 1]} ${year}`;
+}
+/** 1 подія, 2 події, 5 подій. */
+export function plural(n, [one, few, many]) {
+  const ten = n % 10, hundred = n % 100;
+  return ten === 1 && hundred !== 11 ? one : ten >= 2 && ten <= 4 && (hundred < 12 || hundred > 14) ? few : many;
 }
 
 // ================= Сторінка =================
@@ -193,14 +272,36 @@ const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 let ui; // site/js/ui.js: квитки, значки й тост. Динамічно — тест імпортує цей файл без DOM.
 
-let me = null; // { id, email }
+let me = null; // рядок Auth: id, email, identities, user_metadata
 let ready = null; // id, для якого імʼя й вік уже є
+let card = null; // свій profile_card: імʼя, фото, «про вас», з якого часу, скільки подій
 const busy = new Set();
 
 async function signedIn() {
   me = (await session().catch(() => null))?.user ?? null;
-  $("[data-signout]").hidden = !me;
+  if (!me) card = null;
+  paintNav();
+  if (me && card?.user_id !== me.id) loadCard().catch(() => {});
   return Boolean(me);
+}
+
+/** Свій profile_card; `force` — перечитати (після входу з іншого акаунта чи на сторінці акаунта). */
+async function loadCard(force = false) {
+  if (!force && card?.user_id === me.id) return card;
+  const id = me.id;
+  const [row] = await rpc("profile_card", { p_user_id: id }) ?? [];
+  if (me?.id !== id) return card; // поки чекали, людина вийшла чи ввійшла іншим акаунтом
+  card = row ?? null;
+  paintNav();
+  return card;
+}
+const cardName = () => (card?.display_name && card.display_name !== DEFAULT_NAME ? card.display_name : "");
+/** Аватар: фото або перша літера, як `Avatar` у застосунку. */
+const avatarHtml = (name, url) => (url ? `<img src="${esc(url)}" alt="">` : esc([...(name || "?").trim()][0]?.toUpperCase() ?? "?"));
+/** «Акаунт» у шапці — лише з входом, з фото чи літерою. */
+function paintNav() {
+  $("[data-account-link]").hidden = !me;
+  if (me) $("[data-nav-avatar]").innerHTML = avatarHtml(cardName() || me.email, card?.user_id === me.id ? card.avatar_url : null);
 }
 
 /**
@@ -219,21 +320,40 @@ async function authed(path, init = {}) {
   return response;
 }
 
-// ---- Вхід: Google (крім вбудованих браузерів) або код з пошти; вперше — імʼя. 18+ — рядком згоди, `confirm_adult` мовчки.
+// ---- Вхід організатора: Google (крім вбудованих браузерів) або пошта з паролем, як у застосунку. «Створити акаунт» —
+// код з листа «Confirm signup» (чи посилання з нього), «Забули пароль?» — посилання з листа, по якому кабінет просить
+// новий пароль. Вперше — імʼя. 18+ — рядком згоди, `confirm_adult` мовчки. Гості й учасники на /e/{id} входять Google
+// або кодом з пошти (join.js) — та сама сесія.
 
-const auth = { dialog: null, done: null, email: "" };
+const RESEND_AFTER = 60_000;
+const returnTo = () => `${location.origin}/kabinet`;
+const auth = { dialog: null, done: null, email: "", intent: null, flow: null, sentAt: 0 };
 
-function step(name) {
+function step(name, note = "") {
   for (const el of $$("[data-step]", auth.dialog)) el.hidden = el.dataset.step !== name;
+  for (const el of $$("[data-email]", auth.dialog)) el.textContent = auth.email;
   $("[data-auth-error]", auth.dialog).textContent = "";
-  $(`[data-step="${name}"] input`, auth.dialog)?.focus();
+  $("[data-auth-note]", auth.dialog).textContent = note;
+  for (const button of $$("[data-resend]", auth.dialog)) cooldown(button);
+  const inputs = $$(`[data-step="${name}"] input:not([type=hidden]):not([hidden])`, auth.dialog);
+  (inputs.find((el) => !el.value) ?? inputs[0])?.focus();
+}
+/** «Надіслати ще раз» — не частіше, ніж раз на хвилину: ліміт листів Supabase на годину спільний для всіх. */
+function cooldown(button) {
+  const wait = auth.sentAt + RESEND_AFTER - Date.now();
+  button.disabled = wait > 0;
+  clearTimeout(button.timer);
+  if (wait > 0) button.timer = setTimeout(() => { button.disabled = false; }, wait);
 }
 
-/** Вікно входу; true — людина ввійшла й має імʼя та вік. `profile` — одразу крок імені й галочки. */
-function signIn({ lead = null, profile = false, intent = null } = {}) {
+/**
+ * Вікно входу; true — людина ввійшла й має імʼя. `profile` — одразу крок імені, `at` — інший крок (`password` після
+ * листа відновлення).
+ */
+function signIn({ lead = null, profile = false, intent = null, at = null } = {}) {
   auth.intent = intent;
   $("[data-auth-lead]", auth.dialog).textContent = lead ?? "Тією самою поштою чи Google, що й у застосунку, — і ви побачите свої події.";
-  step(profile ? "profile" : "start");
+  step(profile ? "profile" : at ?? "start");
   if (!auth.dialog.open) auth.dialog.showModal();
   return new Promise((resolve) => { auth.done = resolve; });
 }
@@ -243,14 +363,21 @@ function finishAuth(ok) {
   if (auth.dialog.open) auth.dialog.close();
   done?.(ok);
 }
+/** Куди повернути людину з Google чи з листа: маршрут і «опублікувати», з якими вона пішла. */
+const comeback = () => ({ hash: location.hash, ...auth.intent });
 
 /** Чи має акаунт імʼя (вік перевіряє створення події: `AGE_REQUIRED`). */
 async function profileReady() {
   if (ready === me.id) return true;
-  const [card] = await rpc("profile_card", { p_user_id: me.id }) ?? [];
-  $("[name=name]", auth.dialog).value = card?.display_name && card.display_name !== DEFAULT_NAME ? card.display_name : "";
-  if (card?.display_name && card.display_name !== DEFAULT_NAME) ready = me.id;
+  await loadCard(true);
+  $("[name=name]", auth.dialog).value = cardName();
+  if (cardName()) ready = me.id;
   return ready === me.id;
+}
+/** Після будь-якого входу: імʼя вже є — готово, ні — крок імені. */
+async function entered() {
+  await signedIn();
+  if (await profileReady()) finishAuth(true); else step("profile");
 }
 
 /** Вхід перед дією: true — можна. */
@@ -259,46 +386,136 @@ async function account(options = {}) {
   return signIn({ ...options, profile: Boolean(me) });
 }
 
+/** Один перемикач «Показати» на всі поля пароля кроку чи форми: пароль і повтор видно разом. */
+function setupReveal(root) {
+  root.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-reveal]");
+    if (!button) return;
+    const scope = button.closest("[data-step]") ?? button.closest("form");
+    const show = button.getAttribute("aria-pressed") !== "true";
+    for (const input of $$(".kab-secret input", scope)) input.type = show ? "text" : "password";
+    for (const other of $$("[data-reveal]", scope)) {
+      other.setAttribute("aria-pressed", String(show));
+      other.textContent = show ? "Сховати" : "Показати";
+    }
+  });
+}
+/** Сховати паролі знову: після входу чи закриття вікна вони не мають лишатись відкритим текстом. */
+function hideSecrets(root) {
+  for (const input of $$(".kab-secret input", root)) input.type = "password";
+  for (const button of $$("[data-reveal]", root)) { button.setAttribute("aria-pressed", "false"); button.textContent = "Показати"; }
+}
+
 function setupAuth() {
   auth.dialog = $("[data-auth]");
   const form = $("[data-auth-form]");
   const error = (e) => { $("[data-auth-error]").textContent = typeof e === "string" ? e : errorText(e); };
-  const inApp = inAppBrowser();
-  $("[data-google]").hidden = inApp;
-  $("[data-google-or]").hidden = inApp;
+  const note = (text) => { $("[data-auth-note]").textContent = text; };
+  // Вбудований браузер Threads чи Instagram: Google туди вхід не пускає — кличемо в Safari чи Chrome. Пароль працює.
+  if (inAppBrowser()) {
+    const links = browserLinks();
+    $("[data-google]").hidden = true;
+    $("[data-in-app]").hidden = false;
+    $("[data-browser]").href = /Android/i.test(navigator.userAgent) ? links.android : links.ios;
+  }
+  setupReveal(form);
   $("[data-auth-close]").addEventListener("click", () => finishAuth(false));
   auth.dialog.addEventListener("cancel", () => finishAuth(false));
-  $("[data-google]").addEventListener("click", () => google(`${location.origin}/kabinet`, { hash: location.hash, ...auth.intent }));
-  $("[data-other-email]").addEventListener("click", () => step("start"));
-  $("[data-resend]").addEventListener("click", () => sendCode(auth.email).then(() => ui.toast("Надіслали новий код"), error));
+  auth.dialog.addEventListener("close", () => { hideSecrets(form); form.password.value = form.signupPassword.value = form.newPassword.value = form.repeatPassword.value = ""; });
+  $("[data-google]").addEventListener("click", () => google(returnTo(), comeback()));
+  form.addEventListener("click", (event) => {
+    const link = event.target.closest("[data-goto]");
+    if (!link) return;
+    const to = link.dataset.goto;
+    // Пошту, яку вже ввели, несемо в наступний крок: друкувати двічі не треба.
+    const email = (current() === "signup" ? form.signupEmail : current() === "forgot" ? form.forgotEmail : form.email).value.trim() || auth.email;
+    form.email.value = form.email.value || email;
+    if (to === "signup") form.signupEmail.value = form.signupEmail.value || email;
+    if (to === "forgot") form.forgotEmail.value = email;
+    step(to);
+  });
+  $$("[data-resend]", form).forEach((button) => button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      if (auth.flow === "recovery") await requestRecovery(auth.email, returnTo(), comeback());
+      else await resendSignup(auth.email, returnTo(), comeback());
+      auth.sentAt = Date.now();
+      note("Надіслали ще раз.");
+    } catch (e) {
+      error(e);
+    }
+    cooldown(button);
+  }));
+  const current = () => $$("[data-step]", form).find((el) => !el.hidden).dataset.step;
+  /** Лист підтвердження чи відновлення пішов: крок з поштою й таймером «Надіслати ще раз». */
+  const sent = (flow, email, at, text = "") => {
+    auth.flow = flow;
+    auth.email = email;
+    auth.sentAt = Date.now();
+    form.code.value = "";
+    step(at, text);
+  };
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const current = $$("[data-step]", form).find((el) => !el.hidden).dataset.step;
-    const button = $(`[data-step="${current}"] [type=submit]`, form);
-    if (button.disabled) return;
+    const at = current();
+    const button = $(`[data-step="${at}"] [type=submit]`, form);
+    if (!button || button.disabled) return;
     button.disabled = true;
     try {
-      if (current === "start") {
+      if (at === "start") {
         const email = form.email.value.trim();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return error("Вкажіть коректний email");
-        await sendCode(email);
+        if (!isEmail(email)) return error("Вкажіть коректний email");
+        if (!form.password.value) return error("Введіть пароль");
+        try {
+          await signInWithPassword(email, form.password.value);
+        } catch (e) {
+          if (e.code !== "email_not_confirmed") throw e;
+          // Зареєструвались, а пошту не підтвердили: шлемо код ще раз і просимо його тут же.
+          await resendSignup(email, returnTo(), comeback());
+          return sent("signup", email, "confirm", "Пошту ще не підтверджено — надіслали код ще раз.");
+        }
         auth.email = email;
-        $("[data-email]", form).textContent = email;
-        form.code.value = "";
-        step("code");
-      } else if (current === "code") {
+        await entered();
+      } else if (at === "signup") {
+        const name = form.signupName.value.trim(), email = form.signupEmail.value.trim(), password = form.signupPassword.value;
+        if (name.length < 2 || name.length > 60) return error("Вкажіть імʼя від 2 до 60 символів");
+        if (!isEmail(email)) return error("Вкажіть коректний email");
+        const weak = passwordProblem(password);
+        if (weak) return error(weak);
+        const result = await signUp(email, password, name, returnTo(), comeback());
+        if (result.exists) {
+          form.email.value = email;
+          form.password.value = "";
+          step("start");
+          return error("Акаунт з цією поштою вже є. Увійдіть з паролем чи через Google, або натисніть «Забули пароль?».");
+        }
+        if (result.session) return void (await entered());
+        sent("signup", email, "confirm");
+      } else if (at === "confirm") {
         const code = form.code.value.replace(/\s/g, "");
         if (!code) return error("Введіть код з листа");
         await verifyCode(auth.email, code);
-        await signedIn();
-        if (await profileReady()) finishAuth(true); else step("profile");
+        await entered();
+      } else if (at === "forgot") {
+        const email = form.forgotEmail.value.trim();
+        if (!isEmail(email)) return error("Вкажіть коректний email");
+        await requestRecovery(email, returnTo(), comeback());
+        sent("recovery", email, "sent");
+      } else if (at === "password") {
+        const problem = passwordProblem(form.newPassword.value, form.repeatPassword.value);
+        if (problem) return error(problem);
+        await updatePassword(form.newPassword.value);
+        ui.toast("Пароль збережено");
+        await entered();
       } else {
         const name = form.name.value.trim();
         if (name.length < 2 || name.length > 60) return error("Вкажіть імʼя від 2 до 60 символів");
         await authed(`/rest/v1/profiles?id=eq.${me.id}`, { method: "PATCH", body: JSON.stringify({ display_name: name }) });
         await rpc("confirm_adult");
         ready = me.id;
+        if (card) card = { ...card, display_name: name };
+        paintNav();
         finishAuth(true);
       }
     } catch (e) {
@@ -307,21 +524,25 @@ function setupAuth() {
       button.disabled = false;
     }
   });
+}
 
-  $("[data-signout]").addEventListener("click", async () => {
-    forgetDraft();
-    media = [];
-    await signOut();
-    me = null;
-    ready = null;
-    route();
-  });
+/** Вихід: на спільному компʼютері наступний не має побачити чужої чернетки, файлів і акаунта. */
+async function leave({ everywhere = false } = {}) {
+  forgetDraft();
+  media = [];
+  await signOut({ everywhere });
+  me = null;
+  ready = null;
+  card = null;
+  if (location.hash === "#/" || !location.hash) route(); else location.hash = "#/";
 }
 
 // ---- Маршрути
 
 function view(name) {
   for (const el of $$("[data-view]")) el.hidden = el.dataset.view !== name;
+  const link = $("[data-account-link]");
+  if (name === "account") link.setAttribute("aria-current", "page"); else link.removeAttribute("aria-current");
   scrollTo(0, 0);
 }
 
@@ -329,6 +550,7 @@ async function route() {
   const [, page, id, sub] = location.hash.split("/");
   try {
     if (page === "new") return await showEditor(null);
+    if (page === "account") return await showAccount();
     if (page === "e" && UUID.test(id ?? "")) return await (sub === "edit" ? showEditor(id) : sub === "done" ? showDone(id) : showEvent(id));
     return await showList();
   } catch (e) {
@@ -341,6 +563,224 @@ async function route() {
 async function ownEvent(id) {
   const [event] = await rpc("event_details", { p_event_id: id }) ?? [];
   return event && event.organizer_id === me?.id && event.origin === "community" ? event : null;
+}
+
+// ---- Акаунт організатора: профіль, який бачать учасники, налаштування нових подій, пароль і вхід.
+
+let photo = { blob: null, url: null, removed: false, preview: null }; // нове фото чекає «Зберегти профіль», як у застосунку
+let passwordAt = "set"; // passwordMode цієї сесії; після першого пароля — change
+
+async function showAccount() {
+  view("account");
+  const settings = $("[data-settings]"), note = $("[data-account-note]");
+  settings.hidden = true;
+  if (!(await signedIn()) && !(await signIn({ lead: "Увійдіть, щоб відкрити налаштування акаунта." }))) return void (location.hash = "#/");
+  note.textContent = "Завантажуємо…";
+  const [user, current] = await Promise.all([currentUser().catch(() => me), session(), loadCard(true)]);
+  me = user ?? me;
+  note.textContent = "";
+  settings.hidden = false;
+  paintAccount();
+  passwordView(passwordMode(signInMethods(current)), signInMethods(current));
+}
+
+function paintAccount() {
+  const name = cardName();
+  $("[data-me-avatar]").innerHTML = avatarHtml(name || me.email, card?.avatar_url);
+  const organized = Number(card?.organized) || 0;
+  $("[data-me-line]").textContent = [name, me.email, sinceText(card?.member_since), organized ? `${organized} ${plural(organized, ["подія", "події", "подій"])}` : ""]
+    .filter(Boolean).join(" · ");
+  const f = $("[data-profile-form]");
+  f.name.value = name;
+  f.bio.value = card?.bio ?? "";
+  bioCount();
+  setPhoto({ blob: null, url: null, removed: false, preview: null });
+  for (const el of $$("[data-profile-error], [data-profile-note], [data-defaults-error], [data-defaults-note]")) el.textContent = "";
+
+  const d = editorDefaults(me.user_metadata), df = $("[data-defaults-form]");
+  df.city.value = d.city ?? (CITIES.some((c) => c.name === ui.savedCity.get()) ? ui.savedCity.get() : CITIES[0].name);
+  df.contact.value = d.contact ?? "";
+  df.approval.checked = Boolean(d.approval);
+
+  $("[data-me-email]").textContent = me.email ?? "—";
+  $("[data-me-methods]").textContent = providersText(me);
+}
+
+function bioCount() {
+  const length = $("[data-profile-form]").bio.value.trim().length;
+  $("[data-bio-count]").textContent = length ? `${length} з 300` : "До 300 символів. Учасники бачать це у вашій картці.";
+}
+function setPhoto(next) {
+  if (photo.preview && photo.preview !== next.preview) URL.revokeObjectURL(photo.preview);
+  photo = next;
+  const shown = photo.preview ?? (photo.removed ? null : card?.avatar_url ?? null);
+  $("[data-photo-preview]").innerHTML = avatarHtml($("[data-profile-form]").name.value || cardName() || me?.email, shown);
+  $("[data-photo-remove]").hidden = !shown;
+  $("[data-photo-pick]").textContent = shown ? "Змінити фото" : "Завантажити фото";
+}
+/** Фото профілю: JPEG без метаданих, довша сторона до 512 — як аватар у застосунку. */
+async function avatarJpeg(file) {
+  const bitmap = await createImageBitmap(file).catch(() => { throw new Error("Не вдалося відкрити це фото"); });
+  try {
+    return await jpeg(bitmap, fit(bitmap.width, bitmap.height, 512), 0.86);
+  } finally {
+    bitmap.close();
+  }
+}
+
+/** Форма пароля під спосіб входу цієї сесії. `methods` — `amr`: чим саме ввійшли, щоб сказати це словами. */
+function passwordView(mode, methods = [], text = "") {
+  passwordAt = mode;
+  const f = $("[data-password-form]");
+  f.username.value = me?.email ?? "";
+  $("[data-password-title]").textContent = mode === "change" ? "Змінити пароль" : mode === "recovery" ? "Новий пароль" : "Пароль";
+  const via = methods.includes("oauth") ? "через Google" : "кодом з пошти";
+  $("[data-password-lead]").textContent = text || (mode === "recovery" ? "Ви відкрили посилання з листа — задайте новий пароль, поточний не потрібен."
+    : mode === "set" ? `Ви ввійшли ${via}. Задайте пароль, щоб входити й поштою з паролем — у кабінет і в застосунок. Пароль уже є — введіть і поточний.`
+    : "");
+  $("[data-current-field]").hidden = mode === "recovery";
+  $("[data-current-label]").textContent = mode === "set" ? "Поточний пароль, якщо він уже є" : "Поточний пароль";
+  $("[data-password-forgot]").hidden = mode === "recovery";
+  $("[data-password-submit]").textContent = mode === "change" ? "Змінити пароль" : "Зберегти пароль";
+}
+
+function setupAccount() {
+  const profileForm = $("[data-profile-form]"), passwordForm = $("[data-password-form]"), defaultsForm = $("[data-defaults-form]");
+  setupReveal(passwordForm);
+  $("[data-defaults-city]").innerHTML = CITIES.map((c) => `<option>${esc(c.name)}</option>`).join("");
+
+  // ---- Профіль
+  profileForm.bio.addEventListener("input", bioCount);
+  profileForm.name.addEventListener("input", () => { if (!photo.preview && !(card?.avatar_url && !photo.removed)) setPhoto(photo); });
+  $("[data-photo-pick]").addEventListener("click", () => $("[data-photo-file]").click());
+  $("[data-photo-file]").addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    const error = $("[data-profile-error]"), note = $("[data-profile-note]");
+    error.textContent = note.textContent = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return void (error.textContent = "Оберіть фото");
+    try {
+      const blob = await avatarJpeg(file);
+      setPhoto({ blob, url: null, removed: false, preview: URL.createObjectURL(blob) });
+      note.textContent = "Фото збережеться разом із профілем";
+    } catch (e) {
+      error.textContent = e.message || "Не вдалося додати це фото";
+    }
+  });
+  $("[data-photo-remove]").addEventListener("click", () => setPhoto({ blob: null, url: null, removed: true, preview: null }));
+  profileForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = $("[type=submit]", profileForm), error = $("[data-profile-error]"), note = $("[data-profile-note]");
+    if (button.disabled) return;
+    error.textContent = note.textContent = "";
+    const name = profileForm.name.value.trim(), bio = profileForm.bio.value.trim();
+    if (name.length < 2 || name.length > 60) return void (error.textContent = "Вкажіть імʼя від 2 до 60 символів");
+    if (bio.length > 300) return void (error.textContent = "Про вас — до 300 символів");
+    button.disabled = true;
+    const before = card?.avatar_url ?? null;
+    try {
+      let avatar = photo.removed ? null : before;
+      // Уже вивантажене фото повтор (після відмови стоп-словника, скажімо) не вантажить удруге.
+      if (photo.blob) avatar = photo.url ??= await upload("event-images", `${me.id}/avatar/${crypto.randomUUID()}.jpg`, photo.blob);
+      await authed(`/rest/v1/profiles?id=eq.${me.id}`, { method: "PATCH", body: JSON.stringify({ display_name: name, bio: bio || null, avatar_url: avatar }) });
+      // Старе фото — геть зі сховища, як у застосунку; збій не важить: профіль уже збережено.
+      if (before && before !== avatar && before.includes(`/event-images/${me.id}/avatar/`)) removeFiles([{ url: before }], []);
+      card = { ...(card ?? { user_id: me.id }), display_name: name, bio: bio || null, avatar_url: avatar };
+      ready = me.id;
+      paintAccount();
+      paintNav();
+      $("[data-profile-note]").textContent = "Профіль збережено";
+    } catch (e) {
+      error.textContent = errorText(e);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  // ---- Нові події
+  defaultsForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = $("[type=submit]", defaultsForm), error = $("[data-defaults-error]"), note = $("[data-defaults-note]");
+    if (button.disabled) return;
+    error.textContent = note.textContent = "";
+    const contact = defaultsForm.contact.value.trim();
+    if (contact && (!httpsOrNull(contact) || /\s/.test(contact))) return void (error.textContent = ERRORS.INVALID_CONTACT_URL);
+    button.disabled = true;
+    try {
+      me = await updateMetadata({ kabinet: { city: defaultsForm.city.value, contact: contact || null, approval: defaultsForm.approval.checked } });
+      note.textContent = "Збережено. Так заповнимо наступну нову подію.";
+    } catch (e) {
+      error.textContent = errorText(e);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  // ---- Пароль
+  passwordForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const f = passwordForm, button = $("[data-password-submit]"), error = $("[data-password-error]"), note = $("[data-password-note]");
+    if (button.disabled) return;
+    error.textContent = note.textContent = "";
+    const problem = passwordProblem(f.password.value, f.repeat.value);
+    if (problem) return void (error.textContent = problem);
+    const current = passwordAt === "recovery" ? "" : f.current.value;
+    if (passwordAt === "change" && !current) return void (error.textContent = ERRORS.current_password_required);
+    button.disabled = true;
+    try {
+      // Поточний пароль перевіряємо самі, як застосунок, і шлемо серверу: з «Require current password» він звірить ще раз.
+      if (current) {
+        await verifyPassword(me.email, current).catch((e) => { throw e.code === "invalid_credentials" ? Object.assign(e, { code: "current_password_mismatch" }) : e; });
+      }
+      try {
+        await updatePassword(f.password.value, { current: current || null, nonce: f.nonce.value.replace(/\s/g, "") || null });
+      } catch (e) {
+        if (e.code === "reauthentication_needed") {
+          // «Secure password change»: вхід старший за добу — сервер просить код з листа.
+          await reauthenticate();
+          $("[data-nonce-field]").hidden = false;
+          f.nonce.value = "";
+          f.nonce.focus();
+          note.textContent = `Для безпеки надіслали код на ${me.email}. Введіть його й натисніть «${button.textContent}» ще раз.`;
+          return;
+        }
+        if (e.code === "current_password_required" && passwordAt !== "change") {
+          passwordView("change", [], "У акаунта вже є пароль. Введіть поточний — або «Забули поточний пароль?», і надішлемо посилання.");
+          f.current.focus();
+          return;
+        }
+        throw e;
+      }
+      f.current.value = f.password.value = f.repeat.value = f.nonce.value = "";
+      $("[data-nonce-field]").hidden = true;
+      hideSecrets(f);
+      passwordView("change");
+      note.textContent = "Пароль збережено. На інших пристроях і в застосунку треба буде увійти знову.";
+    } catch (e) {
+      error.textContent = errorText(e);
+    } finally {
+      button.disabled = false;
+    }
+  });
+  $("[data-password-forgot]").addEventListener("click", async (event) => {
+    const button = event.currentTarget, error = $("[data-password-error]"), note = $("[data-password-note]");
+    button.disabled = true;
+    error.textContent = note.textContent = "";
+    try {
+      await requestRecovery(me.email, returnTo(), { hash: "#/account" });
+      note.textContent = `Надіслали посилання на ${me.email}. Відкрийте його в цьому браузері протягом кількох хвилин — і задасте новий пароль.`;
+    } catch (e) {
+      error.textContent = errorText(e);
+    }
+    setTimeout(() => { button.disabled = false; }, RESEND_AFTER);
+  });
+
+  // ---- Вхід
+  $("[data-signout]").addEventListener("click", () => leave());
+  $("[data-signout-all]").addEventListener("click", () => {
+    if (confirm("Вийти з акаунта на всіх пристроях? У застосунку теж доведеться увійти знову.")) leave({ everywhere: true });
+  });
 }
 
 // ---- Мої події
@@ -526,7 +966,7 @@ async function animate(container, name, category) {
   wanted.set(container, call);
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   try {
-    const [lottie, data] = await Promise.all([loadLottie(), fetch(`vendor/lottie/${name}${isDark() ? "_dark" : ""}.json?v=13`).then((r) => r.json())]);
+    const [lottie, data] = await Promise.all([loadLottie(), fetch(`vendor/lottie/${name}${isDark() ? "_dark" : ""}.json?v=14`).then((r) => r.json())]);
     if (wanted.get(container) !== call) return;
     const stub = getComputedStyle(document.documentElement).getPropertyValue(`--cat-${category}-stub`).trim();
     const loop = name === "publishing";
@@ -583,8 +1023,12 @@ let map, marker, mapLoading;
 
 const form = () => $("[data-form]");
 const FIELDS = ["title", "description", "address", "startDate", "startTime", "endDate", "endTime", "capacity", "minAge", "maxAge", "contact", "price"];
-const blank = () => ({ title: "", description: "", category: null, city: ui?.savedCity.get() || CITIES[0].name, address: "", lat: null, lon: null, placed: false,
-  startDate: "", startTime: "", endDate: "", endTime: "", capacity: 10, minAge: 18, maxAge: "", approval: false, contact: "", price: "", id: null });
+/** Порожня нова подія — з налаштувань «Нові події» в акаунті, якщо вони є. */
+const blank = () => {
+  const d = editorDefaults(me?.user_metadata);
+  return { title: "", description: "", category: null, city: d.city ?? (ui?.savedCity.get() || CITIES[0].name), address: "", lat: null, lon: null, placed: false,
+    startDate: "", startTime: "", endDate: "", endTime: "", capacity: 10, minAge: 18, maxAge: "", approval: d.approval ?? false, contact: d.contact ?? "", price: "", id: null };
+};
 
 function readDraft() { try { return JSON.parse(localStorage.getItem(DRAFT)); } catch { return null; } }
 
@@ -1130,22 +1574,32 @@ function setupEditor() {
 }
 
 async function start() {
-  ui = await import("./ui.js?v=13");
+  ui = await import("./ui.js?v=14");
   window.poriadReady = true;
   setupAuth();
+  setupAccount();
   setupEvent();
   setupEditor();
   $("[data-signin]").addEventListener("click", () => signIn().then((ok) => ok && route()));
-  // Повернення від Google: намір несе маршрут і «опублікувати», з якими людина пішла.
+  // Повернення від Google чи з листа: намір несе маршрут і «опублікувати», з якими людина пішла; лист відновлення —
+  // ще й крок нового пароля, поки решта сторінки чекає.
+  let recovering = false;
   try {
     const intent = await completeRedirect();
     if (intent?.hash) history.replaceState(history.state, "", `${location.pathname}${location.search}${intent.hash}`);
     pendingPublish = Boolean(intent?.publish);
+    recovering = intent?.flow === "recovery";
+    if (intent?.flow === "signup") setTimeout(() => ui.toast("Пошту підтверджено"), 300);
   } catch (e) {
     if (e.intent?.hash) history.replaceState(history.state, "", `${location.pathname}${location.search}${e.intent.hash}`);
-    if (e.code !== "access_denied") setTimeout(() => ui.toast(e.code === "pkce_missing" ? "Вхід почався в іншій вкладці. Спробуйте ще раз тут." : errorText(e)), 300);
+    if (e.code !== "access_denied") setTimeout(() => ui.toast(redirectErrorText(e)), 300);
   }
   addEventListener("hashchange", route);
+  if (recovering && await signedIn()) {
+    auth.email = me.email ?? "";
+    $("[data-auth-form]").recoveryEmail.value = auth.email;
+    await signIn({ at: "password" });
+  }
   await route();
 }
 

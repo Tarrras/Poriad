@@ -11,11 +11,11 @@
 <meta name="theme-color" content="#F2F2F4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 <link rel="preload" href="fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="tokens.css?v=13">
-<link rel="stylesheet" href="web.css?v=13">
+<link rel="stylesheet" href="tokens.css?v=14">
+<link rel="stylesheet" href="web.css?v=14">
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
-<script type="module" src="js/kabinet.js?v=13"></script>
+<script type="module" src="js/kabinet.js?v=14"></script>
 </head>
 <body class="kab">
 
@@ -25,7 +25,7 @@
     <nav class="links" aria-label="Розділи">
       <a href="afisha.html">Афіша</a>
       <a href="kabinet" aria-current="page">Організаторам</a>
-      <button class="btn small" type="button" data-signout hidden>Вийти</button>
+      <a class="btn small kab-me-link" href="#/account" data-account-link hidden><span class="kab-avatar tiny" data-nav-avatar aria-hidden="true"></span>Акаунт</a>
     </nav>
   </div>
 </header>
@@ -150,6 +150,88 @@
     </div>
   </section>
 
+  <!-- Акаунт організатора: профіль, який бачать учасники, налаштування нових подій, пароль і вхід -->
+  <section data-view="account" hidden>
+    <a class="kab-back" href="#/">← Мої події</a>
+    <div class="kab-head kab-me">
+      <span class="kab-avatar big" data-me-avatar aria-hidden="true"></span>
+      <div><h1>Акаунт</h1><p class="kab-place" data-me-line></p></div>
+    </div>
+    <p class="kab-note" data-account-note role="status"></p>
+    <div class="kab-settings" data-settings>
+
+      <form class="kab-card" data-profile-form novalidate>
+        <h2 class="kab-card-title">Профіль організатора</h2>
+        <p class="kab-hint">Так вас бачать учасники: на сторінці події, у запитах на участь і в чаті.</p>
+        <div class="kab-photo">
+          <span class="kab-avatar big" data-photo-preview aria-hidden="true"></span>
+          <div class="kab-row">
+            <button class="btn small" type="button" data-photo-pick>Завантажити фото</button>
+            <button class="btn small" type="button" data-photo-remove>Прибрати фото</button>
+          </div>
+          <input type="file" accept="image/*" data-photo-file hidden>
+        </div>
+        <label class="kab-field"><span>Імʼя чи назва спільноти</span><input name="name" maxlength="60" autocomplete="name" required></label>
+        <label class="kab-field"><span>Про вас <small>(необовʼязково)</small></span><textarea name="bio" rows="4" maxlength="300" placeholder="Що організовуєте, для кого, як давно"></textarea></label>
+        <p class="kab-hint" data-bio-count></p>
+        <p class="kab-error" data-profile-error role="alert"></p>
+        <div class="kab-row"><button class="btn primary" type="submit">Зберегти профіль</button><p class="kab-note" data-profile-note role="status"></p></div>
+      </form>
+
+      <form class="kab-card" data-defaults-form novalidate>
+        <h2 class="kab-card-title">Нові події</h2>
+        <p class="kab-hint">Так заповнимо кожну нову подію, на будь-якому компʼютері. У самій події все можна змінити.</p>
+        <label class="kab-field"><span>Місто</span><select name="city" data-defaults-city></select></label>
+        <label class="kab-field"><span>Чат учасників <small>(необовʼязково)</small></span><input type="url" name="contact" maxlength="500" placeholder="https://t.me/…" autocomplete="off"></label>
+        <label class="kab-check"><input type="checkbox" name="approval"><span><b>За підтвердженням</b><small>Людина надсилає заявку, а ви вирішуєте, кого взяти</small></span></label>
+        <p class="kab-error" data-defaults-error role="alert"></p>
+        <div class="kab-row"><button class="btn" type="submit">Зберегти</button><p class="kab-note" data-defaults-note role="status"></p></div>
+      </form>
+
+      <form class="kab-card" data-password-form novalidate>
+        <h2 class="kab-card-title" data-password-title>Пароль</h2>
+        <p class="kab-hint" data-password-lead></p>
+        <input type="email" name="username" autocomplete="username" hidden>
+        <div class="kab-field" data-current-field>
+          <label for="kab-current" data-current-label>Поточний пароль</label>
+          <div class="kab-secret"><input id="kab-current" type="password" name="current" autocomplete="current-password" maxlength="72"><button class="kab-reveal" type="button" data-reveal aria-pressed="false">Показати</button></div>
+        </div>
+        <div class="kab-field">
+          <label for="kab-new">Новий пароль</label>
+          <div class="kab-secret"><input id="kab-new" type="password" name="password" autocomplete="new-password" minlength="8" maxlength="72"><button class="kab-reveal" type="button" data-reveal aria-pressed="false">Показати</button></div>
+          <small class="kab-hint">Щонайменше 8 символів</small>
+        </div>
+        <div class="kab-field">
+          <label for="kab-repeat">Повторіть новий пароль</label>
+          <div class="kab-secret"><input id="kab-repeat" type="password" name="repeat" autocomplete="new-password" maxlength="72"></div>
+        </div>
+        <label class="kab-field" data-nonce-field hidden><span>Код з листа</span><input name="nonce" inputmode="numeric" autocomplete="one-time-code" maxlength="10"></label>
+        <p class="kab-error" data-password-error role="alert"></p>
+        <div class="kab-row">
+          <button class="btn primary" type="submit" data-password-submit>Зберегти пароль</button>
+          <button class="kab-link" type="button" data-password-forgot>Забули поточний пароль?</button>
+        </div>
+        <p class="kab-note" data-password-note role="status"></p>
+        <p class="kab-hint">Після зміни пароля на інших пристроях — і в застосунку — треба буде увійти знову.</p>
+      </form>
+
+      <section class="kab-card" aria-labelledby="kab-signin-title">
+        <h2 class="kab-card-title" id="kab-signin-title">Вхід</h2>
+        <dl class="kab-facts">
+          <div><dt>Пошта</dt><dd data-me-email></dd></div>
+          <div><dt>Способи входу</dt><dd data-me-methods></dd></div>
+        </dl>
+        <div class="kab-row">
+          <button class="btn" type="button" data-signout>Вийти</button>
+          <button class="btn" type="button" data-signout-all>Вийти на всіх пристроях</button>
+        </div>
+        <p class="kab-hint">«На всіх пристроях» закриває всі входи цього акаунта, і в застосунку теж. Знадобиться, якщо входили з чужого компʼютера.</p>
+      </section>
+
+      <p class="kab-hint kab-delete">Видалити акаунт можна в застосунку: Профіль → «Видалити обліковий запис». Без застосунку — <a href="delete-account.html">як це зробити</a>.</p>
+    </div>
+  </section>
+
   <!-- Подію створено (1.6): штамп «ОПУБЛІКОВАНО» і що робити далі -->
   <section class="kab-created" data-view="done" hidden>
     <div class="kab-anim" data-done-anim aria-hidden="true"></div>
@@ -173,25 +255,74 @@
   <p class="kab-note" data-progress role="status"></p>
 </dialog>
 
-<!-- Вхід: Google або код з пошти; вперше — імʼя. 18+ — рядком згоди, без галочки -->
-<dialog class="install" data-auth>
+<!-- Вхід організатора: Google або пошта з паролем; реєстрація, «Забули пароль?», новий пароль з листа; вперше — імʼя.
+     18+ — рядком згоди, без галочки. Гості й учасники входять на /e/{id} інакше: Google або код з пошти. -->
+<dialog class="install" data-auth aria-labelledby="kab-auth-title">
   <form class="install-box kab-auth" data-auth-form novalidate>
     <button class="round" type="button" data-auth-close aria-label="Закрити"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-close"/></svg></button>
     <div data-step="start">
-      <h2>Вхід для організатора</h2>
+      <h2 id="kab-auth-title">Вхід для організатора</h2>
       <p class="lead" data-auth-lead>Тією самою поштою чи Google, що й у застосунку, — і ви побачите свої події.</p>
-      <button class="btn primary kab-wide" type="button" data-google>Продовжити з Google</button>
-      <p class="kab-or" data-google-or>або кодом з пошти</p>
-      <label class="kab-field"><span>Пошта</span><input type="email" name="email" autocomplete="email" inputmode="email" placeholder="you@example.com"></label>
-      <button class="btn secondary kab-wide" type="submit" data-send>Надіслати код</button>
+      <button class="btn secondary kab-wide" type="button" data-google><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-google"/></svg>Продовжити з Google</button>
+      <p class="kab-hint" data-in-app hidden>Вхід через Google — у Safari чи Chrome. <a class="kab-link" data-browser>Відкрити в браузері</a></p>
+      <p class="kab-or">або поштою й паролем</p>
+      <label class="kab-field"><span>Пошта</span><input type="email" name="email" autocomplete="username" inputmode="email" placeholder="you@example.com"></label>
+      <div class="kab-field">
+        <label for="kab-auth-password">Пароль</label>
+        <div class="kab-secret"><input id="kab-auth-password" type="password" name="password" autocomplete="current-password" maxlength="72"><button class="kab-reveal" type="button" data-reveal aria-pressed="false">Показати</button></div>
+      </div>
+      <button class="btn primary kab-wide" type="submit">Увійти</button>
+      <div class="kab-row kab-links"><button class="kab-link" type="button" data-goto="forgot">Забули пароль?</button><button class="kab-link" type="button" data-goto="signup">Створити акаунт</button></div>
+      <p class="kab-hint">Входили кодом з пошти, і пароля ще нема? Натисніть «Забули пароль?» — надішлемо посилання, щоб його задати.</p>
       <p class="fine">Продовжуючи, ви підтверджуєте, що вам уже є 18, і погоджуєтесь з <a href="terms.html">Умовами користування</a> та <a href="privacy.html">Політикою конфіденційності</a>.</p>
     </div>
-    <div data-step="code" hidden>
-      <h2>Код з листа</h2>
-      <p class="lead">Надіслали на <b data-email></b>. Лист може прийти за хвилину; гляньте й у «Спам».</p>
-      <label class="kab-field"><span>Код</span><input name="code" autocomplete="one-time-code" inputmode="numeric" maxlength="10"></label>
-      <button class="btn primary kab-wide" type="submit">Увійти</button>
-      <div class="kab-row"><button class="btn small" type="button" data-resend>Надіслати ще раз</button><button class="btn small" type="button" data-other-email>Інша пошта</button></div>
+    <div data-step="signup" hidden>
+      <h2>Новий акаунт</h2>
+      <p class="lead">Для організатора: події, учасники, анонси. Імʼя побачать учасники.</p>
+      <label class="kab-field"><span>Імʼя чи назва спільноти</span><input name="signupName" maxlength="60" autocomplete="name"></label>
+      <label class="kab-field"><span>Пошта</span><input type="email" name="signupEmail" autocomplete="username" inputmode="email" placeholder="you@example.com"></label>
+      <div class="kab-field">
+        <label for="kab-auth-new">Пароль</label>
+        <div class="kab-secret"><input id="kab-auth-new" type="password" name="signupPassword" autocomplete="new-password" maxlength="72"><button class="kab-reveal" type="button" data-reveal aria-pressed="false">Показати</button></div>
+        <small class="kab-hint">Щонайменше 8 символів</small>
+      </div>
+      <button class="btn primary kab-wide" type="submit">Створити акаунт</button>
+      <div class="kab-row kab-links"><button class="kab-link" type="button" data-goto="start">Вже маєте акаунт? Увійти</button></div>
+      <p class="fine">Реєструючись, ви підтверджуєте, що вам уже є 18, і погоджуєтесь з <a href="terms.html">Умовами користування</a> та <a href="privacy.html">Політикою конфіденційності</a>.</p>
+    </div>
+    <div data-step="confirm" hidden>
+      <h2>Підтвердіть пошту</h2>
+      <p class="lead">Надіслали код на <b data-email></b>. Введіть його тут або відкрийте посилання з листа в цьому браузері. Лист може прийти за хвилину; гляньте й у «Спам».</p>
+      <label class="kab-field"><span>Код з листа</span><input name="code" autocomplete="one-time-code" inputmode="numeric" maxlength="10"></label>
+      <button class="btn primary kab-wide" type="submit">Підтвердити</button>
+      <div class="kab-row"><button class="btn small" type="button" data-resend>Надіслати ще раз</button><button class="btn small" type="button" data-goto="signup">Інша пошта</button></div>
+    </div>
+    <div data-step="forgot" hidden>
+      <h2>Відновити пароль</h2>
+      <p class="lead">Надішлемо посилання, щоб задати новий пароль. Так само задає пароль той, хто досі входив кодом з пошти.</p>
+      <label class="kab-field"><span>Пошта</span><input type="email" name="forgotEmail" autocomplete="username" inputmode="email" placeholder="you@example.com"></label>
+      <button class="btn primary kab-wide" type="submit">Надіслати посилання</button>
+      <div class="kab-row kab-links"><button class="kab-link" type="button" data-goto="start">Назад до входу</button></div>
+    </div>
+    <div data-step="sent" hidden>
+      <h2>Перевірте пошту</h2>
+      <p class="lead">Якщо акаунт з <b data-email></b> є, ми вже надіслали посилання. Відкрийте його в цьому браузері протягом кількох хвилин — і задасте новий пароль.</p>
+      <div class="kab-row"><button class="btn small" type="button" data-resend>Надіслати ще раз</button><button class="btn small" type="button" data-goto="start">Назад до входу</button></div>
+    </div>
+    <div data-step="password" hidden>
+      <h2>Новий пароль</h2>
+      <p class="lead">Придумайте пароль для входу в кабінет і в застосунок. Пошта та сама: <b data-email></b>.</p>
+      <input type="email" name="recoveryEmail" autocomplete="username" hidden>
+      <div class="kab-field">
+        <label for="kab-auth-reset">Новий пароль</label>
+        <div class="kab-secret"><input id="kab-auth-reset" type="password" name="newPassword" autocomplete="new-password" maxlength="72"><button class="kab-reveal" type="button" data-reveal aria-pressed="false">Показати</button></div>
+        <small class="kab-hint">Щонайменше 8 символів</small>
+      </div>
+      <div class="kab-field">
+        <label for="kab-auth-repeat">Повторіть пароль</label>
+        <div class="kab-secret"><input id="kab-auth-repeat" type="password" name="repeatPassword" autocomplete="new-password" maxlength="72"></div>
+      </div>
+      <button class="btn primary kab-wide" type="submit">Зберегти пароль</button>
     </div>
     <div data-step="profile" hidden>
       <h2>Кілька слів про вас</h2>
@@ -199,6 +330,7 @@
       <label class="kab-field"><span>Імʼя</span><input name="name" maxlength="60" autocomplete="given-name"></label>
       <button class="btn primary kab-wide" type="submit">Продовжити</button>
     </div>
+    <p class="kab-note" data-auth-note role="status"></p>
     <p class="kab-error" data-auth-error role="alert"></p>
   </form>
 </dialog>

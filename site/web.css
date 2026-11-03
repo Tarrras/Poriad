@@ -923,8 +923,40 @@ a.row:hover { background: var(--surface-muted); }
 .kab-price { max-width: 240px; }
 .event-shell .cover-big .facts > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
+/* Вхід довший за екран телефона (пошта, пароль, реєстрація) — гортається всередині, як шторка запису. */
+.kab-auth { max-height: calc(100svh - 32px); overflow-y: auto; overscroll-behavior: contain; }
 .kab-auth > div { display: flex; flex-direction: column; gap: 14px; }
 .kab-auth .kab-row .btn { flex: 1; }
+.kab-auth .btn .ico { width: 20px; height: 20px; }
+.kab-auth .kab-hint b, .kab-auth .lead b { overflow-wrap: anywhere; }
+
+/* Вхід і акаунт організатора: пароль з «Показати», текстові дії, аватар — фото або літера, як Avatar у застосунку. */
+.kab-secret { position: relative; }
+.kab .kab-secret input:not([type=checkbox]):not([type=file]) { padding-right: 96px; }
+.kab-reveal { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); height: 36px; padding: 0 12px; border-radius: var(--r-xs);
+  font: 600 14px/18px var(--font); color: var(--ink-secondary); }
+.kab-reveal:hover { color: var(--ink); background: var(--surface-muted); }
+.kab-link { font: 600 15px/20px var(--font); color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
+.kab-link:hover { text-decoration-thickness: 2px; }
+.kab-link:disabled { color: var(--ink-tertiary); cursor: default; text-decoration: none; }
+.kab-links { justify-content: space-between; }
+.kab-avatar { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background: var(--canvas-tint);
+  color: var(--ink); font: 600 17px/1 var(--font); }
+.kab-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.kab-avatar.big { width: 72px; height: 72px; font-size: 28px; }
+.kab-avatar.tiny { width: 24px; height: 24px; font-size: 12px; background: var(--surface); }
+.kab-me-link { padding-left: 8px; }
+.kab-me-link[aria-current] { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.kab-head.kab-me { justify-content: flex-start; align-items: center; }
+.kab-settings { display: flex; flex-direction: column; gap: 16px; max-width: 720px; }
+.kab-card-title { font: 800 26px/30px var(--cond); letter-spacing: -.01em; }
+.kab-photo { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.kab-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 20px; margin: 0; font: 400 16px/22px var(--font); }
+.kab-facts > div { display: contents; }
+.kab-facts dt { color: var(--ink-secondary); }
+.kab-facts dd { margin: 0; overflow-wrap: anywhere; }
+.kab-delete { margin-top: 8px; }
+.kab-delete a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
 /* Публікація й «Подію створено» (1.6): квиток Lottie 240×160 (3:2) друкується, потім на нього падає штамп. */
 .kab-anim { width: 240px; max-width: 100%; aspect-ratio: 3 / 2; margin: 0 auto; }
@@ -962,6 +994,10 @@ a.row:hover { background: var(--surface-muted); }
   .kab-event h3 { font-size: 19px; line-height: 22px; }
   .kab-tools .btn { flex: 1 1 auto; }
   .kab-map { height: 300px; }
+  .kab-auth { max-height: 92svh; }
+  .kab-facts { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .kab-facts > div + div dt { margin-top: 10px; }
+  .kab-settings .kab-row .btn { flex: 1 1 auto; }
 }
 
 /* ================= Рух «Друк і штамп» (design-wow-1.5, docs/design-wow-1.5.md) ================= */

@@ -11,7 +11,8 @@ localStorage = memory();
 sessionStorage = memory();
 location = { hostname: "poriad.app", href: "https://poriad.app/e/1", assign(url) { this.assigned = url; } };
 history = { state: null, replaceState(state, title, url) { location.href = String(url); } };
-const { session, sendCode, verifyCode, google, completeRedirect, rpc, upload, signOut, inAppBrowser, browserLinks } = await import("../site/js/auth.js");
+const { session, sendCode, verifyCode, google, completeRedirect, rpc, upload, signOut, inAppBrowser, browserLinks, signInWithPassword, signUp,
+  resendSignup, requestRecovery, updatePassword, reauthenticate, updateMetadata, currentUser, verifyPassword, signInMethods, isEmail, isPassword } = await import("../site/js/auth.js");
 
 const DB = "https://tzdogzdvctlumsqlqskr.supabase.co";
 let calls = [];
@@ -125,6 +126,118 @@ await google("https://poriad.app/e/1", "join");
 location.href = "https://poriad.app/e/1?error=access_denied&error_code=access_denied&error_description=cancelled";
 await assert.rejects(completeRedirect(), { code: "access_denied", intent: "join" }, "відмова Google — з наміром, щоб відкрити шторку знову");
 assert.equal(location.href, "https://poriad.app/e/1");
+
+// Організатор: пошта з паролем.
+const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
+const jwt = (...methods) => `${b64({ alg: "HS256" })}.${b64({ sub: "u3", amr: methods.map((method) => ({ method, timestamp: 1 })) })}.sig`;
+respond(() => [200, { access_token: jwt("password"), refresh_token: "p1", expires_in: 3600, user: { id: "u3", email: "olena@example.com" } }]);
+await signInWithPassword(" olena@example.com ", "secret123");
+assert.deepEqual(calls[0], { url: `${DB}/auth/v1/token?grant_type=password`, auth: undefined, body: { email: "olena@example.com", password: "secret123" } });
+assert.deepEqual(signInMethods(stored()), ["password"], "amr — як відкрито сесію");
+assert.deepEqual(signInMethods({ access_token: "битий" }), []);
+respond(() => [400, { code: 400, error_code: "invalid_credentials", msg: "Invalid login credentials" }]);
+await assert.rejects(signInWithPassword("olena@example.com", "nope"), { status: 400, code: "invalid_credentials" });
+assert.equal(stored().refresh_token, "p1", "хибний пароль сесії не чіпає");
+assert.ok(isPassword("12345678") && !isPassword("1234567") && !isPassword("x".repeat(73)), "8–72, як AccountRules і bcrypt");
+assert.ok(isEmail(" a@b.ua ") && !isEmail("a@b"));
+
+// Реєстрація: імʼя й 18+ у метаданих, PKCE на кабінет, verifier — у localStorage (лист відкриють у новій вкладці).
+const mail = () => JSON.parse(localStorage.getItem("poriad.pkce.mail") ?? "{}");
+respond(() => [200, { id: "u4", email: "marta@example.com", identities: [{ provider: "email" }] }]);
+assert.deepEqual(await signUp("marta@example.com ", "martapass", " Марта ", "https://poriad.app/kabinet", { hash: "#/new", publish: true }), { confirm: true });
+assert.equal(calls[0].url, `${DB}/auth/v1/signup?redirect_to=${encodeURIComponent("https://poriad.app/kabinet")}`);
+assert.deepEqual(calls[0].body.data, { display_name: "Марта", adult_confirmed: true });
+assert.equal(calls[0].body.code_challenge, createHash("sha256").update(mail().signup.verifier).digest("base64url"));
+assert.deepEqual(mail().signup.intent, { hash: "#/new", publish: true });
+respond(() => [200, { id: "x", email: "taken@example.com", identities: [] }]);
+assert.deepEqual(await signUp("taken@example.com", "takenpass", "Т", "https://poriad.app/kabinet"), { exists: true }, "зайнята пошта: GoTrue без identities і без листа");
+assert.equal(mail().signup, undefined, "verifier зайнятої пошти не лишаємо");
+respond(() => [422, { error_code: "user_already_exists" }]);
+assert.deepEqual(await signUp("taken@example.com", "takenpass", "Т", "https://poriad.app/kabinet"), { exists: true }, "з автопідтвердженням — помилкою");
+respond(() => [422, { error_code: "weak_password", msg: "Password is known to be weak", weak_password: { reasons: ["pwned"] } }]);
+await assert.rejects(signUp("new@example.com", "password1", "Н", "https://poriad.app/kabinet"), { code: "weak_password", reasons: ["pwned"] });
+respond(() => [200, { access_token: "s1", refresh_token: "sr1", expires_in: 3600, user: { id: "u5" } }]);
+assert.deepEqual(await signUp("auto@example.com", "autopass1", "А", "https://poriad.app/kabinet"), { session: true }, "без підтвердження пошти — одразу вхід");
+assert.equal(stored().access_token, "s1");
+respond(() => [200, {}]);
+await resendSignup("marta@example.com", "https://poriad.app/kabinet", { hash: "#/" });
+assert.equal(calls[0].body.type, "signup");
+assert.equal(calls[0].body.code_challenge_method, "s256");
+assert.ok(calls[0].url.startsWith(`${DB}/auth/v1/resend?redirect_to=`));
+
+// «Забули пароль?» → посилання з листа в новій вкладці (sessionStorage порожній) → сесія відновлення.
+await requestRecovery("olena@example.com", "https://poriad.app/kabinet", { hash: "#/account" });
+assert.equal(calls.at(-1).url, `${DB}/auth/v1/recover?redirect_to=${encodeURIComponent("https://poriad.app/kabinet")}`);
+assert.equal(calls.at(-1).body.email, "olena@example.com");
+const recoveryVerifier = mail().recovery.verifier;
+sessionStorage.removeItem("poriad.pkce");
+location.href = "https://poriad.app/kabinet?code=rc1";
+respond((path, init) => JSON.parse(init.body).code_verifier === recoveryVerifier
+  ? [200, { access_token: jwt("recovery"), refresh_token: "rr1", expires_in: 3600, user: { id: "u3" } }]
+  : [400, { error_code: "bad_code_verifier" }]);
+assert.deepEqual(await completeRedirect(), { hash: "#/account", flow: "recovery" }, "verifier-и по черзі: чужий не спалює код");
+assert.deepEqual(calls.map((c) => c.body.code_verifier), [recoveryVerifier], "відновлення — першим");
+assert.equal(location.href, "https://poriad.app/kabinet");
+assert.equal(mail().recovery, undefined, "verifier одноразовий");
+assert.ok(mail().signup, "лист реєстрації чекає далі");
+assert.deepEqual(signInMethods(stored()), ["recovery"]);
+// Той самий код у вкладці, де ще й Google чекав: Google-verifier не підходить — далі лист реєстрації.
+sessionStorage.setItem("poriad.pkce", JSON.stringify({ verifier: "g".repeat(43), intent: { hash: "#/" } }));
+const signupVerifier = mail().signup.verifier;
+location.href = "https://poriad.app/kabinet?code=sc1";
+respond((path, init) => JSON.parse(init.body).code_verifier === signupVerifier
+  ? [200, { access_token: jwt("otp"), refresh_token: "sr2", expires_in: 3600, user: { id: "u4" } }] : [400, { error_code: "bad_code_verifier" }]);
+assert.deepEqual(await completeRedirect(), { hash: "#/", flow: "signup" });
+assert.equal(calls.length, 2);
+location.href = "https://poriad.app/kabinet?code=zz";
+respond(() => [400, { error_code: "bad_code_verifier" }]);
+await assert.rejects(completeRedirect(), { code: "pkce_missing" }, "посилання з іншого браузера");
+// Протухле посилання: помилка і в запиті, і у фрагменті GoTrue — фрагмент теж прибираємо (кабінет живе в #).
+location.href = "https://poriad.app/kabinet?error=access_denied&error_code=otp_expired&error_description=x#error=access_denied&error_code=otp_expired&sb=";
+await assert.rejects(completeRedirect(), { code: "otp_expired" });
+assert.equal(location.href, "https://poriad.app/kabinet");
+location.href = "https://poriad.app/kabinet#access_token=stolen&refresh_token=x&type=signup";
+assert.equal(await completeRedirect(), null, "неявний потік не приймаємо");
+assert.equal(location.href, "https://poriad.app/kabinet", "токени з адреси прибрано");
+location.href = "https://poriad.app/kabinet#/e/1";
+assert.equal(await completeRedirect(), null);
+assert.equal(location.href, "https://poriad.app/kabinet#/e/1", "маршрут кабінету не чіпаємо");
+
+// Зміна пароля: поточний і код повторної автентифікації — лише якщо є; свіжий рядок — у сесію.
+localStorage.setItem("poriad.session", JSON.stringify({ access_token: jwt("password"), refresh_token: "p2", expires_at: at(3600), user: { id: "u3", email: "olena@example.com" } }));
+respond(() => [200, { id: "u3", email: "olena@example.com", user_metadata: { kabinet: { city: "Львів" } } }]);
+await updatePassword("newsecret1", { current: "secret123" });
+await updatePassword("newsecret2");
+await updatePassword("newsecret3", { nonce: "123456" });
+assert.deepEqual(calls.map((c) => c.body), [{ password: "newsecret1", current_password: "secret123" }, { password: "newsecret2" }, { password: "newsecret3", nonce: "123456" }]);
+assert.ok(calls.every((c) => c.url === `${DB}/auth/v1/user` && c.auth === `Bearer ${jwt("password")}`));
+assert.deepEqual(stored().user.user_metadata, { kabinet: { city: "Львів" } }, "рядок користувача — у сесії");
+respond(() => [400, { error_code: "reauthentication_needed" }]);
+await assert.rejects(updatePassword("newsecret4"), { code: "reauthentication_needed" });
+respond(() => [200, {}]);
+await reauthenticate();
+assert.deepEqual(calls[0], { url: `${DB}/auth/v1/reauthenticate`, auth: `Bearer ${jwt("password")}`, body: undefined });
+respond(() => [200, { id: "u3", user_metadata: { kabinet: { approval: true } } }]);
+await updateMetadata({ kabinet: { approval: true } });
+assert.deepEqual(calls[0].body, { data: { kabinet: { approval: true } } });
+respond(() => [200, { id: "u3", identities: [{ provider: "google" }] }]);
+assert.deepEqual((await currentUser()).identities, [{ provider: "google" }]);
+// Перевірка пароля: окремий вхід і одразу logout саме цієї зайвої сесії.
+respond((path) => path.startsWith("/auth/v1/token") ? [200, { access_token: "proof", refresh_token: "pr" }] : [204]);
+await verifyPassword("olena@example.com", "newsecret3");
+assert.deepEqual(calls.map((c) => [c.url.slice(DB.length), c.auth ?? "—"]), [["/auth/v1/token?grant_type=password", "—"], ["/auth/v1/logout?scope=local", "Bearer proof"]]);
+assert.equal(stored().refresh_token, "p2", "перевірка не підміняє сесію");
+respond(() => [400, { error_code: "invalid_credentials" }]);
+await assert.rejects(verifyPassword("olena@example.com", "nope"), { code: "invalid_credentials" });
+localStorage.removeItem("poriad.session");
+await assert.rejects(updatePassword("newsecret5"), { code: "session_expired" }, "без сесії — не гостем");
+respond(() => [204]);
+localStorage.setItem("poriad.session", JSON.stringify({ access_token: "e1", refresh_token: "e1", expires_at: at(3600) }));
+await requestRecovery("olena@example.com", "https://poriad.app/kabinet");
+await signOut({ everywhere: true });
+assert.equal(calls.at(-1).url, `${DB}/auth/v1/logout?scope=global`, "на всіх пристроях");
+assert.equal(localStorage.getItem("poriad.pkce.mail"), null, "після виходу пошти в сховищі не лишаємо");
+localStorage.setItem("poriad.session", JSON.stringify({ access_token: "g1", refresh_token: "gr1", expires_at: at(3600) }));
 
 // Storage і вихід.
 respond(() => [200, { Key: "event-images/u2/1 photo.jpg" }]);

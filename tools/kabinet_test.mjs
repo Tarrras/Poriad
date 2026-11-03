@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import {
   instant, local, repeatTimes, endAfter, durationLabel, DURATIONS, mediaProblem, videoTooLong, fit, MEDIA,
   threadsPost, threadsIntent, firstLine, cleanText, rosterText, errorText, publishPlan, writeDraft, forgetDraft, recolorStub,
-  priceProblem, priceParam, PRICE_TEXT, eventDraft, repeatDraft,
+  priceProblem, priceParam, PRICE_TEXT, eventDraft, repeatDraft, passwordProblem, passwordMode, providersText, editorDefaults, sinceText, plural,
+  weakPasswordText, redirectErrorText,
 } from "../site/js/kabinet.js";
 import { readFileSync } from "node:fs";
 
@@ -129,4 +130,34 @@ assert.equal(eventDraft({ ...pricedEvent, price_min: null }).price, "");
 assert.equal(errorText({ status: 400, code: "INVALID_PRICE" }), PRICE_TEXT);
 assert.equal(threadsPost(pricedEvent), "Настолки «Каркасон»\nпн, 2 листопада, 19:00 · Хрещатик, 22\nВхід — 450 ₴\n\nГраємо в Каркасон і Колонізаторів. Правила пояснимо.\n\nЗапис: poriad.app/e/e1");
 assert.ok(!threadsPost({ ...pricedEvent, origin: "import" }).includes("Вхід"), "ціна продавця в афіші — «від», не пишемо");
+
+// Вхід і акаунт організатора.
+assert.equal(passwordProblem("1234567"), "Пароль — щонайменше 8 символів");
+assert.equal(passwordProblem("x".repeat(73)), "Пароль — до 72 символів");
+assert.equal(passwordProblem("secret123", "secret124"), "Паролі не збігаються");
+assert.equal(passwordProblem("secret123", "secret123"), "");
+assert.equal(passwordMode(["recovery"]), "recovery", "з листа відновлення — без поточного");
+assert.equal(passwordMode(["password"]), "change");
+assert.equal(passwordMode(["oauth"]), "set");
+assert.equal(passwordMode(["otp"]), "set");
+assert.equal(passwordMode([]), "set");
+assert.equal(providersText({ identities: [{ provider: "google" }, { provider: "email" }], app_metadata: { providers: ["email", "google"] } }), "пошта · Google");
+assert.equal(providersText({ identities: [], app_metadata: { providers: ["apple"] } }), "Apple");
+assert.equal(providersText(null), "—");
+assert.deepEqual(editorDefaults({ kabinet: { city: "Львів", contact: "https://t.me/club", approval: true } }), { city: "Львів", contact: "https://t.me/club", approval: true });
+assert.deepEqual(editorDefaults({ kabinet: { city: "Москва", contact: "javascript:alert(1)", approval: "так" } }), {}, "чуже з метаданих не тягнемо в подію");
+assert.deepEqual(editorDefaults({ kabinet: { contact: "https://t.me/a b" } }), {});
+assert.deepEqual(editorDefaults(undefined), {});
+assert.equal(sinceText("2026-09-30T22:30:00Z"), "з нами з жовтня 2026", "місяць — за Києвом");
+assert.equal(sinceText(null), "");
+assert.deepEqual([1, 2, 5, 11, 12, 21, 22, 25, 111].map((n) => plural(n, ["подія", "події", "подій"])),
+  ["подія", "події", "подій", "подій", "подій", "подія", "події", "подій", "подій"]);
+assert.match(weakPasswordText(["pwned"]), /витоках/);
+assert.match(weakPasswordText(["characters"]), /літери/);
+assert.equal(errorText({ status: 422, code: "weak_password", reasons: ["length"] }), "Пароль — щонайменше 8 символів");
+assert.match(errorText({ status: 400, code: "invalid_credentials" }), /Забули пароль/);
+assert.equal(errorText({ status: 400, code: "same_password" }), "Новий пароль збігається з поточним");
+assert.match(redirectErrorText({ code: "otp_expired" }), /Посилання застаріло/, "протухле посилання — не «код не підійшов»");
+assert.match(redirectErrorText({ code: "flow_state_expired" }), /Посилання застаріло/);
+assert.match(errorText({ code: "otp_expired" }), /Код не підійшов/);
 console.log("kabinet ok");
