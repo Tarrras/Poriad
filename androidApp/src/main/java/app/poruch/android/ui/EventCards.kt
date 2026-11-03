@@ -342,7 +342,7 @@ fun EventResultRow(
     val colors = Poruch.colors
     val badge = resultBadge(event, waitlisted)
     val price = event.listing?.takeIf { it.isFree == true || it.priceMin != null }
-        ?.let { listingPrice(it).replaceFirstChar { c -> c.lowercase() } }
+        ?.let { listingPrice(it).replaceFirstChar { c -> c.lowercase() } } ?: peoplePrice(event)
     val subtitle = listOfNotNull(
         distance,
         stringResource(categoryLabel(event.category)),
@@ -487,6 +487,8 @@ fun EventMapCard(
                 if (state != null) TicketStamp(state.first, state.second)
                 else if (artists != null) MetaLine(PoruchIcons.person, artists)
                 else EventDescriptor(event)
+                // Платна зустріч: «300 ₴» під місцем, як ціна афіші на постері.
+                peoplePrice(event)?.let { MetaLine(PoruchIcons.ticket, it) }
             }
         }
     }

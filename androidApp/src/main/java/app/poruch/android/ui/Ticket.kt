@@ -227,7 +227,8 @@ fun ticketA11yLabel(event: Event, state: String? = null): String {
     val category = stringResource(categoryLabel(event.category))
     val seats = event.gathering?.takeIf { !event.hasEnded(kotlin.time.Clock.System.now()) }
         ?.let { stringResource(R.string.attendees, it.attendeeCount, it.capacity) }
-    return listOfNotNull(event.displayTitle, hostLine(event), category, event.placeLabel, time, seats, state)
+    // Ціна зустрічі видна на картках текстом, а квиток для TalkBack — одна кнопка зі своїм підписом: без неї вона б зникла.
+    return listOfNotNull(event.displayTitle, hostLine(event), category, event.placeLabel, time, seats, peoplePrice(event), state)
         .filter { it.isNotBlank() }.joinToString(", ")
 }
 

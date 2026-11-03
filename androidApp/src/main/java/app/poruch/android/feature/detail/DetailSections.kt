@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import app.poruch.android.EventMap
 import app.poruch.android.R
@@ -619,17 +620,19 @@ internal fun BoughtCard(saved: Boolean, onIntent: (DetailIntent) -> Unit, onAddT
 @Composable
 internal fun Facts(event: Event) {
     val cells = buildList {
-        add(stringResource(R.string.when_label) to eventTime(event, dateWords()))
-        add(stringResource(R.string.where) to listOf(event.city, event.address).filter { it.isNotBlank() }.joinToString(" · "))
+        add(Triple(stringResource(R.string.when_label), eventTime(event, dateWords()), null))
+        add(Triple(stringResource(R.string.where), listOf(event.city, event.address).filter { it.isNotBlank() }.joinToString(" · "), null))
         event.gathering?.let { room ->
-            add(stringResource(R.string.organizer_short) to room.organizerName.ifBlank { stringResource(R.string.organizer_short) })
-            add(stringResource(R.string.capacity_label) to stringResource(R.string.attendees_short, room.attendeeCount, room.capacity))
+            add(Triple(stringResource(R.string.organizer_short), room.organizerName.ifBlank { stringResource(R.string.organizer_short) }, null))
+            add(Triple(stringResource(R.string.capacity_label), stringResource(R.string.attendees_short, room.attendeeCount, room.capacity), null))
+            // Платна зустріч (docs/organizers-1.5.md, 1.7): ціна й те, що платять організатору напряму, не через нас.
+            peoplePrice(event)?.let { add(Triple(stringResource(R.string.price_fact), it, stringResource(R.string.price_pay_hint))) }
         }
     }
     Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.xl), verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {
         cells.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
-                row.forEach { (label, value) -> FactCell(label, value, Modifier.weight(1f)) }
+                row.forEach { (label, value, caption) -> FactCell(label, value, Modifier.weight(1f), caption) }
                 if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
@@ -637,11 +640,12 @@ internal fun Facts(event: Event) {
 }
 
 @Composable
-internal fun FactCell(label: String, value: String, modifier: Modifier) {
+internal fun FactCell(label: String, value: String, modifier: Modifier, caption: String? = null) {
     val colors = Poruch.colors
     Column(modifier.semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
         Text(value, style = MaterialTheme.typography.titleMedium, color = colors.ink)
+        caption?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
     }
 }
 
@@ -1159,3 +1163,15 @@ private fun CompanionRows(state: DetailState, onIntent: (DetailIntent) -> Unit) 
 
 /** Скільки учасників видно до «Показати всіх». */
 internal const val ROSTER_COLLAPSED = 3
+
+@Preview(widthDp = 360)
+@Composable
+private fun PriceFactsPreview() = PoruchTheme(dark = false) {
+    val event = Event(
+        id = "preview", title = "Настолки в «Граніті»", description = "", category = app.poruch.domain.EventCategory.GAMES,
+        city = "Київ", address = "вул. Велика Васильківська, 72", startsAt = "2026-11-07T17:00:00Z", endsAt = "2026-11-07T20:00:00Z",
+        timeZone = "Europe/Kyiv", status = app.poruch.domain.EventStatus.PUBLISHED, latitude = 50.44, longitude = 30.52,
+        gathering = Gathering("o", "Марта", capacity = 12, attendeeCount = 4, joined = false, price = 1500)
+    )
+    Column(Modifier.background(Poruch.colors.canvas).padding(Spacing.page)) { Facts(event) }
+}
