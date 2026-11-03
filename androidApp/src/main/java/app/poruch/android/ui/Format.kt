@@ -3,6 +3,7 @@ package app.poruch.android.ui
 import androidx.compose.ui.graphics.vector.ImageVector
 import app.poruch.android.R
 import app.poruch.domain.EventCategory
+import app.poruch.domain.EventRules
 import app.poruch.domain.Event
 import app.poruch.domain.EventSession
 import app.poruch.domain.Listing
@@ -252,6 +253,11 @@ private fun Instant.toKotlin(): kotlin.time.Instant = kotlin.time.Instant.fromEp
 /** Ціна одним рядком: «безкоштовно», «від N» або «джерело не сказало». Останнє — не нуль. */
 @Composable
 fun listingPrice(listing: Listing): String = priceLabel(listing.isFree, listing.priceMin)
+
+/** Ціна події від людей (docs/organizers-1.5.md, 1.7): «300 ₴» — точна, без «від». Null — безкоштовна чи афіша. */
+@Composable
+fun peoplePrice(event: Event): String? =
+    event.gathering?.price?.let { stringResource(R.string.price_value, EventRules.formatPrice(it)) }
 
 /** Ціна одного продавця: «від 400 ₴» у рядку «Квитки». */
 @Composable

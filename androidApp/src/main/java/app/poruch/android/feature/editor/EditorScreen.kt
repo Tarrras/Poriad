@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import app.poruch.android.EventMap
 import app.poruch.android.MapController
@@ -500,6 +501,14 @@ private fun PeopleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         stringResource(R.string.capacity), form.capacity, { value -> onIntent(EditorIntent.Edit { copy(capacity = value.filter(Char::isDigit).take(5)) }) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next), error = state.problem(DraftField.CAPACITY)
     )
+    // Поруч з місцями, як у кабінеті (docs/organizers-1.5.md, 1.7): скільки коштує вхід. Порожньо — безкоштовно; як
+    // оплатити, люди домовляються з організатором самі.
+    LabelledField(
+        stringResource(R.string.price_label), form.price, { value -> onIntent(EditorIntent.Edit { copy(price = value.filter(Char::isDigit).take(6)) }) },
+        placeholder = stringResource(R.string.price_placeholder), hint = stringResource(R.string.price_hint),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+        error = DraftField.PRICE.rule().takeIf { form.price.isNotEmpty() && form.price.toInt() !in EventRules.price }
+    )
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
             LabelledField(
@@ -658,3 +667,12 @@ private val EditorStep.label: Int
         EditorStep.SCHEDULE -> R.string.step_three
         EditorStep.PEOPLE -> R.string.step_four
     }
+
+@Preview(widthDp = 360, heightDp = 900)
+@Composable
+private fun PeopleStepPricePreview() = PoruchTheme(dark = false) {
+    Column(Modifier.background(Poruch.colors.canvas).padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {
+        PeopleStep(EditorState(step = EditorStep.PEOPLE, form = EditorForm(capacity = "12", price = "300")), {})
+        PeopleStep(EditorState(step = EditorStep.PEOPLE, form = EditorForm(capacity = "12", price = "200000")), {})
+    }
+}

@@ -66,6 +66,7 @@ import app.poruch.android.feature.mine.countdownOverline
 import app.poruch.domain.ArtistRole
 import app.poruch.domain.ContactRules
 import app.poruch.domain.Event
+import app.poruch.domain.EventRules
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.TitleRules
 import app.poruch.domain.FollowRules
@@ -481,7 +482,8 @@ internal fun stickyHint(state: DetailState): String {
         room.approvalRequired && !room.joined && !state.screen.organizer -> stringResource(R.string.approval_guest_hint)
         room.isFull && !room.joined && !state.screen.organizer -> stringResource(R.string.waitlist_hint)
         else -> stringResource(R.string.seats, room.seatsLeft)
-    }
+        // Платна — ціна першою, як на квитку в стрічці: «300 ₴ · Вільних місць: 20». Після кінця вона нічого не каже.
+    }.let { hint -> room.price?.takeIf { !state.screen.ended }?.let { stringResource(R.string.price_value, EventRules.formatPrice(it)) + " · " + hint } ?: hint }
 }
 
 internal val DetailAction.label: Int

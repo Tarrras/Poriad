@@ -35,7 +35,7 @@ class DraftStore(context: Context, private val files: DraftMediaFiles) {
             minAge = store.read(MIN_AGE).ifEmpty { EditorForm.DEFAULT_MIN_AGE },
             maxAge = store.read(MAX_AGE),
             approvalRequired = store.getBoolean(APPROVAL, false),
-            contactUrl = store.read(CONTACT),
+            contactUrl = store.read(CONTACT), price = store.read(PRICE),
             media = store.read(MEDIA).lines().mapNotNull(::media)
         ).also { form ->
             // Файли прибраних і опублікованих чернеток: редагування своїх файлів не лишає (їх прибирає модель).
@@ -50,7 +50,7 @@ class DraftStore(context: Context, private val files: DraftMediaFiles) {
         putString(ZONE, form.timeZone); putString(STARTS, form.starts); putString(ENDS, form.ends)
         putString(CAPACITY, form.capacity)
         putString(MIN_AGE, form.minAge); putString(MAX_AGE, form.maxAge); putBoolean(APPROVAL, form.approvalRequired)
-        putString(CONTACT, form.contactUrl)
+        putString(CONTACT, form.contactUrl); putString(PRICE, form.price)
         putString(MEDIA, form.media.joinToString("\n", transform = ::line))
     }
 
@@ -98,6 +98,7 @@ class DraftStore(context: Context, private val files: DraftMediaFiles) {
         const val MAX_AGE = "max_age"
         const val APPROVAL = "approval"
         const val CONTACT = "contact"
+        const val PRICE = "price"
         const val MEDIA = "media"
     }
 }

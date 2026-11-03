@@ -1151,7 +1151,7 @@ private fun PosterCard(
     // «Від 390 ₴» лише коли джерело сказало ціну. Місця зустрічі — на корінці.
     val price =
         event.listing?.takeIf { event.gathering == null && (it.isFree == true || it.priceMin != null) }
-            ?.let { listingPrice(it) }
+            ?.let { listingPrice(it) } ?: peoplePrice(event)
     // Афіша завжди підписана джерелом (docs/event-ingestion.md §8).
     val note: Pair<String, Color>? = event.listing?.let {
         ((if (it.isWithdrawn) listingStamp(it)?.first else null)
