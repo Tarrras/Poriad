@@ -18,10 +18,10 @@ assert.ok(imported.includes('class="btn primary" href="https://concert.ua/x?utm_
 assert.ok(imported.includes("від 450 ₴"));
 assert.ok(!imported.includes("Учасників"), "в імпорті місць нема");
 
-// Ціна від людей (1.7): точна, поруч з учасниками й з «Оплата — напряму організатору»; на панелі — ціна.
+// Ціна від людей (1.7): точна, поруч з учасниками й з «Оплата на місці, без передоплати»; на панелі — ціна.
 const priced = eventPage({ ...base, price_min: 1500 }, now);
 assert.ok(priced.includes("<b data-spots>5 з 8</b>"), "учасники лишаються фактом");
-assert.ok(priced.includes("<span class=\"overline\">Ціна</span><b>1\u00a0500 ₴</b><small>Оплата — напряму організатору</small>"));
+assert.ok(priced.includes("<span class=\"overline\">Ціна</span><b>1\u00a0500 ₴</b><small>Оплата на місці, без передоплати</small>"));
 assert.ok(priced.includes("<small>Ціна</small><span>1\u00a0500 ₴</span>"), "на панелі — ціна");
 assert.ok(!priced.includes("від 1"), "від людей — без «від»");
 assert.ok(!community.includes("Оплата — напряму"), "безкоштовна — без ціни");

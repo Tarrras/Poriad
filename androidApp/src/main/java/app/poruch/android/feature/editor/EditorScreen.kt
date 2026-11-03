@@ -501,8 +501,8 @@ private fun PeopleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         stringResource(R.string.capacity), form.capacity, { value -> onIntent(EditorIntent.Edit { copy(capacity = value.filter(Char::isDigit).take(5)) }) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next), error = state.problem(DraftField.CAPACITY)
     )
-    // Поруч з місцями, як у кабінеті (docs/organizers-1.5.md, 1.7): скільки коштує вхід. Порожньо — безкоштовно; як
-    // оплатити, люди домовляються з організатором самі.
+    // Поруч з місцями, як у кабінеті (docs/organizers-1.5.md, 1.7): скільки коштує вхід. Порожньо — безкоштовно; оплата
+    // — на місці, без передоплати (власник 03.11).
     LabelledField(
         stringResource(R.string.price_label), form.price, { value -> onIntent(EditorIntent.Edit { copy(price = value.filter(Char::isDigit).take(6)) }) },
         placeholder = stringResource(R.string.price_placeholder), hint = stringResource(R.string.price_hint),

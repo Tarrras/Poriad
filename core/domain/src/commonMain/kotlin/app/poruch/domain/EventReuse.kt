@@ -86,7 +86,7 @@ object ThreadsPost {
      * ```
      * {Назва}
      * {нд, 2 листопада, 19:00} · {Місце}
-     * Вхід — {300} ₴ — лише з ціною, як у кабінеті (`threadsPost` у site/js/poriad.js)
+     * Вхід — {300} ₴, оплата на місці — лише з ціною, як у кабінеті (`threadsPost` у site/js/poriad.js)
      *
      * {blurb або перші 200 символів опису}
      *
@@ -113,7 +113,7 @@ object ThreadsPost {
         return listOfNotNull(
             listOfNotNull(
                 title, listOfNotNull(date, place.takeIf { it.isNotBlank() }).joinToString(" · "),
-                price?.let { "Вхід — " + EventRules.formatPrice(it) + " ₴" }
+                price?.let { "Вхід — " + EventRules.formatPrice(it) + " ₴, оплата на місці" }
             ).joinToString("\n"),
             about.takeIf { it.isNotEmpty() },
             "Запис: " + EventLinks.url(id).removePrefix("https://")

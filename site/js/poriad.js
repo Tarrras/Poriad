@@ -311,7 +311,7 @@ export function threadsPost(event) {
   const description = (event.description ?? "").trim();
   const about = event.blurb?.trim() || (description.length <= ABOUT_MAX ? description : description.slice(0, ABOUT_MAX).trimEnd() + "…");
   // Подія від людей з ціною (1.7) — рядок під датою; в афіші price_min — ціна продавця «від», її не пишемо.
-  const cost = event.origin !== "import" && Number(event.price_min) > 0 ? `Вхід — ${priceText(event.price_min)}` : null;
+  const cost = event.origin !== "import" && Number(event.price_min) > 0 ? `Вхід — ${priceText(event.price_min)}, оплата на місці` : null;
   return [[displayTitle(event.title), [when, place].filter(Boolean).join(" · "), cost].filter(Boolean).join("\n"), about, `Запис: poriad.app/e/${event.id}`]
     .filter(Boolean).join("\n\n");
 }

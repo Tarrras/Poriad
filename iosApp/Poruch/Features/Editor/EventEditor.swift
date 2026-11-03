@@ -607,8 +607,8 @@ private struct PeopleStep: View {
             .keyboardType(.numberPad)
             FieldIssue(text: issues[.capacity])
         }.id(DraftField.capacity)
-        // Ціна поруч з місцями (docs/organizers-1.5.md, 1.7): порожньо — безкоштовно. Як оплатити, люди домовляються з
-        // організатором самі, тож ні режимів, ні реквізитів.
+        // Ціна поруч з місцями (docs/organizers-1.5.md, 1.7): порожньо — безкоштовно. Оплата — на місці, без передоплати
+        // (власник 03.11), тож ні режимів, ні реквізитів.
         VStack(alignment: .leading, spacing: Space.sm) {
             LabelledField(
                 label: Copy.price_label,

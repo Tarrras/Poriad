@@ -243,7 +243,7 @@ data class Gathering(
     val companionOf: CompanionParent? = null,
     /** Афішу перенесли, збір чекає рішення організатора (R7а). */
     val pendingMeet: PendingMeet? = null,
-    /** Ціна входу в гривнях, точна, без «від» (`events.price_min`). Як оплатити — з організатором напряму. Null — безкоштовно. */
+    /** Ціна входу в гривнях, точна, без «від» (`events.price_min`). Оплата — на місці, без передоплати. Null — безкоштовно. */
     val price: Int? = null
 ) {
     val seatsLeft get() = (capacity - attendeeCount).coerceAtLeast(0)

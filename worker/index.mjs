@@ -230,8 +230,8 @@ export function eventPage(e, now, shelters = [], invite = null) {
     ["Коли", overline(e, now, true), null],
     ["Де", place.split(", ")[0] || e.city, place],
     ...(spots ? [["Учасники", spots.replace("Учасників: ", ""), null]] : []),
-    // Ціна від людей (1.7) — поруч з учасниками; як оплатити, людина домовляється з організатором.
-    ...(!spots || (!imported && cost) ? [["Ціна", cost || "Уточнюйте", !imported && cost ? "Оплата — напряму організатору" : null]] : []),
+    // Ціна від людей (1.7) — поруч з учасниками; оплата на місці, без передоплати (власник 03.11).
+    ...(!spots || (!imported && cost) ? [["Ціна", cost || "Уточнюйте", !imported && cost ? "Оплата на місці, без передоплати" : null]] : []),
     [imported ? "Джерело" : "Організовує", imported ? sellers || "Афіша" : e.organizer_name || "Організатор", null],
   ];
 
@@ -280,7 +280,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>
 ${imported ? "" : `${joinSheet(e, ct, now)}
-<script type="module" src="/js/join.js?v=14"></script>`}`,
+<script type="module" src="/js/join.js?v=15"></script>`}`,
   });
 }
 
@@ -581,8 +581,8 @@ function layout({ title, description, image, url, head, body }) {
 <meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=14">
-<link rel="stylesheet" href="/web.css?v=14">
+<link rel="stylesheet" href="/tokens.css?v=15">
+<link rel="stylesheet" href="/web.css?v=15">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">

@@ -194,7 +194,7 @@ extension EventDetailView {
         if let room = event.gathering {
             cells.append((Copy.organizer_short, room.organizerName.isEmpty ? Copy.organizer_short : room.organizerName))
             cells.append((Copy.capacity_label, Copy.attendees_short("\(room.attendeeCount)", "\(room.capacity)")))
-            // «Вхід: 300 ₴» і як платити — напряму організатору (1.7).
+            // «Вхід: 300 ₴» і як платити — на місці, без передоплати (1.7, власник 03.11).
             if let price = gatheringPrice(room) { cells.append((Copy.price_fact, price)) }
         }
         return LazyVGrid(columns: [GridItem(.flexible(), alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)], spacing: Space.xl) {

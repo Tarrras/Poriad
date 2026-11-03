@@ -128,7 +128,7 @@ assert.equal(priceParam(eventDraft(pricedEvent).price), 450, "правка шл�
 assert.equal(priceParam(repeatDraft(pricedEvent).price), 450, "«Повторити» теж");
 assert.equal(eventDraft({ ...pricedEvent, price_min: null }).price, "");
 assert.equal(errorText({ status: 400, code: "INVALID_PRICE" }), PRICE_TEXT);
-assert.equal(threadsPost(pricedEvent), "Настолки «Каркасон»\nпн, 2 листопада, 19:00 · Хрещатик, 22\nВхід — 450 ₴\n\nГраємо в Каркасон і Колонізаторів. Правила пояснимо.\n\nЗапис: poriad.app/e/e1");
+assert.equal(threadsPost(pricedEvent), "Настолки «Каркасон»\nпн, 2 листопада, 19:00 · Хрещатик, 22\nВхід — 450 ₴, оплата на місці\n\nГраємо в Каркасон і Колонізаторів. Правила пояснимо.\n\nЗапис: poriad.app/e/e1");
 assert.ok(!threadsPost({ ...pricedEvent, origin: "import" }).includes("Вхід"), "ціна продавця в афіші — «від», не пишемо");
 
 // Вхід і акаунт організатора.
