@@ -607,6 +607,21 @@ private struct PeopleStep: View {
             .keyboardType(.numberPad)
             FieldIssue(text: issues[.capacity])
         }.id(DraftField.capacity)
+        // Ціна поруч з місцями (docs/organizers-1.5.md, 1.7): порожньо — безкоштовно. Як оплатити, люди домовляються з
+        // організатором самі, тож ні режимів, ні реквізитів.
+        VStack(alignment: .leading, spacing: Space.sm) {
+            LabelledField(
+                label: Copy.price_label,
+                text: Binding(
+                    get: { form.price.map(String.init) ?? "" },
+                    set: { form.price = Int(String($0.filter(\.isNumber).prefix(6))) }
+                ),
+                placeholder: Copy.price_placeholder,
+                hint: Copy.price_hint
+            )
+            .keyboardType(.numberPad)
+            FieldIssue(text: issues[.price])
+        }.id(DraftField.price)
         VStack(alignment: .leading, spacing: Space.md) {
             VStack(alignment: .leading, spacing: Space.lg) {
                 VStack(alignment: .leading, spacing: Space.xs) {

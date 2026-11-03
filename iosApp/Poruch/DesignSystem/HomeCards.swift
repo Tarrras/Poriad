@@ -97,6 +97,7 @@ struct EventHeroCard: View {
                         HostLine(event: event)
                         if let extra { extra.padding(.vertical, Space.xs) }
                         EventDescriptor(event: event)
+                        if let price = event.gathering.flatMap(gatheringPrice) { MetaLine(glyph: PoruchIcons.ticket, text: price) }
                         if let reason { ReasonLine(text: reason.0, glyph: reason.1) }
                         if let artists = artistsLine(event) { MetaLine(glyph: PoruchIcons.person, text: artists) }
                         // Афіша підписана джерелом скрізь, і в стосі «Ваш тиждень» теж: так обіцяють Умови, розділ 7.
