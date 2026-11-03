@@ -58,7 +58,7 @@ type Change = "cancelled" | "postponed" | "moved" | "corrected";
 const CHANGES: readonly string[] = ["cancelled", "postponed", "moved", "corrected"];
 
 // who — лише для листа: за ким стежить людина.
-type Push = { kind: "chat" | "question" | "request" | "joined" | "organizer" | "place" | "artist" | "companion" | "company" | "winback" | "zone" | EventKind | Decision; eventId?: string; placeId?: string; artistId?: string; threadId?: string; change?: Change; step?: number; title: string; body: string; key: string; who?: string };
+type Push = { kind: "chat" | "question" | "request" | "joined" | "organizer" | "place" | "artist" | "companion" | "company" | "winback" | "zone" | EventKind | Decision; eventId?: string; placeId?: string; artistId?: string; threadId?: string; change?: Change; step?: number; title: string; body: string; key: string; who?: string; toAsker?: boolean };
 type Token = { token: string; platform: "android" | "ios" };
 
 const PREVIEW = 120;
@@ -117,9 +117,10 @@ Deno.serve(async (req) => {
     const routed = route(push, recipients, tokens);
     list.push(...routed.devices);
     mailTo = routed.mailTo;
-    // Про питання — не частіше за лист на годину на розмову: запитувач може писати 20 повідомлень на хвилину.
+    // Розмова — не частіше за лист на годину на розмову: пишуть і по 20 повідомлень на хвилину. Організатору й тому,
+    // хто питав, — окремі лічильники, інакше відповідь на свіже питання мовчала б годину.
     if (push.kind === "question" && mailTo.length > 0) {
-      const { data: due } = await db.rpc("question_mail_due", { p_event: push.eventId, p_thread: push.threadId });
+      const { data: due } = await db.rpc(push.toAsker ? "answer_mail_due" : "question_mail_due", { p_event: push.eventId, p_thread: push.threadId });
       if (due !== true) mailTo = [];
     }
     if (list.length === 0 && mailTo.length === 0) return json({ sent: 0, reason: "no tokens" });
@@ -174,7 +175,7 @@ async function forMessage(db: ReturnType<typeof createClient>, p: Extract<Payloa
     return {
       push: {
         kind: "question" as const, eventId: e.id as string, threadId: m.thread_user_id as string, title: e.title as string,
-        body: fromOrganizer ? `Організатор відповів: ${text}` : `${who} питає: ${text}`, key: m.id as string,
+        body: fromOrganizer ? `Організатор написав: ${text}` : `${who} питає: ${text}`, key: m.id as string, toAsker: fromOrganizer,
       },
       recipients,
     };
@@ -196,7 +197,7 @@ async function forMessage(db: ReturnType<typeof createClient>, p: Extract<Payloa
 
 // Запит або приєднання до відкритої події: лише організатор.
 async function forRequest(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "request" | "joined" }>) {
-  const { data: e } = await db.from("events").select("id,title,organizer_id,status").eq("id", p.event_id).maybeSingle();
+  const { data: e } = await db.from("events").select("id,title,organizer_id,status,pay_online").eq("id", p.event_id).maybeSingle();
   if (!e || e.status !== "published" || !e.organizer_id || e.organizer_id === p.user_id) return { push: null, recipients: [] };
   const { data: who } = await db.from("profiles").select("display_name").eq("id", p.user_id).maybeSingle();
   const recipients = await withoutBlocked(db, [e.organizer_id as string], p.user_id);
@@ -204,7 +205,9 @@ async function forRequest(db: ReturnType<typeof createClient>, p: Extract<Payloa
   return {
     push: {
       kind: p.type, eventId: e.id as string, title: e.title as string,
-      body: p.type === "request" ? `${name} просить приєднатися` : `${name} приєднується до події`, key: `${e.id}:${p.user_id}`,
+      // Оплата онлайн: заявка — це «чекає реквізитів»; організатор надсилає їх у розмові.
+      body: p.type === "request" ? (e.pay_online ? `${name} хоче прийти — напишіть, як оплатити` : `${name} просить приєднатися`)
+        : `${name} приєднується до події`, key: `${e.id}:${p.user_id}`,
     },
     recipients,
   };
@@ -212,11 +215,12 @@ async function forRequest(db: ReturnType<typeof createClient>, p: Extract<Payloa
 
 // Рішення щодо людини. Між тригером і доставкою могли заблокувати одне одного — тоді мовчимо.
 async function forDecision(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "decision" }>) {
-  const { data: e } = await db.from("events").select("id,title,organizer_id,status,starts_at,time_zone").eq("id", p.event_id).maybeSingle();
+  const { data: e } = await db.from("events").select("id,title,organizer_id,status,starts_at,time_zone,pay_online").eq("id", p.event_id).maybeSingle();
   if (!e || e.status !== "published" || !e.organizer_id || e.organizer_id === p.user_id) return { push: null, recipients: [] };
   const at = when(e.starts_at as string, e.time_zone as string);
   const body = {
-    approved: `Запит прийнято — ви в списку · ${at}`,
+    // Оплата онлайн: схвалення — це «Оплату отримано».
+    approved: e.pay_online ? `Оплату підтверджено — ви в списку · ${at}` : `Запит прийнято — ви в списку · ${at}`,
     declined: "Організатор не прийняв запит",
     promoted: `Звільнилось місце — ви в списку · ${at}`,
   }[p.kind];
@@ -554,7 +558,7 @@ async function sendMails(db: ReturnType<typeof createClient>, people: string[], 
     const users = await Promise.all(people.slice(i, i + CONCURRENCY).map((id) => db.auth.admin.getUserById(id)));
     for (const { data } of users) if (data.user?.email && data.user.email_confirmed_at) emails.push(data.user.email);
   }
-  const mail = mailText(push.kind as MailKind, push.eventId!, push.title, push.body, push.who);
+  const mail = mailText((push.kind === "question" && push.toAsker ? "answer" : push.kind) as MailKind, push.eventId!, push.title, push.body, push.who);
   let mailed = 0, failed = 0;
   for (let i = 0; i < emails.length; i += MAIL_BATCH) {
     const batch = emails.slice(i, i + MAIL_BATCH);

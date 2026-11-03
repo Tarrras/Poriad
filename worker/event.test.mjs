@@ -26,6 +26,19 @@ assert.ok(priced.includes("<small>Ціна</small><span>1\u00a0500 ₴</span>"),
 assert.ok(!priced.includes("від 1"), "від людей — без «від»");
 assert.ok(!community.includes("Оплата — напряму"), "безкоштовна — без ціни");
 
+// Оплата онлайн (docs/organizer-events.md): підпис, застереження «Поряд не відповідає» на сторінці, у шторці й у розмові.
+const online = eventPage({ ...base, price_min: 300, approval_required: true, pay_online: true }, now);
+assert.ok(online.includes("<b>300 ₴</b><small>Оплата онлайн організатору</small>"));
+assert.equal(online.split("«Поряд» не приймає оплату й не відповідає за неї.").length - 1, 3, "сторінка, вхід у шторці й розмова");
+assert.ok(online.includes(" data-pay-online>") && !online.includes("Участь за підтвердженням організатора."), "замість загального рядка — про оплату");
+assert.ok(!priced.includes("data-pay-online") && !priced.includes("не відповідає за неї"), "на місці — без застереження");
+// «Написати організатору» — подія від людей з організатором, ще не минула; розмова — у шторці.
+const host = { ...base, organizer_id: "c3000000-0000-4000-8000-000000000003" };
+assert.ok(eventPage(host, now).includes("data-ask>") && community.includes('data-step="ask"') && community.includes("data-open-ask"));
+assert.ok(!community.includes("data-ask>"), "без організатора писати нікому");
+assert.ok(!imported.includes("data-ask>"), "в афіші організатора нема");
+assert.ok(!eventPage(host, new Date("2026-10-05T00:00:00Z")).includes("data-ask>"), "минула — без кнопки");
+
 const withShelters = eventPage(base, now, shelters);
 assert.ok(withShelters.includes("Укриття поруч") && withShelters.includes("Метро · 66 м · Є пандус"));
 assert.ok(!withShelters.includes("<b>»"), "адреса укриття екранується");

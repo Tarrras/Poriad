@@ -243,8 +243,13 @@ data class Gathering(
     val companionOf: CompanionParent? = null,
     /** Афішу перенесли, збір чекає рішення організатора (R7а). */
     val pendingMeet: PendingMeet? = null,
-    /** Ціна входу в гривнях, точна, без «від» (`events.price_min`). Оплата — на місці, без передоплати. Null — безкоштовно. */
-    val price: Int? = null
+    /** Ціна входу в гривнях, точна, без «від» (`events.price_min`). Null — безкоштовно. */
+    val price: Int? = null,
+    /**
+     * Як платять (docs/organizer-events.md): false — на місці, без передоплати; true — онлайн організатору, реквізити в
+     * розмові на двох, а «Поряд» за оплату не відповідає. Лише з ціною; завжди за підтвердженням.
+     */
+    val payOnline: Boolean = false
 ) {
     val seatsLeft get() = (capacity - attendeeCount).coerceAtLeast(0)
 

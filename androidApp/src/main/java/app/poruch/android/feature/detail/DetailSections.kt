@@ -625,8 +625,9 @@ internal fun Facts(event: Event) {
         event.gathering?.let { room ->
             add(Triple(stringResource(R.string.organizer_short), room.organizerName.ifBlank { stringResource(R.string.organizer_short) }, null))
             add(Triple(stringResource(R.string.capacity_label), stringResource(R.string.attendees_short, room.attendeeCount, room.capacity), null))
-            // Платна зустріч (docs/organizers-1.5.md, 1.7): ціна й те, що платять організатору напряму, не через нас.
-            peoplePrice(event)?.let { add(Triple(stringResource(R.string.price_fact), it, stringResource(R.string.price_pay_hint))) }
+            // Платна зустріч (docs/organizer-events.md): ціна й як платять — на місці чи онлайн організатору, не через нас.
+            val payHint = stringResource(if (room.payOnline) R.string.price_pay_online_hint else R.string.price_pay_hint)
+            peoplePrice(event)?.let { add(Triple(stringResource(R.string.price_fact), it, payHint)) }
         }
     }
     Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.xl), verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {

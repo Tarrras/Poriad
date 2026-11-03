@@ -1014,6 +1014,7 @@ enum Copy {
     static func price_value(_ a0: String) -> String { "\(a0) ₴" }
     static let price_fact = "Вхід"
     static let price_pay_hint = "Оплата на місці, без передоплати"
+    static let price_pay_online_hint = "Оплата онлайн організатору. «Поряд» не приймає оплату й не відповідає за неї."
     static let err_price = "Ціна — від 1 до 100 000 ₴"
 
     // ---- Множини: `one` / `few` / `many` за українським правилом, число підставляється замість %d.

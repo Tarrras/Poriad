@@ -49,4 +49,15 @@ class EventPriceTest {
         assertNull(json.decodeFromString<EventDto>("""{$base,"price_min":0}""").domain().gathering!!.price)
         assertNull(json.decodeFromString<EventDto>("{$base}").domain().gathering!!.price)
     }
+
+    /** Оплата онлайн (docs/organizer-events.md): лише з ціною; старий сервер поля не несе — на місці. */
+    @Test fun payOnlineNeedsAPrice() {
+        val json = Json { ignoreUnknownKeys = true }
+        val base = """"id":"e1","title":"Клуб","category":"social","city":"Київ","address":"Поділ","starts_at":"2090-01-06T17:00:00Z",
+            "ends_at":"2090-01-06T19:00:00Z","time_zone":"Europe/Kyiv","status":"published","latitude":50.0,"longitude":30.0,
+            "origin":"community","organizer_id":"o1","capacity":12"""
+        assertTrue(json.decodeFromString<EventDto>("""{$base,"price_min":300,"pay_online":true}""").domain().gathering!!.payOnline)
+        assertFalse(json.decodeFromString<EventDto>("""{$base,"price_min":300}""").domain().gathering!!.payOnline)
+        assertFalse(json.decodeFromString<EventDto>("""{$base,"pay_online":true}""").domain().gathering!!.payOnline)
+    }
 }

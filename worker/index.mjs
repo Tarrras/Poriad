@@ -230,8 +230,8 @@ export function eventPage(e, now, shelters = [], invite = null) {
     ["Коли", overline(e, now, true), null],
     ["Де", place.split(", ")[0] || e.city, place],
     ...(spots ? [["Учасники", spots.replace("Учасників: ", ""), null]] : []),
-    // Ціна від людей (1.7) — поруч з учасниками; оплата на місці, без передоплати (власник 03.11).
-    ...(!spots || (!imported && cost) ? [["Ціна", cost || "Уточнюйте", !imported && cost ? "Оплата на місці, без передоплати" : null]] : []),
+    // Ціна від людей (1.7) — поруч з учасниками; як платити — на місці чи онлайн організатору (docs/organizer-events.md).
+    ...(!spots || (!imported && cost) ? [["Ціна", cost || "Уточнюйте", !imported && cost ? payNote(e) : null]] : []),
     [imported ? "Джерело" : "Організовує", imported ? sellers || "Афіша" : e.organizer_name || "Організатор", null],
   ];
 
@@ -263,7 +263,9 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
       <a href="poriad://event/${e.id}${by}"><i>${icon("bookmark")}</i>У «Поряд»</a>
       <a href="/afisha.html${e.city && e.city !== "Київ" ? `?city=${encodeURIComponent(e.city)}` : ""}" data-afisha><i>${icon("map")}</i>Афіша</a>
     </div>
-    ${!imported && e.approval_required ? `<p class="fine">Участь за підтвердженням організатора.</p>` : ""}
+    ${!imported && e.pay_online ? `<p class="fine">${esc(PAY_ONLINE_FINE)}</p>`
+      : !imported && e.approval_required ? `<p class="fine">Участь за підтвердженням організатора.</p>` : ""}
+    ${!imported && live && UUID.test(e.organizer_id ?? "") ? `<button class="btn secondary ask" type="button" data-ask>${icon("chat")}Написати організатору</button>` : ""}
     ${imported && !past ? sellersSection(live ? liveOffers : offers, !live, e.checked_at, e.time_zone) : ""}
     ${e.description ? `<div class="block"><h2>Опис</h2><p class="description">${esc(e.description)}</p></div>` : ""}
     ${live ? sheltersSection(shelters) : ""}
@@ -280,7 +282,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>
 ${imported ? "" : `${joinSheet(e, ct, now)}
-<script type="module" src="/js/join.js?v=15"></script>`}`,
+<script type="module" src="/js/join.js?v=16"></script>`}`,
   });
 }
 
@@ -341,6 +343,13 @@ function mediaCarousel(media, category) {
 }
 
 /**
+ * Як платити за подію від людей (docs/organizer-events.md): на місці — без передоплати; онлайн — організатору напряму,
+ * реквізити в розмові, а «Поряд» за оплату не відповідає (власник 03.11). Однаково на сторінці, у шторці й у розмові.
+ */
+export const PAY_ONLINE_FINE = "Оплата онлайн: організатор надішле реквізити в розмові після запису. «Поряд» не приймає оплату й не відповідає за неї.";
+export const payNote = (e) => (e.pay_online ? "Оплата онлайн організатору" : "Оплата на місці, без передоплати");
+
+/**
  * Шторка «Йду» (docs/organizers-1.5.md, 1.1): розмітка однакова для всіх і кешується зі сторінкою, а вхід, стан запису
  * й «Після запису» вмикає site/js/join.js. Він же робить `?unfollow` з листа, тож шторка є й на закритій події.
  */
@@ -350,7 +359,7 @@ function joinSheet(e, ct, now) {
   const name = e.organizer_name || "Організатор";
   const city = Object.entries(CITY_PAGES).find(([, [n]]) => n === e.city);
   const ages = `${e.min_age ? ` data-min-age="${Number(e.min_age)}"` : ""}${e.max_age ? ` data-max-age="${Number(e.max_age)}"` : ""}`;
-  return `<dialog class="install join-sheet" aria-label="Запис на подію" data-event="${e.id}" data-organizer="${organizer}" data-organizer-name="${esc(name)}" data-city="${esc(e.city ?? "")}"${ages}>
+  return `<dialog class="install join-sheet" aria-label="Запис на подію" data-event="${e.id}" data-organizer="${organizer}" data-organizer-name="${esc(name)}" data-city="${esc(e.city ?? "")}"${ages}${e.pay_online ? " data-pay-online" : ""}>
 <div class="install-box">
   <button class="round" type="button" data-close aria-label="Закрити">${icon("close")}</button>
   <section data-step="start">
@@ -362,6 +371,7 @@ function joinSheet(e, ct, now) {
     <form data-form="email"><label class="field"><span>Ваша пошта</span><input type="email" name="email" autocomplete="email" required></label>
       <button class="btn primary" type="submit">Надіслати код</button></form>
     <p class="fine">Надішлемо код для входу. Пароль не потрібен.</p>
+    ${e.pay_online ? `<p class="fine">${esc(PAY_ONLINE_FINE)}</p>` : ""}
     <p class="fine">Продовжуючи, ви підтверджуєте, що вам уже є 18, і погоджуєтесь з <a href="/terms.html">Умовами користування</a> та <a href="/privacy.html">Політикою конфіденційності</a>.</p>
   </section>
   <section data-step="code" hidden>
@@ -383,6 +393,7 @@ function joinSheet(e, ct, now) {
     ${ticket(`<b class="stamp" data-going hidden></b>`)}
     <p class="lead" data-text hidden></p>
     <button class="btn primary" type="button" data-waitlist hidden>Стати в чергу</button>
+    <button class="btn primary" type="button" data-open-ask hidden>${icon("chat")}Відкрити розмову</button>
     <button class="btn primary" type="button" data-unfollow hidden>Не стежити</button>
     <a class="btn secondary" href="/e/${e.id}.ics" data-ics hidden>${icon("calendar")}Додати в календар</a>
     <button class="link" type="button" data-leave hidden></button>
@@ -392,6 +403,14 @@ function joinSheet(e, ct, now) {
       <div class="app-pitch"><b>Нагадаємо за день і скажемо першим, коли звільниться місце</b><p class="fine" data-google-hint hidden>У застосунку увійдіть через Google — цей запис уже буде там.</p><div class="stores">${storeButtons(ct)}</div></div>
     </div>
     ${city ? `<div class="block week" data-week hidden><h2>Цього тижня ${esc(city[1][1])}</h2><div class="rows" data-cards></div><a class="link" href="/afisha/${city[0]}">Уся афіша ${esc(cityOf(city[1][0]).of)}</a></div>` : ""}
+  </section>
+  <section data-step="ask" hidden>
+    <h2>Розмова з організатором</h2>
+    <p class="lead">Бачите лише ви й ${esc(name)}. Пошти й телефону одне одного ви не бачите.</p>
+    ${e.pay_online ? `<p class="fine">${esc(PAY_ONLINE_FINE)}</p>` : ""}
+    <div class="thread" data-thread aria-live="polite"></div>
+    <form data-form="ask"><label class="field"><span class="sr">Повідомлення</span><textarea name="body" rows="3" maxlength="2000" placeholder="Напишіть організатору" required></textarea></label>
+      <button class="btn primary" type="submit">Надіслати</button></form>
   </section>
   <p class="error" data-error role="alert" hidden></p>
   <p class="account" data-account hidden>Ви ввійшли як <b data-account-email></b> · <button class="link" type="button" data-signout>Вийти</button></p>
@@ -581,8 +600,8 @@ function layout({ title, description, image, url, head, body }) {
 <meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=15">
-<link rel="stylesheet" href="/web.css?v=15">
+<link rel="stylesheet" href="/tokens.css?v=16">
+<link rel="stylesheet" href="/web.css?v=16">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">

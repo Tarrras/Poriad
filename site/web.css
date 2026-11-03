@@ -786,6 +786,19 @@ a.row:hover { background: var(--surface-muted); }
 .app-pitch { display: flex; flex-direction: column; gap: 10px; padding-top: 16px; border-top: 1px solid var(--hairline); }
 .app-pitch b { font: 700 22px/26px var(--cond); }
 .join-sheet .week { padding-top: 16px; border-top: 1px solid var(--hairline); }
+/* Розмова з організатором (docs/organizer-events.md): «Поряд» — міст. Свої — праворуч чорнилом, організатора — ліворуч;
+   під реквізитами — застереження кольором попередження й «Поскаржитись». */
+.detail > .ask { width: 100%; margin: 4px 0 0; }
+.field textarea { padding: 12px 16px; border: 1px solid var(--hairline); border-radius: var(--r-md); background: var(--canvas); font: 400 17px/24px var(--font); color: var(--ink); resize: vertical; }
+.field textarea:focus { outline: none; box-shadow: 0 0 0 2px var(--ink); }
+.thread { display: flex; flex-direction: column; gap: 10px; max-height: min(46svh, 420px); min-height: 72px; overflow-y: auto; overscroll-behavior: contain; padding: 2px; }
+.msg { align-self: flex-start; max-width: 86%; display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; border-radius: var(--r-md) var(--r-md) var(--r-md) 4px; background: var(--canvas); }
+.msg.mine { align-self: flex-end; border-radius: var(--r-md) var(--r-md) 4px var(--r-md); background: var(--ink); color: var(--on-brand); }
+.msg small { font: 600 12px/16px var(--font); color: var(--ink-tertiary); }
+.msg.mine small { color: color-mix(in srgb, var(--on-brand) 70%, transparent); }
+.msg p { font: 400 16px/22px var(--font); white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg .pay-warn { margin-top: 4px; padding: 8px 10px; border-radius: var(--r-sm); background: var(--danger-container); color: var(--danger); font: 500 13px/18px var(--font); white-space: normal; }
+.msg .pay-warn .link { display: inline; font-size: 13px; color: inherit; }
 /* Записаний (design-wow-1.5): над числом місць — штамп стану, «Ви в списку» — тоном, бо головну дію вже зроблено. */
 .bar .meta .stamp { align-self: flex-start; margin: 0 0 5px 1px; }
 .bar .meta:has(.stamp:not([hidden])) small { display: none; }
@@ -878,7 +891,7 @@ a.row:hover { background: var(--surface-muted); }
 .kab-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .kab-field > span:first-child, .kab-field > label { font: 600 14px/18px var(--font); color: var(--ink-secondary); }
 .kab-field small { font-weight: 400; color: var(--ink-tertiary); }
-.kab input:not([type=checkbox]):not([type=file]), .kab textarea, .kab select { width: 100%; min-height: 48px; padding: 0 14px; border: 1px solid var(--edge); border-radius: var(--r-sm);
+.kab input:not([type=checkbox]):not([type=radio]):not([type=file]), .kab textarea, .kab select { width: 100%; min-height: 48px; padding: 0 14px; border: 1px solid var(--edge); border-radius: var(--r-sm);
   background: var(--canvas); color: var(--ink); font: 400 16px/22px var(--font); transition: box-shadow .2s; }
 .kab textarea { padding: 12px 14px; resize: vertical; }
 .kab input:focus, .kab textarea:focus, .kab select:focus { outline: none; box-shadow: 0 0 0 2px var(--ink); }
@@ -932,7 +945,7 @@ a.row:hover { background: var(--surface-muted); }
 
 /* Вхід і акаунт організатора: пароль з «Показати», текстові дії, аватар — фото або літера, як Avatar у застосунку. */
 .kab-secret { position: relative; }
-.kab .kab-secret input:not([type=checkbox]):not([type=file]) { padding-right: 96px; }
+.kab .kab-secret input:not([type=checkbox]):not([type=radio]):not([type=file]) { padding-right: 96px; }
 .kab-reveal { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); height: 36px; padding: 0 12px; border-radius: var(--r-xs);
   font: 600 14px/18px var(--font); color: var(--ink-secondary); }
 .kab-reveal:hover { color: var(--ink); background: var(--surface-muted); }
@@ -956,6 +969,17 @@ a.row:hover { background: var(--surface-muted); }
 .kab-facts dt { color: var(--ink-secondary); }
 .kab-facts dd { margin: 0; overflow-wrap: anywhere; }
 .kab-delete { margin-top: 8px; }
+/* Розмови з учасниками (docs/organizer-events.md): рядок — імʼя, останнє повідомлення, непрочитані. */
+.kab-talk-list { margin: 0 0 4px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.kab-talk-row { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; padding: 12px 16px; border-radius: var(--r-md);
+  background: var(--surface); border: 1px solid var(--edge); text-align: left; transition: background .2s; }
+.kab-talk-row:hover { background: var(--surface-muted); }
+.kab-talk-row b { font: 600 16px/22px var(--font); }
+.kab-talk-row span { grid-column: 1; font: 400 14px/20px var(--font); color: var(--ink-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kab-unread { grid-column: 2; grid-row: 1 / span 2; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 999px; background: var(--accent-text); color: #fff;
+  font: 600 13px/24px var(--font); font-style: normal; text-align: center; }
+.kab-talk .thread { max-height: min(50svh, 440px); }
+.kab-people + .kab-people { margin-top: 32px; }
 .kab-delete a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
 /* Публікація й «Подію створено» (1.6): квиток Lottie 240×160 (3:2) друкується, потім на нього падає штамп. */

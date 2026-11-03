@@ -97,7 +97,9 @@ internal data class EventDto(
     @SerialName("checked_at") val checkedAt: String? = null,
     val offers: List<OfferDto> = emptyList(),
     // Міграція 20261118120000: фото й відео від організатора. Картки з `discover_events` і кеш до неї поля не несуть.
-    val media: List<MediaDto>? = null
+    val media: List<MediaDto>? = null,
+    // Міграція 20261125120000: оплата онлайн. Старий сервер і картки поля не несуть — на місці.
+    @SerialName("pay_online") val payOnline: Boolean = false
 ) {
     fun domain() = Event(
         id = id, title = title, description = description, category = EventCategory.fromKey(category),
@@ -129,7 +131,8 @@ internal data class EventDto(
             companionOf = companionOf?.let { CompanionParent(it, companionOfTitle.orEmpty(), companionOfStartsAt) },
             pendingMeet = meetProposed?.let { proposed -> meetDecideBy?.let { PendingMeet(proposed, it) } },
             // Ціна людини — ціле; `price_min` спільний з афішею, тож тут дробу не буває.
-            price = priceMin?.toInt()?.takeIf { it > 0 }
+            price = priceMin?.toInt()?.takeIf { it > 0 },
+            payOnline = payOnline && (priceMin ?: 0.0) > 0
         )
     }
 

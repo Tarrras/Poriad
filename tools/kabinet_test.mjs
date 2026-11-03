@@ -4,7 +4,7 @@ import {
   instant, local, repeatTimes, endAfter, durationLabel, DURATIONS, mediaProblem, videoTooLong, fit, MEDIA,
   threadsPost, threadsIntent, firstLine, cleanText, rosterText, errorText, publishPlan, writeDraft, forgetDraft, recolorStub,
   priceProblem, priceParam, PRICE_TEXT, eventDraft, repeatDraft, passwordProblem, passwordMode, providersText, editorDefaults, sinceText, plural,
-  weakPasswordText, redirectErrorText,
+  weakPasswordText, redirectErrorText, payPlan, TALK_PAYMENT_DETAILS,
 } from "../site/js/kabinet.js";
 import { readFileSync } from "node:fs";
 
@@ -160,4 +160,16 @@ assert.equal(errorText({ status: 400, code: "same_password" }), "Новий па
 assert.match(redirectErrorText({ code: "otp_expired" }), /Посилання застаріло/, "протухле посилання — не «код не підійшов»");
 assert.match(redirectErrorText({ code: "flow_state_expired" }), /Посилання застаріло/);
 assert.match(errorText({ code: "otp_expired" }), /Код не підійшов/);
+// Як платять (docs/organizer-events.md): лише з ціною; онлайн — завжди за підтвердженням.
+assert.deepEqual(payPlan("", true), { paid: false, online: false, hint: "" }, "без ціни — нема про що");
+assert.equal(payPlan("300", false).online, false);
+assert.match(payPlan("300", false).hint, /на місці, без передоплати/);
+assert.equal(payPlan("300", true).online, true);
+assert.match(payPlan("300", true).hint, /не приймає оплату й не відповідає/);
+assert.equal(eventDraft({ ...pricedEvent, pay_online: true }).payOnline, true, "правка несе спосіб оплати");
+assert.equal(eventDraft(pricedEvent).payOnline, false);
+assert.equal(repeatDraft({ ...pricedEvent, pay_online: true, starts_at: "2026-10-01T16:00:00Z", ends_at: "2026-10-01T19:00:00Z" }).payOnline, true, "«Повторити» — з тим самим способом");
+assert.match(errorText({ status: 400, code: "PAYMENT_DETAILS" }), /у розмові з тими, хто записався/);
+assert.match(TALK_PAYMENT_DETAILS, /«Як платять» → «Онлайн»/);
+
 console.log("kabinet ok");

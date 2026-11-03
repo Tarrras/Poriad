@@ -1,6 +1,6 @@
 // Правила шторки «Йду» (site/js/join.js) без браузера: node tools/join_test.mjs
 import assert from "node:assert/strict";
-import { outcome, STATUS, ageLimit, needsBirthDate, weekPool, weekPicks, weekRow, shareMode, unfollowTitle } from "../site/js/join.js";
+import { outcome, STATUS, STAMPS, ageLimit, needsBirthDate, weekPool, weekPicks, weekRow, shareMode, unfollowTitle, statusKind, bubble } from "../site/js/join.js";
 
 // Таблиця «Інші відповіді на запис» (docs/organizers-1.5.md, 1.1).
 for (const [code, kind] of [
@@ -66,5 +66,24 @@ assert.equal(shareMode(null, "me", at), "friend");
 assert.equal(unfollowTitle("Марта"), "Не стежити за організатором Марта?", "імʼя прикладкою — без відмінювання");
 assert.equal(unfollowTitle(""), "Не стежити за організатором?");
 assert.ok(STATUS.unfollowAsk.unfollow && !STATUS.unfollowed.unfollow, "кнопка підтвердження — лише в питанні");
+
+// Оплата онлайн (docs/organizer-events.md): заявка — «Чекає оплати», з розмовою й застереженням.
+assert.equal(statusKind("requested", true), "requestedPay");
+assert.equal(statusKind("requested", false), "requested");
+assert.equal(statusKind("approved", true), "approved");
+assert.equal(STATUS.requestedPay.title, "Чекає оплати");
+assert.ok(STATUS.requestedPay.text.includes("не відповідає за неї") && STATUS.requestedPay.ask && STATUS.requestedPay.leave);
+assert.deepEqual(STAMPS.requestedPay, ["Оплата", "accent"]);
+assert.ok(STATUS.approved.ask && STATUS.waitlist.ask && !STATUS.closed.ask, "розмова — тим, хто записався");
+
+// Повідомлення: текст лише текстом; під чужими реквізитами — застереження й скарга, під своїми — ні.
+const msg = { id: "m1", author_id: "org", author_name: "Олена", body: "Картка 4111 <b>1111</b>\nhttps://evil.example", created_at: "2026-11-03T10:00:00Z", payment_details: true };
+const theirs = bubble(msg, "me", "org", new Date("2026-11-03T12:00:00Z"));
+assert.ok(theirs.startsWith('<div class="msg" data-id="m1"><small>Організатор · 12:00</small>'), "час за Києвом, сьогодні — без дати");
+assert.ok(theirs.includes("&lt;b&gt;1111&lt;/b&gt;") && !theirs.includes("<a "), "без розмітки й посилань");
+assert.ok(theirs.includes("«Поряд» не приймає оплату й не відповідає за неї") && theirs.includes('data-report="m1"'));
+const own = bubble({ ...msg, author_id: "me" }, "me", "org", new Date("2026-11-05T12:00:00Z"));
+assert.ok(own.startsWith('<div class="msg mine" data-id="m1"><small>Ви · 3 лист') && !own.includes("pay-warn"), "своє — без застереження, інший день — з датою");
+assert.ok(!bubble({ ...msg, payment_details: false }, "me", "org").includes("pay-warn"));
 
 console.log("join rules ok");

@@ -3,9 +3,10 @@
 // організатора. Вхід (Google або пошта з паролем, docs/web-auth.md) — auth.js, дані —
 // ті самі функції бази, що в застосунку; сторінка перевіряє лише очевидне, решту каже сервер. Чисті правила вгорі (дати,
 // тривалість, медіа, текст для Threads) перевіряє `node tools/kabinet_test.mjs`; DOM — нижче, лише в браузері.
-import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText } from "./poriad.js?v=15";
+import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText } from "./poriad.js?v=16";
+import { bubble } from "./join.js?v=16";
 import { session, verifyCode, google, completeRedirect, rpc, upload, signOut, inAppBrowser, browserLinks, signInWithPassword, signUp, resendSignup,
-  requestRecovery, updatePassword, reauthenticate, verifyPassword, currentUser, updateMetadata, signInMethods, isEmail, MIN_PASSWORD, MAX_PASSWORD } from "./auth.js?v=15";
+  requestRecovery, updatePassword, reauthenticate, verifyPassword, currentUser, updateMetadata, signInMethods, isEmail, MIN_PASSWORD, MAX_PASSWORD } from "./auth.js?v=16";
 
 // ---- Дати. Усі п'ять міст в одному поясі; подія з іншим поясом (з застосунку) редагується у своєму.
 export const TZ = "Europe/Kyiv";
@@ -91,7 +92,7 @@ export function priceProblem(price) {
 export const priceParam = (price) => String(price ?? "").trim() ? Math.round(Number(price)) : 0;
 
 // ---- «Пост для Threads» (1.5) — у poriad.js: той самий текст ділить і сторінка події (1.6).
-export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=15";
+export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=16";
 
 // ---- Анімації публікації (1.6, design/lottie/LICENSES.md): корінець запечений кольором музики — фарбуємо в жанр.
 const MUSIC_STUB = [0x60, 0x41, 0xb1].map((v) => v / 255);
@@ -189,7 +190,15 @@ const ERRORS = {
   pkce_missing: "Вхід почався в іншій вкладці чи браузері. Відкрийте посилання там, де його просили, або почніть ще раз тут",
   flow_state_expired: LINK_EXPIRED,
   flow_state_not_found: LINK_EXPIRED,
+  // Оплата онлайн і розмови (docs/organizer-events.md).
+  PAYMENT_DETAILS: "Реквізити (картка, IBAN, банка) не пишуть у назві, описі, адресі чи посиланні на чат. Для оплати онлайн їх надсилають у розмові з тими, хто записався",
+  TOO_MANY_MESSAGES: "Забагато повідомлень. Зачекайте хвилину",
+  CHAT_CLOSED: "Розмову закрито: подія давно минула",
+  INVALID_MESSAGE: "Повідомлення — до 2000 символів",
+  NOT_MEMBER: "Написати можна лише тим, хто записався, подав заявку чи вже писав вам",
 };
+/** Реквізити в розмові події «на місці»: інший текст, ніж для опису. */
+export const TALK_PAYMENT_DETAILS = "Реквізити в розмові — лише для подій з оплатою онлайн. Увімкніть її в редагуванні: «Як платять» → «Онлайн».";
 export function errorText(error) {
   if (error?.code === "weak_password") return weakPasswordText(error.reasons);
   if (ERRORS[error?.code]) return ERRORS[error.code];
@@ -849,7 +858,8 @@ async function showEvent(id) {
 
   $("[data-event-title]").textContent = displayTitle(event.title);
   $("[data-event-when]").textContent = overline(event, new Date(), true);
-  $("[data-event-place]").textContent = [[event.address, event.city].filter(Boolean).join(", "), Number(event.price_min) > 0 ? priceText(event.price_min) : ""].filter(Boolean).join(" · ");
+  $("[data-event-place]").textContent = [[event.address, event.city].filter(Boolean).join(", "),
+    Number(event.price_min) > 0 ? `${priceText(event.price_min)}, ${event.pay_online ? "оплата онлайн" : "на місці"}` : ""].filter(Boolean).join(" · ");
   $("[data-open]").href = `/e/${event.id}`;
   $("[data-edit]").href = `#/e/${event.id}/edit`;
   const live = event.status === "published" && Date.parse(event.starts_at) > Date.now();
@@ -857,6 +867,8 @@ async function showEvent(id) {
   $("[data-cancel]").hidden = !live;
   $("[data-threads]").hidden = event.status !== "published" || ended(event);
   current = event;
+  // Розмови — окремо: таблиця учасників не чекає на них і не падає разом з ними.
+  loadTalks(event).catch(() => { $("[data-talks]").hidden = true; });
   await loadPeople(event);
 }
 
@@ -871,14 +883,99 @@ async function loadPeople(event) {
   roster = approved ?? [];
   const when = (iso) => new Intl.DateTimeFormat("uk-UA", { timeZone: event.time_zone || TZ, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
   const from = (via) => via === "web" ? "Веб" : "Застосунок";
-  const line = (p, state, actions = "") => `<tr><th scope="row">${esc(p.display_name || DEFAULT_NAME)}</th><td>${state}</td><td>${esc(when(p.joined_at))}</td><td>${from(p.via)}</td><td class="kab-act">${actions}</td></tr>`;
-  $("[data-people]").innerHTML = (requested ?? []).map((p) => line(p, `<span class="stamp accent">Заявка</span>`,
-    `<button class="btn small primary" type="button" data-approve="${esc(p.user_id)}">Схвалити</button><button class="btn small" type="button" data-decline="${esc(p.user_id)}">Відхилити</button>`)).join("")
-    + roster.map((p) => line(p, `<span class="stamp success">У списку</span>`)).join("");
+  // «Написати» — кожному в таблиці: організатор пише першим тим, хто записався (оплата онлайн — реквізити).
+  const write = (p) => `<button class="btn small" type="button" data-write="${esc(p.user_id)}" data-name="${esc(p.display_name || DEFAULT_NAME)}">Написати</button>`;
+  const line = (p, state, actions = "") => `<tr><th scope="row">${esc(p.display_name || DEFAULT_NAME)}</th><td>${state}</td><td>${esc(when(p.joined_at))}</td><td>${from(p.via)}</td><td class="kab-act">${actions}${write(p)}</td></tr>`;
+  // Оплата онлайн: заявка — «Чекає оплати», схвалення — «Оплату отримано».
+  const [waiting, approve] = event.pay_online ? ["Чекає оплати", "Оплату отримано"] : ["Заявка", "Схвалити"];
+  $("[data-people]").innerHTML = (requested ?? []).map((p) => line(p, `<span class="stamp accent">${waiting}</span>`,
+    `<button class="btn small primary" type="button" data-approve="${esc(p.user_id)}">${approve}</button><button class="btn small" type="button" data-decline="${esc(p.user_id)}">Відхилити</button>`)).join("")
+    + roster.map((p) => line(p, `<span class="stamp success">${event.pay_online ? "Оплачено" : "У списку"}</span>`)).join("");
   $("[data-people-title]").textContent = `Учасники · ${roster.length}${event.capacity ? ` з ${event.capacity}` : ""}${requested?.length ? ` · заявок ${requested.length}` : ""}`;
   $("[data-people-empty]").hidden = Boolean(roster.length || requested?.length);
   $(".kab-table-wrap").hidden = !$("[data-people-empty]").hidden;
   $("[data-copy]").hidden = !roster.length;
+}
+
+// ---- Розмови з учасниками: «Поряд» — міст. Список — event_questions, розмова — event_messages з p_thread = людина.
+
+async function loadTalks(event) {
+  const box = $("[data-talks]");
+  box.hidden = false;
+  const talks = (await rpc("event_questions", { p_event_id: event.id })) ?? [];
+  if (current?.id !== event.id) return;
+  $("[data-talk-list]").innerHTML = talks.map((t) => `<li><button class="kab-talk-row" type="button" data-write="${esc(t.thread_user_id)}" data-name="${esc(t.asker_name || DEFAULT_NAME)}">
+    <b>${esc(t.asker_name || DEFAULT_NAME)}</b><span>${t.last_mine ? "Ви: " : ""}${esc(String(t.last_body || "").replace(/\s+/g, " ").slice(0, 120))}</span>${t.unread ? `<i class="kab-unread">${Number(t.unread)}</i>` : ""}</button></li>`).join("");
+  $("[data-talks-empty]").hidden = talks.length > 0;
+}
+
+const talk = { user: null, last: null, ids: new Set(), timer: null };
+
+async function openTalk(user, name) {
+  const dialog = $("[data-talk]");
+  Object.assign(talk, { user, last: null, ids: new Set() });
+  $("[data-talk-title]").textContent = name || DEFAULT_NAME;
+  $("[data-talk-note]").textContent = Number(current?.price_min) > 0
+    ? current.pay_online
+      ? "Оплата онлайн: надішліть тут реквізити, а коли гроші прийдуть — натисніть «Оплату отримано» в таблиці. Людина бачить застереження, що «Поряд» не приймає оплату й не відповідає за неї."
+      : "Оплата на цю подію — на місці, без передоплати: реквізити тут не надсилаються."
+    : "Людина бачить лише вас; пошти й телефону ви одне одного не бачите.";
+  $("[data-talk-thread]").innerHTML = "";
+  $("[data-talk-error]").textContent = "";
+  if (!dialog.open) dialog.showModal();
+  await loadTalk();
+  clearInterval(talk.timer);
+  talk.timer = setInterval(() => { if (dialog.open) loadTalk().catch(() => {}); else clearInterval(talk.timer); }, 8000);
+  $("[data-talk-form]").body.focus();
+}
+
+async function loadTalk() {
+  const user = talk.user, box = $("[data-talk-thread]");
+  const rows = (await rpc("event_messages", { p_event_id: current.id, p_after: talk.last, p_limit: 100, p_thread: user })) ?? [];
+  if (talk.user !== user) return;
+  const fresh = rows.filter((m) => !talk.ids.has(m.id));
+  if (!fresh.length) {
+    if (!box.children.length) box.innerHTML = `<p class="kab-hint" data-empty>Напишіть першим — людина отримає сповіщення в застосунку чи лист.</p>`;
+    return;
+  }
+  box.querySelector("[data-empty]")?.remove();
+  for (const m of fresh) talk.ids.add(m.id);
+  box.insertAdjacentHTML("beforeend", fresh.map((m) => bubble(m, me.id, me.id, new Date(), false)).join(""));
+  talk.last = fresh.at(-1).created_at;
+  box.scrollTop = box.scrollHeight;
+  rpc("mark_chat_read", { p_event_id: current.id, p_thread: user }).catch(() => {});
+}
+
+function setupTalk() {
+  const dialog = $("[data-talk]"), form = $("[data-talk-form]");
+  const open = (event) => {
+    const button = event.target.closest("[data-write]");
+    if (button) openTalk(button.dataset.write, button.dataset.name).catch((e) => ui.toast(errorText(e)));
+  };
+  $("[data-people]").addEventListener("click", open);
+  $("[data-talk-list]").addEventListener("click", open);
+  $("[data-talk-close]").addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => {
+    clearInterval(talk.timer);
+    talk.user = null;
+    if (current) loadTalks(current).catch(() => {});
+  });
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = $("[type=submit]", form), body = form.body.value.trim();
+    if (!body || button.disabled) return;
+    button.disabled = true;
+    $("[data-talk-error]").textContent = "";
+    try {
+      await rpc("send_message", { p_event_id: current.id, p_body: body, p_thread: talk.user });
+      form.body.value = "";
+      await loadTalk();
+    } catch (e) {
+      $("[data-talk-error]").textContent = e.code === "PAYMENT_DETAILS" ? TALK_PAYMENT_DETAILS : errorText(e);
+    } finally {
+      button.disabled = false;
+    }
+  });
 }
 
 async function copyText(text) {
@@ -966,7 +1063,7 @@ async function animate(container, name, category) {
   wanted.set(container, call);
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   try {
-    const [lottie, data] = await Promise.all([loadLottie(), fetch(`vendor/lottie/${name}${isDark() ? "_dark" : ""}.json?v=15`).then((r) => r.json())]);
+    const [lottie, data] = await Promise.all([loadLottie(), fetch(`vendor/lottie/${name}${isDark() ? "_dark" : ""}.json?v=16`).then((r) => r.json())]);
     if (wanted.get(container) !== call) return;
     const stub = getComputedStyle(document.documentElement).getPropertyValue(`--cat-${category}-stub`).trim();
     const loop = name === "publishing";
@@ -1027,7 +1124,8 @@ const FIELDS = ["title", "description", "address", "startDate", "startTime", "en
 const blank = () => {
   const d = editorDefaults(me?.user_metadata);
   return { title: "", description: "", category: null, city: d.city ?? (ui?.savedCity.get() || CITIES[0].name), address: "", lat: null, lon: null, placed: false,
-    startDate: "", startTime: "", endDate: "", endTime: "", capacity: 10, minAge: 18, maxAge: "", approval: d.approval ?? false, contact: d.contact ?? "", price: "", id: null };
+    startDate: "", startTime: "", endDate: "", endTime: "", capacity: 10, minAge: 18, maxAge: "", approval: d.approval ?? false, contact: d.contact ?? "", price: "",
+    payOnline: false, id: null };
 };
 
 function readDraft() { try { return JSON.parse(localStorage.getItem(DRAFT)); } catch { return null; } }
@@ -1101,6 +1199,7 @@ export function eventDraft(e) {
   return { ...blank(), title: e.title, description: e.description ?? "", category: e.category, city: e.city, address: e.address ?? "",
     lat: e.latitude, lon: e.longitude, placed: true, startDate: start.date, startTime: start.time, endDate: end.date, endTime: end.time,
     capacity: e.capacity ?? 10, minAge: e.min_age ?? 18, maxAge: e.max_age ?? "", approval: Boolean(e.approval_required), contact: e.contact_url ?? "", tz,
+    payOnline: Boolean(e.pay_online),
     price: Number(e.price_min) > 0 ? String(Math.round(Number(e.price_min))) : "" };
 }
 
@@ -1110,6 +1209,8 @@ function fill(d) {
   for (const name of FIELDS) f[name].value = d[name] ?? "";
   f.city.value = CITIES.some((c) => c.name === d.city) ? d.city : CITIES[0].name;
   f.approval.checked = Boolean(d.approval);
+  for (const radio of $$("[name=pay]", f)) radio.checked = radio.value === (d.payOnline ? "online" : "onsite");
+  payView();
   f.dataset.id = d.id ?? "";
   f.dataset.tz = d.tz ?? TZ;
   setCategory(d.category);
@@ -1123,7 +1224,8 @@ function fill(d) {
 /** Форма → чернетка. */
 function draft() {
   const f = form();
-  const d = { id: f.dataset.id || null, tz: f.dataset.tz || TZ, category: f.dataset.category || null, approval: f.approval.checked, city: f.city.value, ...place };
+  const d = { id: f.dataset.id || null, tz: f.dataset.tz || TZ, category: f.dataset.category || null, approval: f.approval.checked, city: f.city.value, ...place,
+    payOnline: f.pay.value === "online" };
   for (const name of FIELDS) d[name] = f[name].value;
   return d;
 }
@@ -1132,6 +1234,33 @@ let saveTimer;
 function changed() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => { if (!editing) writeDraft(draft()); preview(); }, 300);
+}
+
+/**
+ * Як платять (docs/organizer-events.md): лише з ціною. Онлайн — завжди за підтвердженням: схвалення заявки і є
+ * «Оплату отримано», тож галочку тримаємо й не даємо зняти.
+ */
+export const payPlan = (price, payOnline) => {
+  const paid = priceParam(price) > 0;
+  const online = paid && Boolean(payOnline);
+  return {
+    paid, online,
+    hint: !paid ? "" : online
+      ? "Реквізити надсилаєте в розмові тим, хто записався, а коли гроші прийдуть — натискаєте «Оплату отримано». «Поряд» не приймає оплату й не відповідає за неї й за повернення."
+      : "Учасники платять вам на місці, без передоплати — так і написано на сторінці події.",
+  };
+};
+function payView() {
+  const f = form(), plan = payPlan(f.price.value, f.pay.value === "online");
+  $("[data-pay-box]").hidden = !plan.paid;
+  const hint = $("[data-price-hint]");
+  hint.textContent = plan.hint;
+  hint.hidden = !plan.paid;
+  if (plan.online) f.approval.checked = true;
+  f.approval.disabled = plan.online;
+  $("[data-approval-note]").textContent = plan.online
+    ? "З оплатою онлайн — завжди: людина подає заявку, а ви підтверджуєте оплату"
+    : "Ви вирішуєте, кого взяти: людина надсилає заявку, а не записується одразу";
 }
 
 function setCategory(key) {
@@ -1450,8 +1579,8 @@ const params = (d, id) => ({
   p_id: id, p_title: d.title.trim(), p_description: d.description.trim(), p_category: d.category, p_city: d.city, p_address: d.address.trim(),
   p_latitude: d.lat, p_longitude: d.lon, p_starts_at: instant(d.startDate, d.startTime, d.tz), p_ends_at: instant(d.endDate, d.endTime, d.tz),
   p_time_zone: d.tz, p_capacity: Math.round(+d.capacity), p_image_url: editing?.image_url ?? null, p_min_age: Math.round(+d.minAge || 18),
-  p_max_age: d.maxAge === "" ? null : Math.round(+d.maxAge), p_approval_required: d.approval, p_contact_url: d.contact.trim() || null,
-  p_price: priceParam(d.price),
+  p_max_age: d.maxAge === "" ? null : Math.round(+d.maxAge), p_approval_required: d.approval || payPlan(d.price, d.payOnline).online,
+  p_contact_url: d.contact.trim() || null, p_price: priceParam(d.price), p_pay_online: payPlan(d.price, d.payOnline).online,
 });
 
 const PUBLIC = "/storage/v1/object/public/";
@@ -1565,6 +1694,8 @@ function setupEditor() {
     durations();
   });
   f.addEventListener("input", changed);
+  f.price.addEventListener("input", payView);
+  for (const radio of $$("[name=pay]", f)) radio.addEventListener("change", payView);
   f.addEventListener("change", changed);
   f.addEventListener("submit", (event) => { event.preventDefault(); publish(); });
   $("[data-publishing]").addEventListener("cancel", (event) => event.preventDefault());
@@ -1574,11 +1705,12 @@ function setupEditor() {
 }
 
 async function start() {
-  ui = await import("./ui.js?v=15");
+  ui = await import("./ui.js?v=16");
   window.poriadReady = true;
   setupAuth();
   setupAccount();
   setupEvent();
+  setupTalk();
   setupEditor();
   $("[data-signin]").addEventListener("click", () => signIn().then((ok) => ok && route()));
   // Повернення від Google чи з листа: намір несе маршрут і «опублікувати», з якими людина пішла; лист відновлення —

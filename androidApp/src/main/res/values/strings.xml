@@ -1295,5 +1295,6 @@
   <string name="price_value">%1$s ₴</string>
   <string name="price_fact">Вхід</string>
   <string name="price_pay_hint">Оплата на місці, без передоплати</string>
+  <string name="price_pay_online_hint">Оплата онлайн організатору. «Поряд» не приймає оплату й не відповідає за неї.</string>
   <string name="err_price">Ціна — від 1 до 100 000 ₴</string>
 </resources>

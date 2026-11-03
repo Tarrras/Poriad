@@ -194,7 +194,7 @@ extension EventDetailView {
         if let room = event.gathering {
             cells.append((Copy.organizer_short, room.organizerName.isEmpty ? Copy.organizer_short : room.organizerName))
             cells.append((Copy.capacity_label, Copy.attendees_short("\(room.attendeeCount)", "\(room.capacity)")))
-            // «Вхід: 300 ₴» і як платити — на місці, без передоплати (1.7, власник 03.11).
+            // «Вхід: 300 ₴» і як платити — на місці чи онлайн організатору (docs/organizer-events.md).
             if let price = gatheringPrice(room) { cells.append((Copy.price_fact, price)) }
         }
         return LazyVGrid(columns: [GridItem(.flexible(), alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)], spacing: Space.xl) {
@@ -203,7 +203,8 @@ extension EventDetailView {
                     Text(cell.0.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                     Text(cell.1).font(PoruchFont.title3).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
                     if cell.0 == Copy.price_fact {
-                        Text(Copy.price_pay_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                        Text(event.gathering?.payOnline == true ? Copy.price_pay_online_hint : Copy.price_pay_hint)
+                            .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
