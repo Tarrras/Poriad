@@ -3,8 +3,8 @@
 // «чому ви це отримали». Окремо від index.ts: чиста логіка без Deno й мережі, тож її перевіряє
 // `node supabase/functions/push/mail.test.mjs`.
 
-// `answer` — лише лист: пуш про відповідь організатора має вид `question` (застосунки вже його знають) з `toAsker`.
-export type MailKind = "request" | "question" | "answer" | "approved" | "declined" | "promoted" | "moved" | "cancelled" | "organizer";
+// `answer` і `proof` — лише листи: пуш про них має вид `question` (застосунки вже його знають) з `toAsker` чи `proof`.
+export type MailKind = "request" | "question" | "answer" | "proof" | "approved" | "declined" | "promoted" | "moved" | "cancelled" | "organizer";
 export const MAIL_KINDS: readonly string[] = ["request", "question", "approved", "declined", "promoted", "moved", "cancelled", "organizer"];
 // Пуші, які випущені клієнти не покажуть (Android невідомий kind мовчки відкидає): лише на токени з прапорцем
 // `push_tokens.features`, який реєструє застосунок, що їх знає.
@@ -54,15 +54,16 @@ export function esc(s: string): string {
  */
 export function mailText(kind: MailKind, eventId: string, title: string, body: string, who = ""): Mail {
   const page = `${SITE}/e/${eventId}`;
-  const organizer = kind === "request" || kind === "question";
+  const organizer = kind === "request" || kind === "question" || kind === "proof";
   const lineOf = (t: string, b: string) => kind === "question" ? `Вам поставили питання про «${t}»` : kind === "request" ? `Нова заявка на «${t}»`
-    : kind === "answer" ? `Організатор написав вам про «${t}»` : b;
+    : kind === "answer" ? `Організатор написав вам про «${t}»` : kind === "proof" ? `Вам надіслали скріншот оплати за «${t}»` : b;
   const oneLine = (organizer || kind === "answer" ? lineOf(title, body) : `«${title}»: ${body}`).replace(/\s+/g, " ").trim();
   const subject = oneLine.length <= SUBJECT_MAX ? oneLine : `${oneLine.slice(0, SUBJECT_MAX - 1).trimEnd()}…`;
   [title, body, who] = [unlink(title), unlink(body), unlink(who)];
   const button = organizer ? { label: "Переглянути", url: `${SITE}/kabinet#/e/${eventId}` }
     : kind === "answer" ? { label: "Відкрити розмову", url: `${page}?ask` } : { label: "Відкрити подію", url: page };
   const note = kind === "question" ? "Відповісти можна в кабінеті на poriad.app чи в застосунку «Поряд»."
+    : kind === "proof" ? "Звірте надходження в банку й натисніть «Оплату отримано» в кабінеті."
     : kind === "answer" ? "«Поряд» не приймає оплату й не відповідає за неї. Не переказуйте гроші, якщо сумніваєтесь в організаторі." : "";
   const line = lineOf(title, body);
   const why = organizer ? `Ви отримали цей лист, бо організовуєте «${title}».`

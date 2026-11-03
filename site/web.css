@@ -799,6 +799,10 @@ a.row:hover { background: var(--surface-muted); }
 .msg p { font: 400 16px/22px var(--font); white-space: pre-wrap; overflow-wrap: anywhere; }
 .msg .pay-warn { margin-top: 4px; padding: 8px 10px; border-radius: var(--r-sm); background: var(--danger-container); color: var(--danger); font: 500 13px/18px var(--font); white-space: normal; }
 .msg .pay-warn .link { display: inline; font-size: 13px; color: inherit; }
+/* Скріншот оплати: прев'ю в бульбашці, тап — повністю. Поки вантажиться з приватного бакета — тонова плашка. */
+.msg .proof { display: block; padding: 0; border-radius: var(--r-sm); overflow: hidden; background: var(--surface-muted); cursor: zoom-in; }
+.msg .proof img { display: block; width: 100%; max-width: 240px; min-width: 120px; min-height: 96px; max-height: 320px; object-fit: cover; }
+.proof-pick { cursor: pointer; }
 /* Записаний (design-wow-1.5): над числом місць — штамп стану, «Ви в списку» — тоном, бо головну дію вже зроблено. */
 .bar .meta .stamp { align-self: flex-start; margin: 0 0 5px 1px; }
 .bar .meta:has(.stamp:not([hidden])) small { display: none; }

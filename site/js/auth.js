@@ -5,7 +5,7 @@
 // всім суворий CSP. Verifier PKCE для Google і намір («записатися на…») чекають повернення в sessionStorage вкладки, а
 // verifier-и листів (реєстрація, відновлення) — у localStorage: посилання з листа відкривається в новій вкладці.
 // Перевірка — `node tools/auth_test.mjs`.
-import { SUPABASE } from "./poriad.js?v=16";
+import { SUPABASE } from "./poriad.js?v=17";
 
 const SESSION = "poriad.session";
 const PKCE = "poriad.pkce";
@@ -310,6 +310,13 @@ export async function upload(bucket, path, blob) {
     method: "POST", headers: headers(current, { "content-type": blob.type || "application/octet-stream" }), body: blob,
   }));
   return `${SUPABASE.url}/storage/v1/object/public/${target}`;
+}
+
+/** Файл із приватного бакета (скріншот оплати) з токеном людини → Blob; читати можуть лише ті, кого пускає RLS Storage. */
+export async function download(bucket, path) {
+  const target = `${encodeURIComponent(bucket)}/${path.split("/").map(encodeURIComponent).join("/")}`;
+  const response = await signed((current) => fetch(`${SUPABASE.url}/storage/v1/object/authenticated/${target}`, { headers: headers(current, {}) }));
+  return response.blob();
 }
 
 /**

@@ -32,6 +32,8 @@ assert.ok(online.includes("<b>300 ₴</b><small>Оплата онлайн орг
 assert.equal(online.split("«Поряд» не приймає оплату й не відповідає за неї.").length - 1, 3, "сторінка, вхід у шторці й розмова");
 assert.ok(online.includes(" data-pay-online>") && !online.includes("Участь за підтвердженням організатора."), "замість загального рядка — про оплату");
 assert.ok(!priced.includes("data-pay-online") && !priced.includes("не відповідає за неї"), "на місці — без застереження");
+assert.ok(online.includes("data-proof hidden>") && online.includes("Скріншот бачите лише ви й організатор."), "скріншот оплати — лише онлайн");
+assert.ok(!priced.includes("data-proof"), "на місці скріншотів нема");
 // «Написати організатору» — подія від людей з організатором, ще не минула; розмова — у шторці.
 const host = { ...base, organizer_id: "c3000000-0000-4000-8000-000000000003" };
 assert.ok(eventPage(host, now).includes("data-ask>") && community.includes('data-step="ask"') && community.includes("data-open-ask"));

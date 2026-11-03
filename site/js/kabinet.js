@@ -3,10 +3,10 @@
 // організатора. Вхід (Google або пошта з паролем, docs/web-auth.md) — auth.js, дані —
 // ті самі функції бази, що в застосунку; сторінка перевіряє лише очевидне, решту каже сервер. Чисті правила вгорі (дати,
 // тривалість, медіа, текст для Threads) перевіряє `node tools/kabinet_test.mjs`; DOM — нижче, лише в браузері.
-import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText } from "./poriad.js?v=16";
-import { bubble } from "./join.js?v=16";
+import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText } from "./poriad.js?v=17";
+import { bubble, hydrateProofs, openProof } from "./join.js?v=17";
 import { session, verifyCode, google, completeRedirect, rpc, upload, signOut, inAppBrowser, browserLinks, signInWithPassword, signUp, resendSignup,
-  requestRecovery, updatePassword, reauthenticate, verifyPassword, currentUser, updateMetadata, signInMethods, isEmail, MIN_PASSWORD, MAX_PASSWORD } from "./auth.js?v=16";
+  requestRecovery, updatePassword, reauthenticate, verifyPassword, currentUser, updateMetadata, signInMethods, isEmail, MIN_PASSWORD, MAX_PASSWORD } from "./auth.js?v=17";
 
 // ---- Дати. Усі п'ять міст в одному поясі; подія з іншим поясом (з застосунку) редагується у своєму.
 export const TZ = "Europe/Kyiv";
@@ -92,7 +92,7 @@ export function priceProblem(price) {
 export const priceParam = (price) => String(price ?? "").trim() ? Math.round(Number(price)) : 0;
 
 // ---- «Пост для Threads» (1.5) — у poriad.js: той самий текст ділить і сторінка події (1.6).
-export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=16";
+export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=17";
 
 // ---- Анімації публікації (1.6, design/lottie/LICENSES.md): корінець запечений кольором музики — фарбуємо в жанр.
 const MUSIC_STUB = [0x60, 0x41, 0xb1].map((v) => v / 255);
@@ -917,7 +917,7 @@ async function openTalk(user, name) {
   $("[data-talk-title]").textContent = name || DEFAULT_NAME;
   $("[data-talk-note]").textContent = Number(current?.price_min) > 0
     ? current.pay_online
-      ? "Оплата онлайн: надішліть тут реквізити, а коли гроші прийдуть — натисніть «Оплату отримано» в таблиці. Людина бачить застереження, що «Поряд» не приймає оплату й не відповідає за неї."
+      ? "Оплата онлайн: надішліть тут реквізити. Людина може надіслати скріншот оплати — звірте його з банком і натисніть «Оплату отримано» в таблиці. Людина бачить застереження, що «Поряд» не приймає оплату й не відповідає за неї."
       : "Оплата на цю подію — на місці, без передоплати: реквізити тут не надсилаються."
     : "Людина бачить лише вас; пошти й телефону ви одне одного не бачите.";
   $("[data-talk-thread]").innerHTML = "";
@@ -941,6 +941,7 @@ async function loadTalk() {
   box.querySelector("[data-empty]")?.remove();
   for (const m of fresh) talk.ids.add(m.id);
   box.insertAdjacentHTML("beforeend", fresh.map((m) => bubble(m, me.id, me.id, new Date(), false)).join(""));
+  hydrateProofs(box);
   talk.last = fresh.at(-1).created_at;
   box.scrollTop = box.scrollHeight;
   rpc("mark_chat_read", { p_event_id: current.id, p_thread: user }).catch(() => {});
@@ -955,6 +956,8 @@ function setupTalk() {
   $("[data-people]").addEventListener("click", open);
   $("[data-talk-list]").addEventListener("click", open);
   $("[data-talk-close]").addEventListener("click", () => dialog.close());
+  // Скріншот оплати — повністю в новій вкладці: звірити суму й імʼя з банком.
+  $("[data-talk-thread]").addEventListener("click", (event) => { if (openProof(event)) event.preventDefault(); });
   dialog.addEventListener("close", () => {
     clearInterval(talk.timer);
     talk.user = null;
@@ -1063,7 +1066,7 @@ async function animate(container, name, category) {
   wanted.set(container, call);
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   try {
-    const [lottie, data] = await Promise.all([loadLottie(), fetch(`vendor/lottie/${name}${isDark() ? "_dark" : ""}.json?v=16`).then((r) => r.json())]);
+    const [lottie, data] = await Promise.all([loadLottie(), fetch(`vendor/lottie/${name}${isDark() ? "_dark" : ""}.json?v=17`).then((r) => r.json())]);
     if (wanted.get(container) !== call) return;
     const stub = getComputedStyle(document.documentElement).getPropertyValue(`--cat-${category}-stub`).trim();
     const loop = name === "publishing";
@@ -1705,7 +1708,7 @@ function setupEditor() {
 }
 
 async function start() {
-  ui = await import("./ui.js?v=16");
+  ui = await import("./ui.js?v=17");
   window.poriadReady = true;
   setupAuth();
   setupAccount();

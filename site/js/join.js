@@ -2,8 +2,8 @@
 // кешує зі сторінкою, а цей скрипт входить (auth.js), записує, показує стан запису й «Після запису». Він же робить
 // `?unfollow` з листа. На сторінці без шторки (афіша) нічого не робить. Правила без DOM — експорти, перевірка —
 // `node tools/join_test.mjs`.
-import { session, sendCode, verifyCode, google, completeRedirect, rpc, signOut, inAppBrowser, browserLinks } from "./auth.js?v=16";
-import { SUPABASE, discover, fold, cardsByIds, esc, displayTitle, stubParts, timeOf, CATEGORIES, price, threadsPost, threadsIntent } from "./poriad.js?v=16";
+import { session, sendCode, verifyCode, google, completeRedirect, rpc, upload, download, signOut, inAppBrowser, browserLinks } from "./auth.js?v=17";
+import { SUPABASE, discover, fold, cardsByIds, esc, displayTitle, stubParts, timeOf, CATEGORIES, price, threadsPost, threadsIntent } from "./poriad.js?v=17";
 
 /** Відповідь бази на запис → стан шторки (таблиця «Інші відповіді на запис»). Невідома — null: показуємо помилку. */
 const OUTCOMES = {
@@ -56,6 +56,8 @@ const MESSAGES = {
   TOO_MANY_MESSAGES: "Забагато повідомлень. Зачекайте хвилину.", CHAT_CLOSED: "Розмову закрито: подія давно минула.",
   INVALID_MESSAGE: "Повідомлення — до 2000 символів.", OBJECTIONABLE_CONTENT: "Текст містить слова, які ми не публікуємо. Перепишіть, будь ласка.",
   NOT_MEMBER: "Написати організатору зараз не можна.",
+  PROOF_NOT_IMAGE: "Оберіть зображення — скріншот оплати.", PROOF_TOO_BIG: "Скріншот завеликий навіть після стиснення.",
+  INVALID_IMAGE: "Скріншот не вдалося надіслати. Спробуйте ще раз.",
 };
 
 /**
@@ -71,7 +73,42 @@ export function bubble(m, me, organizer, now = new Date(), warn = true) {
   const note = warn && m.payment_details && !mine
     ? `<p class="pay-warn">Реквізити для оплати. «Поряд» не приймає оплату й не відповідає за неї — не переказуйте гроші, якщо сумніваєтесь в організаторі. <button class="link" type="button" data-report="${esc(m.id)}">Поскаржитись</button></p>`
     : "";
-  return `<div class="msg${mine ? " mine" : ""}" data-id="${esc(m.id)}"><small>${esc(who)} · ${esc(when)}</small><p>${esc(m.body)}</p>${note}</div>`;
+  // Скріншот оплати — з приватного бакета: `src` ставить hydrateProofs із токеном, тут лише шлях.
+  const image = m.image ? `<button class="proof" type="button" data-proof-open><img alt="Скріншот оплати" data-proof-path="${esc(m.image)}"></button>` : "";
+  return `<div class="msg${mine ? " mine" : ""}" data-id="${esc(m.id)}"><small>${esc(who)} · ${esc(when)}</small>${image}<p>${esc(m.body)}</p>${note}</div>`;
+}
+
+/** Скріншоти в розмові: завантажити з токеном у blob:; тап — відкрити повністю. Недоступний — підпис замість картинки. */
+export function hydrateProofs(root) {
+  for (const img of root.querySelectorAll("img[data-proof-path]:not([data-loading])")) {
+    img.dataset.loading = "1";
+    download("payment-proofs", img.dataset.proofPath)
+      .then((blob) => { img.src = URL.createObjectURL(blob); })
+      .catch(() => { img.closest("[data-proof-open]")?.replaceWith(Object.assign(document.createElement("small"), { textContent: "Скріншот недоступний" })); });
+  }
+}
+export function openProof(event) {
+  const src = event.target.closest("[data-proof-open]")?.querySelector("img")?.src;
+  if (src) window.open(src, "_blank", "noopener");
+  return Boolean(src);
+}
+
+/** Скріншот → JPEG без метаданих (EXIF з геолокацією теж), довша сторона до 2048, до 5 МБ — як фото події. */
+async function proofJpeg(file) {
+  if (!file.type.startsWith("image/")) throw Object.assign(new Error("not an image"), { code: "PROOF_NOT_IMAGE" });
+  const bitmap = await createImageBitmap(file).catch(() => { throw Object.assign(new Error("cannot decode"), { code: "PROOF_NOT_IMAGE" }); });
+  try {
+    const scale = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
+    const canvas = Object.assign(document.createElement("canvas"), { width: Math.round(bitmap.width * scale), height: Math.round(bitmap.height * scale) });
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    for (const quality of [0.85, 0.7, 0.55]) {
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+      if (blob && blob.size <= 5 * 1024 * 1024) return blob;
+    }
+    throw Object.assign(new Error("too big"), { code: "PROOF_TOO_BIG" });
+  } finally {
+    bitmap.close();
+  }
 }
 
 /**
@@ -260,6 +297,7 @@ export function start(sheet) {
     box.querySelector("[data-empty]")?.remove();
     for (const m of fresh) thread.ids.add(m.id);
     box.insertAdjacentHTML("beforeend", fresh.map((m) => bubble(m, me, data.organizer)).join(""));
+    hydrateProofs(box);
     thread.last = fresh.at(-1).created_at;
     box.scrollTop = box.scrollHeight;
     rpc("mark_chat_read", { p_event_id: id, p_thread: me }).catch(() => {});
@@ -503,6 +541,22 @@ export function start(sheet) {
     form.reset();
     await loadThread();
   }));
+  // Скріншот оплати: стиснути, вивантажити в приватний бакет (`<uid>/<подія>/<uuid>.jpg`) і надіслати з текстом поля.
+  $("[data-proof]")?.addEventListener("change", task(async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const me = (await session())?.user?.id;
+    if (!me) { action = "ask"; return open("start"); }
+    $("[data-error]").hidden = true;
+    const path = `${me}/${id}/${crypto.randomUUID()}.jpg`;
+    await upload("payment-proofs", path, await proofJpeg(file));
+    const form = $('[data-form="ask"]');
+    await rpc("send_message", { p_event_id: id, p_body: form.body.value.trim() || "Скріншот оплати", p_thread: me, p_image: path });
+    form.reset();
+    await loadThread();
+  }));
+  $("[data-thread]")?.addEventListener("click", (event) => { if (openProof(event)) event.preventDefault(); });
   $("[data-thread]")?.addEventListener("click", task(async (event) => {
     const button = event.target.closest("[data-report]");
     if (!button) return;

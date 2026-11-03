@@ -1,7 +1,7 @@
-// Файли людини в Storage, які видаляє `delete-account`: фото й відео її подій та аватари в теці `<uid>/` обох бакетів
+// Файли людини в Storage, які видаляє `delete-account`: фото й відео її подій, аватари й скріншоти оплати в теці `<uid>/`
 // (App Store 5.1.1(v), GDPR). Без імпортів Deno: клієнт Storage приходить параметром, перевірка — node files.test.mjs поруч.
 
-export const BUCKETS = ["event-images", "event-videos"];
+export const BUCKETS = ["event-images", "event-videos", "payment-proofs"];
 const PAGE = 1000;
 
 type Entry = { name: string; id: string | null };

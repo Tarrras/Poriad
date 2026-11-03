@@ -44,6 +44,8 @@ const supabase = (env) => ({ "connect-src": env.SUPABASE_URL });
 const storage = (env) => ({ "media-src": env.SUPABASE_URL && `${env.SUPABASE_URL}/storage/v1/object/public/` });
 // Кабінет перевіряє вибране відео (тривалість, постер) до вивантаження — з blob:.
 const LOCAL_MEDIA = { "media-src": "blob:" };
+// Скріншот оплати в розмові — з приватного бакета з токеном людини, тож показуємо його з blob:.
+const PROOFS = { "img-src": "blob:" };
 
 /** Частини CSP → рядок: значення однієї директиви склеюються, порожні пропускаються. */
 function csp(...parts) {
@@ -52,7 +54,7 @@ function csp(...parts) {
   return Object.entries(out).map(([name, value]) => `${name} ${value}`).join("; ");
 }
 const CSP = {
-  event: (env) => csp(BASE, SHARE, supabase(env), storage(env)),
+  event: (env) => csp(BASE, SHARE, supabase(env), storage(env), PROOFS),
   city: () => csp(BASE, SHARE),
   pages: (env) => csp(BASE, MAP, supabase(env), storage(env), LOCAL_MEDIA),
   // Кабінет (worker/kabinet.mjs) тримає токен організатора: картинки — лише свої, сховище й прев'ю з blob:, а не будь-який https.
@@ -282,7 +284,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>
 ${imported ? "" : `${joinSheet(e, ct, now)}
-<script type="module" src="/js/join.js?v=16"></script>`}`,
+<script type="module" src="/js/join.js?v=17"></script>`}`,
   });
 }
 
@@ -411,6 +413,8 @@ function joinSheet(e, ct, now) {
     <div class="thread" data-thread aria-live="polite"></div>
     <form data-form="ask"><label class="field"><span class="sr">Повідомлення</span><textarea name="body" rows="3" maxlength="2000" placeholder="Напишіть організатору" required></textarea></label>
       <button class="btn primary" type="submit">Надіслати</button></form>
+    ${e.pay_online ? `<label class="btn secondary proof-pick">${icon("plus")}Надіслати скріншот оплати<input type="file" accept="image/*" data-proof hidden></label>
+    <p class="fine">Скріншот бачите лише ви й організатор.</p>` : ""}
   </section>
   <p class="error" data-error role="alert" hidden></p>
   <p class="account" data-account hidden>Ви ввійшли як <b data-account-email></b> · <button class="link" type="button" data-signout>Вийти</button></p>
@@ -600,8 +604,8 @@ function layout({ title, description, image, url, head, body }) {
 <meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=16">
-<link rel="stylesheet" href="/web.css?v=16">
+<link rel="stylesheet" href="/tokens.css?v=17">
+<link rel="stylesheet" href="/web.css?v=17">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">

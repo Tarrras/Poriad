@@ -58,7 +58,7 @@ type Change = "cancelled" | "postponed" | "moved" | "corrected";
 const CHANGES: readonly string[] = ["cancelled", "postponed", "moved", "corrected"];
 
 // who — лише для листа: за ким стежить людина.
-type Push = { kind: "chat" | "question" | "request" | "joined" | "organizer" | "place" | "artist" | "companion" | "company" | "winback" | "zone" | EventKind | Decision; eventId?: string; placeId?: string; artistId?: string; threadId?: string; change?: Change; step?: number; title: string; body: string; key: string; who?: string; toAsker?: boolean };
+type Push = { kind: "chat" | "question" | "request" | "joined" | "organizer" | "place" | "artist" | "companion" | "company" | "winback" | "zone" | EventKind | Decision; eventId?: string; placeId?: string; artistId?: string; threadId?: string; change?: Change; step?: number; title: string; body: string; key: string; who?: string; toAsker?: boolean; proof?: boolean };
 type Token = { token: string; platform: "android" | "ios" };
 
 const PREVIEW = 120;
@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
 
 // Повідомлення: організатор і підтверджені учасники, крім автора й тих, хто заблокований з автором в будь-який бік.
 async function forMessage(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "message" }>) {
-  const { data: m } = await db.from("event_messages").select("id,event_id,author_id,body,thread_user_id").eq("id", p.message_id).maybeSingle();
+  const { data: m } = await db.from("event_messages").select("id,event_id,author_id,body,thread_user_id,image").eq("id", p.message_id).maybeSingle();
   if (!m) return { push: null, recipients: [] };
   const { data: e } = await db.from("events").select("id,title,organizer_id,status").eq("id", m.event_id).maybeSingle();
   if (!e || e.status !== "published") return { push: null, recipients: [] };
@@ -175,7 +175,9 @@ async function forMessage(db: ReturnType<typeof createClient>, p: Extract<Payloa
     return {
       push: {
         kind: "question" as const, eventId: e.id as string, threadId: m.thread_user_id as string, title: e.title as string,
-        body: fromOrganizer ? `Організатор написав: ${text}` : `${who} питає: ${text}`, key: m.id as string, toAsker: fromOrganizer,
+        // Скріншот оплати (20261125130000) шле лише людина; організатор звіряє з банком і тисне «Оплату отримано».
+        body: fromOrganizer ? `Організатор написав: ${text}` : m.image ? `Скріншот оплати від ${who}` : `${who} питає: ${text}`,
+        key: m.id as string, toAsker: fromOrganizer, proof: Boolean(m.image) && !fromOrganizer,
       },
       recipients,
     };
@@ -558,7 +560,8 @@ async function sendMails(db: ReturnType<typeof createClient>, people: string[], 
     const users = await Promise.all(people.slice(i, i + CONCURRENCY).map((id) => db.auth.admin.getUserById(id)));
     for (const { data } of users) if (data.user?.email && data.user.email_confirmed_at) emails.push(data.user.email);
   }
-  const mail = mailText((push.kind === "question" && push.toAsker ? "answer" : push.kind) as MailKind, push.eventId!, push.title, push.body, push.who);
+  const kind = push.kind === "question" ? (push.toAsker ? "answer" : push.proof ? "proof" : "question") : push.kind;
+  const mail = mailText(kind as MailKind, push.eventId!, push.title, push.body, push.who);
   let mailed = 0, failed = 0;
   for (let i = 0; i < emails.length; i += MAIL_BATCH) {
     const batch = emails.slice(i, i + MAIL_BATCH);

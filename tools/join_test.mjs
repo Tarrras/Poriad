@@ -85,5 +85,10 @@ assert.ok(theirs.includes("«Поряд» не приймає оплату й н
 const own = bubble({ ...msg, author_id: "me" }, "me", "org", new Date("2026-11-05T12:00:00Z"));
 assert.ok(own.startsWith('<div class="msg mine" data-id="m1"><small>Ви · 3 лист') && !own.includes("pay-warn"), "своє — без застереження, інший день — з датою");
 assert.ok(!bubble({ ...msg, payment_details: false }, "me", "org").includes("pay-warn"));
+// Скріншот оплати: лише шлях у data-атрибуті (src — з токеном, blob:), без прямого посилання на сховище.
+const shot = bubble({ ...msg, author_id: "me", payment_details: false, image: "me/e1/f.jpg", body: "Скріншот оплати" }, "me", "org");
+assert.ok(shot.includes('<button class="proof" type="button" data-proof-open><img alt="Скріншот оплати" data-proof-path="me/e1/f.jpg"></button>'));
+assert.ok(!shot.includes("src=") && !shot.includes("storage/v1"));
+assert.ok(!bubble({ ...msg, image: null }, "me", "org").includes("data-proof"));
 
 console.log("join rules ok");
