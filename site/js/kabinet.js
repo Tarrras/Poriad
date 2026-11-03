@@ -259,6 +259,27 @@ export function editorDefaults(meta) {
   return out;
 }
 
+/**
+ * Хто в розмові з організатором (кабінет): стан людини на цій події з ростера й заявок. Онлайн-оплата — «Чекає оплати» /
+ * «Оплачено»; без запису — лише питає.
+ */
+export function talkStatus(user, { roster = [], requests = [], payOnline = false } = {}) {
+  const approved = roster.find((p) => p.user_id === user), request = requests.find((p) => p.user_id === user);
+  if (approved) return { stamp: payOnline ? "Оплачено" : "У списку", tone: "success", at: approved.joined_at, via: approved.via, pending: false };
+  if (request) return { stamp: payOnline ? "Чекає оплати" : "Заявка", tone: "accent", at: request.joined_at, via: request.via, pending: true };
+  return { stamp: "Питає", tone: "", at: null, via: null, pending: false };
+}
+/** Рядки картки учасника в розмові: профіль (`profile_card`) і стан запису. Пошти не показуємо — її нема й у картці. */
+export function talkFacts(card, status, tz = TZ) {
+  const attended = Number(card?.attended) || 0, organized = Number(card?.organized) || 0;
+  const profile = [sinceText(card?.member_since, tz), attended ? `відвідано подій: ${attended}` : "", organized ? `організовано: ${organized}` : ""]
+    .filter(Boolean).join(" · ");
+  const when = status.at ? new Intl.DateTimeFormat("uk-UA", { timeZone: tz, day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date(status.at)) : "";
+  const joined = status.at ? `${status.pending ? "Заявка" : "Записались"} ${when} · ${status.via === "web" ? "з вебу" : "із застосунку"}`
+    : "Ще не записались на подію";
+  return { profile, joined };
+}
+
 const MONTHS = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
 /** «з нами з жовтня 2026», як шапка профілю в застосунку. */
 export function sinceText(iso, tz = TZ) {
@@ -874,6 +895,7 @@ async function showEvent(id) {
 
 let current = null; // подія на екрані «Подія»
 let roster = [];
+let requests = []; // заявки події на екрані: стан людини в розмові
 
 async function loadPeople(event) {
   const [approved, requested] = await Promise.all([
@@ -881,6 +903,7 @@ async function loadPeople(event) {
     event.approval_required ? rpc("event_requests", { p_event_id: event.id, p_limit: 100 }) : [],
   ]);
   roster = approved ?? [];
+  requests = requested ?? [];
   const when = (iso) => new Intl.DateTimeFormat("uk-UA", { timeZone: event.time_zone || TZ, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
   const from = (via) => via === "web" ? "Веб" : "Застосунок";
   // «Написати» — кожному в таблиці: організатор пише першим тим, хто записався (оплата онлайн — реквізити).
@@ -909,7 +932,7 @@ async function loadTalks(event) {
   $("[data-talks-empty]").hidden = talks.length > 0;
 }
 
-const talk = { user: null, last: null, ids: new Set(), timer: null };
+const talk = { user: null, name: "", card: null, last: null, ids: new Set(), timer: null };
 
 async function openTalk(user, name) {
   const dialog = $("[data-talk]");
@@ -917,12 +940,17 @@ async function openTalk(user, name) {
   $("[data-talk-title]").textContent = name || DEFAULT_NAME;
   $("[data-talk-note]").textContent = Number(current?.price_min) > 0
     ? current.pay_online
-      ? "Оплата онлайн: надішліть тут реквізити. Людина може надіслати скріншот оплати — звірте його з банком і натисніть «Оплату отримано» в таблиці. Людина бачить застереження, що «Поряд» не приймає оплату й не відповідає за неї."
+      ? "Оплата онлайн: надішліть тут реквізити. Людина може надіслати скріншот оплати — звірте його з банком і натисніть «Оплату отримано». Людина бачить застереження, що «Поряд» не приймає оплату й не відповідає за неї."
       : "Оплата на цю подію — на місці, без передоплати: реквізити тут не надсилаються."
     : "Людина бачить лише вас; пошти й телефону ви одне одного не бачите.";
   $("[data-talk-thread]").innerHTML = "";
   $("[data-talk-error]").textContent = "";
+  talk.name = name || DEFAULT_NAME;
+  talk.card = null;
+  paintTalkPerson();
   if (!dialog.open) dialog.showModal();
+  // Профіль — паралельно з розмовою: організатор має розуміти, з ким говорить (фото, «з нами з», відвідані події).
+  rpc("profile_card", { p_user_id: user }).then((rows) => { if (talk.user === user) { talk.card = rows?.[0] ?? null; paintTalkPerson(); } }).catch(() => {});
   await loadTalk();
   clearInterval(talk.timer);
   talk.timer = setInterval(() => { if (dialog.open) loadTalk().catch(() => {}); else clearInterval(talk.timer); }, 8000);
@@ -947,6 +975,19 @@ async function loadTalk() {
   rpc("mark_chat_read", { p_event_id: current.id, p_thread: user }).catch(() => {});
 }
 
+/** Картка учасника над розмовою: хто це, стан на події, коли й звідки записався; для заявки — «Оплату отримано» / «Відхилити». */
+function paintTalkPerson() {
+  const status = talkStatus(talk.user, { roster, requests, payOnline: Boolean(current?.pay_online) });
+  const name = talk.card?.display_name && talk.card.display_name !== DEFAULT_NAME ? talk.card.display_name : talk.name;
+  const { profile, joined } = talkFacts(talk.card, status, current?.time_zone || TZ);
+  $("[data-talk-title]").textContent = name;
+  $("[data-talk-person]").innerHTML = `<span class="kab-avatar big" aria-hidden="true">${avatarHtml(name, talk.card?.avatar_url)}</span>
+    <div><p class="kab-person-line"><span class="stamp ${status.tone}">${esc(status.stamp)}</span>${profile ? `<small>${esc(profile)}</small>` : ""}</p>
+    ${talk.card?.bio ? `<p class="kab-person-bio">${esc(talk.card.bio)}</p>` : ""}<small>${esc(joined)}</small></div>`;
+  $("[data-talk-actions]").hidden = !status.pending;
+  $("[data-talk-approve]").textContent = current?.pay_online ? "Оплату отримано" : "Схвалити";
+}
+
 function setupTalk() {
   const dialog = $("[data-talk]"), form = $("[data-talk-form]");
   const open = (event) => {
@@ -956,6 +997,26 @@ function setupTalk() {
   $("[data-people]").addEventListener("click", open);
   $("[data-talk-list]").addEventListener("click", open);
   $("[data-talk-close]").addEventListener("click", () => dialog.close());
+  // Рішення прямо з розмови: побачив скріншот — підтвердив оплату.
+  for (const [selector, rpcName, done] of [["[data-talk-approve]", "approve_member", null], ["[data-talk-decline]", "decline_member", "Відхилено"]]) {
+    $(selector).addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      if (button.disabled) return;
+      if (rpcName === "decline_member" && !confirm(`Відхилити заявку ${talk.name}?`)) return;
+      button.disabled = true;
+      $("[data-talk-error]").textContent = "";
+      try {
+        await rpc(rpcName, { p_event_id: current.id, p_user_id: talk.user });
+        ui.toast(done ?? (current.pay_online ? "Оплату підтверджено" : "Схвалено"));
+        await loadPeople(current);
+        paintTalkPerson();
+      } catch (e) {
+        $("[data-talk-error]").textContent = errorText(e);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
   // Скріншот оплати — повністю в новій вкладці: звірити суму й імʼя з банком.
   $("[data-talk-thread]").addEventListener("click", (event) => { if (openProof(event)) event.preventDefault(); });
   dialog.addEventListener("close", () => {

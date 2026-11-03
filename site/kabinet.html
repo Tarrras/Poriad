@@ -265,6 +265,11 @@
     <button class="round" type="button" data-talk-close aria-label="Закрити"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-close"/></svg></button>
     <div>
       <h2 id="kab-talk-title" data-talk-title>Розмова</h2>
+      <div class="kab-person" data-talk-person aria-live="polite"></div>
+      <div class="kab-row" data-talk-actions hidden>
+        <button class="btn small primary" type="button" data-talk-approve>Оплату отримано</button>
+        <button class="btn small" type="button" data-talk-decline>Відхилити</button>
+      </div>
       <p class="kab-hint" data-talk-note></p>
       <div class="thread" data-talk-thread aria-live="polite"></div>
       <label class="kab-field"><span class="sr">Повідомлення</span><textarea name="body" rows="3" maxlength="2000" placeholder="Повідомлення"></textarea></label>

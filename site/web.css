@@ -983,6 +983,13 @@ a.row:hover { background: var(--surface-muted); }
 .kab-unread { grid-column: 2; grid-row: 1 / span 2; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 999px; background: var(--accent-text); color: #fff;
   font: 600 13px/24px var(--font); font-style: normal; text-align: center; }
 .kab-talk .thread { max-height: min(50svh, 440px); }
+/* Хто в розмові: фото, стан на події, профіль і звідки записався — організатор має знати, з ким говорить. */
+.kab-person { display: flex; gap: 14px; align-items: flex-start; padding: 12px; border-radius: var(--r-md); background: var(--canvas); }
+.kab-person:empty { display: none; }
+.kab-person > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.kab-person small { font: 400 13px/18px var(--font); color: var(--ink-secondary); }
+.kab-person-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.kab-person-bio { font: 400 15px/21px var(--font); overflow-wrap: anywhere; }
 .kab-people + .kab-people { margin-top: 32px; }
 .kab-delete a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 

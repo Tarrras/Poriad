@@ -4,7 +4,7 @@ import {
   instant, local, repeatTimes, endAfter, durationLabel, DURATIONS, mediaProblem, videoTooLong, fit, MEDIA,
   threadsPost, threadsIntent, firstLine, cleanText, rosterText, errorText, publishPlan, writeDraft, forgetDraft, recolorStub,
   priceProblem, priceParam, PRICE_TEXT, eventDraft, repeatDraft, passwordProblem, passwordMode, providersText, editorDefaults, sinceText, plural,
-  weakPasswordText, redirectErrorText, payPlan, TALK_PAYMENT_DETAILS,
+  weakPasswordText, redirectErrorText, payPlan, TALK_PAYMENT_DETAILS, talkStatus, talkFacts,
 } from "../site/js/kabinet.js";
 import { readFileSync } from "node:fs";
 
@@ -171,5 +171,17 @@ assert.equal(eventDraft(pricedEvent).payOnline, false);
 assert.equal(repeatDraft({ ...pricedEvent, pay_online: true, starts_at: "2026-10-01T16:00:00Z", ends_at: "2026-10-01T19:00:00Z" }).payOnline, true, "«Повторити» — з тим самим способом");
 assert.match(errorText({ status: 400, code: "PAYMENT_DETAILS" }), /у розмові з тими, хто записався/);
 assert.match(TALK_PAYMENT_DETAILS, /«Як платять» → «Онлайн»/);
+
+// Хто в розмові (кабінет): стан на події й рядки картки.
+const people = { roster: [{ user_id: "a", joined_at: "2026-11-02T10:00:00Z", via: "app" }], requests: [{ user_id: "g", joined_at: "2026-11-03T09:00:00Z", via: "web" }] };
+assert.deepEqual(talkStatus("g", { ...people, payOnline: true }), { stamp: "Чекає оплати", tone: "accent", at: "2026-11-03T09:00:00Z", via: "web", pending: true });
+assert.equal(talkStatus("a", { ...people, payOnline: true }).stamp, "Оплачено");
+assert.equal(talkStatus("a", people).stamp, "У списку");
+assert.equal(talkStatus("g", people).stamp, "Заявка");
+assert.deepEqual(talkStatus("x", people), { stamp: "Питає", tone: "", at: null, via: null, pending: false });
+assert.deepEqual(talkFacts({ member_since: "2026-09-12T10:00:00Z", attended: 3, organized: 0 }, talkStatus("g", { ...people, payOnline: true })),
+  { profile: "з нами з вересня 2026 · відвідано подій: 3", joined: "Заявка 3 листопада о 11:00 · з вебу" });
+assert.equal(talkFacts(null, talkStatus("x", people)).joined, "Ще не записались на подію");
+assert.equal(talkFacts(null, talkStatus("x", people)).profile, "");
 
 console.log("kabinet ok");
