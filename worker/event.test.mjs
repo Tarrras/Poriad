@@ -28,9 +28,16 @@ assert.ok(!community.includes("Оплата — напряму"), "безкош�
 
 // Оплата онлайн (docs/organizer-events.md): підпис і застереження «Поряд не відповідає» — раз на сторінці (у розмові —
 // під реквізитами, chat.js); у шторці — рядок довіри й смуга заявки з сумою.
-const online = eventPage({ ...base, price_min: 300, approval_required: true, pay_online: true }, now);
+const online = eventPage({ ...base, price_min: 300, approval_required: true, pay_online: true, refund_policy: "before_48h" }, now);
 assert.ok(online.includes("<b>300 ₴</b><small>Оплата онлайн організатору</small>"));
-assert.equal(online.split("«Поряд» не приймає оплату й не відповідає за неї.").length - 1, 1, "раз, а не на кожному кроці");
+assert.equal(online.split("«Поряд» не приймає оплату й не відповідає за неї.").length - 1, 2, "на сторінці й у кроці згоди перед заявкою — не на кожному кроці");
+// Перед заявкою — умови й правила повернення (20261125170000_pay_online_safety).
+assert.ok(online.includes('data-step="pay"') && online.includes("data-pay-agree") && online.includes("за 48 год до початку. Скасує організатор — поверне все."),
+  "згода платника з правилами повернення");
+const cancelledOnline = eventPage({ ...base, price_min: 300, approval_required: true, pay_online: true, refund_policy: "cancel_only", status: "cancelled",
+  organizer_id: "c3000000-0000-4000-8000-000000000003" }, now);
+assert.ok(cancelledOnline.includes("організатор має повернути гроші") && cancelledOnline.includes("data-ask>") && cancelledOnline.includes(" data-cancelled"),
+  "скасована онлайн-подія — про повернення й розмова відкрита");
 assert.ok(online.includes(' data-pay-online data-price="300">') && !online.includes("Участь за підтвердженням організатора."), "замість загального рядка — про оплату");
 assert.ok(online.includes("data-trust hidden") && online.includes("data-pay-bar hidden"), "довіра й стан заявки — у розмові");
 assert.ok(!priced.includes("data-pay-online") && !priced.includes("не відповідає за неї"), "на місці — без застереження");

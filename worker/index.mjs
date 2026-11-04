@@ -5,7 +5,7 @@
 
 // Назви, дати й ціна — ті самі правила, що на сайті (site/js/poriad.js, порт TitleRules і формату застосунку).
 // wrangler збирає цей імпорт у воркер; той самий файл сайт віддає браузеру.
-import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS, icsFile, payNote, PAY_ONLINE_FINE } from "../site/js/poriad.js";
+import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS, icsFile, payNote, PAY_ONLINE_FINE, refundText } from "../site/js/poriad.js";
 import { kabinetPage, geocode } from "./kabinet.mjs";
 export { esc };
 
@@ -216,7 +216,9 @@ export function eventPage(e, now, shelters = [], invite = null) {
   const parent = UUID.test(e.companion_of ?? "") ? { id: e.companion_of, title: displayTitle(e.companion_of_title || "подію") } : null;
   const cost = price(e);
   const spots = !imported && e.capacity ? `Учасників: ${e.attendee_count} з ${e.capacity}` : !imported && e.attendee_count > 0 ? `Учасників: ${e.attendee_count}` : null;
-  const notice = past ? "Ця подія вже минула." : cancelled ? (imported ? STATES.cancelled : "Подію скасовано.")
+  // Скасована онлайн-подія: організатор повертає гроші (Умови, «Оплата онлайн»), розмова про це лишається відкритою.
+  const notice = past ? "Ця подія вже минула." : cancelled ? (imported ? STATES.cancelled
+      : e.pay_online ? "Подію скасовано. Якщо ви вже оплатили, організатор має повернути гроші — напишіть йому в розмові." : "Подію скасовано.")
     : withdrawn ? STATES[state] : moved ? `Перенесено: було ${moved}. Якщо нова дата не підходить, квиток повертають там, де купували.` : null;
   const live = !cancelled && !withdrawn && !past;
   // «Не знайшли» — без тривоги: ми не знаємо, що сталось. Перенесена жива — теж не червоним.
@@ -265,9 +267,9 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
       <a href="poriad://event/${e.id}${by}"><i>${icon("bookmark")}</i>У «Поряд»</a>
       <a href="/afisha.html${e.city && e.city !== "Київ" ? `?city=${encodeURIComponent(e.city)}` : ""}" data-afisha><i>${icon("map")}</i>Афіша</a>
     </div>
-    ${!imported && e.pay_online ? `<p class="fine">${esc(PAY_ONLINE_FINE)}</p>`
+    ${!imported && e.pay_online ? `<p class="fine">${esc(PAY_ONLINE_FINE)}${e.refund_policy ? ` ${esc(refundText(e.refund_policy))}` : ""}</p>`
       : !imported && e.approval_required ? `<p class="fine">Участь за підтвердженням організатора.</p>` : ""}
-    ${!imported && live && UUID.test(e.organizer_id ?? "") ? `<button class="btn secondary ask" type="button" data-ask>${icon("chat")}Написати організатору</button>` : ""}
+    ${!imported && (live || (cancelled && e.pay_online && !past)) && UUID.test(e.organizer_id ?? "") ? `<button class="btn secondary ask" type="button" data-ask>${icon("chat")}Написати організатору</button>` : ""}
     ${imported && !past ? sellersSection(live ? liveOffers : offers, !live, e.checked_at, e.time_zone) : ""}
     ${e.description ? `<div class="block"><h2>Опис</h2><p class="description">${esc(e.description)}</p></div>` : ""}
     ${live ? sheltersSection(shelters) : ""}
@@ -354,7 +356,7 @@ function joinSheet(e, ct, now) {
   const name = e.organizer_name || "Організатор";
   const city = Object.entries(CITY_PAGES).find(([, [n]]) => n === e.city);
   const ages = `${e.min_age ? ` data-min-age="${Number(e.min_age)}"` : ""}${e.max_age ? ` data-max-age="${Number(e.max_age)}"` : ""}`;
-  return `<dialog class="install join-sheet" aria-label="Запис на подію" data-event="${e.id}" data-organizer="${organizer}" data-organizer-name="${esc(name)}" data-city="${esc(e.city ?? "")}"${ages}${e.pay_online ? ` data-pay-online data-price="${Number(e.price_min) || ""}"` : ""}>
+  return `<dialog class="install join-sheet" aria-label="Запис на подію" data-event="${e.id}" data-organizer="${organizer}" data-organizer-name="${esc(name)}" data-city="${esc(e.city ?? "")}"${ages}${e.pay_online ? ` data-pay-online data-price="${Number(e.price_min) || ""}"${e.status === "cancelled" ? " data-cancelled" : ""}` : ""}>
 <div class="install-box">
   <button class="round" type="button" data-close aria-label="Закрити">${icon("close")}</button>
   <section data-step="start">
@@ -375,6 +377,17 @@ function joinSheet(e, ct, now) {
       <button class="btn primary" type="submit">Підтвердити</button></form>
     <p class="links"><button class="link" type="button" data-resend disabled>Надіслати ще раз</button><button class="link" type="button" data-back>Інша пошта</button></p>
   </section>
+  ${e.pay_online ? `<section data-step="pay" hidden>
+    <h2>Оплата напряму організатору</h2>
+    <p class="lead">Заявка — це розмова з організатором: він напише, як оплатити, ви надішлете скріншот, а він підтвердить оплату.</p>
+    <ul class="pay-terms">
+      <li>Гроші йдуть організатору напряму. «Поряд» не приймає оплату й не відповідає за неї.</li>
+      ${e.refund_policy ? `<li>${esc(refundText(e.refund_policy))}</li>` : ""}
+      <li>Сумніваєтесь в організаторі — не платіть і поскаржтеся в розмові.</li>
+    </ul>
+    <button class="btn primary" type="button" data-pay-agree>Погоджуюсь і подаю заявку</button>
+    <p class="fine">Докладно — в <a href="/terms.html#online">Умовах, «Оплата онлайн»</a>.</p>
+  </section>` : ""}
   <section data-step="profile" hidden>
     <h2>Як вас звати?</h2>
     <form data-form="profile"><label class="field"><span>Імʼя</span><input name="name" autocomplete="name" maxlength="80" required></label>

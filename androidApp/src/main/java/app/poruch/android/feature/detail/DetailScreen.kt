@@ -279,6 +279,17 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit, focusRequ
     if (state.seekingCompany) CompanionSheet(event, state.screen.mutating, onIntent)
     // `AGE_REQUIRED`: організатор обмежив вік, а в акаунта лише галочка (чи віку нема зовсім). Дата — тут, і запис іде
     // одразу після неї.
+    if (state.confirmingPayTerms) PoruchConfirmSheet(
+        title = stringResource(R.string.pay_terms_title),
+        message = listOfNotNull(
+            stringResource(R.string.pay_terms_body), stringResource(R.string.pay_terms_direct),
+            refundText(state.screen.room?.refundPolicy), stringResource(R.string.pay_terms_doubt)
+        ).joinToString("\n\n"),
+        confirmLabel = stringResource(R.string.pay_terms_agree),
+        dismissLabel = stringResource(R.string.cancel),
+        onConfirm = { onIntent(DetailIntent.PayTermsAnswered(true)) },
+        onDismiss = { onIntent(DetailIntent.PayTermsAnswered(false)) }
+    )
     if (state.askingBirthDate) {
         val limited = state.screen.room?.let { it.minAge > SafetyRules.MIN_SIGNUP_AGE || it.maxAge != null } == true
         BirthDateSheet(

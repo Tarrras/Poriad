@@ -193,7 +193,7 @@ private fun PaymentRequestBar(
     status: PaymentStatus, organizer: Boolean, person: String, price: Int?, enabled: Boolean, onConfirm: () -> Unit, onDecline: () -> Unit
 ) {
     val colors = Poruch.colors
-    val awaiting = status != PaymentStatus.PAID
+    val awaiting = status != PaymentStatus.PAID && status != PaymentStatus.CANCELLED
     Column(
         Modifier.fillMaxWidth().background(if (awaiting) colors.accentContainer else colors.surfaceMuted)
             .padding(horizontal = Spacing.page, vertical = Spacing.md),
@@ -210,6 +210,8 @@ private fun PaymentRequestBar(
                         if (organizer) stringResource(R.string.pay_thread_proof_org, person) else stringResource(R.string.pay_thread_proof_mine)
                     PaymentStatus.PAID ->
                         if (organizer) stringResource(R.string.pay_thread_paid_org, person) else stringResource(R.string.pay_thread_paid_mine)
+                    PaymentStatus.CANCELLED ->
+                        stringResource(if (organizer) R.string.pay_thread_cancelled_org else R.string.pay_thread_cancelled_mine)
                 },
                 style = MaterialTheme.typography.bodyMedium, color = colors.ink, modifier = Modifier.weight(1f)
             )

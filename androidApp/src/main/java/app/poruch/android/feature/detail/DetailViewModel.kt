@@ -6,6 +6,7 @@ import app.poruch.android.mvi.MviViewModel
 import app.poruch.android.platform.NotificationPermission
 import app.poruch.domain.AppError
 import app.poruch.domain.FollowKind
+import app.poruch.shared.opensPaymentChat
 import app.poruch.shared.AppMessage
 import app.poruch.shared.AppNotice
 import app.poruch.shared.DetailAction
@@ -49,6 +50,11 @@ class DetailViewModel(
                 screen.matchedCompanion?.let { app.clearMatchedCompanion(); send(DetailEffect.OpenEvent(it)) }
                 // Записались (чи в черзі, чи запит пішов): повтор більше не потрібен.
                 if (screen.room?.joined == true || screen.room?.awaitingApproval == true || screen.waitlisted) join = null
+                // Заявка на онлайн-подію пройшла (і після дати народження теж) — тепер розмова з організатором.
+                if (chatAfterRequest && screen.opensPaymentChat) {
+                    chatAfterRequest = false
+                    screen.userId?.let { send(DetailEffect.OpenChat(eventId, it)) }
+                }
                 val detail = app.state.value.detail
                 val detailed = !screen.loading && detail.failure == null && detail.event?.id == screen.event?.id
                 reduce { copy(screen = screen, detailed = detailed) }
@@ -64,7 +70,7 @@ class DetailViewModel(
                         reduce { copy(askingBirthDate = true) }
                     }
                     // Запис відмовлено з іншої причини: повторювати нема чого (і інший екран деталей не перехопить чужу помилку).
-                    notice is AppNotice.Failed -> { join = null; reduce { copy(stampPending = false) } }
+                    notice is AppNotice.Failed -> { join = null; chatAfterRequest = false; reduce { copy(stampPending = false) } }
                 }
                 if (declaring && shared.notice == AppNotice.Told(AppMessage.AGE_CONFIRMED)) {
                     declaring = false
@@ -75,6 +81,9 @@ class DetailViewModel(
             }
         }
     }
+
+    /** Погодився на умови оплати онлайн: розмову відкриваємо, коли заявка справді з'явиться, а не одразу. */
+    private var chatAfterRequest = false
 
     /** Запис, що пам'ятає себе для повтору після дати народження. */
     private fun joining(action: () -> Unit) {
@@ -124,11 +133,10 @@ class DetailViewModel(
             } else authenticated(AuthReason.JOIN) {
                 when (screen.action) {
                     // Штамп — відповідь на цей тап: панель перемкнеться, коли сервер підтвердить.
-                    DetailAction.JOIN, DetailAction.REQUEST -> {
-                        reduce { copy(stampPending = true) }; joining { app.joinEvent(eventId) }
-                        // Заявка на онлайн-подію — це розмова з організатором: відкриваємо її одразу.
-                        if (screen.action == DetailAction.REQUEST && screen.payOnline) screen.userId?.let { send(DetailEffect.OpenChat(eventId, it)) }
-                    }
+                    DetailAction.JOIN, DetailAction.REQUEST ->
+                        // Заявка на онлайн-подію — спершу умови оплати напряму й правила повернення.
+                        if (screen.action == DetailAction.REQUEST && screen.payOnline) reduce { copy(confirmingPayTerms = true) }
+                        else { reduce { copy(stampPending = true) }; joining { app.joinEvent(eventId) } }
 
                     DetailAction.LEAVE -> app.leaveEvent(eventId)
                     DetailAction.JOIN_WAITLIST -> { reduce { copy(stampPending = true) }; joining { app.joinWaitlist(eventId) } }
@@ -243,6 +251,14 @@ class DetailViewModel(
 
             DetailIntent.Edit -> if (state.value.detailed) send(DetailEffect.Edit(eventId))
             is DetailIntent.ConfirmCancel -> reduce { copy(confirmingCancel = intent.open) }
+            // Погодився — заявка зі згодою (accept_pay_terms) і одразу розмова з організатором: заявка — це вона.
+            is DetailIntent.PayTermsAnswered -> {
+                reduce { copy(confirmingPayTerms = false, stampPending = intent.agreed) }
+                if (intent.agreed) {
+                    chatAfterRequest = true
+                    joining { app.requestOnlineEvent(eventId) }
+                }
+            }
             DetailIntent.CancelEvent -> {
                 reduce { copy(confirmingCancel = false) }
                 app.cancelEvent(eventId)

@@ -664,7 +664,9 @@ internal fun Facts(event: Event) {
             add(Triple(stringResource(R.string.organizer_short), room.organizerName.ifBlank { stringResource(R.string.organizer_short) }, null))
             add(Triple(stringResource(R.string.capacity_label), stringResource(R.string.attendees_short, room.attendeeCount, room.capacity), null))
             // Ціна й як платять — на місці чи онлайн організатору, не через нас.
-            val payHint = stringResource(if (room.payOnline) R.string.price_pay_online_hint else R.string.price_pay_hint)
+            // Онлайн — ще й правила повернення: людина бачить їх до заявки.
+            val payHint = if (room.payOnline) listOfNotNull(stringResource(R.string.price_pay_online_hint), refundText(room.refundPolicy)).joinToString(" ")
+                else stringResource(R.string.price_pay_hint)
             peoplePrice(event)?.let { add(Triple(stringResource(R.string.price_fact), it, payHint)) }
         }
     }

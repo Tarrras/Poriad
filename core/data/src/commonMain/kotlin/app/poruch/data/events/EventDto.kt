@@ -1,5 +1,6 @@
 package app.poruch.data.events
 
+import app.poruch.domain.RefundPolicy
 import app.poruch.domain.Artist
 import app.poruch.domain.ArtistHit
 import app.poruch.domain.ArtistRadar
@@ -98,7 +99,8 @@ internal data class EventDto(
     val offers: List<OfferDto> = emptyList(),
     // Міграція 20261118120000: фото й відео від організатора. Картки з `discover_events` і кеш до неї поля не несуть.
     val media: List<MediaDto>? = null,
-    @SerialName("pay_online") val payOnline: Boolean = false
+    @SerialName("pay_online") val payOnline: Boolean = false,
+    @SerialName("refund_policy") val refundPolicy: String? = null
 ) {
     fun domain() = Event(
         id = id, title = title, description = description, category = EventCategory.fromKey(category),
@@ -131,7 +133,8 @@ internal data class EventDto(
             pendingMeet = meetProposed?.let { proposed -> meetDecideBy?.let { PendingMeet(proposed, it) } },
             // Ціна людини — ціле; `price_min` спільний з афішею, тож тут дробу не буває.
             price = priceMin?.toInt()?.takeIf { it > 0 },
-            payOnline = payOnline && (priceMin ?: 0.0) > 0
+            payOnline = payOnline && (priceMin ?: 0.0) > 0,
+            refundPolicy = RefundPolicy.of(refundPolicy)
         )
     }
 

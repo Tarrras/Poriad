@@ -1,5 +1,7 @@
 package app.poruch.data.events
 
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.buildJsonObject
 import app.poruch.domain.AuthRepository
 import app.poruch.domain.CompanyMatch
 import app.poruch.domain.EventParticipation
@@ -14,6 +16,9 @@ internal class SupabaseEventParticipation(
     private val mine: MineCache? = null
 ) : EventParticipation {
     override suspend fun join(id: String) { rpc.call("join_event", rpc.eventParams(id)) }
+    override suspend fun acceptPaymentTerms(id: String) {
+        rpc.call("accept_pay_terms", buildJsonObject { put("p_role", "payer"); put("p_event_id", id) })
+    }
     override suspend fun leave(id: String) { rpc.call("leave_event", rpc.eventParams(id)) }
 
     override suspend fun waitlistIds(): List<String> {

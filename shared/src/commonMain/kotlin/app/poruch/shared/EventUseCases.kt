@@ -46,7 +46,15 @@ internal class EventUseCases(
         pendingCreation = null
     }
 
-    fun join(id: String) = store.mutate {
+    /** Заявка на онлайн-подію: спершу згода на умови оплати (людина щойно їх бачила), потім сама заявка. */
+    fun requestOnline(id: String) = store.mutate {
+        participation.acceptPaymentTerms(id)
+        joinNow(id)
+    }
+
+    fun join(id: String) = store.mutate { joinNow(id) }
+
+    private suspend fun joinNow(id: String) {
         PoruchLog.i("action") { "joinEvent ${id.shortId()}" }
         // Супутник — з картки на сторінці афіші або зі своєї сторінки. Завжди за запитом.
         val fromCard = store.value.detail.companions?.any { it.id == id } == true

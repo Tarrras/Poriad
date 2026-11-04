@@ -194,6 +194,11 @@ const ERRORS = {
   NOT_MEMBER: "Написати можна лише тим, хто записався, подав заявку чи вже писав вам",
   // Сторінку відкрили, поки оплату онлайн ще не вимкнули (20261125160000_pay_online_switch).
   PAY_ONLINE_OFF: "Оплату онлайн тимчасово вимкнено. Оновіть сторінку — подія буде з оплатою на місці",
+  // Безпека оплати онлайн (20261125170000_pay_online_safety).
+  PAY_ONLINE_LIMIT: "Ціна чи кількість місць більші, ніж зараз можна вам з оплатою онлайн. Зменште їх або оберіть «На місці»",
+  PAY_TERMS_REQUIRED: "Погодьтеся з Правилами оплати онлайн",
+  REFUND_POLICY_REQUIRED: "Оберіть, як повертаєте гроші",
+  PAY_ONLINE_BLOCKED: "Оплату онлайн для вас призупинено після скарг учасників. Оберіть «На місці» чи напишіть на hello@poriad.app",
 };
 /** Реквізити в розмові події «на місці»: інший текст, ніж для опису. */
 export const TALK_PAYMENT_DETAILS = "Реквізити в розмові — лише для подій з оплатою онлайн. Увімкніть її в редагуванні: «Як платять» → «Онлайн».";
@@ -1196,6 +1201,9 @@ function doneTicket(e) {
 let editing = null; // подія, яку редагуємо; null — нова
 // Оплата онлайн за вимикачем на сервері (`pay_online_enabled`, 20261125160000): вимкнено — «Як платять» не показуємо.
 let payOnlineOn = true;
+// Що можна цьому організатору з оплатою онлайн (`my_pay_online_limits`): межі рівня, згода, наступний рівень. null —
+// ще не питали, undefined — питаємо.
+let payLimits = null;
 let media = []; // [{ key, kind, url?, poster?, blob?, posterBlob?, copied? }]
 let place = { lat: null, lon: null, placed: false };
 let minutes = 120; // тривалість, яку тримають чипи й зсув початку
@@ -1210,7 +1218,7 @@ const blank = () => {
   const d = editorDefaults(me?.user_metadata);
   return { title: "", description: "", category: null, city: d.city ?? (ui?.savedCity.get() || CITIES[0].name), address: "", lat: null, lon: null, placed: false,
     startDate: "", startTime: "", endDate: "", endTime: "", capacity: 10, minAge: 18, maxAge: "", approval: d.approval ?? false, contact: d.contact ?? "", price: "",
-    payOnline: false, id: null };
+    payOnline: false, refund: "", payTerms: false, id: null };
 };
 
 function readDraft() { try { return JSON.parse(localStorage.getItem(DRAFT)); } catch { return null; } }
@@ -1284,7 +1292,7 @@ export function eventDraft(e) {
   return { ...blank(), title: e.title, description: e.description ?? "", category: e.category, city: e.city, address: e.address ?? "",
     lat: e.latitude, lon: e.longitude, placed: true, startDate: start.date, startTime: start.time, endDate: end.date, endTime: end.time,
     capacity: e.capacity ?? 10, minAge: e.min_age ?? 18, maxAge: e.max_age ?? "", approval: Boolean(e.approval_required), contact: e.contact_url ?? "", tz,
-    payOnline: Boolean(e.pay_online),
+    payOnline: Boolean(e.pay_online), refund: e.refund_policy ?? "",
     price: Number(e.price_min) > 0 ? String(Math.round(Number(e.price_min))) : "" };
 }
 
@@ -1295,6 +1303,8 @@ function fill(d) {
   f.city.value = CITIES.some((c) => c.name === d.city) ? d.city : CITIES[0].name;
   f.approval.checked = Boolean(d.approval);
   for (const radio of $$("[name=pay]", f)) radio.checked = radio.value === (d.payOnline ? "online" : "onsite");
+  for (const radio of $$("[name=refund]", f)) radio.checked = radio.value === d.refund;
+  f.payterms.checked = Boolean(d.payTerms);
   payView();
   f.dataset.id = d.id ?? "";
   f.dataset.tz = d.tz ?? TZ;
@@ -1310,7 +1320,7 @@ function fill(d) {
 function draft() {
   const f = form();
   const d = { id: f.dataset.id || null, tz: f.dataset.tz || TZ, category: f.dataset.category || null, approval: f.approval.checked, city: f.city.value, ...place,
-    payOnline: f.pay.value === "online" };
+    payOnline: f.pay.value === "online", refund: f.refund.value, payTerms: f.payterms.checked };
   for (const name of FIELDS) d[name] = f[name].value;
   return d;
 }
@@ -1342,6 +1352,10 @@ function payView() {
   hint.textContent = plan.hint;
   hint.hidden = !plan.paid;
   if (plan.online) f.approval.checked = true;
+  $("[data-pay-online]").hidden = !plan.online;
+  $("[data-pay-limits]").textContent = payLimitsText(payLimits);
+  $("[data-pay-terms-box]").hidden = Boolean(payLimits?.terms);
+  if (plan.online && me && payLimits === null) loadPayLimits();
   f.approval.disabled = plan.online;
   $("[data-approval-note]").textContent = plan.online
     ? "З оплатою онлайн — завжди: людина подає заявку, а ви підтверджуєте оплату"
@@ -1639,7 +1653,40 @@ function problems(d) {
   if (!(+d.capacity >= 1)) out.push("Кількість місць — від 1 до 10000");
   const price = priceProblem(d.price);
   if (price) out.push(price);
+  if (payOnlineOn && payPlan(d.price, d.payOnline).online) out.push(...payProblems(d, payLimits, editing));
   return out;
+}
+
+/** Межі й згода організатора — з сервера, раз за сесію кабінету (згода й рівень змінюються рідко). */
+async function loadPayLimits() {
+  payLimits = undefined;
+  try { payLimits = (await rpc("my_pay_online_limits")) ?? null; } catch { payLimits = null; }
+  payView();
+}
+
+/**
+ * Оплата онлайн у редакторі (20261125170000_pay_online_safety): правила повернення, згода й межі рівня. Межі — лише
+ * для нової онлайн-події чи зміненої ціни й місць: стара подія, вища за рівень, лишається як є (так і сервер).
+ */
+export function payProblems(d, limits, before = null) {
+  const out = [];
+  if (!d.refund) out.push("Оберіть, як повертаєте гроші");
+  if (!limits) return out;
+  if (limits.enabled === false) return [...out, "Оплату онлайн для вас призупинено. Оберіть «На місці»"];
+  if (!limits.terms && !d.payTerms) out.push("Погодьтеся з Правилами оплати онлайн");
+  const changed = !before?.pay_online || priceParam(d.price) !== Number(before.price_min) || +d.capacity !== Number(before.capacity);
+  if (changed && priceParam(d.price) > limits.max_price) out.push(`З оплатою онлайн вам зараз можна до ${priceText(limits.max_price)} за людину`);
+  if (changed && +d.capacity > limits.max_capacity) out.push(`З оплатою онлайн вам зараз можна до ${limits.max_capacity} місць`);
+  return out;
+}
+
+/** Межі зараз і що відкриється далі — щоб новий організатор знав, як отримати більше. */
+export function payLimitsText(l) {
+  if (!l) return "";
+  if (l.enabled === false) return "Оплату онлайн для вас призупинено після скарг учасників. Напишіть на hello@poriad.app, щоб розібратись.";
+  const now = `Вам зараз — до ${priceText(l.max_price)} за людину й до ${l.max_capacity} місць.`;
+  const next = l.next ? ` Після ${plural(l.next.held, ["проведеної події", "проведених подій", "проведених подій"])} з учасниками й ${l.next.days} днів на «Поряд» — до ${priceText(l.next.max_price)} і ${l.next.max_capacity} місць.` : "";
+  return now + next;
 }
 
 function params(d, id) {
@@ -1651,6 +1698,7 @@ function params(d, id) {
     p_max_age: d.maxAge === "" ? null : Math.round(+d.maxAge), p_approval_required: d.approval || online,
     // Вимкнено — спосіб оплати не чіпаємо (null): увімкнуть знову — подія, що була онлайн, знову онлайн.
     p_contact_url: d.contact.trim() || null, p_price: priceParam(d.price), p_pay_online: payOnlineOn ? online : null,
+    p_refund_policy: payOnlineOn && online ? d.refund : null,
   };
 }
 
@@ -1704,6 +1752,16 @@ async function publish() {
   if (wrong.length) return;
   if (!editing) writeDraft(d); // вхід через Google перезавантажить сторінку
   if (!(await account({ lead: "Подія майже готова. Увійдіть, щоб опублікувати її: тією самою поштою чи Google, що й у застосунку.", intent: { publish: true } }))) return;
+  // Оплата онлайн: межі й згода — після входу (гостю їх не знати), згода — до створення події.
+  if (payOnlineOn && payPlan(d.price, d.payOnline).online) {
+    if (!payLimits) await loadPayLimits();
+    const pay = payProblems(d, payLimits, editing);
+    error.textContent = pay.join(". ");
+    if (pay.length) return;
+    if (payLimits && !payLimits.terms) {
+      try { await rpc("accept_pay_terms", { p_role: "organizer" }); payLimits.terms = true; } catch (e) { error.textContent = errorText(e); return; }
+    }
+  }
   busy.add("publish");
   button.disabled = true;
   // Поки вантажаться файли — квиток друкується (П2), лічильник файлів під ним; закрити накладку посеред запису не можна.

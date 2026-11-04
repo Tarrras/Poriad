@@ -236,16 +236,18 @@ async function forDecision(db: ReturnType<typeof createClient>, p: Extract<Paylo
 }
 
 // Скасування й перенесення: підтверджені учасники, крім організатора й тих, хто заблокований з ним
-// у будь-який бік.
+// у будь-який бік. Скасована онлайн-подія — ще й ті, чия заявка чекала: вони могли вже оплатити.
 async function forEvent(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "event" }>) {
-  const { data: e } = await db.from("events").select("id,title,organizer_id,status,starts_at,time_zone").eq("id", p.event_id).maybeSingle();
+  const { data: e } = await db.from("events").select("id,title,organizer_id,status,starts_at,time_zone,pay_online").eq("id", p.event_id).maybeSingle();
   if (!e || !e.organizer_id || e.status !== (p.kind === "cancelled" ? "cancelled" : "published")) return { push: null, recipients: [] };
-  const { data: members } = await db.from("event_members").select("user_id").eq("event_id", e.id).eq("status", "approved");
+  const paid = p.kind === "cancelled" && e.pay_online === true;
+  const { data: members } = await db.from("event_members").select("user_id").eq("event_id", e.id).in("status", paid ? ["approved", "requested"] : ["approved"]);
   const people = (members ?? []).map((r) => r.user_id as string).filter((id) => id !== e.organizer_id);
   const recipients = await withoutBlocked(db, people, e.organizer_id as string);
   const body = {
     moved: `Перенесено на ${when(e.starts_at as string, e.time_zone as string)}`,
-    cancelled: "Подію скасовано",
+    // Умови, «Оплата онлайн»: скасував організатор — він повертає гроші; розмова про оплату лишається відкритою.
+    cancelled: paid ? "Подію скасовано. Якщо ви вже оплатили, організатор має повернути гроші — напишіть йому в розмові" : "Подію скасовано",
   }[p.kind];
   // Ключ з часом: друге перенесення — нове сповіщення, а не тиха заміна першого.
   return { push: { kind: p.kind, eventId: e.id as string, title: e.title as string, body, key: `${e.id}:${p.kind}:${Date.now()}` }, recipients };

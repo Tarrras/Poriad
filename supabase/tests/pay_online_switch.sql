@@ -16,9 +16,12 @@ declare v record;
 begin
  perform set_config('request.jwt.claim.sub',current_setting('test.host'),true);
  assert public.pay_online_enabled(),'switch on';
+ -- Згода організатора на «Правила оплати онлайн» (20261125170000_pay_online_safety).
+ perform public.accept_pay_terms('organizer');
  perform public.create_event(current_setting('test.online')::uuid,'Online paid games','Pay online before we meet','games','Kyiv','Podil',50.46,30.52,
-  now()+interval '2 days',now()+interval '2 days 3 hours','Europe/Kyiv',10,null,18,null,false,null,null,'web',300,true);
+  now()+interval '2 days',now()+interval '2 days 3 hours','Europe/Kyiv',10,null,18,null,false,null,null,'web',300,true,'cancel_only');
  perform set_config('request.jwt.claim.sub',current_setting('test.guest'),true);
+ perform public.accept_pay_terms('payer',current_setting('test.online')::uuid); -- бачив правила повернення
  perform public.join_event(current_setting('test.online')::uuid);
  perform set_config('request.jwt.claim.sub',current_setting('test.host'),true);
  perform public.send_message(current_setting('test.online')::uuid,'Картка 4111 1111 1111 1111, 300 грн',current_setting('test.guest')::uuid);
@@ -38,7 +41,7 @@ begin
  select * into v from public.event_details(current_setting('test.online')::uuid);
  assert not v.pay_online and v.approval_required,'organizer sees onsite, approval stays';
  begin perform public.create_event(gen_random_uuid(),'Another online','Pay online','games','Kyiv','Podil',50.46,30.52,
-  now()+interval '2 days',now()+interval '2 days 3 hours','Europe/Kyiv',10,null,18,null,false,null,null,'web',300,true);
+  now()+interval '2 days',now()+interval '2 days 3 hours','Europe/Kyiv',10,null,18,null,false,null,null,'web',300,true,'cancel_only');
   raise exception 'online event created while off';
  exception when sqlstate 'P0001' then assert sqlerrm='PAY_ONLINE_OFF','no new online events'; end;
  begin perform public.send_message(current_setting('test.online')::uuid,'Ще раз: 4111 1111 1111 1111',current_setting('test.guest')::uuid);

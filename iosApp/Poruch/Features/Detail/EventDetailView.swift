@@ -97,6 +97,8 @@ struct EventDetailView: View, Equatable {
     @State var matched: EventRoute?
     /// Розмова, яку організатор відкрив з картки людини («Написати»).
     @State var writingTo: ChatRoute?
+    /// Онлайн-подія: умови оплати перед заявкою; після згоди — заявка й розмова з організатором.
+    @State var payTermsFor: PayTermsTarget?
     /// Системне «Поділитися» з готовим текстом: щойно створений супутник чи «Покликати».
     @State var sharing: ShareText?
     /// «Покликати» чекає посилання від сервера: повторний тап нічого не робить.
@@ -214,6 +216,7 @@ struct EventDetailView: View, Equatable {
         }
         .navigationDestination(item: $matched) { EventDetailView(app: model.app, eventID: $0.id).equatable().id($0.id) }
         .navigationDestination(item: $writingTo) { ChatView(eventID: $0.id, thread: $0.thread) }
+        .modifier(PayTermsFlow(target: $payTermsFor, writingTo: $writingTo, joinTapped: $joinTapped, requested: view.opensPaymentChat))
         .sheet(isPresented: $seekingCompany) { if let event = view.event { CompanionSheet(event: event) } }
         .sheet(item: $movingMeet) { target in
             if let event = view.event, let parent = view.companionOf, let start = parent.startsAt {

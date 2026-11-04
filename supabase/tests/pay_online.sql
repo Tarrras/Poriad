@@ -31,8 +31,10 @@ declare v record;
 begin
  perform set_config('request.jwt.claim.sub',current_setting('test.host'),true);
  -- Онлайн з ціною — онлайн і за підтвердженням, хоч клієнт підтвердження й не просив.
+ -- Згода організатора на «Правила оплати онлайн» (20261125170000_pay_online_safety).
+ perform public.accept_pay_terms('organizer');
  perform public.create_event(current_setting('test.online')::uuid,'Online paid games','Pay online before we meet','games','Kyiv','Podil',50.46,30.52,
-  now()+interval '2 days',now()+interval '2 days 3 hours','Europe/Kyiv',10,null,18,null,false,null,null,'web',300,true);
+  now()+interval '2 days',now()+interval '2 days 3 hours','Europe/Kyiv',10,null,18,null,false,null,null,'web',300,true,'cancel_only');
  select * into v from public.event_details(current_setting('test.online')::uuid);
  assert v.pay_online and v.approval_required,'online implies approval';
  -- Онлайн без ціни — на місці.
@@ -42,7 +44,7 @@ begin
  assert not v.pay_online and not v.approval_required,'online without a price is onsite';
  -- Реквізити в описі — ні.
  begin perform public.create_event(gen_random_uuid(),'Bad','Prepay to 4111 1111 1111 1111','games','Kyiv','Podil',50.46,30.52,
-  now()+interval '2 days',now()+interval '2 days 3 hours','Europe/Kyiv',10,null,18,null,false,null,null,'app',300,true);
+  now()+interval '2 days',now()+interval '2 days 3 hours','Europe/Kyiv',10,null,18,null,false,null,null,'app',300,true,'cancel_only');
   raise exception 'card in the description accepted';
  exception when sqlstate '22023' then assert sqlerrm='PAYMENT_DETAILS','no card in the description'; end;
  begin perform public.update_event(current_setting('test.online')::uuid,'Online paid games','Банка send.monobank.ua/jar/x','games','Kyiv','Podil',50.46,30.52,
@@ -58,6 +60,7 @@ begin
 
  -- Гість записується (заявка), організатор пише першим і надсилає реквізити; гість бачить позначку.
  perform set_config('request.jwt.claim.sub',current_setting('test.guest'),true);
+ perform public.accept_pay_terms('payer',current_setting('test.online')::uuid); -- бачив правила повернення
  perform public.join_event(current_setting('test.online')::uuid);
  select * into v from public.event_details(current_setting('test.online')::uuid);
  assert v.membership='requested','online join is a request';

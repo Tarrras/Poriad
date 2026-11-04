@@ -246,7 +246,9 @@ data class Gathering(
     /** Ціна входу в гривнях, точна, без «від» (`events.price_min`). Null — безкоштовно. */
     val price: Int? = null,
     /** Оплата онлайн організатору, реквізити — у розмові на двох; false — на місці. Лише з ціною й завжди за підтвердженням. */
-    val payOnline: Boolean = false
+    val payOnline: Boolean = false,
+    /** Оплата онлайн: як повертаються гроші — людина бачить до заявки. Null — подія не онлайн. */
+    val refundPolicy: RefundPolicy? = null
 ) {
     val seatsLeft get() = (capacity - attendeeCount).coerceAtLeast(0)
 

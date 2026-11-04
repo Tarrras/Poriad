@@ -70,6 +70,8 @@ private val AppError.resource: Int
         AppError.TooManyMessages -> R.string.err_too_many_messages
         AppError.InvalidMessage -> R.string.err_invalid_message
         AppError.PaymentDetails -> R.string.err_payment_details
+        AppError.PaymentTermsRequired -> R.string.err_payment_terms
+        AppError.PaidEventsActive -> R.string.err_paid_events_active
         AppError.ObjectionableContent -> R.string.err_objectionable
         is AppError.InvalidDraft -> R.string.err_rejected
     }

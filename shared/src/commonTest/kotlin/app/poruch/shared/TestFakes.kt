@@ -211,7 +211,9 @@ internal class Events: EventDiscovery, SavedEvents, EventAuthoring, EventPartici
     override suspend fun announcement(text:String,city:String,today:String,timeZone:String):AnnouncementFill {
         announceCalls+=listOf(text,city,today,timeZone); announceError?.let { fail(it) }; return announced
     }
-    override suspend fun join(id:String) {}
+    val participationCalls=mutableListOf<String>()
+    override suspend fun join(id:String) { participationCalls+="join:$id" }
+    override suspend fun acceptPaymentTerms(id:String) { participationCalls+="terms:$id" }
     override suspend fun leave(id:String) {}
     override suspend fun waitlistIds()=emptyList<String>()
     override suspend fun joinWaitlist(id:String) {}

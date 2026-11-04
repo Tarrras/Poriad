@@ -8,12 +8,11 @@ import app.poruch.shared.PoruchApp
 import app.poruch.shared.canSendPaymentProof
 import app.poruch.shared.paymentInOpenChat
 import app.poruch.shared.threadPersonName
+import app.poruch.shared.chatReadOnly
 import app.poruch.shared.repeatablePaymentDetails
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlin.time.Clock
-import kotlin.time.Duration.Companion.days
 
 /**
  * Екран чату однієї події або, з [thread] (хто питає), розмови «Запитати організатора». Опитування веде спільний шар:
@@ -27,7 +26,6 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
         observe(app) { shared ->
             val event = shared.knownEvent(eventId)
             val chat = shared.chat?.takeIf { it.eventId == eventId && it.thread == thread }
-            val now = Clock.System.now()
             copy(
                 title = event?.title ?: title,
                 members = event?.gathering?.let { it.attendeeCount + 1 } ?: members,
@@ -41,7 +39,8 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
                 userId = shared.session.userId,
                 organizer = event != null && shared.organizes(event),
                 // Той самий поріг, що на сервері: тиждень після кінця.
-                readOnly = event != null && (event.isCancelled || event.endInstant?.let { it + CHAT_GRACE < now } == true),
+                // Той самий поріг, що на сервері; розмова про оплату — 30 днів і після скасування (OnlinePayment.kt).
+                readOnly = event != null && event.chatReadOnly(thread != null),
                 person = shared.person,
                 followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId },
                 canSendPaymentProof = chat != null && shared.canSendPaymentProof(),
@@ -109,9 +108,5 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
     override fun onCleared() {
         app.closeChat(eventId); app.closePerson()
         super.onCleared()
-    }
-
-    private companion object {
-        val CHAT_GRACE = 7.days
     }
 }

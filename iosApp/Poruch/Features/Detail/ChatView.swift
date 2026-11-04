@@ -69,12 +69,8 @@ struct ChatView: View {
         return organizer || paymentStatus == .paid || chat?.messages.isEmpty == false
     }
     /// Той самий поріг, що на сервері: тиждень після кінця.
-    private var readOnly: Bool {
-        guard let event else { return false }
-        if event.isCancelled { return true }
-        guard let end = parseEventDate(event.endsAt) else { return false }
-        return end.addingTimeInterval(7 * 24 * 3600) < Date()
-    }
+    /// Той самий поріг, що на сервері; розмова про оплату — 30 днів і після скасування (OnlinePayment.kt).
+    private var readOnly: Bool { event?.chatReadOnly(thread: thread != nil) ?? false }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -469,7 +465,7 @@ private struct PaymentRequestBar: View {
     let confirm: () -> Void
     let decline: () -> Void
 
-    private var awaiting: Bool { status != .paid }
+    private var awaiting: Bool { status != .paid && status != .cancelled }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
@@ -516,6 +512,7 @@ private struct PaymentRequestBar: View {
         case .waitingForDetails: organizer ? Copy.pay_thread_details_org(person) : Copy.pay_thread_details_mine
         case .waitingForPayment: organizer ? Copy.pay_thread_waiting_org(person) : Copy.pay_thread_waiting_mine
         case .proofSent: organizer ? Copy.pay_thread_proof_org(person) : Copy.pay_thread_proof_mine
+        case .cancelled: organizer ? Copy.pay_thread_cancelled_org : Copy.pay_thread_cancelled_mine
         default: organizer ? Copy.pay_thread_paid_org(person) : Copy.pay_thread_paid_mine
         }
     }

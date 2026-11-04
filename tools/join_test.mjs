@@ -80,6 +80,7 @@ assert.equal(payStatus("payment", "250 ₴").title, "Реквізити в ро�
 assert.ok(payStatus("payment", "").text.startsWith("Оплатіть за реквізитами"), "без ціни — без подвійного пробілу");
 assert.equal(payStatus("proof").title, "Оплату перевіряє організатор");
 assert.equal(PAY_BAR.paid, "Оплачено — ви в списку.");
+assert.match(PAY_BAR.cancelled, /організатор має повернути гроші/);
 // Довіра замість тривоги: хто організатор, тими самими словами, що в застосунку.
 assert.equal(organizerTrust({ display_name: "Марта", member_since: "2026-09-12T10:00:00Z", organized: 3 }), "Марта · На «Поряд» з вересня 2026 · 3 події організовано");
 assert.equal(organizerTrust({ display_name: "Марта", member_since: null, organized: 0 }), "Марта", "новачок — лише імʼя");

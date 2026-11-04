@@ -65,6 +65,7 @@ export const PAY_BAR = {
   payment: "Оплатіть за реквізитами й надішліть сюди скріншот.",
   proof: "Скріншот надіслано: організатор звірить оплату й підтвердить заявку.",
   paid: "Оплачено — ви в списку.",
+  cancelled: "Подію скасовано. Якщо ви вже оплатили, організатор має повернути гроші — напишіть йому тут.",
 };
 
 /** Помилки входу й дрібних дій — текстом під формою. */
@@ -150,6 +151,7 @@ export function start(sheet) {
   let stage = "details"; // оплата онлайн: де заявка за розмовою (payStage)
   let person = null; // чия розмова з організатором відкрита: моя заявка
   let talked = false; // у розмові вже щось є: порожню пояснює її власний текст, смуга лише повторила б його
+  let agreed = false; // оплата онлайн: людина погодилась на умови цієї події (accept_pay_terms) — можна подавати заявку
   let state = "none";
   let shown = null; // що зараз у шторці
   let version = 0; // скільки разів мінявся стан: тихе оновлення не перезаписує свіжішого
@@ -192,6 +194,8 @@ export function start(sheet) {
     el.hidden = false;
   }
   function fail(e) {
+    // Сервер не знайшов згоди на оплату онлайн (інша вкладка, стара сторінка) — показуємо умови ще раз.
+    if (e?.code === "PAY_TERMS_REQUIRED" && payOnline) { agreed = false; return open("pay"); }
     const kind = outcome(e?.code);
     if (kind === "profile") return askProfile();
     if (kind === "start") return open("start");
@@ -288,7 +292,8 @@ export function start(sheet) {
   function paintPayBar() {
     const payBar = payOnline && $("[data-pay-bar]");
     if (!payBar) return;
-    const text = state === "approved" ? PAY_BAR.paid : state === "requested" && talked ? PAY_BAR[stage] : "";
+    const text = "cancelled" in data && state !== "none" ? PAY_BAR.cancelled
+      : state === "approved" ? PAY_BAR.paid : state === "requested" && talked ? PAY_BAR[stage] : "";
     payBar.hidden = !text;
     payBar.querySelector("span").textContent = text;
     payBar.querySelector("b").textContent = sum;
@@ -316,6 +321,8 @@ export function start(sheet) {
     refresh().catch(() => {}); // кнопка внизу має знати, що людина записана
   }
   async function join(waitlist = false) {
+    // Онлайн-подія: спершу умови оплати напряму й правила повернення (згода зберігається на сервері).
+    if (payOnline && !waitlist && !agreed) return open("pay");
     try {
       await rpc(waitlist ? "join_waitlist_web" : "join_event_web", { p_event: id });
     } catch (e) {
@@ -622,6 +629,11 @@ export function start(sheet) {
     await join();
   }));
   $("[data-waitlist]").addEventListener("click", task(() => join(true)));
+  $("[data-pay-agree]")?.addEventListener("click", task(async () => {
+    await rpc("accept_pay_terms", { p_role: "payer", p_event_id: id });
+    agreed = true;
+    await join();
+  }));
   $("[data-leave]").addEventListener("click", task(leave));
   $("[data-unfollow]")?.addEventListener("click", task(unfollow));
   $("[data-signout]")?.addEventListener("click", task(leaveAccount));

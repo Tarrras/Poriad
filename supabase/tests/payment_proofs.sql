@@ -16,11 +16,14 @@ set local role authenticated;
 do $$
 begin
  perform set_config('request.jwt.claim.sub',current_setting('test.host'),true);
+ -- Згода організатора на «Правила оплати онлайн» (20261125170000_pay_online_safety).
+ perform public.accept_pay_terms('organizer');
  perform public.create_event(current_setting('test.online')::uuid,'Online paid games','Pay online before we meet','games','Kyiv','Podil',50.46,30.52,
-  now()+interval '2 days',now()+interval '2 days 3 hours','Europe/Kyiv',10,null,18,null,false,null,null,'web',300,true);
+  now()+interval '2 days',now()+interval '2 days 3 hours','Europe/Kyiv',10,null,18,null,false,null,null,'web',300,true,'cancel_only');
  perform public.create_event(current_setting('test.onsite')::uuid,'Onsite paid games','Pay at the door','games','Kyiv','Podil',50.46,30.52,
   now()+interval '2 days',now()+interval '2 days 3 hours','Europe/Kyiv',10,null,18,null,false,null,null,'web',300,false);
  perform set_config('request.jwt.claim.sub',current_setting('test.guest'),true);
+ perform public.accept_pay_terms('payer',current_setting('test.online')::uuid); -- бачив правила повернення
  perform public.join_event(current_setting('test.online')::uuid);
  perform public.join_event(current_setting('test.onsite')::uuid);
 end $$;

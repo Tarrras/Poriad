@@ -418,6 +418,8 @@ class PoruchApp internal constructor(
     // ---- Події
 
     fun joinEvent(id: String) = eventUseCases.join(id)
+    /** Заявка на онлайн-подію після згоди на умови оплати (екран їх щойно показав). */
+    fun requestOnlineEvent(id: String) = eventUseCases.requestOnline(id)
     fun joinWaitlist(id: String) = eventUseCases.joinWaitlist(id)
     fun leaveWaitlist(id: String) = eventUseCases.leaveWaitlist(id)
     fun leaveEvent(id: String) = eventUseCases.leave(id)

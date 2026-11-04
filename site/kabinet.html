@@ -148,6 +148,16 @@
             <label class="kab-check"><input type="radio" name="pay" value="onsite" checked><span><b>На місці</b><small>Учасники платять вам на зустрічі, без передоплати</small></span></label>
             <label class="kab-check"><input type="radio" name="pay" value="online"><span><b>Онлайн, до зустрічі</b><small>Людина подає заявку, ви надсилаєте реквізити в розмові й підтверджуєте оплату</small></span></label>
           </div>
+          <div class="kab-pay-online" data-pay-online hidden>
+            <p class="kab-hint" data-pay-limits></p>
+            <div class="kab-field" role="radiogroup" aria-labelledby="kab-refund">
+              <span id="kab-refund">Повернення грошей</span>
+              <label class="kab-check"><input type="radio" name="refund" value="before_48h"><span><b>До 48 год до початку</b><small>Людина скасувала заявку раніше — повертаєте все</small></span></label>
+              <label class="kab-check"><input type="radio" name="refund" value="before_24h"><span><b>До 24 год до початку</b><small>Людина скасувала заявку раніше — повертаєте все</small></span></label>
+              <label class="kab-check"><input type="radio" name="refund" value="cancel_only"><span><b>Лише якщо подію скасовано</b><small>Інакше гроші не повертаються</small></span></label>
+            </div>
+            <label class="kab-check" data-pay-terms-box><input type="checkbox" name="payterms"><span><b>Погоджуюсь з <a href="/terms.html#online" target="_blank" rel="noopener">Правилами оплати онлайн</a></b><small>Реквізити — мої. Податки й чеки — на мені. Скасую подію — поверну гроші всім, хто оплатив.</small></span></label>
+          </div>
           <p class="kab-hint" data-price-hint>Учасники платять вам на місці, без передоплати — так і написано на сторінці події.</p>
           <label class="kab-check"><input type="checkbox" name="approval"><span><b>За підтвердженням</b><small data-approval-note>Ви вирішуєте, кого взяти: людина надсилає заявку, а не записується одразу</small></span></label>
           <label class="kab-field"><span>Чат учасників <small>(необовʼязково)</small></span><input type="url" name="contact" maxlength="500" placeholder="https://t.me/…" autocomplete="off"></label>

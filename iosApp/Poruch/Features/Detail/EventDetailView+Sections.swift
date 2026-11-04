@@ -203,7 +203,8 @@ extension EventDetailView {
                     Text(cell.0.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                     Text(cell.1).font(PoruchFont.title3).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
                     if cell.0 == Copy.price_fact {
-                        Text(event.gathering?.payOnline == true ? Copy.price_pay_online_hint : Copy.price_pay_hint)
+                        // Онлайн — ще й правила повернення: людина бачить їх до заявки.
+                        Text(event.gathering?.payOnline == true ? [Copy.price_pay_online_hint, refundText(event.gathering?.refundPolicy)].compactMap { $0 }.joined(separator: " ") : Copy.price_pay_hint)
                             .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -793,6 +794,8 @@ extension EventDetailView {
             PrimaryButton(title: view.action.title, loading: view.mutating, enabled: view.action.isEnabled && !view.mutating) {
                 let joining = view.action == .join || view.action == .request || view.action == .joinWaitlist
                 // Гість іде у вхід: штамп після нього не його дотик, тож прапорець — лише коли запит справді пішов.
+                // Заявка на онлайн-подію — спершу умови оплати напряму й правила повернення (PayTermsSheet).
+                if view.payOnline && view.action == .request && view.signedIn { payTermsFor = PayTermsTarget(event: event); return }
                 if actions.perform(view.action, on: event, signedIn: view.signedIn) {
                     joinTapped = joining
                     // Заявка на онлайн-подію — це розмова з організатором: відкриваємо її одразу.

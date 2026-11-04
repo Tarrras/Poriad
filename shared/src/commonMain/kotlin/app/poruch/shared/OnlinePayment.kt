@@ -1,6 +1,10 @@
 package app.poruch.shared
 
+import app.poruch.domain.Event
 import app.poruch.domain.QuestionThread
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Instant
 
 /*
  * Оплата онлайн (docs/organizer-events.md). Організатор ставить ціну й «оплату онлайн». Людина подає заявку, і ця заявка —
@@ -8,8 +12,11 @@ import app.poruch.domain.QuestionThread
  * тобто схвалює заявку. Гроші йдуть повз «Поряд». Хто що може, вирішує сервер; тут — що показати на екрані.
  */
 
-/** Де заявка: реквізитів ще нема → організатор їх надіслав → людина надіслала скріншот → оплату отримано. */
-enum class PaymentStatus { WAITING_FOR_DETAILS, WAITING_FOR_PAYMENT, PROOF_SENT, PAID }
+/**
+ * Де заявка: реквізитів ще нема → організатор їх надіслав → людина надіслала скріншот → оплату отримано. Подію
+ * скасовано — CANCELLED: організатор повертає гроші, розмова лишається для цього відкритою.
+ */
+enum class PaymentStatus { WAITING_FOR_DETAILS, WAITING_FOR_PAYMENT, PROOF_SENT, PAID, CANCELLED }
 
 /** Стан оплати людини, з якою відкрито розмову. Null — розмова не про оплату онлайн. */
 fun AppState.paymentInOpenChat(): PaymentStatus? {
@@ -23,6 +30,7 @@ fun AppState.paymentInOpenChat(): PaymentStatus? {
         else -> return null
     }
     return when {
+        event.isCancelled && (requested || going) -> PaymentStatus.CANCELLED
         requested && open.messages.any { it.authorId == person && it.image != null } -> PaymentStatus.PROOF_SENT
         requested && open.messages.any { it.authorId != person && it.paymentDetails } -> PaymentStatus.WAITING_FOR_PAYMENT
         requested -> PaymentStatus.WAITING_FOR_DETAILS
@@ -39,8 +47,22 @@ fun AppState.repeatablePaymentDetails(): String? =
 fun AppState.canSendPaymentProof(): Boolean {
     val open = chat ?: return false
     if (open.thread == null || open.thread != session.userId) return false
-    val room = knownEvent(open.eventId)?.gathering ?: return false
-    return room.payOnline && room.awaitingApproval
+    val event = knownEvent(open.eventId) ?: return false
+    val room = event.gathering ?: return false
+    return room.payOnline && room.awaitingApproval && !event.isCancelled
+}
+
+/**
+ * Розмова лише для читання — той самий поріг, що на сервері (send_message): скасовано чи тиждень після кінця. Розмова
+ * про оплату онлайн-події — 30 днів після кінця й навіть скасована: домовитись про повернення грошей.
+ */
+fun Event.chatReadOnly(thread: Boolean): Boolean = chatReadOnlyAt(thread, Clock.System.now())
+
+internal fun Event.chatReadOnlyAt(thread: Boolean, now: Instant): Boolean {
+    val payment = thread && gathering?.payOnline == true
+    if (isCancelled && !payment) return true
+    val end = endInstant ?: return false
+    return end + (if (payment) 30.days else 7.days) < now
 }
 
 /** Ім'я людини в розмові організатора — і тоді, коли вона ще нічого не написала (організатор почав першим). */

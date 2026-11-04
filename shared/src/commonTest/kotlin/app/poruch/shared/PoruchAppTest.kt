@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.*
 import kotlin.test.*
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Instant
 import kotlin.time.Duration.Companion.hours
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
@@ -1269,6 +1271,32 @@ class PoruchAppTest {
         app.openEvent("ev"); advanceTimeBy(1000); runCurrent()
         app.openQuestion("ev","ira"); runCurrent()
         assertNull(app.state.value.chat?.savedPaymentDetails)
+        app.close()
+    }
+
+    /** Заявка на онлайн-подію — лише після згоди на умови оплати; скасована — розмова про повернення лишається відкритою. */
+    @Test fun onlineRequestNeedsTermsAndCancelledChatStaysOpen()=runTest {
+        val events=Events()
+        val online=event("ev",EventCategory.GAMES,"2090-01-05T19:00:00Z").let {
+            it.copy(gathering=it.gathering!!.copy(price=300,payOnline=true,approvalRequired=true,refundPolicy=RefundPolicy.BEFORE_48H))
+        }
+        events.results=listOf(online); events.detailsById=mapOf("ev" to online)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.openEvent("ev"); advanceTimeBy(1000); runCurrent()
+        app.requestOnlineEvent("ev"); runCurrent()
+        assertEquals(listOf("terms:ev","join:ev"),events.participationCalls.take(2),"спершу згода, потім заявка")
+
+        // Скасована: учасник бачить «поверніть гроші», «+» зникає; розмова про оплату відкрита 30 днів після кінця.
+        val cancelled=online.copy(status=EventStatus.CANCELLED,gathering=online.gathering!!.copy(membership=Membership.REQUESTED))
+        app.openQuestion("ev","user"); runCurrent()
+        val s=app.state.value.let { it.copy(detail=it.detail.copy(event=cancelled)) }
+        assertEquals(PaymentStatus.CANCELLED,s.paymentInOpenChat())
+        assertFalse(s.canSendPaymentProof(),"після скасування скріншот не потрібен")
+        val end=Instant.parse(cancelled.endsAt)
+        assertFalse(cancelled.chatReadOnlyAt(thread=true,now=end+29.days),"розмова про оплату — 30 днів")
+        assertTrue(cancelled.chatReadOnlyAt(thread=true,now=end+31.days))
+        assertTrue(cancelled.chatReadOnlyAt(thread=false,now=end),"загальний чат скасованої — лише читати")
+        assertTrue(online.copy(gathering=online.gathering!!.copy(payOnline=false)).chatReadOnlyAt(thread=true,now=end+8.days),"звичайне питання — тиждень")
         app.close()
     }
 

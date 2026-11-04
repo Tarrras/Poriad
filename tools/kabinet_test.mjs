@@ -4,7 +4,7 @@ import {
   instant, local, repeatTimes, endAfter, durationLabel, DURATIONS, mediaProblem, videoTooLong, fit, MEDIA,
   threadsPost, threadsIntent, firstLine, cleanText, rosterText, errorText, publishPlan, writeDraft, forgetDraft, recolorStub,
   priceProblem, priceParam, PRICE_TEXT, eventDraft, repeatDraft, passwordProblem, passwordMode, providersText, editorDefaults, sinceText,
-  weakPasswordText, redirectErrorText, payPlan, TALK_PAYMENT_DETAILS, TALK_PAY_OFF, talkStatus, talkFacts, payWords, declineQuestion, nameProblem, contactOk,
+  weakPasswordText, redirectErrorText, payPlan, payProblems, payLimitsText, TALK_PAYMENT_DETAILS, TALK_PAY_OFF, talkStatus, talkFacts, payWords, declineQuestion, nameProblem, contactOk,
 } from "../site/js/kabinet.js";
 import { readFileSync } from "node:fs";
 
@@ -175,6 +175,18 @@ assert.match(errorText({ status: 400, code: "PAYMENT_DETAILS" }), /у розмо
 assert.match(TALK_PAYMENT_DETAILS, /«Як платять» → «Онлайн»/);
 assert.ok(TALK_PAY_OFF.includes("тимчасово вимкнено") && !TALK_PAY_OFF.includes("«Онлайн»"), "вимкнено — не радимо вмикати");
 assert.match(errorText({ code: "PAY_ONLINE_OFF" }), /Оновіть сторінку/);
+// Безпека оплати онлайн: правила повернення, згода, межі рівня — лише для нової онлайн-події чи зміненої ціни й місць.
+const lvl0 = { enabled: true, level: 0, max_price: 500, max_capacity: 10, held: 0, terms: false, next: { held: 1, days: 30, max_price: 1500, max_capacity: 30 } };
+assert.deepEqual(payProblems({ price: "300", capacity: 10, refund: "before_48h", payTerms: true }, lvl0), []);
+assert.deepEqual(payProblems({ price: "300", capacity: 10, refund: "", payTerms: false }, lvl0), ["Оберіть, як повертаєте гроші", "Погодьтеся з Правилами оплати онлайн"]);
+assert.equal(payProblems({ price: "600", capacity: 12, refund: "cancel_only", payTerms: true }, lvl0).length, 2, "price and capacity over the tier");
+assert.deepEqual(payProblems({ price: "600", capacity: 12, refund: "cancel_only" }, { ...lvl0, terms: true }, { pay_online: true, price_min: 600, capacity: 12 }), [],
+  "unchanged online event above the tier stays editable");
+assert.deepEqual(payProblems({ price: "300", capacity: 5, refund: "cancel_only" }, { ...lvl0, enabled: false }), ["Оплату онлайн для вас призупинено. Оберіть «На місці»"]);
+assert.deepEqual(payProblems({ price: "300", capacity: 5, refund: "cancel_only" }, null), [], "guest: limits come after sign-in");
+assert.match(payLimitsText(lvl0), /^Вам зараз — до 500 ₴ за людину й до 10 місць\. Після 1 проведеної події з учасниками й 30 днів на «Поряд» — до 1\s500 ₴ і 30 місць\.$/);
+assert.match(payLimitsText({ ...lvl0, enabled: false }), /призупинено/);
+assert.equal(payLimitsText(null), "");
 
 // Хто в розмові (кабінет): стан на події й рядки картки.
 const people = { roster: [{ user_id: "a", joined_at: "2026-11-02T10:00:00Z", via: "app" }], requests: [{ user_id: "g", joined_at: "2026-11-03T09:00:00Z", via: "web" }] };
