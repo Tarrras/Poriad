@@ -4,7 +4,7 @@ import {
   instant, local, repeatTimes, endAfter, durationLabel, DURATIONS, mediaProblem, videoTooLong, fit, MEDIA,
   threadsPost, threadsIntent, firstLine, cleanText, rosterText, errorText, publishPlan, writeDraft, forgetDraft, recolorStub,
   priceProblem, priceParam, PRICE_TEXT, eventDraft, repeatDraft, passwordProblem, passwordMode, providersText, editorDefaults, sinceText,
-  weakPasswordText, redirectErrorText, payPlan, TALK_PAYMENT_DETAILS, talkStatus, talkFacts, payWords, declineQuestion, nameProblem, contactOk,
+  weakPasswordText, redirectErrorText, payPlan, TALK_PAYMENT_DETAILS, TALK_PAY_OFF, talkStatus, talkFacts, payWords, declineQuestion, nameProblem, contactOk,
 } from "../site/js/kabinet.js";
 import { readFileSync } from "node:fs";
 
@@ -173,6 +173,8 @@ assert.equal(eventDraft(pricedEvent).payOnline, false);
 assert.equal(repeatDraft({ ...pricedEvent, pay_online: true, starts_at: "2026-10-01T16:00:00Z", ends_at: "2026-10-01T19:00:00Z" }).payOnline, true, "«Повторити» — з тим самим способом");
 assert.match(errorText({ status: 400, code: "PAYMENT_DETAILS" }), /у розмові з тими, хто записався/);
 assert.match(TALK_PAYMENT_DETAILS, /«Як платять» → «Онлайн»/);
+assert.ok(TALK_PAY_OFF.includes("тимчасово вимкнено") && !TALK_PAY_OFF.includes("«Онлайн»"), "вимкнено — не радимо вмикати");
+assert.match(errorText({ code: "PAY_ONLINE_OFF" }), /Оновіть сторінку/);
 
 // Хто в розмові (кабінет): стан на події й рядки картки.
 const people = { roster: [{ user_id: "a", joined_at: "2026-11-02T10:00:00Z", via: "app" }], requests: [{ user_id: "g", joined_at: "2026-11-03T09:00:00Z", via: "web" }] };

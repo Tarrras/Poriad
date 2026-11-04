@@ -2,6 +2,8 @@
 -- «Оплата онлайн» — 20261125120000_pay_online: спосіб оплати, реквізити лише в розмові онлайн-події, організатор пише
 -- першим тим, хто записався, і лист тому, хто питав, не частіше разу на годину.
 begin;
+-- Оплата онлайн за вимикачем (20261125160000_pay_online_switch) — тут увімкнено; транзакція відкочується.
+update private.flags set enabled = true where name = 'pay_online';
 select set_config('test.host',gen_random_uuid()::text,true),set_config('test.guest',gen_random_uuid()::text,true),
  set_config('test.stranger',gen_random_uuid()::text,true),set_config('test.online',gen_random_uuid()::text,true),
  set_config('test.onsite',gen_random_uuid()::text,true);

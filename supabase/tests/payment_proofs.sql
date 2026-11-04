@@ -2,6 +2,8 @@
 -- Скріншот оплати в розмові — 20261125130000_payment_proofs: приватний бакет, лише людина в розмові онлайн-події,
 -- бачать двоє.
 begin;
+-- Оплата онлайн за вимикачем (20261125160000_pay_online_switch) — тут увімкнено; транзакція відкочується.
+update private.flags set enabled = true where name = 'pay_online';
 select set_config('test.host',gen_random_uuid()::text,true),set_config('test.guest',gen_random_uuid()::text,true),
  set_config('test.stranger',gen_random_uuid()::text,true),set_config('test.online',gen_random_uuid()::text,true),
  set_config('test.onsite',gen_random_uuid()::text,true),set_config('test.file',gen_random_uuid()::text,true);

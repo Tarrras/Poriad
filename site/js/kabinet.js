@@ -192,9 +192,13 @@ const ERRORS = {
   CHAT_CLOSED: "Розмову закрито: подія давно минула",
   INVALID_MESSAGE: "Повідомлення — до 2000 символів",
   NOT_MEMBER: "Написати можна лише тим, хто записався, подав заявку чи вже писав вам",
+  // Сторінку відкрили, поки оплату онлайн ще не вимкнули (20261125160000_pay_online_switch).
+  PAY_ONLINE_OFF: "Оплату онлайн тимчасово вимкнено. Оновіть сторінку — подія буде з оплатою на місці",
 };
 /** Реквізити в розмові події «на місці»: інший текст, ніж для опису. */
 export const TALK_PAYMENT_DETAILS = "Реквізити в розмові — лише для подій з оплатою онлайн. Увімкніть її в редагуванні: «Як платять» → «Онлайн».";
+/** Те саме, коли оплату онлайн вимкнено вимикачем: увімкнути її в редагуванні зараз не можна. */
+export const TALK_PAY_OFF = "Оплату онлайн тимчасово вимкнено: реквізити в розмові не надсилаються, учасники платять на місці.";
 export function errorText(error) {
   if (error?.code === "weak_password") return weakPasswordText(error.reasons);
   if (ERRORS[error?.code]) return ERRORS[error.code];
@@ -1051,7 +1055,7 @@ function setupTalk() {
     if (!body) return;
     act($("[type=submit]", form), out, async () => {
       await rpc("send_message", { p_event_id: current.id, p_body: body, p_thread: talk.user })
-        .catch((e) => { throw e.code === "PAYMENT_DETAILS" ? new Problem(TALK_PAYMENT_DETAILS) : e; });
+        .catch((e) => { throw e.code === "PAYMENT_DETAILS" ? new Problem(payOnlineOn ? TALK_PAYMENT_DETAILS : TALK_PAY_OFF) : e; });
       form.body.value = "";
       await talkFeed.load();
     });
@@ -1190,6 +1194,8 @@ function doneTicket(e) {
 // через Google перезавантажує сторінку).
 
 let editing = null; // подія, яку редагуємо; null — нова
+// Оплата онлайн за вимикачем на сервері (`pay_online_enabled`, 20261125160000): вимкнено — «Як платять» не показуємо.
+let payOnlineOn = true;
 let media = []; // [{ key, kind, url?, poster?, blob?, posterBlob?, copied? }]
 let place = { lat: null, lon: null, placed: false };
 let minutes = 120; // тривалість, яку тримають чипи й зсув початку
@@ -1330,8 +1336,8 @@ export const payPlan = (price, payOnline) => {
   };
 };
 function payView() {
-  const f = form(), plan = payPlan(f.price.value, f.pay.value === "online");
-  $("[data-pay-box]").hidden = !plan.paid;
+  const f = form(), plan = payPlan(f.price.value, payOnlineOn && f.pay.value === "online");
+  $("[data-pay-box]").hidden = !plan.paid || !payOnlineOn;
   const hint = $("[data-price-hint]");
   hint.textContent = plan.hint;
   hint.hidden = !plan.paid;
@@ -1637,13 +1643,14 @@ function problems(d) {
 }
 
 function params(d, id) {
-  const online = payPlan(d.price, d.payOnline).online; // онлайн — завжди за підтвердженням
+  const online = payPlan(d.price, payOnlineOn && d.payOnline).online; // онлайн — завжди за підтвердженням
   return {
     p_id: id, p_title: d.title.trim(), p_description: d.description.trim(), p_category: d.category, p_city: d.city, p_address: d.address.trim(),
     p_latitude: d.lat, p_longitude: d.lon, p_starts_at: instant(d.startDate, d.startTime, d.tz), p_ends_at: instant(d.endDate, d.endTime, d.tz),
     p_time_zone: d.tz, p_capacity: Math.round(+d.capacity), p_image_url: editing?.image_url ?? null, p_min_age: Math.round(+d.minAge || 18),
     p_max_age: d.maxAge === "" ? null : Math.round(+d.maxAge), p_approval_required: d.approval || online,
-    p_contact_url: d.contact.trim() || null, p_price: priceParam(d.price), p_pay_online: online,
+    // Вимкнено — спосіб оплати не чіпаємо (null): увімкнуть знову — подія, що була онлайн, знову онлайн.
+    p_contact_url: d.contact.trim() || null, p_price: priceParam(d.price), p_pay_online: payOnlineOn ? online : null,
   };
 }
 
@@ -1776,6 +1783,7 @@ async function start() {
   setupEvent();
   setupTalk();
   setupEditor();
+  rpc("pay_online_enabled").then((on) => { payOnlineOn = on !== false; payView(); }).catch(() => {});
   $("[data-signin]").addEventListener("click", () => signIn().then((ok) => ok && route()));
   // Повернення від Google чи з листа: намір несе маршрут і «опублікувати», з якими людина пішла; лист відновлення —
   // ще й крок нового пароля, поки решта сторінки чекає.
