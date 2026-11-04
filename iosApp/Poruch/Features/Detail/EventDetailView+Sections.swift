@@ -194,7 +194,7 @@ extension EventDetailView {
         if let room = event.gathering {
             cells.append((Copy.organizer_short, room.organizerName.isEmpty ? Copy.organizer_short : room.organizerName))
             cells.append((Copy.capacity_label, Copy.attendees_short("\(room.attendeeCount)", "\(room.capacity)")))
-            // «Вхід: 300 ₴» і як платити — на місці чи онлайн організатору (docs/organizer-events.md).
+            // «Вхід: 300 ₴» і як платити — на місці чи онлайн організатору.
             if let price = gatheringPrice(room) { cells.append((Copy.price_fact, price)) }
         }
         return LazyVGrid(columns: [GridItem(.flexible(), alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)], spacing: Space.xl) {
@@ -553,7 +553,7 @@ extension EventDetailView {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionHeader(title: Copy.questions_section)
             GroupedRows {
-                ForEach(Array(view.questionsApart.enumerated()), id: \.element.askerId) { index, question in
+                ForEach(Array(view.questionsWithoutRequests.enumerated()), id: \.element.askerId) { index, question in
                     if index > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }
                     NavigationLink(value: ChatRoute(id: event.id, thread: question.askerId)) {
                         HStack(spacing: Space.md) {
@@ -600,8 +600,8 @@ extension EventDetailView {
                             .tapTarget()
                     }.buttonStyle(.plain)
                     if view.payOnline {
-                        // Оплата онлайн: заявка — це розмова (власник 03.11). Там реквізити, скріншот і «Оплату отримано».
-                        let unread = Int(view.unreadFrom(userId: person.userId))
+                        // Рішення про оплату — у розмові з людиною, поруч із реквізитами й скріншотом.
+                        let unread = Int(view.unreadInThread(userId: person.userId))
                         Button { writingTo = ChatRoute(id: event.id, thread: person.userId) } label: {
                             HStack(spacing: Space.xs) {
                                 Text(Copy.request_chat).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
@@ -761,9 +761,7 @@ extension EventDetailView {
     /// Головна дія панелі. Організатору — «Поширити анонс» замість неактивної «Ви організатор» (стан і так каже штамп
     /// на обкладинці). Записаним — тонова кнопка: головну дію вже зроблено, стан несе штамп поруч.
     @ViewBuilder func primaryAction(_ event: Event, _ view: DetailScreenState) -> some View {
-        if view.payChat, let me = view.userId {
-            // Оплата онлайн: заявка й розмова про оплату — одне (власник 03.11). Не неактивне «Запит надіслано», а розмова,
-            // де організатор напише, як оплатити.
+        if view.opensPaymentChat, let me = view.userId {
             SecondaryButton(title: Copy.pay_chat_open, glyph: PoruchIcons.chat, lines: 3) { writingTo = ChatRoute(id: event.id, thread: me) }
                 .frame(maxWidth: .infinity)
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1)
@@ -786,7 +784,7 @@ extension EventDetailView {
                 // Гість іде у вхід: штамп після нього не його дотик, тож прапорець — лише коли запит справді пішов.
                 if actions.perform(view.action, on: event, signedIn: view.signedIn) {
                     joinTapped = joining
-                    // Заявка на подію з оплатою онлайн одразу веде в розмову з організатором: далі — реквізити й скріншот там.
+                    // Заявка на онлайн-подію — це розмова з організатором: відкриваємо її одразу.
                     if view.payOnline && view.action == .request, let me = view.userId { writingTo = ChatRoute(id: event.id, thread: me) }
                 } else { auth = .join }
             }

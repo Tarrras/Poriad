@@ -65,7 +65,7 @@ class PushService : FirebaseMessagingService() {
                 val open = app.state.value.chat?.let { it.eventId == eventId && it.thread == thread } == true
                 if (eventId != null && !(foreground() && open)) ChatNotificationCenter(this).notifyQuestion(eventId, thread, title, body)
             }
-            // Текст сервера: «Іра просить приєднатися», онлайн — «… хоче прийти — напишіть, як оплатити». Без нього — лічильник.
+            // Текст сервера: в онлайн-події він просить написати, як оплатити.
             "request" -> eventId?.let {
                 if (body.isNotBlank()) alerts.notifyRequest(it, title, body) else alerts.notify(listOf(RequestAlert(it, title, 1)))
             }

@@ -49,7 +49,7 @@ import app.poruch.domain.Attendee
 import app.poruch.domain.ChatMessage
 import app.poruch.domain.ReportReason
 import app.poruch.domain.TitleRules
-import app.poruch.shared.ThreadPayment
+import app.poruch.shared.PaymentStatus
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -68,7 +68,10 @@ fun ChatScreen(state: ChatState, onIntent: (ChatIntent) -> Unit) {
     val colors = Poruch.colors
     Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding().imePadding()) {
         Header(state, onIntent)
-        PaymentBar(state, onIntent)
+        if (state.showsPaymentBar) PaymentRequestBar(
+            state.paymentStatus!!, state.organizer, personName(state), enabled = !state.mutating,
+            onConfirm = { onIntent(ChatIntent.ConfirmPayment) }, onDecline = { onIntent(ChatIntent.DeclineRequest) }
+        )
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 !state.available -> EmptyState(
@@ -126,11 +129,10 @@ fun ChatScreen(state: ChatState, onIntent: (ChatIntent) -> Unit) {
 @Composable
 private fun Header(state: ChatState, onIntent: (ChatIntent) -> Unit) {
     val colors = Poruch.colors
-    // Розмова з організатором: організатор бачить, хто питає, а той, хто питає, — що розмова лише на двох. «Питає» —
-    // коли людина вже написала; інакше розмову почав організатор або це заявка онлайн-події.
+    // Розмова з організатором: організатор бачить, з ким вона, а людина — що розмова лише на двох.
     val subtitle = if (state.thread != null) {
         if (state.organizer) stringResource(
-            if (state.payment == null && state.asked) R.string.question_from else R.string.thread_with, personName(state)
+            if (state.paymentStatus == null && state.personHasWritten) R.string.question_from else R.string.thread_with, personName(state)
         )
         else stringResource(R.string.question_subtitle)
     } else if (state.members > 0) stringResource(
@@ -165,36 +167,33 @@ private fun Header(state: ChatState, onIntent: (ChatIntent) -> Unit) {
 @Composable
 private fun personName(state: ChatState) = state.askerName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_member)
 
-/**
- * Заявка онлайн-події — у самій розмові, поруч зі скріншотом (власник 03.11): організатору — «Оплату отримано» й
- * «Відхилити», людині — що з її заявкою. Порожня розмова людини каже те саме своїм порожнім станом.
- */
+/** Заявка в розмові онлайн-події: організатору — «Відхилити» й «Оплату отримано», людині — стан її заявки. */
 @Composable
-private fun PaymentBar(state: ChatState, onIntent: (ChatIntent) -> Unit) {
-    val payment = state.payment ?: return
-    if (!state.organizer && payment == ThreadPayment.WAITING && state.messages.isEmpty()) return
+private fun PaymentRequestBar(
+    status: PaymentStatus, organizer: Boolean, person: String, enabled: Boolean, onConfirm: () -> Unit, onDecline: () -> Unit
+) {
     val colors = Poruch.colors
-    val waiting = payment == ThreadPayment.WAITING
+    val awaiting = status == PaymentStatus.AWAITING
     Column(
-        Modifier.fillMaxWidth().background(if (waiting) colors.accentContainer else colors.surfaceMuted)
+        Modifier.fillMaxWidth().background(if (awaiting) colors.accentContainer else colors.surfaceMuted)
             .padding(horizontal = Spacing.page, vertical = Spacing.md),
         verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         Text(
             when {
-                state.organizer && waiting -> stringResource(R.string.pay_thread_waiting_org, personName(state))
-                state.organizer -> stringResource(R.string.pay_thread_paid_org, personName(state))
-                waiting -> stringResource(R.string.pay_thread_waiting_mine)
+                organizer && awaiting -> stringResource(R.string.pay_thread_waiting_org, person)
+                organizer -> stringResource(R.string.pay_thread_paid_org, person)
+                awaiting -> stringResource(R.string.pay_thread_waiting_mine)
                 else -> stringResource(R.string.pay_thread_paid_mine)
             },
             style = MaterialTheme.typography.bodyMedium, color = colors.ink
         )
-        if (state.organizer && waiting) Row(
+        if (organizer && awaiting) Row(
             Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.End),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            GhostButton(stringResource(R.string.decline), { onIntent(ChatIntent.DeclineRequest) }, tone = colors.inkSecondary)
-            PrimaryButton(stringResource(R.string.approve_paid), { onIntent(ChatIntent.ApprovePayment) }, enabled = !state.mutating)
+            GhostButton(stringResource(R.string.decline), onDecline, tone = colors.inkSecondary)
+            PrimaryButton(stringResource(R.string.approve_paid), onConfirm, enabled = enabled)
         }
     }
 }
@@ -245,11 +244,10 @@ private fun Feed(state: ChatState, onIntent: (ChatIntent) -> Unit) {
             Column {
                 Rules()
                 if (state.messages.isEmpty()) {
-                    // Загальний чат, питання організатору, організатор пише першим чи заявка онлайн-події.
                     val (title, hint) = when {
                         state.thread == null -> R.string.chat_empty_title to R.string.chat_empty_hint
-                        state.payment != null && state.organizer -> R.string.pay_empty_title_org to R.string.pay_empty_hint_org
-                        state.payment != null -> R.string.pay_empty_title_mine to R.string.pay_empty_hint_mine
+                        state.paymentStatus != null && state.organizer -> R.string.pay_empty_title_org to R.string.pay_empty_hint_org
+                        state.paymentStatus != null -> R.string.pay_empty_title_mine to R.string.pay_empty_hint_mine
                         state.organizer -> R.string.question_empty_title_org to R.string.question_empty_hint_org
                         else -> R.string.question_empty_title to R.string.question_empty_hint
                     }
@@ -329,7 +327,6 @@ private fun Bubble(
             if (!mine && !continued) Text(name, style = MaterialTheme.typography.labelMedium, color = colors.inkSecondary)
             message.image?.let { path -> ProofThumb(path, proof, missing, mine, onIntent) }
             Text(message.body, style = MaterialTheme.typography.bodyLarge, color = if (mine) colors.onBrand else colors.ink)
-            // Реквізити (docs/organizer-events.md): «Поряд» за оплату не відповідає, скарга — тут же.
             if (payWarning) PaymentWarning { onIntent(ChatIntent.ShowReport(message)) }
             // Час у правому нижньому куті, як у месенджерах.
             Text(
@@ -451,12 +448,11 @@ private fun Composer(state: ChatState, onIntent: (ChatIntent) -> Unit) {
     val motion = Motion.quick<Color>(Poruch.reducedMotion)
     val border by animateColorAsState(if (focused) colors.ink.copy(alpha = 0.35f) else colors.hairline, motion, label = "border")
     val sendTint by animateColorAsState(if (canSend) colors.brand else colors.inkTertiary, motion, label = "send")
-    // Скріншот оплати (docs/organizer-events.md): лише в моїй розмові події з оплатою онлайн. Photo Picker без дозволу на
-    // галерею; на сервер — JPEG без метаданих, довша сторона до [ChatRules.PROOF_SIDE].
+    // Photo Picker без дозволу на галерею; на сервер — JPEG без метаданих.
     val picker = rememberImagePicker(ChatRules.PROOF_SIDE) { bytes, _ -> onIntent(ChatIntent.SendProof(bytes)) }
     Column {
         HorizontalDivider(color = colors.hairline)
-        if (state.canSendProof) Text(
+        if (state.canSendPaymentProof) Text(
             stringResource(if (picker.failed) R.string.photo_read_failed else R.string.proof_hint),
             style = PoruchType.caption, color = if (picker.failed) colors.danger else colors.inkSecondary,
             modifier = Modifier.fillMaxWidth().background(colors.surface).padding(horizontal = Spacing.page).padding(top = Spacing.sm)
@@ -465,7 +461,7 @@ private fun Composer(state: ChatState, onIntent: (ChatIntent) -> Unit) {
             Modifier.fillMaxWidth().background(colors.surface).padding(horizontal = Spacing.page, vertical = Spacing.sm).navigationBarsPadding(),
             verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
-            if (state.canSendProof) Box(
+            if (state.canSendPaymentProof) Box(
                 Modifier.size(44.dp).background(colors.surfaceMuted, CircleShape)
                     .pressable(enabled = !state.sending && !picker.reading, onClick = picker.open),
                 contentAlignment = Alignment.Center

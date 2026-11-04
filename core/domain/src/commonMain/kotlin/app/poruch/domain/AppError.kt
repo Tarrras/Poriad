@@ -64,10 +64,7 @@ sealed interface AppError {
     data object ChatClosed : AppError
     data object TooManyMessages : AppError
     data object InvalidMessage : AppError
-    /**
-     * Реквізити (картка, IBAN, банка) не там: у назві чи описі події, у загальному чаті або в розмові події з оплатою на
-     * місці. Надсилати їх можна лише в розмові на двох події з оплатою онлайн (docs/organizer-events.md).
-     */
+    /** Реквізити для оплати поза розмовою на двох онлайн-події: у назві, описі, загальному чаті чи події «на місці». */
     data object PaymentDetails : AppError
     /** Стоп-словник сервера: текст не опублікуємо, людина має переписати. */
     data object ObjectionableContent : AppError

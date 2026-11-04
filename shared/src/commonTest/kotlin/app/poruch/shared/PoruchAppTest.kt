@@ -1225,12 +1225,12 @@ class PoruchAppTest {
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
         app.openEvent("ev"); advanceTimeBy(1000); runCurrent()
         app.openQuestion("ev","user"); runCurrent()
-        assertTrue(app.state.value.canSendProof(),"моя розмова, оплата онлайн")
+        assertTrue(app.state.value.canSendPaymentProof(),"моя розмова, оплата онлайн")
         assertTrue(app.state.value.chat!!.messages.first().paymentDetails)
         assertEquals(setOf("organizer/ev/gone.jpg"),app.state.value.chat!!.missingProofs,"недоступний — заглушка")
 
         val jpeg=byteArrayOf(1,2,3)
-        app.sendProof(jpeg,"  "); runCurrent()
+        app.sendPaymentProof(jpeg,"  "); runCurrent()
         assertEquals("user/ev/p1.jpg",events.uploadedProofs.single().first)
         assertEquals(listOf("ev" to ChatRules.PROOF_BODY),events.sent,"порожнє поле — «Скріншот оплати»")
         assertEquals(listOf<String?>("user/ev/p1.jpg"),events.sentImages)
@@ -1240,17 +1240,17 @@ class PoruchAppTest {
 
         // Не записався (лише питав) — ні: сховище не прийме файл (`can_upload_proof`).
         val asking=online.copy(gathering=online.gathering!!.copy(membership=Membership.NONE))
-        assertFalse(app.state.value.copy(detail=app.state.value.detail.copy(event=asking)).canSendProof(),"лише записаним")
+        assertFalse(app.state.value.copy(detail=app.state.value.detail.copy(event=asking)).canSendPaymentProof(),"лише записаним")
 
         // Загальний чат і подія на місці — ні.
         app.closeChat("ev"); runCurrent(); app.openChat("ev"); runCurrent()
-        assertFalse(app.state.value.canSendProof(),"загальний чат")
-        app.sendProof(jpeg,"x"); runCurrent()
+        assertFalse(app.state.value.canSendPaymentProof(),"загальний чат")
+        app.sendPaymentProof(jpeg,"x"); runCurrent()
         assertEquals(1,events.uploadedProofs.size)
         app.close()
     }
 
-    /** Оплата онлайн: запит на участь і розмова про оплату — один потік (власник 03.11). */
+    /** Оплата онлайн: заявка й розмова про оплату — один потік. */
     @Test fun onlineRequestAndPaymentChatAreOneFlow()=runTest {
         val events=Events()
         val online=event("ev",EventCategory.GAMES,"2090-01-05T19:00:00Z").let {
@@ -1261,29 +1261,29 @@ class PoruchAppTest {
         app.openEvent("ev"); advanceTimeBy(1000); runCurrent()
         app.openQuestion("ev","user"); runCurrent()
         val mine=app.state.value
-        assertEquals(ThreadPayment.WAITING,mine.threadPayment(),"моя заявка — у моїй розмові")
+        assertEquals(PaymentStatus.AWAITING,mine.paymentInOpenChat(),"моя заявка — у моїй розмові")
         val paid=online.copy(gathering=online.gathering!!.copy(membership=Membership.APPROVED,joined=true))
-        assertEquals(ThreadPayment.PAID,mine.copy(detail=mine.detail.copy(event=paid)).threadPayment())
+        assertEquals(PaymentStatus.RECEIVED,mine.copy(detail=mine.detail.copy(event=paid)).paymentInOpenChat())
         val onsite=online.copy(gathering=online.gathering!!.copy(payOnline=false))
-        assertNull(mine.copy(detail=mine.detail.copy(event=onsite)).threadPayment(),"на місці — розмова не про оплату")
+        assertNull(mine.copy(detail=mine.detail.copy(event=onsite)).paymentInOpenChat(),"на місці — розмова не про оплату")
 
         // Організатор: заявка людини з розмови — «Оплату отримано» прямо там; після схвалення людина в списку.
         val own=online.copy(gathering=online.gathering!!.copy(organizerId="user",membership=Membership.NONE))
         val ira=Attendee("ira","Іра",null)
         val organizer=mine.copy(detail=mine.detail.copy(event=own,joinRequests=listOf(ira)),chat=mine.chat!!.copy(thread="ira"))
-        assertEquals(ThreadPayment.WAITING,organizer.threadPayment())
-        assertEquals(ThreadPayment.PAID,organizer.copy(detail=organizer.detail.copy(joinRequests=emptyList(),attendees=listOf(ira))).threadPayment())
-        assertNull(organizer.copy(chat=organizer.chat!!.copy(thread=null)).threadPayment(),"загальний чат")
+        assertEquals(PaymentStatus.AWAITING,organizer.paymentInOpenChat())
+        assertEquals(PaymentStatus.RECEIVED,organizer.copy(detail=organizer.detail.copy(joinRequests=emptyList(),attendees=listOf(ira))).paymentInOpenChat())
+        assertNull(organizer.copy(chat=organizer.chat!!.copy(thread=null)).paymentInOpenChat(),"загальний чат")
 
         // Деталі: людина з заявкою відкриває розмову з панелі; в організатора її розмова — на рядку заявки, не двічі.
-        assertTrue(DetailScreenState(event=online,signedIn=true,userId="user").payChat)
-        assertFalse(DetailScreenState(event=onsite,signedIn=true,userId="user").payChat)
+        assertTrue(DetailScreenState(event=online,signedIn=true,userId="user").opensPaymentChat)
+        assertFalse(DetailScreenState(event=onsite,signedIn=true,userId="user").opensPaymentChat)
         val asked=QuestionThread("ira","Іра",null,"Оплатила","2026-11-03T10:00:00Z",lastMine=false,unread=2)
         val other=QuestionThread("max","Макс",null,"Що взяти?","2026-11-03T09:00:00Z",lastMine=false,unread=0)
         val screen=DetailScreenState(event=own,organizer=true,userId="user",requests=listOf(ira),questions=listOf(asked,other))
-        assertEquals(listOf(other),screen.questionsApart)
-        assertEquals(2,screen.unreadFrom("ira"))
-        assertEquals(listOf(asked,other),screen.copy(event=own.copy(gathering=own.gathering!!.copy(payOnline=false))).questionsApart)
+        assertEquals(listOf(other),screen.questionsWithoutRequests)
+        assertEquals(2,screen.unreadInThread("ira"))
+        assertEquals(listOf(asked,other),screen.copy(event=own.copy(gathering=own.gathering!!.copy(payOnline=false))).questionsWithoutRequests)
         app.close()
     }
 

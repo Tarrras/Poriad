@@ -98,7 +98,6 @@ internal data class EventDto(
     val offers: List<OfferDto> = emptyList(),
     // Міграція 20261118120000: фото й відео від організатора. Картки з `discover_events` і кеш до неї поля не несуть.
     val media: List<MediaDto>? = null,
-    // Міграція 20261125120000: оплата онлайн. Старий сервер і картки поля не несуть — на місці.
     @SerialName("pay_online") val payOnline: Boolean = false
 ) {
     fun domain() = Event(
@@ -386,7 +385,6 @@ internal data class ChatMessageDto(
     @SerialName("avatar_url") val avatarUrl: String? = null,
     val body: String = "",
     @SerialName("created_at") val createdAt: String = "",
-    // Міграції 20261125120000 і 20261125130000. Старий сервер полів не несе.
     @SerialName("payment_details") val paymentDetails: Boolean = false,
     val image: String? = null
 ) {

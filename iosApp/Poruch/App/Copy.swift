@@ -436,7 +436,7 @@ enum Copy {
     /// Організатор відкрив розмову першим.
     static let question_empty_title_org = "Напишіть першим"
     static let question_empty_hint_org = "Цю розмову бачите лише ви й людина. Учасники її не бачать."
-    /// Заявка онлайн-події — це й розмова про оплату (власник 03.11).
+    /// Заявка на онлайн-подію — це й розмова про оплату.
     static let pay_empty_title_org = "Напишіть, як оплатити"
     static let pay_empty_hint_org = "Картка, IBAN чи банка — лише тут. Людина побачить реквізити із застереженням, а скріншот оплати надішле сюди."
     static let pay_empty_title_mine = "Заявку надіслано"
@@ -489,7 +489,7 @@ enum Copy {
     static let approval_badge = "За підтвердженням"
     static let requests_section = "Запити на участь"
     static let approve = "Прийняти"
-    /// Оплата онлайн: схвалення заявки — це «Оплату отримано» (docs/organizer-events.md).
+    /// В онлайн-події схвалення заявки — це «Оплату отримано».
     static let approve_paid = "Оплату отримано"
     /// Заявка онлайн-події веде в розмову з людиною: там реквізити, скріншот і рішення.
     static let request_chat = "Розмова"

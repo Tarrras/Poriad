@@ -14,7 +14,7 @@ struct MyEventsView: View, Equatable {
     /// (`RootView.minePath`).
     var openEvent: (String, String?) -> Void
     var openChat: (String) -> Void
-    /// Розмова організатора з людиною (подія, людина): заявка онлайн-події веде саме туди (власник 03.11).
+    /// Розмова організатора з людиною (подія, людина): туди веде заявка на онлайн-подію.
     var openThread: (String, String) -> Void = { _, _ in }
     @State private var tab = MyEventsTab.going
     /// Розріз уже обрано — людиною чи першою дошкою. Далі дошка його не перемикає.
@@ -638,8 +638,8 @@ private struct OrganizerPanel: View {
                 PoruchIcon(glyph: PoruchIcons.close, size: 16).foregroundStyle(Palette.ink)
                     .frame(width: 40, height: 40).background(Palette.surface, in: Circle()).tapTarget()
             }.buttonStyle(PressableStyle()).accessibilityLabel(Copy.decline_request_a11y("\(request.name)"))
-            // Поля й тло — у мітці: поза міткою SwiftUI зараховує до дотику лише саме слово. Оплата онлайн: заявка — це
-            // розмова (власник 03.11), рішення з реквізитами й скріншотом — там.
+            // Поля й тло — у мітці: поза міткою SwiftUI зараховує до дотику лише саме слово. Онлайн-подія: рішення про
+            // оплату — у розмові з людиною.
             Button {
                 if event.gathering?.payOnline == true { thread(event.id, request.userId) }
                 else { model.app.approveMember(eventId: event.id, userId: request.userId) }

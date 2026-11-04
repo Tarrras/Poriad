@@ -46,7 +46,7 @@ class ImageStorage(private val client: HttpClient, private val baseUrl: String, 
         catch (e: Exception) { fail(AppError.ImageUploadFailed) }
     }
 
-    /** Файл приватного бакета ([PROOFS]) з токеном людини; читати можуть лише ті, кого пускає RLS Storage. */
+    /** Файл приватного бакета ([PROOFS]) з токеном людини. */
     suspend fun download(bucket: String, path: String, token: String): ByteArray {
         if (key.isBlank()) fail(AppError.NotConfigured)
         val response = client.get(base() + OBJECT + "authenticated/$bucket/$path") { header("apikey", key); bearerAuth(token) }
@@ -75,7 +75,7 @@ class ImageStorage(private val client: HttpClient, private val baseUrl: String, 
     companion object {
         const val IMAGES = "event-images"
         const val VIDEOS = "event-videos"
-        /** Скріншоти оплати в розмові з організатором: приватний, `<uid>/<подія>/<uuid>.jpg` (20261125130000). */
+        /** Скріншоти оплати, приватний: `<uid>/<подія>/<uuid>.jpg`. */
         const val PROOFS = "payment-proofs"
         private val BUCKETS = setOf(IMAGES, VIDEOS)
         private const val OBJECT = "/storage/v1/object/"

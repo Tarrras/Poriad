@@ -377,7 +377,7 @@ struct EventDetailView: View, Equatable {
             if view.organizer && !view.requests.isEmpty {
                 joinRequests(event, view).id(requestsSectionID).overlay { companyFlashRing(requestsSectionID).padding(-Space.sm) }
             }
-            if view.organizer && !view.questionsApart.isEmpty { questions(event, view) }
+            if view.organizer && !view.questionsWithoutRequests.isEmpty { questions(event, view) }
             if view.canRate { RateEventSection(event: event, mine: view.myRating) }
             if view.organizer && view.ended && !view.cancelled { RatingsSummary(ratings: view.ratings) }
             // Після кінця редагувати й скасовувати нічого: лишаються відгуки.

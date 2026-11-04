@@ -746,7 +746,7 @@ private fun RequestRow(
                 .pressable(enabled = !mutating) { onIntent(MyEventsIntent.Decline(request)) },
             contentAlignment = Alignment.Center
         ) { Icon(PoruchIcons.close, null, Modifier.size(16.dp), tint = colors.ink) }
-        // Оплата онлайн: заявка — це розмова (власник 03.11), рішення з реквізитами й скріншотом — там.
+        // Онлайн-подія: рішення про оплату — у розмові з людиною.
         val payOnline = event.gathering?.payOnline == true
         Text(
             stringResource(if (payOnline) R.string.request_chat else R.string.approve),

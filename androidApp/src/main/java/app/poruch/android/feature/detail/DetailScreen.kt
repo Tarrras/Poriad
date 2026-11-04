@@ -82,6 +82,8 @@ import app.poruch.domain.ReportReason
 import app.poruch.domain.ShelterKind
 import app.poruch.domain.ListingState
 import app.poruch.shared.DetailAction
+import app.poruch.shared.opensPaymentChat
+import app.poruch.shared.questionsWithoutRequests
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -217,7 +219,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit, focusRequ
                         if (state.screen.organizer && state.screen.requests.isNotEmpty()) JoinRequests(
                             state, onIntent, { highlight.value }, Modifier.onGloballyPositioned { requestsTop = it.positionInRoot().y }
                         )
-                        if (state.screen.organizer && state.screen.questionsApart.isNotEmpty()) Questions(state, onIntent)
+                        if (state.screen.organizer && state.screen.questionsWithoutRequests.isNotEmpty()) Questions(state, onIntent)
                         if (state.screen.canRate) RateEvent(state, onIntent)
                         if (state.screen.organizer && state.screen.ended && !state.screen.cancelled) Ratings(state)
                         // Після кінця редагувати й скасовувати нічого: лишаються відгуки.
@@ -419,9 +421,7 @@ private fun CompanySearchingRow(onClick: () -> Unit) {
 internal fun PrimaryAction(state: DetailState, onIntent: (DetailIntent) -> Unit, modifier: Modifier = Modifier) {
     val action = state.screen.action
     when {
-        // Оплата онлайн: заявка й розмова про оплату — одне (власник 03.11). Не неактивне «Запит надіслано», а розмова,
-        // де організатор напише, як оплатити.
-        state.screen.payChat -> SecondaryButton(
+        state.screen.opensPaymentChat -> SecondaryButton(
             stringResource(R.string.pay_chat_open), { onIntent(DetailIntent.OpenQuestion()) }, modifier, icon = PoruchIcons.chat
         )
         // Організатору панель не каже «Ви організатор» неактивною кнопкою (це вже каже штамп на обкладинці), а дає

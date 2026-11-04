@@ -3,7 +3,7 @@ package app.poruch.android.feature.chat
 import app.poruch.domain.ChatMessage
 import app.poruch.domain.ReportReason
 import app.poruch.shared.PersonState
-import app.poruch.shared.ThreadPayment
+import app.poruch.shared.PaymentStatus
 
 /** Стан екрана чату: зріз [app.poruch.shared.ChatState] плюс те, що потрібно лише для промальовки. */
 data class ChatState(
@@ -40,21 +40,22 @@ data class ChatState(
     val person: PersonState? = null,
     /** Люди, за якими стежу: кнопка «Стежити» на картці автора. */
     val followedOrganizers: Set<String> = emptySet(),
-    /** Моя розмова з організатором події з оплатою онлайн: у полі вводу — «Надіслати скріншот оплати». */
-    val canSendProof: Boolean = false,
-    /** Скріншоти оплати: шлях → JPEG (вантажить спільний шар з токеном). */
+    /** Біля поля вводу — «+» для скріншота оплати. */
+    val canSendPaymentProof: Boolean = false,
+    /** Скріншоти оплати: шлях → JPEG. */
     val proofs: Map<String, ByteArray> = emptyMap(),
     /** Скріншоти, яких не вийшло завантажити: заглушка замість картинки. */
     val missingProofs: Set<String> = emptySet(),
     /** Відкритий на весь екран скріншот (шлях). */
     val viewing: String? = null,
-    /** Розмова події з оплатою онлайн — це й заявка (власник 03.11): що з нею. Null — розмова не про оплату. */
-    val payment: ThreadPayment? = null,
+    /** Стан оплати людини в розмові онлайн-події; null — розмова не про оплату. */
+    val paymentStatus: PaymentStatus? = null,
     /** Рішення про заявку в дорозі: кнопки в розмові чекають. */
     val mutating: Boolean = false
 ) {
-    /** Людина вже писала: організатору «Питає …», інакше «Розмова з …» (організатор почав першим чи це заявка). */
-    val asked get() = thread != null && messages.any { it.authorId == thread }
+    val personHasWritten get() = thread != null && messages.any { it.authorId == thread }
+    /** Людині з новою заявкою про це вже каже порожня розмова, тож смуги заявки їй ще не треба. */
+    val showsPaymentBar get() = paymentStatus != null && (organizer || paymentStatus == PaymentStatus.RECEIVED || messages.isNotEmpty())
     fun isMine(message: ChatMessage) = message.authorId == userId
     fun canDelete(message: ChatMessage) = organizer || isMine(message)
 }
@@ -84,7 +85,7 @@ sealed interface ChatIntent {
     /** Скріншот на весь екран; `null` — закрити. */
     data class ViewProof(val path: String?) : ChatIntent
     /** Організатор у розмові з людиною онлайн-події: «Оплату отримано» (схвалити заявку) чи «Відхилити». */
-    data object ApprovePayment : ChatIntent
+    data object ConfirmPayment : ChatIntent
     data object DeclineRequest : ChatIntent
 }
 

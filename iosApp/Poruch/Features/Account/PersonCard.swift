@@ -57,7 +57,7 @@ private func memberSince(_ iso: String?) -> String? {
 struct PersonRequest {
     let approve: () -> Void
     let decline: () -> Void
-    /// Оплата онлайн: схвалення — це «Оплату отримано» (docs/organizer-events.md).
+    /// В онлайн-події схвалення — це «Оплату отримано».
     var approveTitle: String = Copy.approve
 }
 

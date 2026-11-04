@@ -150,24 +150,11 @@ data class DetailScreenState(
     val canMoveMeet: Boolean get() = organizer && companionOf?.startsAt != null && !cancelled && !started
     val myRating: EventRating? get() = ratings.firstOrNull { it.mine }
     val cancelled: Boolean get() = event?.isCancelled == true
-    /** Подія з оплатою онлайн: заявка — «чекає оплати», схвалити — «Оплату отримано» (docs/organizer-events.md). */
+    /** Оплата онлайн організатору (див. OnlinePayment.kt); інакше — на місці. */
     val payOnline: Boolean get() = room?.payOnline == true
-    /**
-     * «Написати» в картці людини: організатор пише першим тому, хто записався чи подав заявку (`send_message`) — з оплатою
-     * онлайн так надсилають реквізити.
-     */
+    /** «Написати» в картці людини: організатор пише першим тому, хто записався чи подав заявку. */
     fun canWriteTo(userId: String): Boolean =
         organizer && userId != this.userId && (requests.any { it.userId == userId } || attendees.any { it.userId == userId })
-    /**
-     * Оплата онлайн: запит на участь і розмова про оплату — один потік (власник 03.11). Людина з заявкою відкриває з
-     * панелі розмову з організатором — там реквізити, скріншот і рішення, — а не дивиться на неактивне «Запит надіслано».
-     */
-    val payChat: Boolean get() = payOnline && action == DetailAction.REQUESTED
-    /** Непрочитане в розмові з [userId]: заявка онлайн-події веде в розмову, тож лічильник — на рядку заявки. */
-    fun unreadFrom(userId: String): Int = questions.firstOrNull { it.askerId == userId }?.unread ?: 0
-    /** «Питання до вас» без тих, чия заявка онлайн-події вже веде в розмову: одна людина — один рядок. */
-    val questionsApart: List<QuestionThread>
-        get() = if (!payOnline) questions else questions.filter { question -> requests.none { it.userId == question.askerId } }
     /**
      * «Вже маєте квиток?» під продавцями: квиток купили раніше, на касі чи отримали від друга, а картка «Купили квиток?»
      * з'являється лише після нашого продавця. Лише афіша, що попереду й не скасована, і без квитка в телефоні.
@@ -320,9 +307,8 @@ class DetailPresenter(
         if (app.detailScreen === this) {
             app.detailScreen = null
             app.closePerson()
-            // Слот перехопив старий екран, а новіший ще живий: слот — новішому. iOS: посилання з відкритої розмови замінює
-            // стос, і старі деталі під нею на мить «з'являються» (`reopen`), перехоплюють слот і, знімаючись, чистили
-            // його — нові деталі крутили завантаження без кінця. Звичайне «назад» (знімається новіший) — як і було.
+            // Старий екран може перехопити слот уже після нового (iOS: посилання з відкритої розмови замінює стос, і старі
+            // деталі на мить «з'являються»). Тоді слот повертається новішому, інакше той лишився б без події.
             if (!keepSlot && newer != null) newer.claim(newer.sessionId)
             else if (!keepSlot && app.state.value.detail.event?.id == sessionId) app.dismissEvent()
         }

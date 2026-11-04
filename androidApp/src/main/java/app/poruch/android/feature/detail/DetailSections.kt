@@ -52,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import app.poruch.android.EventMap
 import app.poruch.android.R
 import app.poruch.shared.DetailAction
+import app.poruch.shared.questionsWithoutRequests
+import app.poruch.shared.unreadInThread
 import app.poruch.android.ui.*
 import app.poruch.android.feature.mine.countdownOverline
 import app.poruch.android.feature.wallet.WalletTicketCard
@@ -271,7 +273,7 @@ internal fun Questions(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         SectionHeader(stringResource(R.string.questions_section))
         Column(Modifier.fillMaxWidth().cardSurface()) {
-            state.screen.questionsApart.forEachIndexed { index, question ->
+            state.screen.questionsWithoutRequests.forEachIndexed { index, question ->
                 if (index > 0) HorizontalDivider(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md), color = colors.hairline)
                 val name = question.askerName.ifBlank { stringResource(R.string.chat_member) }
                 Row(
@@ -331,8 +333,8 @@ internal fun JoinRequests(
                 }
                 GhostButton(stringResource(R.string.decline), { onIntent(DetailIntent.DeclineRequest(person.userId)) }, tone = colors.inkSecondary)
                 if (state.screen.payOnline) {
-                    // Оплата онлайн: заявка — це розмова (власник 03.11). Там реквізити, скріншот і «Оплату отримано».
-                    val unread = state.screen.unreadFrom(person.userId)
+                    // Рішення про оплату — у розмові з людиною, поруч із реквізитами й скріншотом.
+                    val unread = state.screen.unreadInThread(person.userId)
                     Box {
                         PrimaryButton(stringResource(R.string.request_chat), { onIntent(DetailIntent.OpenQuestion(person.userId)) })
                         if (unread > 0) CountBadge(unread, Modifier.align(Alignment.TopEnd))
@@ -634,7 +636,7 @@ internal fun Facts(event: Event) {
         event.gathering?.let { room ->
             add(Triple(stringResource(R.string.organizer_short), room.organizerName.ifBlank { stringResource(R.string.organizer_short) }, null))
             add(Triple(stringResource(R.string.capacity_label), stringResource(R.string.attendees_short, room.attendeeCount, room.capacity), null))
-            // Платна зустріч (docs/organizer-events.md): ціна й як платять — на місці чи онлайн організатору, не через нас.
+            // Ціна й як платять — на місці чи онлайн організатору, не через нас.
             val payHint = stringResource(if (room.payOnline) R.string.price_pay_online_hint else R.string.price_pay_hint)
             peoplePrice(event)?.let { add(Triple(stringResource(R.string.price_fact), it, payHint)) }
         }

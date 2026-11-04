@@ -5,6 +5,9 @@ import app.poruch.android.mvi.MviViewModel
 import app.poruch.domain.ChatRules
 import app.poruch.domain.FollowKind
 import app.poruch.shared.PoruchApp
+import app.poruch.shared.canSendPaymentProof
+import app.poruch.shared.paymentInOpenChat
+import app.poruch.shared.threadPersonName
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -28,8 +31,8 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
                 title = event?.title ?: title,
                 members = event?.gathering?.let { it.attendeeCount + 1 } ?: members,
                 messages = chat?.messages ?: messages,
-                // Організатор бачить, хто питає: з розмови, розмов, заявок чи учасників (міг написати першим).
-                askerName = thread?.let { shared.askerName(eventId, it) } ?: askerName,
+                // Організатор міг написати першим, тож ім'я людини — не лише з її повідомлень.
+                askerName = thread?.let { shared.threadPersonName(eventId, it) } ?: askerName,
                 loading = chat?.loading ?: loading,
                 sending = chat?.sending ?: false,
                 available = chat?.available ?: available,
@@ -40,10 +43,10 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
                 readOnly = event != null && (event.isCancelled || event.endInstant?.let { it + CHAT_GRACE < now } == true),
                 person = shared.person,
                 followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId },
-                canSendProof = chat != null && shared.canSendProof(),
+                canSendPaymentProof = chat != null && shared.canSendPaymentProof(),
                 proofs = chat?.proofs ?: proofs,
                 missingProofs = chat?.missingProofs ?: missingProofs,
-                payment = chat?.let { shared.threadPayment() },
+                paymentStatus = chat?.let { shared.paymentInOpenChat() },
                 mutating = shared.mutating
             )
         }
@@ -88,13 +91,13 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
                 app.reportMessage(intent.message.id, intent.reason, intent.details)
             }
             is ChatIntent.SendProof -> {
-                if (!state.value.canSendProof || state.value.sending) return
+                if (!state.value.canSendPaymentProof || state.value.sending) return
                 val text = state.value.draft
                 reduce { copy(draft = "") }
-                app.sendProof(intent.jpeg, text)
+                app.sendPaymentProof(intent.jpeg, text)
             }
             is ChatIntent.ViewProof -> reduce { copy(viewing = intent.path) }
-            ChatIntent.ApprovePayment -> thread?.let { app.approveMember(eventId, it) }
+            ChatIntent.ConfirmPayment -> thread?.let { app.approveMember(eventId, it) }
             ChatIntent.DeclineRequest -> thread?.let { app.declineMember(eventId, it) }
         }
     }

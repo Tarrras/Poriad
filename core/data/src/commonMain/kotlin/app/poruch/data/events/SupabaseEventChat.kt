@@ -39,7 +39,6 @@ internal class SupabaseEventChat(
             })
         ).map { it.domain() }
 
-    // `p_image` лише зі скріншотом: без нього той самий запит іде й на сервер до 20261125130000.
     override suspend fun send(eventId: String, body: String, thread: String?, image: String?): String =
         rpc.call("send_message", buildJsonObject {
             put("p_event_id", eventId); put("p_body", body)
@@ -52,7 +51,7 @@ internal class SupabaseEventChat(
         val me = auth.session.value?.userId ?: fail(AppError.SessionRequired)
         val token = auth.accessToken() ?: fail(AppError.SessionRequired)
         if (jpeg.isEmpty() || jpeg.size > ImageRules.MAX_BYTES) fail(AppError.ImageUploadFailed)
-        // Перша тека — власник: так `delete-account` прибирає скріншоти разом з рештою файлів людини.
+        // Перша тека — власник: видалення акаунта прибирає й скріншоти.
         val path = "$me/$eventId/${Uuid.random()}.jpg"
         storage.upload(path, jpeg, "image/jpeg", token, ImageStorage.PROOFS)
         return path

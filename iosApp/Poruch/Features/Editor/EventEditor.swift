@@ -591,7 +591,7 @@ private struct PeopleStep: View {
     @Binding var form: EditorForm
     /// Тексти під полями значенням, а не замиканням: замикання SwiftUI не порівнює, і крок не перемальовувався.
     let issues: [DraftField: String]
-    /// Правка події з оплатою онлайн: підказка під ціною не має казати «на місці».
+    /// Правка події з оплатою онлайн: підказка під ціною — про неї, а не «на місці».
     var payOnline = false
     var body: some View {
         // Число набирають, степер — для дрібних поправок: 1→200 стрілками — двісті дотиків.
@@ -609,8 +609,7 @@ private struct PeopleStep: View {
             .keyboardType(.numberPad)
             FieldIssue(text: issues[.capacity])
         }.id(DraftField.capacity)
-        // Ціна поруч з місцями (docs/organizers-1.5.md, 1.7): порожньо — безкоштовно. Оплата — на місці, без передоплати
-        // (власник 03.11), тож ні режимів, ні реквізитів.
+        // Порожньо — безкоштовно. Спосіб оплати застосунок не змінює: онлайн вмикають у кабінеті на сайті.
         VStack(alignment: .leading, spacing: Space.sm) {
             LabelledField(
                 label: Copy.price_label,

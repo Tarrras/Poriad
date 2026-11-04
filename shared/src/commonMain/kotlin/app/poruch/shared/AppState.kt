@@ -100,53 +100,6 @@ data class AppState(
     /** Подія [id] з того, що вже в памʼяті: відкриті деталі чи «Мої події». */
     fun knownEvent(id: String): Event? = detail.event?.takeIf { it.id == id } ?: library.myEvents.firstOrNull { it.id == id }
 
-    /**
-     * Хто в розмові [thread] події [eventId] — для шапки організатора: з повідомлень, розмов, заявок чи учасників
-     * (організатор міг написати першим, і повідомлень людини ще нема).
-     */
-    fun askerName(eventId: String, thread: String): String? =
-        chat?.takeIf { it.eventId == eventId }?.messages?.firstOrNull { it.authorId == thread }?.authorName?.takeIf { it.isNotBlank() }
-            ?: detail.takeIf { it.event?.id == eventId }?.let { d ->
-                d.questions.firstOrNull { it.askerId == thread }?.askerName?.takeIf { it.isNotBlank() }
-                    ?: d.joinRequests.firstOrNull { it.userId == thread }?.name?.takeIf { it.isNotBlank() }
-                    ?: d.attendees.firstOrNull { it.userId == thread }?.name?.takeIf { it.isNotBlank() }
-            }
-
-    /**
-     * Відкрита моя розмова з організатором події з оплатою онлайн, де я записався (заявка чи місце): можна надіслати
-     * скріншот оплати (docs/organizer-events.md). Так і сервер: `can_upload_proof`, `send_message` з `p_image`.
-     * Організатор картинок не надсилає.
-     */
-    fun canSendProof(): Boolean {
-        val open = chat ?: return false
-        if (open.thread == null || open.thread != session.userId) return false
-        val room = knownEvent(open.eventId)?.gathering ?: return false
-        return room.payOnline && room.membership != Membership.NONE
-    }
-
-    /**
-     * Відкрита розмова події з оплатою онлайн — це й заявка тієї людини (власник 03.11: запит на участь і розмова про
-     * оплату — один потік): що з нею зараз. Організатору — заявка людини з [ChatState.thread], людині — своя. Null —
-     * розмова не про оплату (загальний чат, «на місці», людина без запису) або деталей події нема в памʼяті.
-     */
-    fun threadPayment(): ThreadPayment? {
-        val open = chat ?: return null
-        val thread = open.thread ?: return null
-        val event = detail.event?.takeIf { it.id == open.eventId } ?: return null
-        val room = event.gathering?.takeIf { it.payOnline } ?: return null
-        return when {
-            organizes(event) -> when {
-                detail.joinRequests.any { it.userId == thread } -> ThreadPayment.WAITING
-                detail.attendees.any { it.userId == thread } -> ThreadPayment.PAID
-                else -> null
-            }
-            thread != session.userId -> null
-            room.awaitingApproval -> ThreadPayment.WAITING
-            room.joined -> ThreadPayment.PAID
-            else -> null
-        }
-    }
-
     /** Своя подія: організую або йду. Це і є «плани» на головній і в нагадуваннях. */
     fun concerns(event: Event) = event.gathering?.joined == true || organizes(event)
 

@@ -362,7 +362,7 @@ class PoruchApp internal constructor(
      * знімають запізно (iOS — `deinit`, Android — `onCleared`), коли ту саму подію вже відкрили знову.
      */
     internal var detailScreen: DetailPresenter? = null
-    /** Живі екрани деталей у порядку появи: слот, який звільнив старіший, дістається новішому ([DetailPresenter.release]). */
+    /** Живі екрани деталей у порядку появи ([DetailPresenter.release]). */
     internal val detailScreens = ArrayList<DetailPresenter>()
     fun loadMyEvents() = library.load()
 
@@ -406,11 +406,8 @@ class PoruchApp internal constructor(
     }
     fun sendMessage(text: String) = chatEngine.send(text)
 
-    /**
-     * Скріншот оплати в моїй розмові з організатором онлайн-події ([AppState.canSendProof]): [jpeg] — JPEG без метаданих,
-     * [text] — що в полі (порожнє — «Скріншот оплати»).
-     */
-    fun sendProof(jpeg: ByteArray, text: String) = chatEngine.send(text, jpeg)
+    /** Скріншот оплати (JPEG без метаданих) у моїй розмові з організатором; [caption] — текст поля, можна порожній. */
+    fun sendPaymentProof(jpeg: ByteArray, caption: String) = chatEngine.send(caption, proof = jpeg)
 
     /** Текст, що не пішов (див. [ChatState.failedDraft]), для поля вводу. Віддає раз. */
     fun consumeFailedDraft(): String? = chatEngine.consumeFailedDraft()

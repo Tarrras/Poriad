@@ -126,7 +126,7 @@ class DetailViewModel(
                     // Штамп — відповідь на цей тап: панель перемкнеться, коли сервер підтвердить.
                     DetailAction.JOIN, DetailAction.REQUEST -> {
                         reduce { copy(stampPending = true) }; joining { app.joinEvent(eventId) }
-                        // Заявка на подію з оплатою онлайн одразу веде в розмову з організатором: далі — реквізити й скріншот там.
+                        // Заявка на онлайн-подію — це розмова з організатором: відкриваємо її одразу.
                         if (screen.action == DetailAction.REQUEST && screen.payOnline) screen.userId?.let { send(DetailEffect.OpenChat(eventId, it)) }
                     }
 

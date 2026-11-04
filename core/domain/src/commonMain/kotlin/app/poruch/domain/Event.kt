@@ -245,10 +245,7 @@ data class Gathering(
     val pendingMeet: PendingMeet? = null,
     /** Ціна входу в гривнях, точна, без «від» (`events.price_min`). Null — безкоштовно. */
     val price: Int? = null,
-    /**
-     * Як платять (docs/organizer-events.md): false — на місці, без передоплати; true — онлайн організатору, реквізити в
-     * розмові на двох, а «Поряд» за оплату не відповідає. Лише з ціною; завжди за підтвердженням.
-     */
+    /** Оплата онлайн організатору, реквізити — у розмові на двох; false — на місці. Лише з ціною й завжди за підтвердженням. */
     val payOnline: Boolean = false
 ) {
     val seatsLeft get() = (capacity - attendeeCount).coerceAtLeast(0)
