@@ -42,7 +42,7 @@ struct ProfileSummary: View {
 }
 
 /// «вересня 2026»: родовий відмінок, бо стоїть після «з».
-private func memberSince(_ iso: String?) -> String? {
+func memberSince(_ iso: String?) -> String? {
     guard let iso else { return nil }
     let parser = ISO8601DateFormatter()
     parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]

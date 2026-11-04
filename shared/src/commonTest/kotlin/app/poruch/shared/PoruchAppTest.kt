@@ -1241,12 +1241,52 @@ class PoruchAppTest {
         // Не записався (лише питав) — ні: сховище не прийме файл (`can_upload_proof`).
         val asking=online.copy(gathering=online.gathering!!.copy(membership=Membership.NONE))
         assertFalse(app.state.value.copy(detail=app.state.value.detail.copy(event=asking)).canSendPaymentProof(),"лише записаним")
+        val paid=online.copy(gathering=online.gathering!!.copy(membership=Membership.APPROVED,joined=true))
+        assertFalse(app.state.value.copy(detail=app.state.value.detail.copy(event=paid)).canSendPaymentProof(),"оплачено — «+» більше не потрібен")
 
         // Загальний чат і подія на місці — ні.
         app.closeChat("ev"); runCurrent(); app.openChat("ev"); runCurrent()
         assertFalse(app.state.value.canSendPaymentProof(),"загальний чат")
         app.sendPaymentProof(jpeg,"x"); runCurrent()
         assertEquals(1,events.uploadedProofs.size)
+        app.close()
+    }
+
+    /** Організатор онлайн-події відкриває розмову з людиною — реквізити, які вже надсилав у цій події, приїжджають самі. */
+    @Test fun organizerGetsTheRequisitesHeAlreadySent()=runTest {
+        val events=Events()
+        val own=event("ev",EventCategory.GAMES,"2090-01-05T19:00:00Z").let {
+            it.copy(gathering=it.gathering!!.copy(price=300,payOnline=true,approvalRequired=true,organizerId="user"))
+        }
+        events.results=listOf(own); events.detailsById=mapOf("ev" to own); events.paymentDetails="Картка 4111 1111 1111 1111"
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.openEvent("ev"); advanceTimeBy(1000); runCurrent()
+        app.openQuestion("ev","ira"); runCurrent()
+        assertEquals("Картка 4111 1111 1111 1111",app.state.value.chat?.savedPaymentDetails)
+        // Подія на місці — не питаємо.
+        val onsite=own.copy(gathering=own.gathering!!.copy(payOnline=false))
+        events.detailsById=mapOf("ev" to onsite); app.closeChat("ev"); app.dismissEvent(); runCurrent()
+        app.openEvent("ev"); advanceTimeBy(1000); runCurrent()
+        app.openQuestion("ev","ira"); runCurrent()
+        assertNull(app.state.value.chat?.savedPaymentDetails)
+        app.close()
+    }
+
+    /** Хто платить, у своїй розмові онлайн-події бачить, хто організатор: картка — у стані розмови, не в `person`. */
+    @Test fun payerSeesWhoTheOrganizerIs()=runTest {
+        val events=Events()
+        val online=event("ev",EventCategory.GAMES,"2090-01-05T19:00:00Z").let {
+            it.copy(gathering=it.gathering!!.copy(price=300,payOnline=true,approvalRequired=true,membership=Membership.REQUESTED,organizerId="org"))
+        }
+        events.results=listOf(online); events.detailsById=mapOf("ev" to online)
+        val marta=Profile("org","Марта",null,null,"2026-09-12T10:00:00Z",3,0)
+        profiles.cards=mapOf("org" to marta)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.openEvent("ev"); advanceTimeBy(1000); runCurrent()
+        app.openQuestion("ev","user"); runCurrent()
+        assertEquals(marta,app.state.value.chat?.organizer)
+        app.closePerson(); runCurrent()
+        assertEquals(marta,app.state.value.chat?.organizer,"інший екран закрив картку людини — шапка розмови лишається")
         app.close()
     }
 
@@ -1261,9 +1301,15 @@ class PoruchAppTest {
         app.openEvent("ev"); advanceTimeBy(1000); runCurrent()
         app.openQuestion("ev","user"); runCurrent()
         val mine=app.state.value
-        assertEquals(PaymentStatus.AWAITING,mine.paymentInOpenChat(),"моя заявка — у моїй розмові")
+        assertEquals(PaymentStatus.WAITING_FOR_DETAILS,mine.paymentInOpenChat(),"моя заявка — у моїй розмові")
+        // Реквізити від організатора, потім мій скріншот: стан іде за розмовою.
+        val details=ChatMessage("m1","ev","org","Організатор",null,"Картка 4444","2026-11-03T10:00:00Z",paymentDetails=true)
+        val proof=ChatMessage("m2","ev","user","Я",null,"Скріншот оплати","2026-11-03T10:05:00Z",image="user/ev/1.jpg")
+        val withDetails=mine.copy(chat=mine.chat!!.copy(messages=listOf(details)))
+        assertEquals(PaymentStatus.WAITING_FOR_PAYMENT,withDetails.paymentInOpenChat())
+        assertEquals(PaymentStatus.PROOF_SENT,withDetails.copy(chat=withDetails.chat!!.copy(messages=listOf(details,proof))).paymentInOpenChat())
         val paid=online.copy(gathering=online.gathering!!.copy(membership=Membership.APPROVED,joined=true))
-        assertEquals(PaymentStatus.RECEIVED,mine.copy(detail=mine.detail.copy(event=paid)).paymentInOpenChat())
+        assertEquals(PaymentStatus.PAID,mine.copy(detail=mine.detail.copy(event=paid)).paymentInOpenChat())
         val onsite=online.copy(gathering=online.gathering!!.copy(payOnline=false))
         assertNull(mine.copy(detail=mine.detail.copy(event=onsite)).paymentInOpenChat(),"на місці — розмова не про оплату")
 
@@ -1271,9 +1317,15 @@ class PoruchAppTest {
         val own=online.copy(gathering=online.gathering!!.copy(organizerId="user",membership=Membership.NONE))
         val ira=Attendee("ira","Іра",null)
         val organizer=mine.copy(detail=mine.detail.copy(event=own,joinRequests=listOf(ira)),chat=mine.chat!!.copy(thread="ira"))
-        assertEquals(PaymentStatus.AWAITING,organizer.paymentInOpenChat())
-        assertEquals(PaymentStatus.RECEIVED,organizer.copy(detail=organizer.detail.copy(joinRequests=emptyList(),attendees=listOf(ira))).paymentInOpenChat())
+        assertEquals(PaymentStatus.WAITING_FOR_DETAILS,organizer.paymentInOpenChat())
+        assertEquals(PaymentStatus.PAID,organizer.copy(detail=organizer.detail.copy(joinRequests=emptyList(),attendees=listOf(ira))).paymentInOpenChat())
         assertNull(organizer.copy(chat=organizer.chat!!.copy(thread=null)).paymentInOpenChat(),"загальний чат")
+
+        // Організатор, що вже надсилав реквізити в цій події, бачить «Вставити ті самі» — доки цій людині їх не надіслав.
+        val saved=organizer.copy(chat=organizer.chat!!.copy(savedPaymentDetails="Картка 4111 1111 1111 1111"))
+        assertEquals("Картка 4111 1111 1111 1111",saved.repeatablePaymentDetails())
+        val sentHere=ChatMessage("m3","ev","user","Я",null,"Картка 4111 1111 1111 1111","2026-11-03T11:00:00Z",paymentDetails=true)
+        assertNull(saved.copy(chat=saved.chat!!.copy(messages=listOf(sentHere))).repeatablePaymentDetails(),"цій людині вже надіслано")
 
         // Деталі: людина з заявкою відкриває розмову з панелі; в організатора її розмова — на рядку заявки, не двічі.
         assertTrue(DetailScreenState(event=online,signedIn=true,userId="user").opensPaymentChat)
@@ -1283,6 +1335,8 @@ class PoruchAppTest {
         val screen=DetailScreenState(event=own,organizer=true,userId="user",requests=listOf(ira),questions=listOf(asked,other))
         assertEquals(listOf(other),screen.questionsWithoutRequests)
         assertEquals(2,screen.unreadInThread("ira"))
+        assertFalse(screen.proofInThread("ira"))
+        assertTrue(screen.copy(questions=listOf(asked.copy(hasProof=true))).proofInThread("ira"),"скріншот — видно на заявці")
         assertEquals(listOf(asked,other),screen.copy(event=own.copy(gathering=own.gathering!!.copy(payOnline=false))).questionsWithoutRequests)
         app.close()
     }

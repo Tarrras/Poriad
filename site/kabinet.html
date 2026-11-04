@@ -11,11 +11,11 @@
 <meta name="theme-color" content="#F2F2F4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 <link rel="preload" href="fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="tokens.css?v=17">
-<link rel="stylesheet" href="web.css?v=17">
+<link rel="stylesheet" href="tokens.css?v=18">
+<link rel="stylesheet" href="web.css?v=18">
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
-<script type="module" src="js/kabinet.js?v=17"></script>
+<script type="module" src="js/kabinet.js?v=18"></script>
 </head>
 <body class="kab">
 
@@ -267,11 +267,13 @@
       <h2 id="kab-talk-title" data-talk-title>Розмова</h2>
       <div class="kab-person" data-talk-person aria-live="polite"></div>
       <div class="kab-row" data-talk-actions hidden>
+        <span class="kab-expected" data-talk-expected></span>
         <button class="btn small primary" type="button" data-talk-approve>Оплату отримано</button>
         <button class="btn small" type="button" data-talk-decline>Відхилити</button>
       </div>
       <p class="kab-hint" data-talk-note></p>
-      <div class="thread" data-talk-thread aria-live="polite"></div>
+      <div class="thread" data-talk-thread></div><p class="sr" data-talk-live aria-live="polite"></p>
+      <button class="btn small" type="button" data-talk-again hidden>Вставити ті самі реквізити</button>
       <label class="kab-field"><span class="sr">Повідомлення</span><textarea name="body" rows="3" maxlength="2000" placeholder="Повідомлення"></textarea></label>
       <button class="btn primary kab-wide" type="submit">Надіслати</button>
     </div>

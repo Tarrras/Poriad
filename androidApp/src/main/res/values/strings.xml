@@ -183,6 +183,7 @@
   <string name="going">Ви йдете</string>
   <!-- Штамп стану на панелі дії після запису (docs/design-wow-1.5.md): заявка й черга; участь — going. -->
   <string name="stamp_request">Запит</string>
+  <string name="stamp_pay">Чекає оплати</string>
   <string name="stamp_waitlist">Черга</string>
   <string name="seats_left">Лишилось %1$d місць</string>
   <string name="attendees">%1$d з %2$d учасників</string>
@@ -494,21 +495,26 @@
   <string name="question_from">Питає %1$s</string>
   <!-- Організатор пише першим (людина ще нічого не питала) або це заявка онлайн-події. -->
   <string name="thread_with">Розмова: %1$s</string>
-  <string name="question_placeholder">Ваше питання…</string>
-  <string name="question_reply_placeholder">Відповісти…</string>
+  <string name="question_placeholder">Напишіть організатору…</string>
+  <string name="question_reply_placeholder">Повідомлення…</string>
   <string name="question_empty_title">Що хочете дізнатися?</string>
   <string name="question_empty_hint">Що взяти, чи можна з другом, як знайти місце — організатор відповість тут. Учасники цієї розмови не бачать.</string>
   <string name="question_empty_title_org">Напишіть першим</string>
   <string name="question_empty_hint_org">Цю розмову бачите лише ви й людина. Учасники її не бачать.</string>
   <!-- Заявка на онлайн-подію — це й розмова про оплату. -->
   <string name="pay_empty_title_org">Напишіть, як оплатити</string>
-  <string name="pay_empty_hint_org">Картка, IBAN чи банка — лише тут. Людина побачить реквізити із застереженням, а скріншот оплати надішле сюди.</string>
+  <string name="pay_empty_hint_org">Картка, IBAN чи банка — лише тут. Людина скопіює номер одним дотиком, а скріншот оплати надішле сюди.</string>
   <string name="pay_empty_title_mine">Заявку надіслано</string>
   <string name="pay_empty_hint_mine">Організатор напише тут, як оплатити. Можете написати й самі.</string>
+  <!-- Смуга заявки над розмовою: стан іде за розмовою (реквізити → скріншот → «Оплату отримано»), сума — праворуч. -->
+  <string name="pay_thread_details_org">%1$s хоче прийти · напишіть, як оплатити</string>
   <string name="pay_thread_waiting_org">%1$s хоче прийти · чекає оплати</string>
-  <string name="pay_thread_paid_org">%1$s у списку · оплату отримано</string>
-  <string name="pay_thread_waiting_mine">Заявка чекає оплати: організатор підтвердить, коли побачить гроші.</string>
-  <string name="pay_thread_paid_mine">Оплату підтверджено — ви в списку.</string>
+  <string name="pay_thread_proof_org">%1$s · скріншот надіслано, звірте з банком</string>
+  <string name="pay_thread_paid_org">%1$s · оплачено, у списку</string>
+  <string name="pay_thread_details_mine">Чекає оплати: організатор напише тут, як оплатити.</string>
+  <string name="pay_thread_waiting_mine">Оплатіть за реквізитами й надішліть сюди скріншот.</string>
+  <string name="pay_thread_proof_mine">Скріншот надіслано: організатор звірить оплату й підтвердить заявку.</string>
+  <string name="pay_thread_paid_mine">Оплачено — ви в списку.</string>
   <string name="chat_title">Чат події</string>
   <string name="chat_placeholder">Написати учасникам…</string>
   <string name="chat_send">Надіслати</string>
@@ -560,7 +566,15 @@
   <string name="proof_hint">Оплатили? Надішліть скріншот кнопкою «+» — його побачить лише організатор.</string>
   <string name="proof_open">Скріншот оплати</string>
   <string name="proof_unavailable">Скріншот недоступний</string>
-  <string name="payment_warning">Реквізити для оплати. «Поряд» не приймає оплату й не відповідає за неї — не переказуйте гроші, якщо сумніваєтесь в організаторі.</string>
+  <!-- Під реквізитами тому, хто платить: спокійно, без червоного — довіра замість тривоги. Речення про «Поряд» — дослівно (юридичний аудит). -->
+  <string name="payment_warning">Оплата йде організатору напряму. «Поряд» не приймає оплату й не відповідає за неї.</string>
+  <string name="pay_report">Сумніваєтесь? Поскаржитись</string>
+  <string name="copy_number">Скопіювати номер</string>
+  <!-- Організатор уже надсилав реквізити в цій події: вставити їх у поле одним дотиком. -->
+  <string name="pay_details_again">Вставити ті самі реквізити</string>
+  <!-- Організатору: на заявці — людина вже надіслала скріншот; під скріншотом — скільки мало прийти. -->
+  <string name="pay_proof_sent">Скріншот надіслано</string>
+  <string name="pay_expected">Очікувано: %1$s</string>
   <string name="approve_paid">Оплату отримано</string>
   <!-- Заявка онлайн-події веде в розмову з людиною: там реквізити, скріншот і рішення. -->
   <string name="request_chat">Розмова</string>
@@ -602,12 +616,16 @@
   <string name="requests_section">Запити на участь</string>
   <string name="approve">Прийняти</string>
   <string name="decline">Відхилити</string>
+  <!-- Відхилити заявку — після підтвердження: людина дізнається про це сповіщенням, а гроші за онлайн-оплату повертає організатор. -->
+  <string name="decline_confirm_title">Відхилити заявку?</string>
+  <string name="decline_confirm_body">%1$s отримає сповіщення, що заявку відхилено.</string>
+  <string name="decline_confirm_body_pay">%1$s отримає сповіщення, що заявку відхилено. Якщо оплата вже прийшла, поверніть гроші: «Поряд» цього не робить.</string>
   <string name="request_join">Надіслати запит</string>
   <string name="request_pending">Запит надіслано</string>
   <string name="request_pending_hint">Організатор ще не відповів</string>
   <!-- Оплата онлайн: заявка й розмова про оплату — одне. Кнопка на панелі й рядок під нею. -->
   <string name="pay_chat_open">Розмова з організатором</string>
-  <string name="pay_waiting_hint">Чекає оплати · організатор напише в розмові, як оплатити</string>
+  <string name="pay_waiting_hint">Реквізити й підтвердження — у розмові</string>
 
   <string name="report">Поскаржитись</string>
   <string name="report_event_title">Поскаржитись на подію</string>

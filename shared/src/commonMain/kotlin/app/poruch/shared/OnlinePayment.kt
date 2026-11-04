@@ -1,6 +1,5 @@
 package app.poruch.shared
 
-import app.poruch.domain.Membership
 import app.poruch.domain.QuestionThread
 
 /*
@@ -9,7 +8,8 @@ import app.poruch.domain.QuestionThread
  * тобто схвалює заявку. Гроші йдуть повз «Поряд». Хто що може, вирішує сервер; тут — що показати на екрані.
  */
 
-enum class PaymentStatus { AWAITING, RECEIVED }
+/** Де заявка: реквізитів ще нема → організатор їх надіслав → людина надіслала скріншот → оплату отримано. */
+enum class PaymentStatus { WAITING_FOR_DETAILS, WAITING_FOR_PAYMENT, PROOF_SENT, PAID }
 
 /** Стан оплати людини, з якою відкрито розмову. Null — розмова не про оплату онлайн. */
 fun AppState.paymentInOpenChat(): PaymentStatus? {
@@ -23,18 +23,24 @@ fun AppState.paymentInOpenChat(): PaymentStatus? {
         else -> return null
     }
     return when {
-        requested -> PaymentStatus.AWAITING
-        going -> PaymentStatus.RECEIVED
+        requested && open.messages.any { it.authorId == person && it.image != null } -> PaymentStatus.PROOF_SENT
+        requested && open.messages.any { it.authorId != person && it.paymentDetails } -> PaymentStatus.WAITING_FOR_PAYMENT
+        requested -> PaymentStatus.WAITING_FOR_DETAILS
+        going -> PaymentStatus.PAID
         else -> null
     }
 }
 
-/** Скріншот оплати надсилає лише людина у своїй розмові з організатором онлайн-події, на яку записалась. */
+/** Організатор ще не написав цій людині, як оплатити, а іншим у цій події писав: «Вставити ті самі реквізити». */
+fun AppState.repeatablePaymentDetails(): String? =
+    chat?.savedPaymentDetails?.takeIf { paymentInOpenChat() == PaymentStatus.WAITING_FOR_DETAILS }
+
+/** Скріншот оплати надсилає лише людина у своїй розмові з організатором онлайн-події, поки заявка чекає оплати. */
 fun AppState.canSendPaymentProof(): Boolean {
     val open = chat ?: return false
     if (open.thread == null || open.thread != session.userId) return false
     val room = knownEvent(open.eventId)?.gathering ?: return false
-    return room.payOnline && room.membership != Membership.NONE
+    return room.payOnline && room.awaitingApproval
 }
 
 /** Ім'я людини в розмові організатора — і тоді, коли вона ще нічого не написала (організатор почав першим). */
@@ -54,6 +60,9 @@ val DetailScreenState.opensPaymentChat: Boolean get() = payOnline && action == D
 
 /** Непрочитане в розмові з людиною: у онлайн-події лічильник стоїть на її заявці. */
 fun DetailScreenState.unreadInThread(userId: String): Int = questions.firstOrNull { it.askerId == userId }?.unread ?: 0
+
+/** Людина вже надіслала скріншот оплати: на її заявці — «Скріншот надіслано», щоб не відкривати кожну розмову. */
+fun DetailScreenState.proofInThread(userId: String): Boolean = questions.firstOrNull { it.askerId == userId }?.hasProof == true
 
 /** «Питання до вас» без людей із заявкою на онлайн-подію: їхня розмова вже відкривається з заявки. */
 val DetailScreenState.questionsWithoutRequests: List<QuestionThread>

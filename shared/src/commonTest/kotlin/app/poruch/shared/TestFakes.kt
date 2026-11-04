@@ -78,6 +78,8 @@ internal class Events: EventDiscovery, SavedEvents, EventAuthoring, EventPartici
     var questions=emptyList<QuestionThread>()
     val questionCalls=mutableListOf<String>()
     override suspend fun questions(eventId:String):List<QuestionThread> { questionCalls+=eventId; return questions }
+    var paymentDetails:String?=null
+    override suspend fun myPaymentDetails(eventId:String):String? = paymentDetails
     val queries=mutableListOf<EventQuery>()
     val cardRequests=mutableListOf<List<String>>()
     val createIds=mutableListOf<String>()

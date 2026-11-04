@@ -121,7 +121,7 @@ class PoruchApp internal constructor(
         guestSaves,
         guestArtists
     )
-    private val chatEngine = ChatEngine(chat, store, scope)
+    private val chatEngine = ChatEngine(chat, store, scope, profiles)
     private val reloader = Reloader(discovery, library)
     private val pushSync = PushSync(push, seenRequests, seenMessages, store, pendingPush, deviceTouch)
     private val places = PlaceLookup(addresses, timeZones, scope)

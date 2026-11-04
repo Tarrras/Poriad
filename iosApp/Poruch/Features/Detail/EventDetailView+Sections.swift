@@ -66,7 +66,7 @@ extension EventDetailView {
         if view.ended { return view.room?.joined == true ? (Copy.went, .neutral, PoruchIcons.check) : nil }
         if view.room?.joined == true { return (Copy.going, .success, PoruchIcons.check) }
         if view.waitlisted { return (Copy.in_queue, .accent, PoruchIcons.queue) }
-        if view.room?.awaitingApproval == true { return (Copy.request_pending, .accent, PoruchIcons.queue) }
+        if view.room?.awaitingApproval == true { return (view.payOnline ? Copy.stamp_pay : Copy.request_pending, .accent, PoruchIcons.queue) }
         if eventScarce(event), let room = view.room { return (Copy.seats_left("\(room.seatsLeft)"), .accent, nil) }
         return nil
     }
@@ -583,41 +583,52 @@ extension EventDetailView {
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: Copy.request_notification_channel)
             ForEach(view.requests, id: \.userId) { person in
-                HStack(spacing: Space.md) {
+                // Два рядки: імʼя цілим (поруч із двома кнопками воно обрізалось), під ним — дії.
+                VStack(alignment: .leading, spacing: Space.md) {
                     // Імʼя й фото — вхід у картку: вирішувати, дивлячись на людину, а не на імʼя.
                     Button { openPerson(person.userId) } label: {
                         HStack(spacing: Space.md) {
                             Avatar(name: person.name, url: person.avatarUrl, size: 36)
-                            // Поступається імʼя, а не дії: з більшим кеглем кнопок «Прийняти» переносилось на два рядки.
-                            Text(person.name.isEmpty ? Copy.chat_member : person.name)
-                                .font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(1)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(person.name.isEmpty ? Copy.chat_member : person.name)
+                                    .font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(2)
+                                if view.payOnline && view.proofInThread(userId: person.userId) {
+                                    Text(Copy.pay_proof_sent).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                                }
+                            }
+                            Spacer(minLength: 0)
                         }.contentShape(Rectangle())
                     }.buttonStyle(.plain).accessibilityLabel(Copy.person_open("\(person.name)"))
-                    Spacer(minLength: 0)
-                    // Поля й тло — у мітці: поза міткою SwiftUI зараховує до дотику лише саме слово.
-                    Button { model.app.declineMember(eventId: event.id, userId: person.userId) } label: {
-                        Text(Copy.decline).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).lineLimit(1).fixedSize()
-                            .tapTarget()
-                    }.buttonStyle(.plain)
-                    if view.payOnline {
-                        // Рішення про оплату — у розмові з людиною, поруч із реквізитами й скріншотом.
-                        let unread = Int(view.unreadInThread(userId: person.userId))
-                        Button { writingTo = ChatRoute(id: event.id, thread: person.userId) } label: {
-                            HStack(spacing: Space.xs) {
-                                Text(Copy.request_chat).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
-                                if unread > 0 { CountBadge(count: unread) }
-                            }
-                            .padding(.horizontal, Space.lg).frame(height: 40)
-                            .background(Palette.brand, in: buttonShape)
-                            .tapTarget()
-                        }.buttonStyle(PressableStyle())
-                    } else {
-                        Button { model.app.approveMember(eventId: event.id, userId: person.userId) } label: {
-                            Text(Copy.approve).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
+                    .accessibilityValue(view.payOnline && view.proofInThread(userId: person.userId) ? Copy.pay_proof_sent : "")
+                    HStack(spacing: Space.md) {
+                        Spacer(minLength: 0)
+                        // Поля й тло — у мітці: поза міткою SwiftUI зараховує до дотику лише саме слово.
+                        Button { declining = person } label: {
+                            Text(Copy.decline).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).lineLimit(1).fixedSize()
+                                .tapTarget()
+                        }.buttonStyle(.plain)
+                        if view.payOnline {
+                            // Рішення про оплату — у розмові з людиною, поруч із реквізитами й скріншотом.
+                            let unread = Int(view.unreadInThread(userId: person.userId))
+                            Button { writingTo = ChatRoute(id: event.id, thread: person.userId) } label: {
+                                HStack(spacing: Space.xs) {
+                                    Text(Copy.request_chat).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
+                                    if unread > 0 { CountBadge(count: unread) }
+                                }
                                 .padding(.horizontal, Space.lg).frame(height: 40)
                                 .background(Palette.brand, in: buttonShape)
                                 .tapTarget()
-                        }.buttonStyle(PressableStyle())
+                            }.buttonStyle(PressableStyle())
+                            // Лічильник прихований від VoiceOver: кажемо його в назві кнопки разом з іменем.
+                            .accessibilityLabel(unread > 0 ? "\(Copy.thread_with(person.name)), \(Copy.unread_messages_a11y("\(unread)"))" : Copy.thread_with(person.name))
+                        } else {
+                            Button { model.app.approveMember(eventId: event.id, userId: person.userId) } label: {
+                                Text(Copy.approve).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
+                                    .padding(.horizontal, Space.lg).frame(height: 40)
+                                    .background(Palette.brand, in: buttonShape)
+                                    .tapTarget()
+                            }.buttonStyle(PressableStyle())
+                        }
                     }
                 }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
             }
@@ -800,7 +811,7 @@ extension EventDetailView {
     func participationStamp(_ view: DetailScreenState) -> (String, BadgeTone, PoruchGlyph?)? {
         switch view.action {
         case .leave: (Copy.going, .success, PoruchIcons.check)
-        case .requested: (Copy.stamp_request, .accent, nil)
+        case .requested: (view.payOnline ? Copy.stamp_pay : Copy.stamp_request, .accent, nil)
         case .leaveWaitlist: (Copy.stamp_waitlist, .accent, nil)
         default: nil
         }

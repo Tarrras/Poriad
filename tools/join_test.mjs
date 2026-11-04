@@ -1,7 +1,7 @@
 // Правила шторки «Йду» (site/js/join.js) без браузера: node tools/join_test.mjs
 import assert from "node:assert/strict";
-import { outcome, STATUS, STAMPS, ageLimit, needsBirthDate, weekPool, weekPicks, weekRow, shareMode, unfollowTitle, statusKind } from "../site/js/join.js";
-import { bubble } from "../site/js/chat.js";
+import { outcome, STATUS, STAMPS, ageLimit, needsBirthDate, weekPool, weekPicks, weekRow, shareMode, unfollowTitle, statusKind, payStatus, PAY_BAR, organizerTrust } from "../site/js/join.js";
+import { bubble, payStage, paymentNumber } from "../site/js/chat.js";
 
 // Таблиця «Інші відповіді на запис» (docs/organizers-1.5.md, 1.1).
 for (const [code, kind] of [
@@ -68,13 +68,29 @@ assert.equal(unfollowTitle("Марта"), "Не стежити за органі
 assert.equal(unfollowTitle(""), "Не стежити за організатором?");
 assert.ok(STATUS.unfollowAsk.unfollow && !STATUS.unfollowed.unfollow, "кнопка підтвердження — лише в питанні");
 
-// Оплата онлайн (docs/organizer-events.md): заявка — «Чекає оплати», з розмовою й застереженням.
+// Оплата онлайн (docs/organizer-events.md): заявка — «Чекає оплати» з розмовою; заголовок іде за розмовою, сума — в тексті.
 assert.equal(statusKind("requested", true), "requestedPay");
 assert.equal(statusKind("requested", false), "requested");
-assert.equal(statusKind("approved", true), "approved");
-assert.equal(STATUS.requestedPay.title, "Чекає оплати");
-assert.ok(STATUS.requestedPay.text.includes("не відповідає за неї") && STATUS.requestedPay.ask && STATUS.requestedPay.leave);
-assert.deepEqual(STAMPS.requestedPay, ["Оплата", "accent"]);
+assert.equal(statusKind("approved", true), "approvedPay");
+assert.equal(statusKind("waitlist", true), "waitlist");
+assert.ok(STATUS.requestedPay.ask && STATUS.requestedPay.leave && STATUS.approvedPay.ics);
+assert.deepEqual(STAMPS.requestedPay, ["Чекає оплати", "accent"], "той самий штамп, що в застосунку");
+assert.equal(payStatus("details", "250 ₴").text, "Організатор напише в розмові, як оплатити 250 ₴. Лист прийде на пошту.");
+assert.equal(payStatus("payment", "250 ₴").title, "Реквізити в розмові");
+assert.ok(payStatus("payment", "").text.startsWith("Оплатіть за реквізитами"), "без ціни — без подвійного пробілу");
+assert.equal(payStatus("proof").title, "Оплату перевіряє організатор");
+assert.equal(PAY_BAR.paid, "Оплачено — ви в списку.");
+// Довіра замість тривоги: хто організатор, тими самими словами, що в застосунку.
+assert.equal(organizerTrust({ display_name: "Марта", member_since: "2026-09-12T10:00:00Z", organized: 3 }), "Марта · На «Поряд» з вересня 2026 · 3 події організовано");
+assert.equal(organizerTrust({ display_name: "Марта", member_since: null, organized: 0 }), "Марта", "новачок — лише імʼя");
+assert.equal(organizerTrust(undefined), "", "картку не видно — рядка нема");
+// Стадія — з розмови: скріншот людини важить більше за реквізити.
+const details = { author_id: "org", payment_details: true }, proofRow = { author_id: "me", image: "me/e/1.jpg" };
+assert.equal(payStage([], "me"), "details");
+assert.equal(payStage([{ author_id: "me", payment_details: true }], "me"), "details", "свої «реквізити» — не від організатора");
+assert.equal(payStage([details], "me"), "payment");
+assert.equal(payStage([details, proofRow], "me"), "proof");
+assert.equal(payStage([proofRow], "me"), "proof");
 assert.ok(STATUS.approved.ask && STATUS.waitlist.ask && !STATUS.closed.ask, "розмова — тим, хто записався");
 
 // Повідомлення: текст лише текстом; під чужими реквізитами — застереження й скарга, під своїми — ні.
@@ -84,10 +100,19 @@ assert.ok(theirs.startsWith('<div class="msg" data-id="m1"><small>Організ
 assert.ok(theirs.includes("&lt;b&gt;1111&lt;/b&gt;") && !theirs.includes("<a "), "без розмітки й посилань");
 assert.ok(theirs.includes("«Поряд» не приймає оплату й не відповідає за неї") && theirs.includes('data-report="m1"'));
 const own = bubble({ ...msg, author_id: "me" }, "me", "org", new Date("2026-11-05T12:00:00Z"));
-assert.ok(own.startsWith('<div class="msg mine" data-id="m1"><small>Ви · 3 лист') && !own.includes("pay-warn"), "своє — без застереження, інший день — з датою");
-assert.ok(!bubble({ ...msg, payment_details: false }, "me", "org").includes("pay-warn"));
-assert.ok(!bubble({ ...msg, author_id: "me" }, "org", "org").includes("pay-warn"), "організатор у кабінеті застереження не бачить");
-assert.ok(!bubble(msg, "org", "org").includes("pay-warn"), "і під своїми реквізитами теж");
+assert.ok(own.startsWith('<div class="msg mine" data-id="m1"><small>Ви · 3 лист') && !own.includes("pay-note"), "своє — без застереження, інший день — з датою");
+assert.ok(!bubble({ ...msg, payment_details: false }, "me", "org").includes("pay-note"));
+assert.ok(!bubble({ ...msg, author_id: "me" }, "org", "org").includes("pay-note"), "організатор у кабінеті застереження не бачить");
+assert.ok(!bubble(msg, "org", "org").includes("pay-note"), "і під своїми реквізитами теж");
+// Номер з реквізитів — той самий, що в застосунку (PaymentNumberTest): тут картка 4111 1111 1111 1111 — Луна проходить.
+assert.ok(!theirs.includes("data-copy-number"), "розірваний розміткою номер — не номер");
+const withCard = bubble({ ...msg, body: "Картка 4111 1111 1111 1111, Олена" }, "me", "org");
+assert.ok(withCard.includes("<b>4111 1111 1111 1111</b>") && withCard.includes('data-copy-number="4111111111111111"'));
+assert.equal(paymentNumber("моно: 4111-1111-1111-1111"), "4111 1111 1111 1111");
+assert.equal(paymentNumber("IBAN ua21 3223 1300 0002 6007 2335 6600 1, ФОП"), "UA21 3223 1300 0002 6007 2335 6600 1");
+assert.equal(paymentNumber("Дзвоніть +380 67 123 45 67"), null, "телефон");
+assert.equal(paymentNumber("4111 1111 1111 1112"), null, "не проходить Луна");
+assert.equal(paymentNumber("0000 0000 0000 0000"), null, "не картка");
 // Скріншот оплати: лише шлях у data-атрибуті (src — з токеном, blob:), без прямого посилання на сховище.
 const shot = bubble({ ...msg, author_id: "me", payment_details: false, image: "me/e1/f.jpg", body: "Скріншот оплати" }, "me", "org");
 assert.ok(shot.includes('<button class="proof" type="button" data-proof-open><img alt="Скріншот оплати" data-proof-path="me/e1/f.jpg"></button>'));

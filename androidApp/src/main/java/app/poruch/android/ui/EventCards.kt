@@ -86,7 +86,8 @@ fun eventState(event: Event, waitlisted: Boolean = false): Pair<String, BadgeTon
     if (event.hasEnded(kotlin.time.Clock.System.now())) return null
     return when {
         room.joined -> stringResource(R.string.going) to BadgeTone.Success
-        room.awaitingApproval -> stringResource(R.string.request_pending) to BadgeTone.Accent
+        // Онлайн-оплата: заявка — «Чекає оплати», як штамп і смуга в розмові.
+        room.awaitingApproval -> stringResource(if (room.payOnline) R.string.stamp_pay else R.string.request_pending) to BadgeTone.Accent
         waitlisted -> stringResource(R.string.in_queue) to BadgeTone.Accent
         room.isFull -> stringResource(R.string.full) to BadgeTone.Neutral
         // Коротко, як на iOS: штамп на вузькому квитку не мусить налазити на «Зберегти».

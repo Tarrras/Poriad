@@ -414,9 +414,10 @@ internal data class QuestionThreadDto(
     @SerialName("last_body") val lastBody: String? = null,
     @SerialName("last_at") val lastAt: String = "",
     @SerialName("last_mine") val lastMine: Boolean = false,
-    val unread: Int = 0
+    val unread: Int = 0,
+    @SerialName("has_proof") val hasProof: Boolean = false
 ) {
-    fun domain() = app.poruch.domain.QuestionThread(askerId, askerName, askerAvatar, lastBody.orEmpty(), lastAt, lastMine, unread)
+    fun domain() = app.poruch.domain.QuestionThread(askerId, askerName, askerAvatar, lastBody.orEmpty(), lastAt, lastMine, unread, hasProof)
 }
 
 /** Рядок `public.join_request_result` з `my_join_requests`. */

@@ -143,6 +143,7 @@ enum Copy {
     static let filters = "Фільтри"
     static let going = "Ви йдете"
     static let stamp_request = "Запит"
+    static let stamp_pay = "Чекає оплати"
     static let stamp_waitlist = "Черга"
     static func seats_left(_ a0: String) -> String { "Лишилось \(a0) місць" }
     static func attendees(_ a0: String, _ a1: String) -> String { "\(a0) з \(a1) учасників" }
@@ -427,24 +428,25 @@ enum Copy {
     static let questions_section_hint = "Бачите лише ви й людина, яка питає."
     static let question_subtitle = "Бачите лише ви й організатор"
     static func question_from(_ a0: String) -> String { "Питає \(a0)" }
-    /// Організатор пише першим (людина ще нічого не питала) або це заявка онлайн-події.
     static func thread_with(_ a0: String) -> String { "Розмова: \(a0)" }
-    static let question_placeholder = "Ваше питання…"
-    static let question_reply_placeholder = "Відповісти…"
+    static let question_placeholder = "Напишіть організатору…"
+    static let question_reply_placeholder = "Повідомлення…"
     static let question_empty_title = "Що хочете дізнатися?"
     static let question_empty_hint = "Що взяти, чи можна з другом, як знайти місце — організатор відповість тут. Учасники цієї розмови не бачать."
-    /// Організатор відкрив розмову першим.
     static let question_empty_title_org = "Напишіть першим"
     static let question_empty_hint_org = "Цю розмову бачите лише ви й людина. Учасники її не бачать."
-    /// Заявка на онлайн-подію — це й розмова про оплату.
     static let pay_empty_title_org = "Напишіть, як оплатити"
-    static let pay_empty_hint_org = "Картка, IBAN чи банка — лише тут. Людина побачить реквізити із застереженням, а скріншот оплати надішле сюди."
+    static let pay_empty_hint_org = "Картка, IBAN чи банка — лише тут. Людина скопіює номер одним дотиком, а скріншот оплати надішле сюди."
     static let pay_empty_title_mine = "Заявку надіслано"
     static let pay_empty_hint_mine = "Організатор напише тут, як оплатити. Можете написати й самі."
+    static func pay_thread_details_org(_ a0: String) -> String { "\(a0) хоче прийти · напишіть, як оплатити" }
     static func pay_thread_waiting_org(_ a0: String) -> String { "\(a0) хоче прийти · чекає оплати" }
-    static func pay_thread_paid_org(_ a0: String) -> String { "\(a0) у списку · оплату отримано" }
-    static let pay_thread_waiting_mine = "Заявка чекає оплати: організатор підтвердить, коли побачить гроші."
-    static let pay_thread_paid_mine = "Оплату підтверджено — ви в списку."
+    static func pay_thread_proof_org(_ a0: String) -> String { "\(a0) · скріншот надіслано, звірте з банком" }
+    static func pay_thread_paid_org(_ a0: String) -> String { "\(a0) · оплачено, у списку" }
+    static let pay_thread_details_mine = "Чекає оплати: організатор напише тут, як оплатити."
+    static let pay_thread_waiting_mine = "Оплатіть за реквізитами й надішліть сюди скріншот."
+    static let pay_thread_proof_mine = "Скріншот надіслано: організатор звірить оплату й підтвердить заявку."
+    static let pay_thread_paid_mine = "Оплачено — ви в списку."
     static let chat_title = "Чат події"
     static let chat_placeholder = "Написати учасникам…"
     static let chat_send = "Надіслати"
@@ -478,6 +480,20 @@ enum Copy {
     static let err_chat_closed = "Чат закрито: подія давно минула"
     static let err_too_many_messages = "Забагато повідомлень поспіль. Зачекайте хвилину"
     static let err_invalid_message = "Повідомлення порожнє або задовге (до 2000 символів)"
+    static let err_payment_details = "Номер картки, IBAN чи посилання на оплату тут писати не можна: реквізити надсилають лише в розмові з людиною, у події з оплатою онлайн"
+    static let proof_attach = "Надіслати скріншот оплати"
+    static let proof_hint = "Оплатили? Надішліть скріншот кнопкою «+» — його побачить лише організатор."
+    static let proof_open = "Скріншот оплати"
+    static let proof_unavailable = "Скріншот недоступний"
+    static let payment_warning = "Оплата йде організатору напряму. «Поряд» не приймає оплату й не відповідає за неї."
+    static let pay_report = "Сумніваєтесь? Поскаржитись"
+    static let copy_number = "Скопіювати номер"
+    static let pay_details_again = "Вставити ті самі реквізити"
+    static let pay_proof_sent = "Скріншот надіслано"
+    static func pay_expected(_ a0: String) -> String { "Очікувано: \(a0)" }
+    static let approve_paid = "Оплату отримано"
+    static let request_chat = "Розмова"
+    static let person_write = "Написати"
     static let contact_confirm_title = "Відкрити посилання від організатора?"
     static func contact_confirm_body(_ a0: String) -> String { "Ви переходите на \(a0). Це посилання додав організатор події. «Поряд» не перевіряє його і не відповідає за вміст сторінки чи чату за ним. Не переходьте, якщо не довіряєте організатору." }
     static let contact_confirm_open = "Перейти"
@@ -489,23 +505,15 @@ enum Copy {
     static let approval_badge = "За підтвердженням"
     static let requests_section = "Запити на участь"
     static let approve = "Прийняти"
-    /// В онлайн-події схвалення заявки — це «Оплату отримано».
-    static let approve_paid = "Оплату отримано"
-    /// Заявка онлайн-події веде в розмову з людиною: там реквізити, скріншот і рішення.
-    static let request_chat = "Розмова"
-    static let person_write = "Написати"
-    static let proof_attach = "Надіслати скріншот оплати"
-    static let proof_hint = "Оплатили? Надішліть скріншот кнопкою «+» — його побачить лише організатор."
-    static let proof_open = "Скріншот оплати"
-    static let proof_unavailable = "Скріншот недоступний"
-    static let payment_warning = "Реквізити для оплати. «Поряд» не приймає оплату й не відповідає за неї — не переказуйте гроші, якщо сумніваєтесь в організаторі."
     static let decline = "Відхилити"
+    static let decline_confirm_title = "Відхилити заявку?"
+    static func decline_confirm_body(_ a0: String) -> String { "\(a0) отримає сповіщення, що заявку відхилено." }
+    static func decline_confirm_body_pay(_ a0: String) -> String { "\(a0) отримає сповіщення, що заявку відхилено. Якщо оплата вже прийшла, поверніть гроші: «Поряд» цього не робить." }
     static let request_join = "Надіслати запит"
     static let request_pending = "Запит надіслано"
     static let request_pending_hint = "Організатор ще не відповів"
-    /// Оплата онлайн: заявка й розмова про оплату — одне. Кнопка на панелі й рядок під нею.
     static let pay_chat_open = "Розмова з організатором"
-    static let pay_waiting_hint = "Чекає оплати · організатор напише в розмові, як оплатити"
+    static let pay_waiting_hint = "Реквізити й підтвердження — у розмові"
     static let report = "Поскаржитись"
     static let report_event_title = "Поскаржитись на подію"
     static let report_user_title = "Поскаржитись на організатора"
@@ -1038,7 +1046,6 @@ enum Copy {
     static let price_label = "Ціна, ₴ (необовʼязково)"
     static let price_placeholder = "Безкоштовно"
     static let price_hint = "Учасники платять вам на місці, без передоплати — так і написано на сторінці події."
-    /// Правка події з оплатою онлайн: спосіб оплати застосунок не міняє, лише кабінет.
     static let price_hint_online = "Оплата онлайн: людина подає заявку, а реквізити ви надсилаєте їй у розмові. Спосіб оплати змінюють у кабінеті на сайті."
     static func price_value(_ a0: String) -> String { "\(a0) ₴" }
     static let price_fact = "Вхід"

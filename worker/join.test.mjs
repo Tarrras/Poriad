@@ -11,7 +11,7 @@ const open = eventPage({ ...base, organizer_id: organizer }, now);
 assert.ok(open.includes('<button class="btn primary" type="button" data-join>Йду</button>'));
 assert.ok(open.includes(`<a class="open-app" href="poriad://event/${base.id}">Уже є застосунок? Відкрити</a>`));
 assert.ok(open.includes("<b>У застосунку ще зручніше</b>") && !open.includes("Приєднатися"), "блок під описом — з новим заголовком");
-assert.ok(open.includes('<script type="module" src="/js/join.js?v=17"></script>'), "скрипт — файлом з того самого домену");
+assert.ok(open.includes('<script type="module" src="/js/join.js?v=18"></script>'), "скрипт — файлом з того самого домену");
 assert.ok(open.includes(`data-event="${base.id}" data-organizer="${organizer}" data-organizer-name="Олена" data-city="Київ"`));
 assert.ok(open.includes("data-follow") && open.includes(`href="/e/${base.id}.ics"`), "«Стежити» й календар");
 assert.ok(open.includes("<h2>Цього тижня в Києві</h2>") && open.includes('href="/afisha/kyiv">Уся афіша Києва'), "«Цього тижня» — лише для п’яти міст");

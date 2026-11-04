@@ -19,6 +19,9 @@ struct ChatView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var draft = ""
     @State private var reporting: ChatMessage?
+    @State private var confirmingDecline = false
+    /// Щойно скопійований номер з реквізитів: на кнопці «Скопійовано» дві секунди.
+    @State private var copiedNumber: String?
     /// Картка автора відкрита з чату. Див. `personSheet`.
     @State private var showingPerson = false
     @State private var deleting: ChatMessage?
@@ -45,10 +48,25 @@ struct ChatView: View {
     private var paymentStatus: PaymentStatus? { model.state?.paymentInOpenChat() }
     private var personName: String { thread.flatMap { model.state?.threadPersonName(eventId: eventID, thread: $0) } ?? Copy.chat_member }
     private var personHasWritten: Bool { chat?.messages.contains { $0.authorId == thread } == true }
+    /// Тому, хто платить: хто організатор — довіра замість тривоги («Марта · На «Поряд» з вересня 2026 · 3 події організовано»).
+    private var organizerTrust: String? {
+        guard let profile = chat?.organizer else { return nil }
+        var facts = [profile.name]
+        if let since = memberSince(profile.memberSince) { facts.append(Copy.profile_member_since(since)) }
+        if profile.organized > 0 { facts.append("\(profile.organized) \(Copy.profile_organized(Int(profile.organized)))") }
+        return facts.joined(separator: " · ")
+    }
+    /// Сума онлайн-оплати: у смузі заявки й під скріншотом, щоб звірити з банком.
+    private var amount: String? { event?.gathering.flatMap(gatheringPrice) }
+    /// Під останнім скріншотом людини організатор вирішує, дивлячись на доказ: «Оплату отримано» — там, а не нагорі.
+    private var lastProofId: String? {
+        guard organizer, paymentStatus == .proofSent else { return nil }
+        return chat?.messages.last { $0.image != nil && $0.authorId == thread }?.id
+    }
     /// Людині з новою заявкою про неї вже каже порожня розмова, тож смуги заявки їй ще не треба.
     private var showsPaymentBar: Bool {
         guard let paymentStatus else { return false }
-        return organizer || paymentStatus == .received || chat?.messages.isEmpty == false
+        return organizer || paymentStatus == .paid || chat?.messages.isEmpty == false
     }
     /// Той самий поріг, що на сервері: тиждень після кінця.
     private var readOnly: Bool {
@@ -63,9 +81,10 @@ struct ChatView: View {
             header
             if showsPaymentBar, let paymentStatus, let thread {
                 PaymentRequestBar(
-                    status: paymentStatus, organizer: organizer, person: personName, enabled: model.state?.mutating != true,
+                    status: paymentStatus, organizer: organizer, person: personName,
+                    amount: amount, enabled: model.state?.mutating != true,
                     confirm: { model.app.approveMember(eventId: eventID, userId: thread) },
-                    decline: { model.app.declineMember(eventId: eventID, userId: thread) }
+                    decline: { confirmingDecline = true }
                 )
             }
             content
@@ -94,6 +113,9 @@ struct ChatView: View {
             guard failed != nil, let text = model.app.consumeFailedDraft() else { return }
             if draft.isEmpty { draft = text }
         }
+        .confirmationDialog(Copy.decline_confirm_title, isPresented: $confirmingDecline, titleVisibility: .visible) {
+            Button(Copy.decline, role: .destructive) { if let thread { model.app.declineMember(eventId: eventID, userId: thread) } }
+        } message: { Text(Copy.decline_confirm_body_pay(personName)) }
         .sheet(item: $reporting) { message in
             ReportSheet(target: .message) { reason, details in
                 model.app.reportMessage(messageId: message.id, reason: reason, details: details)
@@ -131,7 +153,7 @@ struct ChatView: View {
             }.buttonStyle(PressableStyle()).accessibilityLabel(Copy.back)
             VStack(alignment: .leading, spacing: 2) {
                 Text(event?.displayTitle ?? Copy.chat_short).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(1)
-                Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+                Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(2)
             }
             Spacer(minLength: 0)
             PoruchIcon(glyph: PoruchIcons.chat, size: 18)
@@ -146,7 +168,7 @@ struct ChatView: View {
     private var subtitle: String {
         if let thread {
             // Організатор бачить, з ким розмова; людина — що вона лише на двох.
-            guard organizer else { return Copy.question_subtitle }
+            guard organizer else { return organizerTrust ?? Copy.question_subtitle }
             return paymentStatus == nil && personHasWritten ? Copy.question_from(personName) : Copy.thread_with(personName)
         }
         guard let room = event?.gathering else { return Copy.contact_label }
@@ -255,6 +277,7 @@ struct ChatView: View {
                         viewing = ProofImage(id: path, image: image)
                     }
                 }
+                if message.id == lastProofId { proofDecision }
                 Text(message.body).font(PoruchFont.bodyText).foregroundStyle(mine ? Palette.onBrand : Palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     // Не вужче за час, щоб він не вилазив за ліве поле короткого «Так».
@@ -266,16 +289,26 @@ struct ChatView: View {
                             .offset(y: 15)
                     }
                     .padding(.bottom, 12)
-                // Застереження — тому, хто платить; організатор свого не бачить.
+                // Тому, хто платить: номер — скопіювати одним дотиком, і спокійне речення, що гроші йдуть повз «Поряд».
+                // Організатор свого не бачить.
                 if message.paymentDetails && !mine && !organizer {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(Copy.payment_warning).font(PoruchFont.caption).foregroundStyle(Palette.danger)
+                    VStack(alignment: .leading, spacing: Space.xs) {
+                        if let number = ChatRules.shared.paymentNumber(text: message.body) {
+                            // Номер — одним рядком, кнопка поруч; довгий IBAN — кнопка під ним.
+                            ViewThatFits(in: .horizontal) {
+                                HStack(spacing: Space.sm) { paymentNumber(number).fixedSize(); Spacer(minLength: 0); copyButton(number) }
+                                VStack(alignment: .leading, spacing: 0) { paymentNumber(number).padding(.top, Space.sm); copyButton(number) }
+                            }
+                            .padding(.horizontal, 10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        }
+                        Text(Copy.payment_warning).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                             .fixedSize(horizontal: false, vertical: true)
-                        Button { reporting = message } label: { Text(Copy.chat_report).font(PoruchFont.caption.weight(.semibold)) }
-                            .foregroundStyle(Palette.danger)
+                        Button { reporting = message } label: { Text(Copy.pay_report).font(PoruchFont.caption.weight(.semibold)).tapTarget() }
+                            .buttonStyle(.plain).foregroundStyle(Palette.ink)
                     }
-                    .padding(.horizontal, 10).padding(.vertical, 8)
-                    .background(Palette.danger.opacity(0.1), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .padding(.top, Space.xs)
                 }
             }
             .padding(.horizontal, Space.md).padding(.top, Space.sm).padding(.bottom, Space.sm)
@@ -302,6 +335,10 @@ struct ChatView: View {
         .accessibilityLabel("\(mine ? Copy.you : name), \(clock(message.createdAt)): \(message.body)")
         // Контекстне меню VoiceOver не відкриває: ті самі дії — через ротор.
         .accessibilityActions {
+            if message.id == lastProofId, let thread { Button(Copy.approve_paid) { model.app.approveMember(eventId: eventID, userId: thread) } }
+            if message.paymentDetails && !mine && !organizer, let number = ChatRules.shared.paymentNumber(text: message.body) {
+                Button(Copy.copy_number) { copy(number) }
+            }
             Button(Copy.chat_copy) { UIPasteboard.general.string = message.body }
             if !mine {
                 Button(Copy.chat_report) { reporting = message }
@@ -309,6 +346,40 @@ struct ChatView: View {
             }
             if organizer || mine { Button(Copy.delete_account_confirm) { deleting = message } }
         }
+    }
+
+    /// «Оплату отримано» під скріншотом: скільки мало прийти — поруч, щоб звірити з банком.
+    private var proofDecision: some View {
+        VStack(alignment: .leading, spacing: Space.xs) {
+            if let amount { Text(Copy.pay_expected(amount)).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary) }
+            Button { if let thread { model.app.approveMember(eventId: eventID, userId: thread) } } label: {
+                Text(Copy.approve_paid).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
+                    .padding(.horizontal, Space.lg).frame(minHeight: 40)
+                    .background(Palette.brand, in: buttonShape)
+                    .tapTarget()
+            }
+            .buttonStyle(PressableStyle())
+            .disabled(model.state?.mutating == true)
+        }
+        .padding(.vertical, Space.xs)
+    }
+
+    private func paymentNumber(_ number: String) -> some View {
+        Text(number).font(PoruchFont.bodyText.monospacedDigit().weight(.semibold)).foregroundStyle(Palette.ink).textSelection(.enabled)
+    }
+
+    private func copyButton(_ number: String) -> some View {
+        Button { copy(number) } label: {
+            Text(copiedNumber == number ? Copy.chat_copied : Copy.chat_copy)
+                .font(PoruchFont.caption.weight(.semibold)).foregroundStyle(Palette.ink).fixedSize().tapTarget()
+        }.buttonStyle(.plain).accessibilityLabel(Copy.copy_number)
+    }
+
+    /// Номер — без пробілів: банківські застосунки не всі приймають групи.
+    private func copy(_ number: String) {
+        UIPasteboard.general.string = number.replacingOccurrences(of: " ", with: "")
+        copiedNumber = number
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { if copiedNumber == number { copiedNumber = nil } }
     }
 
     // ---- Низ
@@ -328,6 +399,16 @@ struct ChatView: View {
         let sending = chat?.sending == true
         let canSend = ChatRules.shared.isBody(text: draft) && !sending
         return VStack(alignment: .leading, spacing: Space.sm) {
+            // Організатор уже надсилав реквізити в цій події: ті самі — в поле, перевірити й надіслати.
+            if let saved = model.state?.repeatablePaymentDetails(), draft.isEmpty {
+                Button { draft = saved; composing = true } label: {
+                    Label(Copy.pay_details_again, systemImage: "arrow.uturn.down")
+                        .font(PoruchFont.caption.weight(.semibold)).foregroundStyle(Palette.ink)
+                        .padding(.horizontal, Space.md).frame(minHeight: 36)
+                        .background(Palette.surfaceMuted, in: Capsule())
+                        .tapTarget()
+                }.buttonStyle(.plain)
+            }
             if canSendProof {
                 Text(proofProblem ?? Copy.proof_hint).font(PoruchFont.caption)
                     .foregroundStyle(proofProblem == nil ? Palette.inkSecondary : Palette.danger)
@@ -378,33 +459,32 @@ struct ChatView: View {
     }
 }
 
-/// Заявка в розмові онлайн-події: організатору — «Відхилити» й «Оплату отримано», людині — стан її заявки.
+/// Заявка в розмові онлайн-події: стан і сума; організатору — ще «Відхилити» й «Оплату отримано».
 private struct PaymentRequestBar: View {
     let status: PaymentStatus
     let organizer: Bool
     let person: String
+    let amount: String?
     let enabled: Bool
     let confirm: () -> Void
     let decline: () -> Void
 
-    private var awaiting: Bool { status == .awaiting }
+    private var awaiting: Bool { status != .paid }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            Text(text).font(PoruchFont.subhead).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .firstTextBaseline, spacing: Space.md) {
+                Text(text).font(PoruchFont.subhead).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if let amount { Text(amount).font(PoruchFont.cardName).foregroundStyle(Palette.ink).fixedSize() }
+            }
             if organizer && awaiting {
-                HStack(spacing: Space.md) {
-                    Spacer(minLength: 0)
-                    Button(action: decline) {
-                        Text(Copy.decline).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).lineLimit(1).fixedSize()
-                            .tapTarget()
-                    }.buttonStyle(.plain)
-                    Button(action: confirm) {
-                        Text(Copy.approve_paid).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
-                            .padding(.horizontal, Space.lg).frame(height: 40)
-                            .background(Palette.brand, in: buttonShape)
-                            .tapTarget()
-                    }.buttonStyle(PressableStyle())
+                // Великий шрифт: кнопки стають одна під одну, а не вилазять за край.
+                // Є скріншот — «Оплату отримано» стоїть під ним, тут лишається «Відхилити».
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: Space.md) { Spacer(minLength: 0); declineButton; if status != .proofSent { confirmButton } }
+                    VStack(alignment: .trailing, spacing: Space.sm) { if status != .proofSent { confirmButton }; declineButton }
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 .disabled(!enabled)
             }
@@ -415,12 +495,28 @@ private struct PaymentRequestBar: View {
         .accessibilityElement(children: .contain)
     }
 
+    private var declineButton: some View {
+        Button(action: decline) {
+            Text(Copy.decline).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).lineLimit(1).fixedSize()
+                .tapTarget()
+        }.buttonStyle(.plain)
+    }
+
+    private var confirmButton: some View {
+        Button(action: confirm) {
+            Text(Copy.approve_paid).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
+                .padding(.horizontal, Space.lg).frame(minHeight: 40)
+                .background(Palette.brand, in: buttonShape)
+                .tapTarget()
+        }.buttonStyle(PressableStyle())
+    }
+
     private var text: String {
-        switch (organizer, awaiting) {
-        case (true, true): Copy.pay_thread_waiting_org(person)
-        case (true, false): Copy.pay_thread_paid_org(person)
-        case (false, true): Copy.pay_thread_waiting_mine
-        case (false, false): Copy.pay_thread_paid_mine
+        switch status {
+        case .waitingForDetails: organizer ? Copy.pay_thread_details_org(person) : Copy.pay_thread_details_mine
+        case .waitingForPayment: organizer ? Copy.pay_thread_waiting_org(person) : Copy.pay_thread_waiting_mine
+        case .proofSent: organizer ? Copy.pay_thread_proof_org(person) : Copy.pay_thread_proof_mine
+        default: organizer ? Copy.pay_thread_paid_org(person) : Copy.pay_thread_paid_mine
         }
     }
 }

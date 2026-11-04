@@ -3,6 +3,7 @@ package app.poruch.android.feature.chat
 import app.poruch.domain.ChatMessage
 import app.poruch.domain.ReportReason
 import app.poruch.shared.PersonState
+import app.poruch.domain.Profile
 import app.poruch.shared.PaymentStatus
 
 /** Стан екрана чату: зріз [app.poruch.shared.ChatState] плюс те, що потрібно лише для промальовки. */
@@ -50,12 +51,20 @@ data class ChatState(
     val viewing: String? = null,
     /** Стан оплати людини в розмові онлайн-події; null — розмова не про оплату. */
     val paymentStatus: PaymentStatus? = null,
+    /** Сума онлайн-оплати в гривнях — праворуч у смузі заявки. */
+    val price: Int? = null,
+    /** Тому, хто платить: картка організатора — довіра замість тривоги в шапці розмови. */
+    val organizerProfile: Profile? = null,
+    /** Реквізити, які організатор уже надсилав у цій події: «Вставити ті самі реквізити» над полем. */
+    val repeatableDetails: String? = null,
     /** Рішення про заявку в дорозі: кнопки в розмові чекають. */
     val mutating: Boolean = false
 ) {
     val personHasWritten get() = thread != null && messages.any { it.authorId == thread }
+    /** Під останнім скріншотом людини організатор вирішує, дивлячись на доказ: «Оплату отримано» — там, а не нагорі. */
+    val lastProofId get() = if (organizer && paymentStatus == PaymentStatus.PROOF_SENT) messages.lastOrNull { it.image != null && it.authorId == thread }?.id else null
     /** Людині з новою заявкою про це вже каже порожня розмова, тож смуги заявки їй ще не треба. */
-    val showsPaymentBar get() = paymentStatus != null && (organizer || paymentStatus == PaymentStatus.RECEIVED || messages.isNotEmpty())
+    val showsPaymentBar get() = paymentStatus != null && (organizer || paymentStatus == PaymentStatus.PAID || messages.isNotEmpty())
     fun isMine(message: ChatMessage) = message.authorId == userId
     fun canDelete(message: ChatMessage) = organizer || isMine(message)
 }

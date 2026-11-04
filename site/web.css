@@ -797,14 +797,26 @@ a.row:hover { background: var(--surface-muted); }
 .msg small { font: 600 12px/16px var(--font); color: var(--ink-tertiary); }
 .msg.mine small { color: color-mix(in srgb, var(--on-brand) 70%, transparent); }
 .msg p { font: 400 16px/22px var(--font); white-space: pre-wrap; overflow-wrap: anywhere; }
-.msg .pay-warn { margin-top: 4px; padding: 8px 10px; border-radius: var(--r-sm); background: var(--danger-container); color: var(--danger); font: 500 13px/18px var(--font); white-space: normal; }
-.msg .pay-warn .link { display: inline; font-size: 13px; color: inherit; }
+/* Під реквізитами тому, хто платить: номер з «Скопіювати» і спокійне речення — довіра замість тривоги, без червоного. */
+.msg .pay-note { margin-top: 6px; display: grid; gap: 6px; white-space: normal; }
+.msg .pay-note > p { margin: 0; color: var(--ink-secondary); font: 400 13px/18px var(--font); }
+.msg .pay-note .link { display: inline-flex; align-items: center; min-height: 44px; font: 600 13px/18px var(--font); color: var(--ink); }
+.msg .pay-number { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; padding-left: 10px; border-radius: var(--r-sm); background: var(--surface-muted); }
+.msg .pay-number b { flex: 1; padding: 10px 0; color: var(--ink); font: 600 16px/22px var(--font); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.msg .pay-number .link { padding: 0 10px; }
 /* Скріншот оплати: прев'ю в бульбашці, тап — повністю. Поки вантажиться з приватного бакета — тонова плашка. */
 .msg .proof { display: block; padding: 0; border-radius: var(--r-sm); overflow: hidden; background: var(--surface-muted); cursor: zoom-in; }
 .msg .proof img { display: block; width: 100%; max-width: 240px; min-width: 120px; min-height: 96px; max-height: 320px; object-fit: cover; }
 .proof-pick { cursor: pointer; }
+/* Поле файлу приховане від очей, але не від клавіатури: Tab стає на кнопку, рамка — навколо неї. */
+.proof-pick:focus-within { outline: 2px solid var(--focus, var(--ink)); outline-offset: 3px; }
 /* Скріншот — лише записаним (join.js, setState); блок не міняє відступів кроку. */
 .proof-box:not([hidden]) { display: contents; }
+/* Смуга заявки над розмовою (оплата онлайн): що зараз із заявкою і скільки платити — як у застосунку. */
+.pay-bar:not([hidden]) { display: flex; align-items: baseline; gap: 12px; margin: 0; padding: 10px 12px; border-radius: var(--r-sm); background: var(--accent-container); color: var(--ink); font: 500 14px/20px var(--font); }
+.pay-bar span { flex: 1; }
+.pay-bar b { font-weight: 700; white-space: nowrap; }
+.pay-bar.done { background: var(--surface-muted); }
 /* Записаний (design-wow-1.5): над числом місць — штамп стану, «Ви в списку» — тоном, бо головну дію вже зроблено. */
 .bar .meta .stamp { align-self: flex-start; margin: 0 0 5px 1px; }
 .bar .meta:has(.stamp:not([hidden])) small { display: none; }
@@ -878,7 +890,8 @@ a.row:hover { background: var(--surface-muted); }
 .kab-done b { font: 700 20px/24px var(--cond); }
 .kab-tools { display: flex; flex-wrap: wrap; gap: 10px; }
 .kab-people { margin-top: 44px; }
-.kab-table-wrap { overflow-x: auto; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--edge); }
+/* position — щоб прихований підпис колонки «Дії» (.sr, absolute) лишався в обгортці, а не розширював сторінку. */
+.kab-table-wrap { position: relative; overflow-x: auto; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--edge); }
 .kab-table { width: 100%; border-collapse: collapse; font: 400 15px/21px var(--font); }
 .kab-table th, .kab-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--hairline); white-space: nowrap; }
 .kab-table thead th { font: 600 11px/14px var(--font); letter-spacing: 1px; text-transform: uppercase; color: var(--ink-tertiary); }
@@ -886,6 +899,20 @@ a.row:hover { background: var(--surface-muted); }
 .kab-table tbody th { font-weight: 600; }
 .kab-table .kab-act { text-align: right; }
 .kab-act .btn + .btn { margin-left: 8px; }
+.kab-expected { font: 600 14px/20px var(--font); color: var(--ink); font-variant-numeric: tabular-nums; }
+.kab-expected:empty { display: none; }
+/* Телефон: рядок таблиці — картка. Імʼя й стан, під ними коли й звідки, дії — на всю ширину. */
+@media (max-width: 560px) {
+  .kab-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .kab-table, .kab-table tbody { display: block; }
+  .kab-table tr { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--hairline); }
+  .kab-table tbody tr:last-child { border-bottom: 0; }
+  .kab-table th, .kab-table td { padding: 0; border: 0; white-space: normal; }
+  .kab-table td:nth-child(3), .kab-table td:nth-child(4) { font-size: 13px; line-height: 18px; color: var(--ink-secondary); }
+  .kab-table td:nth-child(4) { text-align: right; }
+  .kab-table .kab-act { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; text-align: left; }
+  .kab-act .btn + .btn { margin-left: 0; }
+}
 .kab-people .kab-hint { margin-top: 12px; }
 
 /* Редактор: форма зліва, квиток-чернетка справа (на телефоні — лише форма). */

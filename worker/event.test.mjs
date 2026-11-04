@@ -26,13 +26,16 @@ assert.ok(priced.includes("<small>Ціна</small><span>1\u00a0500 ₴</span>"),
 assert.ok(!priced.includes("від 1"), "від людей — без «від»");
 assert.ok(!community.includes("Оплата — напряму"), "безкоштовна — без ціни");
 
-// Оплата онлайн (docs/organizer-events.md): підпис, застереження «Поряд не відповідає» на сторінці, у шторці й у розмові.
+// Оплата онлайн (docs/organizer-events.md): підпис і застереження «Поряд не відповідає» — раз на сторінці (у розмові —
+// під реквізитами, chat.js); у шторці — рядок довіри й смуга заявки з сумою.
 const online = eventPage({ ...base, price_min: 300, approval_required: true, pay_online: true }, now);
 assert.ok(online.includes("<b>300 ₴</b><small>Оплата онлайн організатору</small>"));
-assert.equal(online.split("«Поряд» не приймає оплату й не відповідає за неї.").length - 1, 3, "сторінка, вхід у шторці й розмова");
-assert.ok(online.includes(" data-pay-online>") && !online.includes("Участь за підтвердженням організатора."), "замість загального рядка — про оплату");
+assert.equal(online.split("«Поряд» не приймає оплату й не відповідає за неї.").length - 1, 1, "раз, а не на кожному кроці");
+assert.ok(online.includes(' data-pay-online data-price="300">') && !online.includes("Участь за підтвердженням організатора."), "замість загального рядка — про оплату");
+assert.ok(online.includes("data-trust hidden") && online.includes("data-pay-bar hidden"), "довіра й стан заявки — у розмові");
 assert.ok(!priced.includes("data-pay-online") && !priced.includes("не відповідає за неї"), "на місці — без застереження");
-assert.ok(online.includes("data-proof hidden>") && online.includes("Скріншот бачите лише ви й організатор."), "скріншот оплати — лише онлайн");
+assert.ok(online.includes('<input class="sr" type="file" accept="image/*" data-proof>') && online.includes("Скріншот бачите лише ви й організатор."),
+  "скріншот оплати — лише онлайн, поле файлу досяжне з клавіатури");
 assert.ok(!priced.includes("data-proof"), "на місці скріншотів нема");
 // «Написати організатору» — подія від людей з організатором, ще не минула; розмова — у шторці.
 const host = { ...base, organizer_id: "c3000000-0000-4000-8000-000000000003" };

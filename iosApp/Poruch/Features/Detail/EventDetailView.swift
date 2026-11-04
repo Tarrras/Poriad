@@ -50,6 +50,8 @@ struct EventDetailView: View, Equatable {
     /// Шит входу з причиною: підзаголовок каже, навіщо профіль саме зараз.
     @State var auth: AuthReason?
     @State var cancelling = false
+    /// Чию заявку відхиляємо: спершу питання, бо людина отримає сповіщення.
+    @State var declining: Attendee?
     @State var reporting: ReportTarget?
     @State var blocking = false
     /// Попередження перед виходом у чужий чат: спершу кажемо, куди й хто це додав.
@@ -329,7 +331,7 @@ struct EventDetailView: View, Equatable {
         // Тут, а не в корені: з мапи деталі відкриваються шторкою, і корінь лежав би під нею.
         .coachMarks([.companion, .invite], enabled: view.canSeekCompany || (view.canInvite && view.signedIn))
         .modifier(DetailSheets(event: event, view: view, editing: $editing, actions: actions))
-        .modifier(DetailDialogs(event: event, view: view, openingContact: $openingContact, cancelling: $cancelling, blocking: $blocking, reporting: $reporting, actions: actions))
+        .modifier(DetailDialogs(event: event, view: view, openingContact: $openingContact, cancelling: $cancelling, declining: $declining, blocking: $blocking, reporting: $reporting, actions: actions))
     }
 
     /// Секції під обкладинкою. Окремою функцією: в одному виразі компілятор не встигав вивести тип.
@@ -429,6 +431,7 @@ struct DetailDialogs: ViewModifier {
     let view: DetailScreenState
     @Binding var openingContact: Bool
     @Binding var cancelling: Bool
+    @Binding var declining: Attendee?
     @Binding var blocking: Bool
     @Binding var reporting: ReportTarget?
     @ObservedObject var actions: EventActionsModel
@@ -443,6 +446,12 @@ struct DetailDialogs: ViewModifier {
         }
         .confirmationDialog(Copy.cancel_event_confirm, isPresented: $cancelling, titleVisibility: .visible) {
             Button(Copy.cancel_event, role: .destructive) { actions.cancel(event) }
+        }
+        .confirmationDialog(Copy.decline_confirm_title, isPresented: Binding(get: { declining != nil }, set: { if !$0 { declining = nil } }), titleVisibility: .visible) {
+            Button(Copy.decline, role: .destructive) { if let person = declining { model.app.declineMember(eventId: event.id, userId: person.userId) } }
+        } message: {
+            let name = declining.map { $0.name.isEmpty ? Copy.chat_member : $0.name } ?? Copy.chat_member
+            Text(view.payOnline ? Copy.decline_confirm_body_pay(name) : Copy.decline_confirm_body(name))
         }
         .confirmationDialog(
             Copy.block_user_body,

@@ -1,8 +1,8 @@
 // Розмова з організатором — спільне для сторінки події (join.js) і кабінету (kabinet.js, «Розмови з учасниками»):
 // повідомлення, скріншоти оплати з приватного бакета, стрічка з опитуванням і JPEG з файлу (скріншот, фото події,
 // аватар). Правила без DOM — експорти, перевірка — `node tools/join_test.mjs`.
-import { rpc, upload, download } from "./auth.js?v=17";
-import { esc } from "./poriad.js?v=17";
+import { rpc, upload, download } from "./auth.js?v=18";
+import { esc } from "./poriad.js?v=18";
 
 // ---- Повідомлення
 
@@ -19,12 +19,42 @@ export function bubble(m, me, organizer, now = new Date()) {
   const who = mine ? "Ви" : m.author_id === organizer ? "Організатор" : m.author_name || "Учасник";
   const at = new Date(m.created_at);
   const when = (at.toDateString() === now.toDateString() ? TIME : DAY_TIME).format(at);
+  // Тому, хто платить: номер — скопіювати одним дотиком, і спокійне речення, що гроші йдуть повз «Поряд» (як у застосунку).
+  const number = m.payment_details && m.author_id === organizer && me !== organizer ? paymentNumber(m.body) : null;
   const note = m.payment_details && m.author_id === organizer && me !== organizer
-    ? `<p class="pay-warn">Реквізити для оплати. «Поряд» не приймає оплату й не відповідає за неї — не переказуйте гроші, якщо сумніваєтесь в організаторі. <button class="link" type="button" data-report="${esc(m.id)}">Поскаржитись</button></p>`
+    ? `<div class="pay-note">${number ? `<p class="pay-number"><b>${esc(number)}</b><button class="link" type="button" data-copy-number="${esc(number.replace(/ /g, ""))}" aria-label="Скопіювати номер">Скопіювати</button></p>` : ""}
+<p>Оплата йде організатору напряму. «Поряд» не приймає оплату й не відповідає за неї. <button class="link" type="button" data-report="${esc(m.id)}">Сумніваєтесь? Поскаржитись</button></p></div>`
     : "";
   // Скріншот оплати — з приватного бакета: `src` ставить hydrateProofs із токеном, тут лише шлях.
   const image = m.image ? `<button class="proof" type="button" data-proof-open><img alt="Скріншот оплати" data-proof-path="${esc(m.image)}"></button>` : "";
   return `<div class="msg${mine ? " mine" : ""}" data-id="${esc(m.id)}"><small>${esc(who)} · ${esc(when)}</small>${image}<p>${esc(m.body)}</p>${note}</div>`;
+}
+
+/**
+ * Номер для оплати з реквізитів — щоб скопіювати в банк: IBAN України чи картка (13–19 цифр і контрольна цифра Луна), як
+ * їх розпізнає сервер (`private.has_payment_details`) і `ChatRules.paymentNumber` у застосунку. Групами по чотири; нема — null.
+ */
+export function paymentNumber(text) {
+  const iban = text.match(/UA\s*\d{2}(\s*\d){25}/i);
+  if (iban) return iban[0].replace(/\s/g, "").toUpperCase().match(/.{1,4}/g).join(" ");
+  for (const [, run] of text.matchAll(/(?:^|\D)(\d(?:[ -]?\d){12,18})(?!\d)/g)) {
+    const digits = run.replace(/\D/g, "");
+    if (new Set(digits).size > 1 && luhn(digits)) return digits.match(/.{1,4}/g).join(" ");
+  }
+  return null;
+}
+const luhn = (digits) => [...digits].reverse().reduce((sum, c, i) => {
+  const d = Number(c) * (i % 2 ? 2 : 1);
+  return sum + (d > 9 ? d - 9 : d);
+}, 0) % 10 === 0;
+
+/**
+ * Де заявка з оплатою онлайн — як `PaymentStatus` у застосунку: `details` — реквізитів ще нема, `payment` — організатор
+ * їх надіслав, `proof` — людина надіслала скріншот. `rows` — повідомлення розмови, `person` — чия заявка.
+ */
+export function payStage(rows, person) {
+  if (rows.some((m) => m.image && m.author_id === person)) return "proof";
+  return rows.some((m) => m.payment_details && m.author_id !== person) ? "payment" : "details";
 }
 
 // ---- Скріншоти оплати. Шлях — `<uid>/<подія>/<uuid>.jpg` і не змінюється, тож кожен файл вантажимо раз за сторінку
@@ -82,18 +112,22 @@ export async function sendProof({ event, me, file, body }) {
 /**
  * Стрічка розмови в `box`: спершу останні 100, далі — лише нове (`p_after`), раз на 8 с, поки `alive()`. У прихованій
  * вкладці не опитуємо, а повернувшись — одразу дочитуємо. Нове — позначаємо прочитаним. `empty` — розмітка порожньої
- * розмови.
+ * розмови, `changed(rows)` — після кожного читання з усіма повідомленнями розмови, `live` — прихований від очей рядок
+ * aria-live, куди кажемо нове від іншої людини.
  */
-export function threadFeed(box, { empty, alive }) {
+export function threadFeed(box, { empty, alive, changed, live }) {
   let at = null; // { event, thread, me, organizer }
-  let last = null, ids = new Set(), timer = null;
+  let last = null, ids = new Set(), rows = [], timer = null;
 
   async function load() {
     const was = at;
     if (!was) return;
-    const rows = (await rpc("event_messages", { p_event_id: was.event, p_after: last, p_limit: 100, p_thread: was.thread })) ?? [];
+    const first = last === null;
+    const read = (await rpc("event_messages", { p_event_id: was.event, p_after: last, p_limit: 100, p_thread: was.thread })) ?? [];
     if (at !== was) return; // поки чекали, відкрили іншу розмову чи вийшли
-    const fresh = rows.filter((m) => !ids.has(m.id));
+    const fresh = read.filter((m) => !ids.has(m.id));
+    rows.push(...fresh);
+    changed?.(rows);
     if (!fresh.length) {
       if (!box.children.length) box.innerHTML = empty;
       return;
@@ -102,6 +136,9 @@ export function threadFeed(box, { empty, alive }) {
     for (const m of fresh) ids.add(m.id);
     const now = new Date();
     box.insertAdjacentHTML("beforeend", fresh.map((m) => bubble(m, was.me, was.organizer, now)).join(""));
+    // Читач екрана чує лише нове від іншої людини, а не всю стрічку при кожному відкритті.
+    const theirs = first ? [] : fresh.filter((m) => m.author_id !== was.me);
+    if (live && theirs.length) live.textContent = theirs.map((m) => `${m.author_id === was.organizer ? "Організатор" : m.author_name || "Учасник"}: ${m.body}`).join(". ");
     hydrateProofs(box);
     last = fresh.at(-1).created_at;
     box.scrollTop = box.scrollHeight;
@@ -130,6 +167,7 @@ export function threadFeed(box, { empty, alive }) {
         at = next;
         last = null;
         ids = new Set();
+        rows = [];
         box.innerHTML = "";
       }
       await load();
@@ -141,6 +179,7 @@ export function threadFeed(box, { empty, alive }) {
     clear() {
       stop();
       at = null;
+      rows = [];
       box.innerHTML = "";
     },
   };

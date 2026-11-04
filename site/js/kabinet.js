@@ -3,10 +3,10 @@
 // організатора. Вхід (Google або пошта з паролем, docs/web-auth.md) — auth.js, дані —
 // ті самі функції бази, що в застосунку; сторінка перевіряє лише очевидне, решту каже сервер. Чисті правила вгорі (дати,
 // тривалість, медіа, текст для Threads) перевіряє `node tools/kabinet_test.mjs`; DOM — нижче, лише в браузері.
-import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText, plural, EVENTS, POST_MONTHS, payWay } from "./poriad.js?v=17";
-import { threadFeed, openProof, forgetProofs, fit, jpeg, jpegFile, PHOTO } from "./chat.js?v=17";
+import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText, plural, EVENTS, POST_MONTHS, payWay } from "./poriad.js?v=18";
+import { threadFeed, openProof, forgetProofs, fit, jpeg, jpegFile, PHOTO, payStage } from "./chat.js?v=18";
 import { session, verifyCode, google, completeRedirect, rpc, upload, signOut, inAppBrowser, browserLinks, signInWithPassword, signUp, resendSignup,
-  requestRecovery, updatePassword, reauthenticate, verifyPassword, currentUser, updateMetadata, signInMethods, isEmail, MIN_PASSWORD, MAX_PASSWORD } from "./auth.js?v=17";
+  requestRecovery, updatePassword, reauthenticate, verifyPassword, currentUser, updateMetadata, signInMethods, isEmail, MIN_PASSWORD, MAX_PASSWORD } from "./auth.js?v=18";
 
 // ---- Дати. Усі п'ять міст в одному поясі; подія з іншим поясом (з застосунку) редагується у своєму.
 export const TZ = "Europe/Kyiv";
@@ -88,7 +88,7 @@ export function priceProblem(price) {
 export const priceParam = (price) => String(price ?? "").trim() ? Math.round(Number(price)) : 0;
 
 // ---- «Пост для Threads» (1.5) — у poriad.js: той самий текст ділить і сторінка події (1.6).
-export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=17";
+export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=18";
 
 // ---- Анімації публікації (1.6, design/lottie/LICENSES.md): корінець запечений кольором музики — фарбуємо в жанр.
 const MUSIC_STUB = [0x60, 0x41, 0xb1].map((v) => v / 255);
@@ -268,12 +268,19 @@ export const payWords = (online) => (online
   ? { waiting: "Чекає оплати", approve: "Оплату отримано", approved: "Оплачено", done: "Оплату підтверджено" }
   : { waiting: "Заявка", approve: "Схвалити", approved: "У списку", done: "Схвалено" });
 
-/** Хто в розмові з організатором (кабінет): стан людини на цій події з ростера й заявок; без запису — лише питає. */
-export function talkStatus(user, { roster = [], requests = [], payOnline = false } = {}) {
+/** Питання перед «Відхилити» — однаково з таблиці й з розмови: людина отримає сповіщення, а гроші повертає організатор. */
+export const declineQuestion = (name, online) => `Відхилити заявку? ${name || DEFAULT_NAME} отримає сповіщення, що заявку відхилено.`
+  + (online ? " Якщо оплата вже прийшла, поверніть гроші: «Поряд» цього не робить." : "");
+
+/**
+ * Хто в розмові з організатором (кабінет): стан людини на цій події з ростера й заявок; без запису — лише питає. `stage` —
+ * де заявка з оплатою онлайн за розмовою (chat.js, payStage): надіслала скріншот — «Скріншот надіслано».
+ */
+export function talkStatus(user, { roster = [], requests = [], payOnline = false, stage = "details" } = {}) {
   const words = payWords(payOnline);
   const approved = roster.find((p) => p.user_id === user), request = requests.find((p) => p.user_id === user);
   if (approved) return { stamp: words.approved, tone: "success", at: approved.joined_at, via: approved.via, pending: false };
-  if (request) return { stamp: words.waiting, tone: "accent", at: request.joined_at, via: request.via, pending: true };
+  if (request) return { stamp: payOnline && stage === "proof" ? "Скріншот надіслано" : words.waiting, tone: "accent", at: request.joined_at, via: request.via, pending: true };
   return { stamp: "Питає", tone: "", at: null, via: null, pending: false };
 }
 /** Рядки картки учасника в розмові: профіль (`profile_card`) і стан запису. Пошти не показуємо — її нема й у картці. */
@@ -904,10 +911,13 @@ let roster = [];
 let requests = []; // заявки події на екрані: стан людини в розмові
 
 async function loadPeople(event) {
-  const [approved, requested] = await Promise.all([
+  const [approved, requested, talks] = await Promise.all([
     rpc("event_attendees", { p_event_id: event.id, p_limit: 100 }),
     event.approval_required ? rpc("event_requests", { p_event_id: event.id, p_limit: 100 }) : [],
+    // Оплата онлайн: хто вже надіслав скріншот — видно в таблиці, без відкривання кожної розмови.
+    event.pay_online ? rpc("event_questions", { p_event_id: event.id }).catch(() => []) : [],
   ]);
+  const proofs = new Set((talks ?? []).filter((t) => t.has_proof).map((t) => t.thread_user_id));
   roster = approved ?? [];
   requests = requested ?? [];
   const when = (iso) => new Intl.DateTimeFormat("uk-UA", { timeZone: event.time_zone || TZ, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
@@ -916,7 +926,7 @@ async function loadPeople(event) {
   const write = (p) => `<button class="btn small" type="button" data-write="${esc(p.user_id)}" data-name="${esc(p.display_name || DEFAULT_NAME)}">Написати</button>`;
   const line = (p, state, actions = "") => `<tr><th scope="row">${esc(p.display_name || DEFAULT_NAME)}</th><td>${state}</td><td>${esc(when(p.joined_at))}</td><td>${from(p.via)}</td><td class="kab-act">${actions}${write(p)}</td></tr>`;
   const words = payWords(event.pay_online);
-  $("[data-people]").innerHTML = requests.map((p) => line(p, `<span class="stamp accent">${words.waiting}</span>`,
+  $("[data-people]").innerHTML = requests.map((p) => line(p, `<span class="stamp accent">${proofs.has(p.user_id) ? "Скріншот надіслано" : words.waiting}</span>`,
     `<button class="btn small primary" type="button" data-approve="${esc(p.user_id)}">${words.approve}</button><button class="btn small" type="button" data-decline="${esc(p.user_id)}">Відхилити</button>`)).join("")
     + roster.map((p) => line(p, `<span class="stamp success">${words.approved}</span>`)).join("");
   $("[data-people-title]").textContent = `Учасники · ${roster.length}${event.capacity ? ` з ${event.capacity}` : ""}${requests.length ? ` · заявок ${requests.length}` : ""}`;
@@ -933,7 +943,7 @@ async function loadTalks(event) {
   const talks = (await rpc("event_questions", { p_event_id: event.id })) ?? [];
   if (current?.id !== event.id) return;
   $("[data-talk-list]").innerHTML = talks.map((t) => `<li><button class="kab-talk-row" type="button" data-write="${esc(t.thread_user_id)}" data-name="${esc(t.asker_name || DEFAULT_NAME)}">
-    <b>${esc(t.asker_name || DEFAULT_NAME)}</b><span>${t.last_mine ? "Ви: " : ""}${esc(String(t.last_body || "").replace(/\s+/g, " ").slice(0, 120))}</span>${t.unread ? `<i class="kab-unread">${Number(t.unread)}</i>` : ""}</button></li>`).join("");
+    <b>${esc(t.asker_name || DEFAULT_NAME)}${t.has_proof && event.pay_online ? ` <small class="stamp accent">Скріншот надіслано</small>` : ""}</b><span>${t.last_mine ? "Ви: " : ""}${esc(String(t.last_body || "").replace(/\s+/g, " ").slice(0, 120))}</span>${t.unread ? `<i class="kab-unread">${Number(t.unread)}</i>` : ""}</button></li>`).join("");
   $("[data-talks-empty]").hidden = talks.length > 0;
 }
 
@@ -944,15 +954,18 @@ async function decide(user, approve) {
   await loadPeople(current);
 }
 
-const talk = { user: null, name: "", card: null }; // з ким розмова на екрані
+const talk = { user: null, name: "", card: null, stage: "details", from: "[data-talk-list]", saved: null }; // з ким розмова на екрані
 let talkFeed = null; // стрічка розмови (chat.js), setupTalk
 
 async function openTalk(user, name) {
   const dialog = $("[data-talk]");
-  Object.assign(talk, { user, name: name || DEFAULT_NAME, card: null });
+  Object.assign(talk, { user, name: name || DEFAULT_NAME, card: null, stage: "details", saved: null });
+  paintAgain();
+  // Реквізити, які вже надсилали в цій події, — вставити одним дотиком, а не набирати для кожного.
+  if (current?.pay_online) rpc("my_payment_details", { p_event_id: current.id }).then((text) => { if (talk.user === user) { talk.saved = text || null; paintAgain(); } }).catch(() => {});
   $("[data-talk-note]").textContent = Number(current?.price_min) > 0
     ? current.pay_online
-      ? "Оплата онлайн: надішліть тут реквізити. Людина може надіслати скріншот оплати — звірте його з банком і натисніть «Оплату отримано». Людина бачить застереження, що «Поряд» не приймає оплату й не відповідає за неї."
+      ? `Оплата онлайн, ${priceText(current.price_min)}: надішліть тут реквізити. Прийде скріншот — звірте з банком і натисніть «Оплату отримано».`
       : "Оплата на цю подію — на місці, без передоплати: реквізити тут не надсилаються."
     : "Людина бачить лише вас; пошти й телефону ви одне одного не бачите.";
   $("[data-talk-error]").textContent = "";
@@ -966,7 +979,7 @@ async function openTalk(user, name) {
 
 /** Картка учасника над розмовою: хто це, стан на події, коли й звідки записався; для заявки — «Оплату отримано» / «Відхилити». */
 function paintTalkPerson() {
-  const status = talkStatus(talk.user, { roster, requests, payOnline: Boolean(current?.pay_online) });
+  const status = talkStatus(talk.user, { roster, requests, payOnline: Boolean(current?.pay_online), stage: talk.stage });
   const name = nameOf(talk.card) || talk.name;
   const { profile, joined } = talkFacts(talk.card, status, current?.time_zone || TZ);
   $("[data-talk-title]").textContent = name;
@@ -975,13 +988,24 @@ function paintTalkPerson() {
     ${talk.card?.bio ? `<p class="kab-person-bio">${esc(talk.card.bio)}</p>` : ""}<small>${esc(joined)}</small></div>`;
   $("[data-talk-actions]").hidden = !status.pending;
   $("[data-talk-approve]").textContent = payWords(current?.pay_online).approve;
+  // Скільки мало прийти — поруч із рішенням, щоб звірити зі скріншотом і банком.
+  $("[data-talk-expected]").textContent = current?.pay_online && Number(current.price_min) > 0 ? `Очікувано: ${priceText(current.price_min)}` : "";
+}
+
+/** «Вставити ті самі реквізити»: є що вставити, цій людині ще не надсилали, а поле порожнє. */
+function paintAgain() {
+  const form = $("[data-talk-form]");
+  $("[data-talk-again]").hidden = !(talk.saved && talk.stage === "details" && !form.body.value.trim());
 }
 
 function setupTalk() {
   const dialog = $("[data-talk]"), form = $("[data-talk-form]");
   const open = (event) => {
     const button = event.target.closest("[data-write]");
-    if (button) openTalk(button.dataset.write, button.dataset.name).catch((e) => ui.toast(errorText(e)));
+    if (!button) return;
+    // Список і таблицю після розмови перемальовуємо: фокус повертаємо на ту саму кнопку в новій розмітці.
+    talk.from = button.closest("[data-people]") ? "[data-people]" : "[data-talk-list]";
+    openTalk(button.dataset.write, button.dataset.name).catch((e) => ui.toast(errorText(e)));
   };
   $("[data-people]").addEventListener("click", open);
   $("[data-talk-list]").addEventListener("click", open);
@@ -989,11 +1013,16 @@ function setupTalk() {
   talkFeed = threadFeed($("[data-talk-thread]"), {
     empty: `<p class="kab-hint" data-empty>Напишіть першим — людина отримає сповіщення в застосунку чи лист.</p>`,
     alive: () => dialog.open,
+    live: $("[data-talk-live]"),
+    changed: (rows) => {
+      const stage = payStage(rows, talk.user);
+      if (stage !== talk.stage) { talk.stage = stage; paintTalkPerson(); paintAgain(); }
+    },
   });
   const out = { error: $("[data-talk-error]") };
   // Рішення прямо з розмови: побачив скріншот — підтвердив оплату.
   const decision = (approve) => (event) => {
-    if (!approve && !confirm(`Відхилити заявку ${talk.name}?`)) return;
+    if (!approve && !confirm(declineQuestion(talk.name, current?.pay_online))) return;
     act(event.currentTarget, out, async () => {
       await decide(talk.user, approve);
       paintTalkPerson();
@@ -1002,10 +1031,19 @@ function setupTalk() {
   $("[data-talk-approve]").addEventListener("click", decision(true));
   $("[data-talk-decline]").addEventListener("click", decision(false));
   $("[data-talk-thread]").addEventListener("click", (event) => { if (openProof(event)) event.preventDefault(); });
+  $("[data-talk-again]").addEventListener("click", () => {
+    form.body.value = talk.saved;
+    paintAgain();
+    form.body.focus();
+  });
+  form.body.addEventListener("input", paintAgain);
   dialog.addEventListener("close", () => {
     talkFeed.stop();
+    const { user, from } = talk;
     talk.user = null;
-    if (current) loadTalks(current).catch(() => {});
+    const back = () => $(`${from} [data-write="${CSS.escape(user ?? "")}"]`)?.focus();
+    back();
+    if (current) loadTalks(current).then(back, () => {});
   });
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -1036,6 +1074,8 @@ function setupEvent() {
   $("[data-people]").addEventListener("click", async (event) => {
     const button = event.target.closest("[data-approve], [data-decline]");
     if (!button || button.disabled) return;
+    const name = button.closest("tr")?.querySelector("th")?.textContent;
+    if ("decline" in button.dataset && !confirm(declineQuestion(name, current.pay_online))) return;
     button.disabled = true;
     try {
       await decide(button.dataset.approve ?? button.dataset.decline, "approve" in button.dataset);
@@ -1102,7 +1142,7 @@ async function animate(container, name, category) {
   wanted.set(container, call);
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   try {
-    const [lottie, data] = await Promise.all([loadLottie(), fetch(`vendor/lottie/${name}${isDark() ? "_dark" : ""}.json?v=17`).then((r) => r.json())]);
+    const [lottie, data] = await Promise.all([loadLottie(), fetch(`vendor/lottie/${name}${isDark() ? "_dark" : ""}.json?v=18`).then((r) => r.json())]);
     if (wanted.get(container) !== call) return;
     const stub = getComputedStyle(document.documentElement).getPropertyValue(`--cat-${category}-stub`).trim();
     const loop = name === "publishing";
@@ -1729,7 +1769,7 @@ function setupEditor() {
 }
 
 async function start() {
-  ui = await import("./ui.js?v=17");
+  ui = await import("./ui.js?v=18");
   window.poriadReady = true;
   setupAuth();
   setupAccount();

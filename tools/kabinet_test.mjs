@@ -4,7 +4,7 @@ import {
   instant, local, repeatTimes, endAfter, durationLabel, DURATIONS, mediaProblem, videoTooLong, fit, MEDIA,
   threadsPost, threadsIntent, firstLine, cleanText, rosterText, errorText, publishPlan, writeDraft, forgetDraft, recolorStub,
   priceProblem, priceParam, PRICE_TEXT, eventDraft, repeatDraft, passwordProblem, passwordMode, providersText, editorDefaults, sinceText,
-  weakPasswordText, redirectErrorText, payPlan, TALK_PAYMENT_DETAILS, talkStatus, talkFacts, payWords, nameProblem, contactOk,
+  weakPasswordText, redirectErrorText, payPlan, TALK_PAYMENT_DETAILS, talkStatus, talkFacts, payWords, declineQuestion, nameProblem, contactOk,
 } from "../site/js/kabinet.js";
 import { readFileSync } from "node:fs";
 
@@ -178,9 +178,14 @@ assert.match(TALK_PAYMENT_DETAILS, /«Як платять» → «Онлайн»
 const people = { roster: [{ user_id: "a", joined_at: "2026-11-02T10:00:00Z", via: "app" }], requests: [{ user_id: "g", joined_at: "2026-11-03T09:00:00Z", via: "web" }] };
 assert.deepEqual(talkStatus("g", { ...people, payOnline: true }), { stamp: "Чекає оплати", tone: "accent", at: "2026-11-03T09:00:00Z", via: "web", pending: true });
 assert.equal(talkStatus("a", { ...people, payOnline: true }).stamp, "Оплачено");
+assert.equal(talkStatus("g", { ...people, payOnline: true, stage: "proof" }).stamp, "Скріншот надіслано", "надіслала скріншот — звірити з банком");
+assert.equal(talkStatus("g", { ...people, stage: "proof" }).stamp, "Заявка", "на місці стадій оплати нема");
 assert.equal(talkStatus("a", people).stamp, "У списку");
 assert.equal(payWords(true).approve, "Оплату отримано", "таблиця й розмова — тими самими словами");
 assert.equal(payWords(false).done, "Схвалено");
+assert.equal(declineQuestion("Іра", false), "Відхилити заявку? Іра отримає сповіщення, що заявку відхилено.");
+assert.ok(declineQuestion("Іра", true).endsWith("поверніть гроші: «Поряд» цього не робить."), "оплата онлайн — про повернення");
+assert.ok(declineQuestion("", false).includes("Учасник отримає"), "без імені — як handle_new_user");
 assert.equal(talkStatus("g", people).stamp, "Заявка");
 assert.deepEqual(talkStatus("x", people), { stamp: "Питає", tone: "", at: null, via: null, pending: false });
 assert.deepEqual(talkFacts({ member_since: "2026-09-12T10:00:00Z", attended: 3, organized: 0 }, talkStatus("g", { ...people, payOnline: true })),

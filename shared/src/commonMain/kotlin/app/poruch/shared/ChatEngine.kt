@@ -10,7 +10,8 @@ import kotlinx.coroutines.*
 internal class ChatEngine(
     private val chat: EventChat,
     private val store: AppStore,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val profiles: ProfileRepository? = null
 ) {
     private var polling: Job? = null
     private var sending: Job? = null
@@ -33,11 +34,33 @@ internal class ChatEngine(
         }
         polls = 0
         polling = scope.launch {
+            launch { offerSavedPaymentDetails(eventId, thread) }
+            launch { showOrganizer(eventId, thread) }
             while (isActive) {
                 poll(eventId, thread)
                 delay(ChatRules.POLL_INTERVAL_MS)
             }
         }
+    }
+
+    /**
+     * Той, хто платить, у своїй розмові онлайн-події бачить, хто організатор ([ChatState.organizer]): довіра замість
+     * тривоги. Картка живе в розмові, а не в `person`: ту закривають інші екрани.
+     */
+    private suspend fun showOrganizer(eventId: String, thread: String?) {
+        val event = store.value.knownEvent(eventId) ?: return
+        val organizerId = event.organizerId ?: return
+        if (thread == null || thread != store.value.session.userId || event.gathering?.payOnline != true) return
+        val card = try { profiles?.profile(organizerId) } catch (e: CancellationException) { throw e } catch (e: Exception) { null } ?: return
+        update(eventId) { if (this.thread == thread) copy(organizer = card) else this }
+    }
+
+    /** Організатор онлайн-події в розмові з людиною: реквізити, які він уже надсилав іншим, — щоб не набирати знову. */
+    private suspend fun offerSavedPaymentDetails(eventId: String, thread: String?) {
+        val event = store.value.knownEvent(eventId) ?: return
+        if (thread == null || event.gathering?.payOnline != true || !store.value.organizes(event)) return
+        val saved = try { chat.myPaymentDetails(eventId) } catch (e: CancellationException) { throw e } catch (e: Exception) { null } ?: return
+        update(eventId) { if (this.thread == thread) copy(savedPaymentDetails = saved) else this }
     }
 
     /** Зупиняє опитування. Відправлення в дорозі доїде: закрити екран — не те саме, що передумати. */
@@ -203,7 +226,11 @@ data class ChatState(
     /** Скріншоти оплати: шлях у сховищі → JPEG. */
     val proofs: Map<String, ByteArray> = emptyMap(),
     /** Скріншоти, яких не вийшло завантажити: екран показує заглушку. */
-    val missingProofs: Set<String> = emptySet()
+    val missingProofs: Set<String> = emptySet(),
+    /** Реквізити, які організатор уже надсилав у цій події: запропонувати ті самі ([repeatablePaymentDetails]). */
+    val savedPaymentDetails: String? = null,
+    /** Тому, хто платить: картка організатора для шапки розмови. */
+    val organizer: Profile? = null
 )
 
 internal fun ChatState.isFor(eventId: String, thread: String?) = this.eventId == eventId && this.thread == thread

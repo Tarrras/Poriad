@@ -374,7 +374,7 @@ internal fun StickyAction(
                 // ширину, а дія під ним. Поруч із кнопкою воно обрізалось саме в момент рішення. Записаним стан каже
                 // штамп перед ним, а кнопка під ним стає тоновою.
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                    JoinStamp(state.screen.action, state.stampPending) { onIntent(DetailIntent.StampShown) }
+                    JoinStamp(state.screen.action, state.screen.payOnline, state.stampPending) { onIntent(DetailIntent.StampShown) }
                     hint(Modifier.weight(1f))
                 }
                 // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
@@ -459,11 +459,11 @@ private val STAMPED = setOf(DetailAction.LEAVE, DetailAction.REQUESTED, DetailAc
  * [onShown] гасить [pending], щойно панель перемкнулась.
  */
 @Composable
-private fun JoinStamp(action: DetailAction, pending: Boolean, onShown: () -> Unit) {
+private fun JoinStamp(action: DetailAction, payOnline: Boolean, pending: Boolean, onShown: () -> Unit) {
     LaunchedEffect(action) { if (pending && action in STAMPED) onShown() }
     val (word, tone) = when (action) {
         DetailAction.LEAVE -> R.string.going to BadgeTone.Success
-        DetailAction.REQUESTED -> R.string.stamp_request to BadgeTone.Accent
+        DetailAction.REQUESTED -> (if (payOnline) R.string.stamp_pay else R.string.stamp_request) to BadgeTone.Accent
         DetailAction.LEAVE_WAITLIST -> R.string.stamp_waitlist to BadgeTone.Accent
         else -> return
     }

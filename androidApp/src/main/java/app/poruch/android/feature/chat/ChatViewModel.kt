@@ -8,6 +8,7 @@ import app.poruch.shared.PoruchApp
 import app.poruch.shared.canSendPaymentProof
 import app.poruch.shared.paymentInOpenChat
 import app.poruch.shared.threadPersonName
+import app.poruch.shared.repeatablePaymentDetails
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -47,6 +48,9 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
                 proofs = chat?.proofs ?: proofs,
                 missingProofs = chat?.missingProofs ?: missingProofs,
                 paymentStatus = chat?.let { shared.paymentInOpenChat() },
+                price = event?.gathering?.price,
+                repeatableDetails = chat?.let { shared.repeatablePaymentDetails() },
+                organizerProfile = chat?.organizer,
                 mutating = shared.mutating
             )
         }

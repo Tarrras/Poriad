@@ -54,11 +54,13 @@ import app.poruch.android.R
 import app.poruch.shared.DetailAction
 import app.poruch.shared.questionsWithoutRequests
 import app.poruch.shared.unreadInThread
+import app.poruch.shared.proofInThread
 import app.poruch.android.ui.*
 import app.poruch.android.feature.mine.countdownOverline
 import app.poruch.android.feature.wallet.WalletTicketCard
 import app.poruch.android.feature.wallet.WalletUi
 import app.poruch.domain.WalletTicket
+import app.poruch.domain.Attendee
 import app.poruch.domain.Artist
 import app.poruch.domain.ArtistRole
 import app.poruch.domain.ContactRules
@@ -318,29 +320,54 @@ internal fun JoinRequests(
         verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         SectionHeader(stringResource(R.string.requests_section))
+        // «Відхилити» — після питання: людина отримає сповіщення.
+        var declining by remember { mutableStateOf<Attendee?>(null) }
+        declining?.let { person ->
+            PoruchConfirmSheet(
+                title = stringResource(R.string.decline_confirm_title),
+                message = stringResource(if (state.screen.payOnline) R.string.decline_confirm_body_pay else R.string.decline_confirm_body, person.name),
+                confirmLabel = stringResource(R.string.decline),
+                dismissLabel = stringResource(R.string.cancel),
+                onConfirm = { declining = null; onIntent(DetailIntent.DeclineRequest(person.userId)) },
+                onDismiss = { declining = null },
+                tone = colors.danger
+            )
+        }
         state.screen.requests.forEach { person ->
-            Row(
-                Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
-            ) {
+            // Два рядки: імʼя цілим (поруч із двома кнопками воно ламалось посеред слова), під ним — дії.
+            Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 // Імʼя й фото — вхід у картку: вирішувати, дивлячись на людину, а не на імʼя.
                 Row(
-                    Modifier.weight(1f).clip(Radius.sm).clickable { onIntent(DetailIntent.OpenPerson(person.userId)) },
+                    Modifier.fillMaxWidth().clip(Radius.sm).clickable { onIntent(DetailIntent.OpenPerson(person.userId)) },
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
                     Avatar(person.name, person.avatarUrl, 36.dp)
-                    Text(person.name, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-                GhostButton(stringResource(R.string.decline), { onIntent(DetailIntent.DeclineRequest(person.userId)) }, tone = colors.inkSecondary)
-                if (state.screen.payOnline) {
-                    // Рішення про оплату — у розмові з людиною, поруч із реквізитами й скріншотом.
-                    val unread = state.screen.unreadInThread(person.userId)
-                    Box {
-                        PrimaryButton(stringResource(R.string.request_chat), { onIntent(DetailIntent.OpenQuestion(person.userId)) })
-                        if (unread > 0) CountBadge(unread, Modifier.align(Alignment.TopEnd))
+                    Column {
+                        Text(person.name, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        // Людина вже надіслала скріншот: звірити з банком, не відкриваючи кожну розмову.
+                        if (state.screen.payOnline && state.screen.proofInThread(person.userId)) {
+                            Text(stringResource(R.string.pay_proof_sent), style = PoruchType.caption, color = colors.inkSecondary)
+                        }
                     }
-                } else {
-                    PrimaryButton(stringResource(R.string.approve), { onIntent(DetailIntent.ApproveRequest(person.userId)) }, enabled = !state.screen.mutating)
+                }
+                Row(
+                    Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.End)
+                ) {
+                    GhostButton(stringResource(R.string.decline), { declining = person }, tone = colors.inkSecondary)
+                    if (state.screen.payOnline) {
+                        // Рішення про оплату — у розмові з людиною, поруч із реквізитами й скріншотом.
+                        val unread = state.screen.unreadInThread(person.userId)
+                        // Лічильник прихований від TalkBack: кажемо його в назві кнопки разом з іменем.
+                        val label = stringResource(R.string.thread_with, person.name) +
+                            if (unread > 0) ", " + stringResource(R.string.unread_messages_a11y, unread) else ""
+                        Box(Modifier.semantics(mergeDescendants = true) { contentDescription = label }) {
+                            PrimaryButton(stringResource(R.string.request_chat), { onIntent(DetailIntent.OpenQuestion(person.userId)) })
+                            if (unread > 0) CountBadge(unread, Modifier.align(Alignment.TopEnd))
+                        }
+                    } else {
+                        PrimaryButton(stringResource(R.string.approve), { onIntent(DetailIntent.ApproveRequest(person.userId)) }, enabled = !state.screen.mutating)
+                    }
                 }
             }
         }

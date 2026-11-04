@@ -1,5 +1,7 @@
 package app.poruch.data.events
 
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.JsonPrimitive
 import app.poruch.data.api.ImageStorage
 import app.poruch.domain.AppError
 import app.poruch.domain.AppFailure
@@ -90,5 +92,13 @@ internal class SupabaseEventChat(
         throw e
     } catch (e: AppFailure) {
         if (e.isMissingFunction()) emptyList() else throw e
+    }
+
+    override suspend fun myPaymentDetails(eventId: String): String? = try {
+        (rpc.read("my_payment_details", rpc.eventParams(eventId)) as? JsonPrimitive)?.contentOrNull
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: AppFailure) {
+        if (e.isMissingFunction()) null else throw e
     }
 }

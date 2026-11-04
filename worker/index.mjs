@@ -284,7 +284,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>
 ${imported ? "" : `${joinSheet(e, ct, now)}
-<script type="module" src="/js/join.js?v=17"></script>`}`,
+<script type="module" src="/js/join.js?v=18"></script>`}`,
   });
 }
 
@@ -354,7 +354,7 @@ function joinSheet(e, ct, now) {
   const name = e.organizer_name || "Організатор";
   const city = Object.entries(CITY_PAGES).find(([, [n]]) => n === e.city);
   const ages = `${e.min_age ? ` data-min-age="${Number(e.min_age)}"` : ""}${e.max_age ? ` data-max-age="${Number(e.max_age)}"` : ""}`;
-  return `<dialog class="install join-sheet" aria-label="Запис на подію" data-event="${e.id}" data-organizer="${organizer}" data-organizer-name="${esc(name)}" data-city="${esc(e.city ?? "")}"${ages}${e.pay_online ? " data-pay-online" : ""}>
+  return `<dialog class="install join-sheet" aria-label="Запис на подію" data-event="${e.id}" data-organizer="${organizer}" data-organizer-name="${esc(name)}" data-city="${esc(e.city ?? "")}"${ages}${e.pay_online ? ` data-pay-online data-price="${Number(e.price_min) || ""}"` : ""}>
 <div class="install-box">
   <button class="round" type="button" data-close aria-label="Закрити">${icon("close")}</button>
   <section data-step="start">
@@ -366,7 +366,6 @@ function joinSheet(e, ct, now) {
     <form data-form="email"><label class="field"><span>Ваша пошта</span><input type="email" name="email" autocomplete="email" required></label>
       <button class="btn primary" type="submit">Надіслати код</button></form>
     <p class="fine">Надішлемо код для входу. Пароль не потрібен.</p>
-    ${e.pay_online ? `<p class="fine">${esc(PAY_ONLINE_FINE)}</p>` : ""}
     <p class="fine">Продовжуючи, ви підтверджуєте, що вам уже є 18, і погоджуєтесь з <a href="/terms.html">Умовами користування</a> та <a href="/privacy.html">Політикою конфіденційності</a>.</p>
   </section>
   <section data-step="code" hidden>
@@ -402,12 +401,12 @@ function joinSheet(e, ct, now) {
   <section data-step="ask" hidden>
     <h2>Розмова з організатором</h2>
     <p class="lead">Бачите лише ви й ${esc(name)}. Пошти й телефону одне одного ви не бачите.</p>
-    ${e.pay_online ? `<p class="fine">${esc(PAY_ONLINE_FINE)}</p>` : ""}
-    <div class="thread" data-thread aria-live="polite"></div>
+    ${e.pay_online ? `<p class="fine" data-trust hidden></p><p class="pay-bar" data-pay-bar hidden><span></span><b></b></p>` : ""}
+    <div class="thread" data-thread></div><p class="sr" data-thread-live aria-live="polite"></p>
+    ${e.pay_online ? `<div class="proof-box" data-proof-pick hidden><label class="btn secondary proof-pick">${icon("plus")}Надіслати скріншот оплати<input class="sr" type="file" accept="image/*" data-proof></label>
+    <p class="fine">Скріншот бачите лише ви й організатор.</p></div>` : ""}
     <form data-form="ask"><label class="field"><span class="sr">Повідомлення</span><textarea name="body" rows="3" maxlength="2000" placeholder="Напишіть організатору" required></textarea></label>
       <button class="btn primary" type="submit">Надіслати</button></form>
-    ${e.pay_online ? `<div class="proof-box" data-proof-pick hidden><label class="btn secondary proof-pick">${icon("plus")}Надіслати скріншот оплати<input type="file" accept="image/*" data-proof hidden></label>
-    <p class="fine">Скріншот бачите лише ви й організатор.</p></div>` : ""}
   </section>
   <p class="error" data-error role="alert" hidden></p>
   <p class="account" data-account hidden>Ви ввійшли як <b data-account-email></b> · <button class="link" type="button" data-signout>Вийти</button></p>
@@ -597,8 +596,8 @@ function layout({ title, description, image, url, head, body }) {
 <meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=17">
-<link rel="stylesheet" href="/web.css?v=17">
+<link rel="stylesheet" href="/tokens.css?v=18">
+<link rel="stylesheet" href="/web.css?v=18">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">

@@ -31,6 +31,24 @@ object ChatRules {
     /** Довша сторона скріншота: досить, щоб прочитати суму й імʼя в банківській квитанції. */
     const val PROOF_SIDE = 2048
 
+    /**
+     * Номер для оплати з реквізитів — щоб скопіювати одним дотиком у банк: IBAN України чи картка (13–19 цифр і
+     * контрольна цифра Луна), як їх розпізнає сервер (`private.has_payment_details`). Групами по чотири; нема — null.
+     */
+    fun paymentNumber(text: String): String? {
+        IBAN.find(text)?.let { return it.value.filterNot { c -> c.isWhitespace() }.uppercase().chunked(4).joinToString(" ") }
+        return CARD.findAll(text).map { it.groupValues[1].filter(Char::isDigit) }
+            .firstOrNull { digits -> digits.toSet().size > 1 && luhn(digits) }
+            ?.chunked(4)?.joinToString(" ")
+    }
+
+    private val IBAN = Regex("UA\\s*\\d{2}(\\s*\\d){25}", RegexOption.IGNORE_CASE)
+    private val CARD = Regex("(?:^|\\D)(\\d(?:[ -]?\\d){12,18})(?!\\d)")
+    private fun luhn(digits: String) = digits.reversed().mapIndexed { i, c ->
+        val d = c.digitToInt() * (if (i % 2 == 1) 2 else 1)
+        if (d > 9) d - 9 else d
+    }.sum() % 10 == 0
+
     /** Що зберігаємо: обрізане. Порожнє — нема чого слати. */
     fun normalize(text: String): String = text.trim()
     fun isBody(text: String) = normalize(text).length in 1..MAX_BODY
@@ -93,6 +111,9 @@ interface EventChat {
 
     /** Розмови з організатором: організатору — усі, тому, хто питав, — своя. Сервер без міграції — порожньо. */
     suspend fun questions(eventId: String): List<QuestionThread>
+
+    /** Останні реквізити, які організатор надсилав у розмовах цієї події: запропонувати ті самі наступній людині. */
+    suspend fun myPaymentDetails(eventId: String): String?
 }
 
 /** Розмова «Запитати організатора» з `event_questions`: хто питає, останнє повідомлення й непрочитане. */
@@ -104,7 +125,9 @@ data class QuestionThread(
     val lastAt: String,
     /** Останнє написав я: організатор уже відповів або я чекаю відповіді. */
     val lastMine: Boolean,
-    val unread: Int
+    val unread: Int,
+    /** Людина надіслала в розмову скріншот оплати: організатору — звірити з банком. */
+    val hasProof: Boolean = false
 )
 
 /** Про що дзвонити з чатів. Чисте правило, як [RequestRules]. */
