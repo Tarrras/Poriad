@@ -124,7 +124,11 @@ class DetailViewModel(
             } else authenticated(AuthReason.JOIN) {
                 when (screen.action) {
                     // Штамп — відповідь на цей тап: панель перемкнеться, коли сервер підтвердить.
-                    DetailAction.JOIN, DetailAction.REQUEST -> { reduce { copy(stampPending = true) }; joining { app.joinEvent(eventId) } }
+                    DetailAction.JOIN, DetailAction.REQUEST -> {
+                        reduce { copy(stampPending = true) }; joining { app.joinEvent(eventId) }
+                        // Заявка на подію з оплатою онлайн одразу веде в розмову з організатором: далі — реквізити й скріншот там.
+                        if (screen.action == DetailAction.REQUEST && screen.payOnline) screen.userId?.let { send(DetailEffect.OpenChat(eventId, it)) }
+                    }
 
                     DetailAction.LEAVE -> app.leaveEvent(eventId)
                     DetailAction.JOIN_WAITLIST -> { reduce { copy(stampPending = true) }; joining { app.joinWaitlist(eventId) } }

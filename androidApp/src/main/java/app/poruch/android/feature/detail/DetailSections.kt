@@ -271,7 +271,7 @@ internal fun Questions(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         SectionHeader(stringResource(R.string.questions_section))
         Column(Modifier.fillMaxWidth().cardSurface()) {
-            state.screen.questions.forEachIndexed { index, question ->
+            state.screen.questionsApart.forEachIndexed { index, question ->
                 if (index > 0) HorizontalDivider(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md), color = colors.hairline)
                 val name = question.askerName.ifBlank { stringResource(R.string.chat_member) }
                 Row(
@@ -330,7 +330,16 @@ internal fun JoinRequests(
                     Text(person.name, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 GhostButton(stringResource(R.string.decline), { onIntent(DetailIntent.DeclineRequest(person.userId)) }, tone = colors.inkSecondary)
-                PrimaryButton(stringResource(R.string.approve), { onIntent(DetailIntent.ApproveRequest(person.userId)) }, enabled = !state.screen.mutating)
+                if (state.screen.payOnline) {
+                    // Оплата онлайн: заявка — це розмова (власник 03.11). Там реквізити, скріншот і «Оплату отримано».
+                    val unread = state.screen.unreadFrom(person.userId)
+                    Box {
+                        PrimaryButton(stringResource(R.string.request_chat), { onIntent(DetailIntent.OpenQuestion(person.userId)) })
+                        if (unread > 0) CountBadge(unread, Modifier.align(Alignment.TopEnd))
+                    }
+                } else {
+                    PrimaryButton(stringResource(R.string.approve), { onIntent(DetailIntent.ApproveRequest(person.userId)) }, enabled = !state.screen.mutating)
+                }
             }
         }
     }

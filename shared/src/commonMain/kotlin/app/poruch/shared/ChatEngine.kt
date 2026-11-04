@@ -212,6 +212,14 @@ data class ChatState(
     val missingProofs: Set<String> = emptySet()
 )
 
+/** Заявка в розмові події з оплатою онлайн ([AppState.threadPayment]). */
+enum class ThreadPayment {
+    /** Заявка чекає оплати: організатору в розмові — «Оплату отримано» й «Відхилити». */
+    WAITING,
+    /** Оплату підтверджено: людина в списку. */
+    PAID
+}
+
 internal fun ChatState.isFor(eventId: String, thread: String?) = this.eventId == eventId && this.thread == thread
 
 /** Розмову [thread] відкрито: її непрочитане в деталях гасне одразу, сервер дізнається після першого читання. */

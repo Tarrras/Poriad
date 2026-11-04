@@ -42,6 +42,10 @@ struct ChatView: View {
     private var userId: String? { model.state?.session.userId }
     private var canSendProof: Bool { model.state?.canSendProof() == true }
     private var organizer: Bool { event.flatMap { model.state?.organizes(event: $0) } ?? false }
+    /// Розмова події з оплатою онлайн — це й заявка (власник 03.11): що з нею. Nil — розмова не про оплату.
+    private var payment: ThreadPayment? { model.state?.threadPayment() }
+    /// Хто в розмові — для організатора: з повідомлень, розмов, заявок чи учасників (міг написати першим).
+    private var personName: String { thread.flatMap { model.state?.askerName(eventId: eventID, thread: $0) } ?? Copy.chat_member }
     /// Той самий поріг, що на сервері: тиждень після кінця.
     private var readOnly: Bool {
         guard let event else { return false }
@@ -53,6 +57,7 @@ struct ChatView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            paymentBar
             content
             if readOnly { closedNote } else { composer }
         }
@@ -132,8 +137,9 @@ struct ChatView: View {
         if let thread {
             // Організатор бачить, хто питає; той, хто питає, — що розмова лише на двох.
             guard organizer else { return Copy.question_subtitle }
-            // З розмови, розмов, заявок чи учасників: організатор міг написати першим.
-            return Copy.question_from(model.state?.askerName(eventId: eventID, thread: thread) ?? Copy.chat_member)
+            // «Питає» — коли людина вже написала; інакше розмову почав організатор або це заявка онлайн-події.
+            let asked = chat?.messages.contains { $0.authorId == thread } == true
+            return payment == nil && asked ? Copy.question_from(personName) : Copy.thread_with(personName)
         }
         guard let room = event?.gathering else { return Copy.contact_label }
         // Організатор і підтверджені: саме вони бачать цей екран.
@@ -164,8 +170,8 @@ struct ChatView: View {
                 LazyVStack(spacing: 0) {
                     rules
                     if messages.isEmpty {
-                        EmptyState(glyph: PoruchIcons.chat, title: thread == nil ? Copy.chat_empty_title : Copy.question_empty_title,
-                                   message: thread == nil ? Copy.chat_empty_hint : Copy.question_empty_hint, compact: true)
+                        let empty = emptyCopy
+                        EmptyState(glyph: PoruchIcons.chat, title: empty.title, message: empty.hint, compact: true)
                             .padding(.top, Space.section)
                     }
                     ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
@@ -189,6 +195,52 @@ struct ChatView: View {
             .onChange(of: composing) { _, focused in
                 if focused { DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } } }
             }
+        }
+    }
+
+    /// Порожня розмова: загальний чат, питання організатору, організатор пише першим чи заявка онлайн-події.
+    private var emptyCopy: (title: String, hint: String) {
+        guard thread != nil else { return (Copy.chat_empty_title, Copy.chat_empty_hint) }
+        if payment != nil {
+            return organizer ? (Copy.pay_empty_title_org, Copy.pay_empty_hint_org) : (Copy.pay_empty_title_mine, Copy.pay_empty_hint_mine)
+        }
+        return organizer ? (Copy.question_empty_title_org, Copy.question_empty_hint_org) : (Copy.question_empty_title, Copy.question_empty_hint)
+    }
+
+    // ---- Заявка в розмові
+
+    /// Заявка онлайн-події — у самій розмові, поруч зі скріншотом (власник 03.11): організатору — «Оплату отримано» й
+    /// «Відхилити», людині — що з її заявкою. Порожня розмова людини каже те саме своїм порожнім станом.
+    @ViewBuilder private var paymentBar: some View {
+        if let payment, let thread, organizer || payment == .paid || chat?.messages.isEmpty == false {
+            let waiting = payment == .waiting
+            VStack(alignment: .leading, spacing: Space.sm) {
+                Text(organizer
+                     ? (waiting ? Copy.pay_thread_waiting_org(personName) : Copy.pay_thread_paid_org(personName))
+                     : (waiting ? Copy.pay_thread_waiting_mine : Copy.pay_thread_paid_mine))
+                    .font(PoruchFont.subhead).foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                if organizer && waiting {
+                    HStack(spacing: Space.md) {
+                        Spacer(minLength: 0)
+                        Button { model.app.declineMember(eventId: eventID, userId: thread) } label: {
+                            Text(Copy.decline).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).lineLimit(1).fixedSize()
+                                .tapTarget()
+                        }.buttonStyle(.plain)
+                        Button { model.app.approveMember(eventId: eventID, userId: thread) } label: {
+                            Text(Copy.approve_paid).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
+                                .padding(.horizontal, Space.lg).frame(height: 40)
+                                .background(Palette.brand, in: buttonShape)
+                                .tapTarget()
+                        }.buttonStyle(PressableStyle())
+                    }
+                    .disabled(model.state?.mutating == true)
+                }
+            }
+            .padding(.horizontal, Space.page).padding(.vertical, Space.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(waiting ? Palette.accentContainer : Palette.surfaceMuted)
+            .accessibilityElement(children: .contain)
         }
     }
 

@@ -553,7 +553,7 @@ extension EventDetailView {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionHeader(title: Copy.questions_section)
             GroupedRows {
-                ForEach(Array(view.questions.enumerated()), id: \.element.askerId) { index, question in
+                ForEach(Array(view.questionsApart.enumerated()), id: \.element.askerId) { index, question in
                     if index > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }
                     NavigationLink(value: ChatRoute(id: event.id, thread: question.askerId)) {
                         HStack(spacing: Space.md) {
@@ -599,12 +599,26 @@ extension EventDetailView {
                         Text(Copy.decline).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).lineLimit(1).fixedSize()
                             .tapTarget()
                     }.buttonStyle(.plain)
-                    Button { model.app.approveMember(eventId: event.id, userId: person.userId) } label: {
-                        Text(Copy.approve).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
+                    if view.payOnline {
+                        // Оплата онлайн: заявка — це розмова (власник 03.11). Там реквізити, скріншот і «Оплату отримано».
+                        let unread = Int(view.unreadFrom(userId: person.userId))
+                        Button { writingTo = ChatRoute(id: event.id, thread: person.userId) } label: {
+                            HStack(spacing: Space.xs) {
+                                Text(Copy.request_chat).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
+                                if unread > 0 { CountBadge(count: unread) }
+                            }
                             .padding(.horizontal, Space.lg).frame(height: 40)
                             .background(Palette.brand, in: buttonShape)
                             .tapTarget()
-                    }.buttonStyle(PressableStyle())
+                        }.buttonStyle(PressableStyle())
+                    } else {
+                        Button { model.app.approveMember(eventId: event.id, userId: person.userId) } label: {
+                            Text(Copy.approve).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
+                                .padding(.horizontal, Space.lg).frame(height: 40)
+                                .background(Palette.brand, in: buttonShape)
+                                .tapTarget()
+                        }.buttonStyle(PressableStyle())
+                    }
                 }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
             }
         }
@@ -747,7 +761,13 @@ extension EventDetailView {
     /// Головна дія панелі. Організатору — «Поширити анонс» замість неактивної «Ви організатор» (стан і так каже штамп
     /// на обкладинці). Записаним — тонова кнопка: головну дію вже зроблено, стан несе штамп поруч.
     @ViewBuilder func primaryAction(_ event: Event, _ view: DetailScreenState) -> some View {
-        if promotesOnPanel(view) {
+        if view.payChat, let me = view.userId {
+            // Оплата онлайн: заявка й розмова про оплату — одне (власник 03.11). Не неактивне «Запит надіслано», а розмова,
+            // де організатор напише, як оплатити.
+            SecondaryButton(title: Copy.pay_chat_open, glyph: PoruchIcons.chat, lines: 3) { writingTo = ChatRoute(id: event.id, thread: me) }
+                .frame(maxWidth: .infinity)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        } else if promotesOnPanel(view) {
             PrimaryButton(
                 title: Copy.share_promote, glyph: PoruchIcons.share,
                 loading: threadsEvent != nil, enabled: screen.detailsLoaded && threadsEvent == nil
@@ -764,7 +784,11 @@ extension EventDetailView {
             PrimaryButton(title: view.action.title, loading: view.mutating, enabled: view.action.isEnabled && !view.mutating) {
                 let joining = view.action == .join || view.action == .request || view.action == .joinWaitlist
                 // Гість іде у вхід: штамп після нього не його дотик, тож прапорець — лише коли запит справді пішов.
-                if actions.perform(view.action, on: event, signedIn: view.signedIn) { joinTapped = joining } else { auth = .join }
+                if actions.perform(view.action, on: event, signedIn: view.signedIn) {
+                    joinTapped = joining
+                    // Заявка на подію з оплатою онлайн одразу веде в розмову з організатором: далі — реквізити й скріншот там.
+                    if view.payOnline && view.action == .request, let me = view.userId { writingTo = ChatRoute(id: event.id, thread: me) }
+                } else { auth = .join }
             }
         }
     }

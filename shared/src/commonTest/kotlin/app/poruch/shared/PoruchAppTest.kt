@@ -1250,6 +1250,43 @@ class PoruchAppTest {
         app.close()
     }
 
+    /** Оплата онлайн: запит на участь і розмова про оплату — один потік (власник 03.11). */
+    @Test fun onlineRequestAndPaymentChatAreOneFlow()=runTest {
+        val events=Events()
+        val online=event("ev",EventCategory.GAMES,"2090-01-05T19:00:00Z").let {
+            it.copy(gathering=it.gathering!!.copy(price=300,payOnline=true,approvalRequired=true,membership=Membership.REQUESTED))
+        }
+        events.results=listOf(online); events.detailsById=mapOf("ev" to online)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.openEvent("ev"); advanceTimeBy(1000); runCurrent()
+        app.openQuestion("ev","user"); runCurrent()
+        val mine=app.state.value
+        assertEquals(ThreadPayment.WAITING,mine.threadPayment(),"моя заявка — у моїй розмові")
+        val paid=online.copy(gathering=online.gathering!!.copy(membership=Membership.APPROVED,joined=true))
+        assertEquals(ThreadPayment.PAID,mine.copy(detail=mine.detail.copy(event=paid)).threadPayment())
+        val onsite=online.copy(gathering=online.gathering!!.copy(payOnline=false))
+        assertNull(mine.copy(detail=mine.detail.copy(event=onsite)).threadPayment(),"на місці — розмова не про оплату")
+
+        // Організатор: заявка людини з розмови — «Оплату отримано» прямо там; після схвалення людина в списку.
+        val own=online.copy(gathering=online.gathering!!.copy(organizerId="user",membership=Membership.NONE))
+        val ira=Attendee("ira","Іра",null)
+        val organizer=mine.copy(detail=mine.detail.copy(event=own,joinRequests=listOf(ira)),chat=mine.chat!!.copy(thread="ira"))
+        assertEquals(ThreadPayment.WAITING,organizer.threadPayment())
+        assertEquals(ThreadPayment.PAID,organizer.copy(detail=organizer.detail.copy(joinRequests=emptyList(),attendees=listOf(ira))).threadPayment())
+        assertNull(organizer.copy(chat=organizer.chat!!.copy(thread=null)).threadPayment(),"загальний чат")
+
+        // Деталі: людина з заявкою відкриває розмову з панелі; в організатора її розмова — на рядку заявки, не двічі.
+        assertTrue(DetailScreenState(event=online,signedIn=true,userId="user").payChat)
+        assertFalse(DetailScreenState(event=onsite,signedIn=true,userId="user").payChat)
+        val asked=QuestionThread("ira","Іра",null,"Оплатила","2026-11-03T10:00:00Z",lastMine=false,unread=2)
+        val other=QuestionThread("max","Макс",null,"Що взяти?","2026-11-03T09:00:00Z",lastMine=false,unread=0)
+        val screen=DetailScreenState(event=own,organizer=true,userId="user",requests=listOf(ira),questions=listOf(asked,other))
+        assertEquals(listOf(other),screen.questionsApart)
+        assertEquals(2,screen.unreadFrom("ira"))
+        assertEquals(listOf(asked,other),screen.copy(event=own.copy(gathering=own.gathering!!.copy(payOnline=false))).questionsApart)
+        app.close()
+    }
+
     /** Пуш з чату в чат: старий екран закривається вже після того, як новий відкрив свій, і не має його закрити. */
     @Test fun closingTheOldChatScreenKeepsTheNewChatOpen()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
@@ -2123,6 +2160,29 @@ class PoruchAppTest {
         assertFalse(again.state.value.loading)
         again.release(keepSlot=false); runCurrent()
         assertNull(app.state.value.detail.event,"the last screen frees the slot")
+        app.close()
+    }
+    /**
+     * iOS: посилання з відкритої розмови замінює стос, старі деталі під нею на мить «з'являються» (`reopen`) і перехоплюють
+     * слот уже після нових. Знімаючись, вони чистили його, і нові деталі крутили завантаження без кінця.
+     */
+    @Test fun aStaleScreenThatGrabsTheSlotHandsItBack()=runTest {
+        val events=Events()
+        val soon=(Clock.System.now()+1.hours).toString()
+        val a=event("a",EventCategory.SOCIAL,soon); val b=event("b",EventCategory.GAMES,soon)
+        events.results=listOf(a,b); events.detailsById=mapOf("a" to a,"b" to b)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        fun screen(id:String)=DetailPresenter(app,id,CoroutineScope(backgroundScope.coroutineContext+Job(backgroundScope.coroutineContext[Job])),StandardTestDispatcher(testScheduler))
+        val old=screen("a"); runCurrent(); advanceTimeBy(200); runCurrent()
+        app.selectEvent("b"); runCurrent()
+        val fresh=screen("b"); runCurrent()
+        old.reopen(); runCurrent()
+        assertEquals("a",app.state.value.detail.event?.id,"the old screen grabbed the slot")
+        old.release(keepSlot=false); runCurrent(); advanceTimeBy(200); runCurrent()
+        assertEquals("b",fresh.state.value.event?.id,"the slot goes back to the screen that is still there")
+        assertFalse(fresh.state.value.loading)
+        fresh.release(keepSlot=false); runCurrent()
+        assertNull(app.state.value.detail.event)
         app.close()
     }
     /**

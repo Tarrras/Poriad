@@ -84,7 +84,8 @@ class EditorViewModel(
             copy(
                 form = restored, mapLatitude = latitude, mapLongitude = longitude,
                 host = (event?.gathering?.organizerName ?: shared.library.profile?.name)?.takeIf { it.isNotBlank() },
-                taken = event?.gathering?.attendeeCount ?: 0
+                taken = event?.gathering?.attendeeCount ?: 0,
+                payOnline = event?.gathering?.payOnline == true
             )
         }
         resumed = repeated == null && state.value.canStartOver

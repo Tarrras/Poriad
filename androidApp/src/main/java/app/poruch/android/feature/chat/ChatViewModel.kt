@@ -42,7 +42,9 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
                 followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId },
                 canSendProof = chat != null && shared.canSendProof(),
                 proofs = chat?.proofs ?: proofs,
-                missingProofs = chat?.missingProofs ?: missingProofs
+                missingProofs = chat?.missingProofs ?: missingProofs,
+                payment = chat?.let { shared.threadPayment() },
+                mutating = shared.mutating
             )
         }
         // Текст, що не пішов, повертається в поле, якщо людина ще не почала нове.
@@ -92,6 +94,8 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
                 app.sendProof(intent.jpeg, text)
             }
             is ChatIntent.ViewProof -> reduce { copy(viewing = intent.path) }
+            ChatIntent.ApprovePayment -> thread?.let { app.approveMember(eventId, it) }
+            ChatIntent.DeclineRequest -> thread?.let { app.declineMember(eventId, it) }
         }
     }
 

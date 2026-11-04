@@ -505,7 +505,8 @@ private fun PeopleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     // — на місці, без передоплати (власник 03.11).
     LabelledField(
         stringResource(R.string.price_label), form.price, { value -> onIntent(EditorIntent.Edit { copy(price = value.filter(Char::isDigit).take(6)) }) },
-        placeholder = stringResource(R.string.price_placeholder), hint = stringResource(R.string.price_hint),
+        placeholder = stringResource(R.string.price_placeholder),
+        hint = stringResource(if (state.payOnline) R.string.price_hint_online else R.string.price_hint),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
         error = DraftField.PRICE.rule().takeIf { form.price.isNotEmpty() && form.price.toInt() !in EventRules.price }
     )

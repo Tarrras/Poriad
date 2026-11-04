@@ -34,7 +34,8 @@ sealed interface MyEventsIntent {
     data object ToggleTickets : MyEventsIntent
     data object Refresh : MyEventsIntent
     data class OpenEvent(val id: String) : MyEventsIntent
-    data class OpenChat(val id: String) : MyEventsIntent
+    /** [thread] — розмова з людиною: заявка онлайн-події веде саме туди (власник 03.11). */
+    data class OpenChat(val id: String, val thread: String? = null) : MyEventsIntent
     data object FindNearby : MyEventsIntent
     data object ShowAllPast : MyEventsIntent
     data class StartRating(val event: Event) : MyEventsIntent
@@ -56,7 +57,7 @@ sealed interface MyEventsIntent {
 
 sealed interface MyEventsEffect {
     data class OpenDetail(val id: String) : MyEventsEffect
-    data class OpenChat(val id: String) : MyEventsEffect
+    data class OpenChat(val id: String, val thread: String? = null) : MyEventsEffect
     data object OpenMap : MyEventsEffect
     data object SignIn : MyEventsEffect
     data object CreateEvent : MyEventsEffect

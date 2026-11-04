@@ -24,6 +24,8 @@ import app.poruch.domain.Gathering
 import app.poruch.domain.Inviter
 import app.poruch.domain.Listing
 import app.poruch.domain.PendingMeet
+import app.poruch.domain.PoruchLog
+import app.poruch.domain.shortId
 import app.poruch.domain.QuestionThread
 import app.poruch.domain.RatingRules
 import kotlin.concurrent.Volatile
@@ -157,6 +159,16 @@ data class DetailScreenState(
     fun canWriteTo(userId: String): Boolean =
         organizer && userId != this.userId && (requests.any { it.userId == userId } || attendees.any { it.userId == userId })
     /**
+     * Оплата онлайн: запит на участь і розмова про оплату — один потік (власник 03.11). Людина з заявкою відкриває з
+     * панелі розмову з організатором — там реквізити, скріншот і рішення, — а не дивиться на неактивне «Запит надіслано».
+     */
+    val payChat: Boolean get() = payOnline && action == DetailAction.REQUESTED
+    /** Непрочитане в розмові з [userId]: заявка онлайн-події веде в розмову, тож лічильник — на рядку заявки. */
+    fun unreadFrom(userId: String): Int = questions.firstOrNull { it.askerId == userId }?.unread ?: 0
+    /** «Питання до вас» без тих, чия заявка онлайн-події вже веде в розмову: одна людина — один рядок. */
+    val questionsApart: List<QuestionThread>
+        get() = if (!payOnline) questions else questions.filter { question -> requests.none { it.userId == question.askerId } }
+    /**
      * «Вже маєте квиток?» під продавцями: квиток купили раніше, на касі чи отримали від друга, а картка «Купили квиток?»
      * з'являється лише після нашого продавця. Лише афіша, що попереду й не скасована, і без квитка в телефоні.
      */
@@ -250,6 +262,7 @@ class DetailPresenter(
 
     init {
         // Тут, а не з композиції чи `.task`: презентер переживає поворот і перестворення view, запит іде один раз.
+        app.detailScreens.add(this)
         claim(openedId)
         // Зміна акаунта чистить слот відкритої події — і вхід, і скинута сесія (на слабкій мережі губиться відповідь
         // refresh, а старий токен Supabase вже не приймає). Екран зверху просить свою подію знову, інакше крутив би
@@ -262,6 +275,7 @@ class DetailPresenter(
     }
 
     private fun claim(id: String) {
+        PoruchLog.d("detail") { "claim ${id.shortId()}" }
         app.detailScreen = this
         app.openEvent(id)
     }
@@ -299,11 +313,18 @@ class DetailPresenter(
      * ([keepSlot]: «На мапі» бере його як фокус) і коли слот уже в екрана поверх.
      */
     fun release(keepSlot: Boolean = false) {
+        val screens = app.detailScreens
+        val newer = screens.indexOf(this).takeIf { it >= 0 }?.let { screens.drop(it + 1).lastOrNull() }
+        screens.remove(this)
         // Подію вже відкрив інший екран (і ту саму теж): слот і картка людини — його, інакше він крутив би завантаження.
         if (app.detailScreen === this) {
             app.detailScreen = null
             app.closePerson()
-            if (!keepSlot && app.state.value.detail.event?.id == sessionId) app.dismissEvent()
+            // Слот перехопив старий екран, а новіший ще живий: слот — новішому. iOS: посилання з відкритої розмови замінює
+            // стос, і старі деталі під нею на мить «з'являються» (`reopen`), перехоплюють слот і, знімаючись, чистили
+            // його — нові деталі крутили завантаження без кінця. Звичайне «назад» (знімається новіший) — як і було.
+            if (!keepSlot && newer != null) newer.claim(newer.sessionId)
+            else if (!keepSlot && app.state.value.detail.event?.id == sessionId) app.dismissEvent()
         }
         scope.cancel()
     }

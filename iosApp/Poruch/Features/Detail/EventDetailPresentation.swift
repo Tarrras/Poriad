@@ -82,7 +82,7 @@ extension DetailScreenState {
         }
         guard let room else { return "" }
         if ended { return Copy.event_ended }
-        if room.awaitingApproval { return Copy.request_pending_hint }
+        if room.awaitingApproval { return room.payOnline ? Copy.pay_waiting_hint : Copy.request_pending_hint }
         // Гостю — що його чекає, не текст перемикача з редактора.
         if room.approvalRequired && !room.joined && !organizer { return Copy.approval_guest_hint }
         if room.isFull && !room.joined && !organizer { return Copy.waitlist_hint }

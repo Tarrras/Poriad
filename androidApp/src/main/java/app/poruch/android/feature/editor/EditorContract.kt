@@ -110,6 +110,8 @@ enum class EditorStep(
 
 data class EditorState(
     val editing: Boolean = false,
+    /** Правка події з оплатою онлайн: спосіб оплати застосунок не міняє (лише кабінет), але й не каже «на місці». */
+    val payOnline: Boolean = false,
     val step: EditorStep = EditorStep.ABOUT,
     val form: EditorForm = EditorForm(),
     val mutating: Boolean = false,

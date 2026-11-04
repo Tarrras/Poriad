@@ -492,10 +492,23 @@
   <string name="questions_section_hint">Бачите лише ви й людина, яка питає.</string>
   <string name="question_subtitle">Бачите лише ви й організатор</string>
   <string name="question_from">Питає %1$s</string>
+  <!-- Організатор пише першим (людина ще нічого не питала) або це заявка онлайн-події. -->
+  <string name="thread_with">Розмова: %1$s</string>
   <string name="question_placeholder">Ваше питання…</string>
   <string name="question_reply_placeholder">Відповісти…</string>
   <string name="question_empty_title">Що хочете дізнатися?</string>
   <string name="question_empty_hint">Що взяти, чи можна з другом, як знайти місце — організатор відповість тут. Учасники цієї розмови не бачать.</string>
+  <string name="question_empty_title_org">Напишіть першим</string>
+  <string name="question_empty_hint_org">Цю розмову бачите лише ви й людина. Учасники її не бачать.</string>
+  <!-- Заявка онлайн-події — це й розмова про оплату (власник 03.11). -->
+  <string name="pay_empty_title_org">Напишіть, як оплатити</string>
+  <string name="pay_empty_hint_org">Картка, IBAN чи банка — лише тут. Людина побачить реквізити із застереженням, а скріншот оплати надішле сюди.</string>
+  <string name="pay_empty_title_mine">Заявку надіслано</string>
+  <string name="pay_empty_hint_mine">Організатор напише тут, як оплатити. Можете написати й самі.</string>
+  <string name="pay_thread_waiting_org">%1$s хоче прийти · чекає оплати</string>
+  <string name="pay_thread_paid_org">%1$s у списку · оплату отримано</string>
+  <string name="pay_thread_waiting_mine">Заявка чекає оплати: організатор підтвердить, коли побачить гроші.</string>
+  <string name="pay_thread_paid_mine">Оплату підтверджено — ви в списку.</string>
   <string name="chat_title">Чат події</string>
   <string name="chat_placeholder">Написати учасникам…</string>
   <string name="chat_send">Надіслати</string>
@@ -541,7 +554,7 @@
   <string name="err_chat_closed">Чат закрито: подія давно минула</string>
   <string name="err_too_many_messages">Забагато повідомлень поспіль. Зачекайте хвилину</string>
   <string name="err_invalid_message">Повідомлення порожнє або задовге (до 2000 символів)</string>
-  <string name="err_payment_details">Реквізити для оплати надсилають лише в розмові на двох події з оплатою онлайн</string>
+  <string name="err_payment_details">Номер картки, IBAN чи посилання на оплату тут писати не можна: реквізити надсилають лише в розмові з людиною, у події з оплатою онлайн</string>
   <!-- Оплата онлайн у розмові з організатором (docs/organizer-events.md): скріншот оплати й застереження під реквізитами. -->
   <string name="proof_attach">Надіслати скріншот оплати</string>
   <string name="proof_hint">Оплатили? Надішліть скріншот кнопкою «+» — його побачить лише організатор.</string>
@@ -549,6 +562,8 @@
   <string name="proof_unavailable">Скріншот недоступний</string>
   <string name="payment_warning">Реквізити для оплати. «Поряд» не приймає оплату й не відповідає за неї — не переказуйте гроші, якщо сумніваєтесь в організаторі.</string>
   <string name="approve_paid">Оплату отримано</string>
+  <!-- Заявка онлайн-події веде в розмову з людиною: там реквізити, скріншот і рішення. -->
+  <string name="request_chat">Розмова</string>
   <string name="person_write">Написати</string>
   <string name="contact_confirm_title">Відкрити посилання від організатора?</string>
   <string name="contact_confirm_body">Ви переходите на %1$s. Це посилання додав організатор події. «Поряд» не перевіряє його і не відповідає за вміст сторінки чи чату за ним. Не переходьте, якщо не довіряєте організатору.</string>
@@ -590,6 +605,9 @@
   <string name="request_join">Надіслати запит</string>
   <string name="request_pending">Запит надіслано</string>
   <string name="request_pending_hint">Організатор ще не відповів</string>
+  <!-- Оплата онлайн: заявка й розмова про оплату — одне. Кнопка на панелі й рядок під нею. -->
+  <string name="pay_chat_open">Розмова з організатором</string>
+  <string name="pay_waiting_hint">Чекає оплати · організатор напише в розмові, як оплатити</string>
 
   <string name="report">Поскаржитись</string>
   <string name="report_event_title">Поскаржитись на подію</string>
@@ -1301,6 +1319,8 @@
   <string name="price_label">Ціна, ₴ (необовʼязково)</string>
   <string name="price_placeholder">Безкоштовно</string>
   <string name="price_hint">Учасники платять вам на місці, без передоплати — так і написано на сторінці події.</string>
+  <!-- Правка події з оплатою онлайн: спосіб оплати застосунок не міняє, лише кабінет. -->
+  <string name="price_hint_online">Оплата онлайн: людина подає заявку, а реквізити ви надсилаєте їй у розмові. Спосіб оплати змінюють у кабінеті на сайті.</string>
   <string name="price_value">%1$s ₴</string>
   <string name="price_fact">Вхід</string>
   <string name="price_pay_hint">Оплата на місці, без передоплати</string>

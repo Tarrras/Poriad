@@ -54,7 +54,7 @@ struct EventEditor: View {
                         case .about: AboutStep(editor: editor)
                         case .place: PlaceStep(editor: editor)
                         case .schedule: ScheduleStep(form: $editor.form, issues: editor.issueTexts)
-                        case .people: PeopleStep(form: $editor.form, issues: editor.issueTexts)
+                        case .people: PeopleStep(form: $editor.form, issues: editor.issueTexts, payOnline: editor.payOnline)
                         }
                     }
                     .padding(Space.page)
@@ -591,6 +591,8 @@ private struct PeopleStep: View {
     @Binding var form: EditorForm
     /// Тексти під полями значенням, а не замиканням: замикання SwiftUI не порівнює, і крок не перемальовувався.
     let issues: [DraftField: String]
+    /// Правка події з оплатою онлайн: підказка під ціною не має казати «на місці».
+    var payOnline = false
     var body: some View {
         // Число набирають, степер — для дрібних поправок: 1→200 стрілками — двісті дотиків.
         VStack(alignment: .leading, spacing: Space.sm) {
@@ -617,7 +619,7 @@ private struct PeopleStep: View {
                     set: { form.price = Int(String($0.filter(\.isNumber).prefix(6))) }
                 ),
                 placeholder: Copy.price_placeholder,
-                hint: Copy.price_hint
+                hint: payOnline ? Copy.price_hint_online : Copy.price_hint
             )
             .keyboardType(.numberPad)
             FieldIssue(text: issues[.price])

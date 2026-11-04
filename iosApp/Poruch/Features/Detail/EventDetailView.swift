@@ -94,7 +94,7 @@ struct EventDetailView: View, Equatable {
     /// Збіг «Піти разом»: супутник, куди сервер записав обох, — відкриваємо його, там чат.
     @State var matched: EventRoute?
     /// Розмова, яку організатор відкрив з картки людини («Написати»).
-    @State private var writingTo: ChatRoute?
+    @State var writingTo: ChatRoute?
     /// Системне «Поділитися» з готовим текстом: щойно створений супутник чи «Покликати».
     @State var sharing: ShareText?
     /// «Покликати» чекає посилання від сервера: повторний тап нічого не робить.
@@ -377,7 +377,7 @@ struct EventDetailView: View, Equatable {
             if view.organizer && !view.requests.isEmpty {
                 joinRequests(event, view).id(requestsSectionID).overlay { companyFlashRing(requestsSectionID).padding(-Space.sm) }
             }
-            if view.organizer && !view.questions.isEmpty { questions(event, view) }
+            if view.organizer && !view.questionsApart.isEmpty { questions(event, view) }
             if view.canRate { RateEventSection(event: event, mine: view.myRating) }
             if view.organizer && view.ended && !view.cancelled { RatingsSummary(ratings: view.ratings) }
             // Після кінця редагувати й скасовувати нічого: лишаються відгуки.

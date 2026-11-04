@@ -362,6 +362,8 @@ class PoruchApp internal constructor(
      * знімають запізно (iOS — `deinit`, Android — `onCleared`), коли ту саму подію вже відкрили знову.
      */
     internal var detailScreen: DetailPresenter? = null
+    /** Живі екрани деталей у порядку появи: слот, який звільнив старіший, дістається новішому ([DetailPresenter.release]). */
+    internal val detailScreens = ArrayList<DetailPresenter>()
     fun loadMyEvents() = library.load()
 
     /** Повернення на передній план: перечитує «мої» і відкриту подію, мапу — якщо видача не свіжа. */

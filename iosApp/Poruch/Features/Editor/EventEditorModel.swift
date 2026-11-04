@@ -211,6 +211,8 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     }
 
     var editing: Bool { event != nil }
+    /// Правка події з оплатою онлайн: спосіб оплати застосунок не міняє (лише кабінет), але й не каже «на місці».
+    var payOnline: Bool { event?.gathering?.payOnline == true }
     var repeating: Bool { repeated != nil }
 
     /// Хто збирає — ім'я на квитку, як його побачать на головній.

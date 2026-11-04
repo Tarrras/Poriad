@@ -124,6 +124,29 @@ data class AppState(
         return room.payOnline && room.membership != Membership.NONE
     }
 
+    /**
+     * Відкрита розмова події з оплатою онлайн — це й заявка тієї людини (власник 03.11: запит на участь і розмова про
+     * оплату — один потік): що з нею зараз. Організатору — заявка людини з [ChatState.thread], людині — своя. Null —
+     * розмова не про оплату (загальний чат, «на місці», людина без запису) або деталей події нема в памʼяті.
+     */
+    fun threadPayment(): ThreadPayment? {
+        val open = chat ?: return null
+        val thread = open.thread ?: return null
+        val event = detail.event?.takeIf { it.id == open.eventId } ?: return null
+        val room = event.gathering?.takeIf { it.payOnline } ?: return null
+        return when {
+            organizes(event) -> when {
+                detail.joinRequests.any { it.userId == thread } -> ThreadPayment.WAITING
+                detail.attendees.any { it.userId == thread } -> ThreadPayment.PAID
+                else -> null
+            }
+            thread != session.userId -> null
+            room.awaitingApproval -> ThreadPayment.WAITING
+            room.joined -> ThreadPayment.PAID
+            else -> null
+        }
+    }
+
     /** Своя подія: організую або йду. Це і є «плани» на головній і в нагадуваннях. */
     fun concerns(event: Event) = event.gathering?.joined == true || organizes(event)
 

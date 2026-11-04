@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
 
 // Повідомлення: організатор і підтверджені учасники, крім автора й тих, хто заблокований з автором в будь-який бік.
 async function forMessage(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "message" }>) {
-  const { data: m } = await db.from("event_messages").select("id,event_id,author_id,body,thread_user_id,image").eq("id", p.message_id).maybeSingle();
+  const { data: m } = await db.from("event_messages").select("id,event_id,author_id,body,thread_user_id,image,payment_details").eq("id", p.message_id).maybeSingle();
   if (!m) return { push: null, recipients: [] };
   const { data: e } = await db.from("events").select("id,title,organizer_id,status").eq("id", m.event_id).maybeSingle();
   if (!e || e.status !== "published") return { push: null, recipients: [] };
@@ -178,7 +178,10 @@ async function forMessage(db: ReturnType<typeof createClient>, p: Extract<Payloa
       push: {
         kind: "question" as const, eventId: e.id as string, threadId: m.thread_user_id as string, title: e.title as string,
         // Скріншот оплати (20261125130000) шле лише людина; організатор звіряє з банком і тисне «Оплату отримано».
-        body: fromOrganizer ? `Організатор написав: ${text}` : m.image ? `Скріншот оплати від ${who}` : `${who} питає: ${text}`,
+        // Реквізити — лише в розмові, під застереженням: на заблокованому екрані їх не показуємо, як і в листі.
+        body: fromOrganizer
+          ? (m.payment_details ? "Організатор надіслав, як оплатити — відкрийте розмову" : `Організатор написав: ${text}`)
+          : m.image ? `Скріншот оплати від ${who}` : `${who} питає: ${text}`,
         key: m.id as string, mail: (fromOrganizer ? "answer" : m.image ? "proof" : "question") as ThreadMail,
       },
       recipients,

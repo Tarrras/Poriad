@@ -49,6 +49,7 @@ import app.poruch.domain.Attendee
 import app.poruch.domain.ChatMessage
 import app.poruch.domain.ReportReason
 import app.poruch.domain.TitleRules
+import app.poruch.shared.ThreadPayment
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -67,6 +68,7 @@ fun ChatScreen(state: ChatState, onIntent: (ChatIntent) -> Unit) {
     val colors = Poruch.colors
     Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding().imePadding()) {
         Header(state, onIntent)
+        PaymentBar(state, onIntent)
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 !state.available -> EmptyState(
@@ -124,9 +126,12 @@ fun ChatScreen(state: ChatState, onIntent: (ChatIntent) -> Unit) {
 @Composable
 private fun Header(state: ChatState, onIntent: (ChatIntent) -> Unit) {
     val colors = Poruch.colors
-    // Розмова з організатором: організатор бачить, хто питає, а той, хто питає, — що розмова лише на двох.
+    // Розмова з організатором: організатор бачить, хто питає, а той, хто питає, — що розмова лише на двох. «Питає» —
+    // коли людина вже написала; інакше розмову почав організатор або це заявка онлайн-події.
     val subtitle = if (state.thread != null) {
-        if (state.organizer) stringResource(R.string.question_from, state.askerName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_member))
+        if (state.organizer) stringResource(
+            if (state.payment == null && state.asked) R.string.question_from else R.string.thread_with, personName(state)
+        )
         else stringResource(R.string.question_subtitle)
     } else if (state.members > 0) stringResource(
         R.string.chat_subtitle, pluralStringResource(R.plurals.chat_members, state.members, state.members)
@@ -154,6 +159,43 @@ private fun Header(state: ChatState, onIntent: (ChatIntent) -> Unit) {
             }
         }
         HorizontalDivider(color = colors.hairline)
+    }
+}
+
+@Composable
+private fun personName(state: ChatState) = state.askerName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_member)
+
+/**
+ * Заявка онлайн-події — у самій розмові, поруч зі скріншотом (власник 03.11): організатору — «Оплату отримано» й
+ * «Відхилити», людині — що з її заявкою. Порожня розмова людини каже те саме своїм порожнім станом.
+ */
+@Composable
+private fun PaymentBar(state: ChatState, onIntent: (ChatIntent) -> Unit) {
+    val payment = state.payment ?: return
+    if (!state.organizer && payment == ThreadPayment.WAITING && state.messages.isEmpty()) return
+    val colors = Poruch.colors
+    val waiting = payment == ThreadPayment.WAITING
+    Column(
+        Modifier.fillMaxWidth().background(if (waiting) colors.accentContainer else colors.surfaceMuted)
+            .padding(horizontal = Spacing.page, vertical = Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+    ) {
+        Text(
+            when {
+                state.organizer && waiting -> stringResource(R.string.pay_thread_waiting_org, personName(state))
+                state.organizer -> stringResource(R.string.pay_thread_paid_org, personName(state))
+                waiting -> stringResource(R.string.pay_thread_waiting_mine)
+                else -> stringResource(R.string.pay_thread_paid_mine)
+            },
+            style = MaterialTheme.typography.bodyMedium, color = colors.ink
+        )
+        if (state.organizer && waiting) Row(
+            Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.End),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            GhostButton(stringResource(R.string.decline), { onIntent(ChatIntent.DeclineRequest) }, tone = colors.inkSecondary)
+            PrimaryButton(stringResource(R.string.approve_paid), { onIntent(ChatIntent.ApprovePayment) }, enabled = !state.mutating)
+        }
     }
 }
 
@@ -202,12 +244,17 @@ private fun Feed(state: ChatState, onIntent: (ChatIntent) -> Unit) {
         item(key = "rules") {
             Column {
                 Rules()
-                if (state.messages.isEmpty()) EmptyState(
-                    PoruchIcons.social,
-                    stringResource(if (state.thread == null) R.string.chat_empty_title else R.string.question_empty_title),
-                    stringResource(if (state.thread == null) R.string.chat_empty_hint else R.string.question_empty_hint),
-                    Modifier.padding(top = Spacing.section)
-                )
+                if (state.messages.isEmpty()) {
+                    // Загальний чат, питання організатору, організатор пише першим чи заявка онлайн-події.
+                    val (title, hint) = when {
+                        state.thread == null -> R.string.chat_empty_title to R.string.chat_empty_hint
+                        state.payment != null && state.organizer -> R.string.pay_empty_title_org to R.string.pay_empty_hint_org
+                        state.payment != null -> R.string.pay_empty_title_mine to R.string.pay_empty_hint_mine
+                        state.organizer -> R.string.question_empty_title_org to R.string.question_empty_hint_org
+                        else -> R.string.question_empty_title to R.string.question_empty_hint
+                    }
+                    EmptyState(PoruchIcons.social, stringResource(title), stringResource(hint), Modifier.padding(top = Spacing.section))
+                }
             }
         }
     }

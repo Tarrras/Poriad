@@ -217,7 +217,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit, focusRequ
                         if (state.screen.organizer && state.screen.requests.isNotEmpty()) JoinRequests(
                             state, onIntent, { highlight.value }, Modifier.onGloballyPositioned { requestsTop = it.positionInRoot().y }
                         )
-                        if (state.screen.organizer && state.screen.questions.isNotEmpty()) Questions(state, onIntent)
+                        if (state.screen.organizer && state.screen.questionsApart.isNotEmpty()) Questions(state, onIntent)
                         if (state.screen.canRate) RateEvent(state, onIntent)
                         if (state.screen.organizer && state.screen.ended && !state.screen.cancelled) Ratings(state)
                         // Після кінця редагувати й скасовувати нічого: лишаються відгуки.
@@ -419,6 +419,11 @@ private fun CompanySearchingRow(onClick: () -> Unit) {
 internal fun PrimaryAction(state: DetailState, onIntent: (DetailIntent) -> Unit, modifier: Modifier = Modifier) {
     val action = state.screen.action
     when {
+        // Оплата онлайн: заявка й розмова про оплату — одне (власник 03.11). Не неактивне «Запит надіслано», а розмова,
+        // де організатор напише, як оплатити.
+        state.screen.payChat -> SecondaryButton(
+            stringResource(R.string.pay_chat_open), { onIntent(DetailIntent.OpenQuestion()) }, modifier, icon = PoruchIcons.chat
+        )
         // Організатору панель не каже «Ви організатор» неактивною кнопкою (це вже каже штамп на обкладинці), а дає
         // головне, що він тут робить, — поширити. Та сама дія, що була круглою; круглих у нього тепер три.
         action == DetailAction.ORGANIZER -> when {
@@ -481,7 +486,7 @@ internal fun stickyHint(state: DetailState): String {
     val room = state.screen.room ?: return ""
     return when {
         state.screen.ended -> stringResource(R.string.event_ended)
-        room.awaitingApproval -> stringResource(R.string.request_pending_hint)
+        room.awaitingApproval -> stringResource(if (room.payOnline) R.string.pay_waiting_hint else R.string.request_pending_hint)
         // Гостю — що його чекає, не текст перемикача з редактора.
         room.approvalRequired && !room.joined && !state.screen.organizer -> stringResource(R.string.approval_guest_hint)
         room.isFull && !room.joined && !state.screen.organizer -> stringResource(R.string.waitlist_hint)

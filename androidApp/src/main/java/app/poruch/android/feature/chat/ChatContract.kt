@@ -3,6 +3,7 @@ package app.poruch.android.feature.chat
 import app.poruch.domain.ChatMessage
 import app.poruch.domain.ReportReason
 import app.poruch.shared.PersonState
+import app.poruch.shared.ThreadPayment
 
 /** Стан екрана чату: зріз [app.poruch.shared.ChatState] плюс те, що потрібно лише для промальовки. */
 data class ChatState(
@@ -46,8 +47,14 @@ data class ChatState(
     /** Скріншоти, яких не вийшло завантажити: заглушка замість картинки. */
     val missingProofs: Set<String> = emptySet(),
     /** Відкритий на весь екран скріншот (шлях). */
-    val viewing: String? = null
+    val viewing: String? = null,
+    /** Розмова події з оплатою онлайн — це й заявка (власник 03.11): що з нею. Null — розмова не про оплату. */
+    val payment: ThreadPayment? = null,
+    /** Рішення про заявку в дорозі: кнопки в розмові чекають. */
+    val mutating: Boolean = false
 ) {
+    /** Людина вже писала: організатору «Питає …», інакше «Розмова з …» (організатор почав першим чи це заявка). */
+    val asked get() = thread != null && messages.any { it.authorId == thread }
     fun isMine(message: ChatMessage) = message.authorId == userId
     fun canDelete(message: ChatMessage) = organizer || isMine(message)
 }
@@ -76,6 +83,9 @@ sealed interface ChatIntent {
     class SendProof(val jpeg: ByteArray) : ChatIntent
     /** Скріншот на весь екран; `null` — закрити. */
     data class ViewProof(val path: String?) : ChatIntent
+    /** Організатор у розмові з людиною онлайн-події: «Оплату отримано» (схвалити заявку) чи «Відхилити». */
+    data object ApprovePayment : ChatIntent
+    data object DeclineRequest : ChatIntent
 }
 
 sealed interface ChatEffect {

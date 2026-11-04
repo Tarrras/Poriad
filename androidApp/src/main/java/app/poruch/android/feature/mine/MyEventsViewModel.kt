@@ -69,7 +69,7 @@ class MyEventsViewModel(private val app: PoruchApp) :
                 app.selectEvent(intent.id)
                 send(MyEventsEffect.OpenDetail(intent.id))
             }
-            is MyEventsIntent.OpenChat -> send(MyEventsEffect.OpenChat(intent.id))
+            is MyEventsIntent.OpenChat -> send(MyEventsEffect.OpenChat(intent.id, intent.thread))
             MyEventsIntent.FindNearby -> send(MyEventsEffect.OpenMap)
             MyEventsIntent.ShowAllPast -> reduce { copy(allPast = true) }
             is MyEventsIntent.StartRating -> reduce { copy(rating = intent.event) }
