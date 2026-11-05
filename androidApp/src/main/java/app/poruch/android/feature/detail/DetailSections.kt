@@ -661,7 +661,9 @@ internal fun Facts(event: Event) {
         add(Triple(stringResource(R.string.when_label), eventTime(event, dateWords()), null))
         add(Triple(stringResource(R.string.where), listOf(event.city, event.address).filter { it.isNotBlank() }.joinToString(" · "), null))
         event.gathering?.let { room ->
-            add(Triple(stringResource(R.string.organizer_short), room.organizerName.ifBlank { stringResource(R.string.organizer_short) }, null))
+            // Платна подія новачка: до того, як домовлятися про передоплату поза «Поряд».
+            add(Triple(stringResource(R.string.organizer_short), room.organizerName.ifBlank { stringResource(R.string.organizer_short) },
+                if (room.organizerNew) stringResource(R.string.organizer_new_hint) else null))
             add(Triple(stringResource(R.string.capacity_label), stringResource(R.string.attendees_short, room.attendeeCount, room.capacity), null))
             // Ціна й як платять — на місці чи онлайн організатору, не через нас.
             // Онлайн — ще й правила повернення: людина бачить їх до заявки.

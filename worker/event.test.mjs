@@ -23,6 +23,9 @@ const priced = eventPage({ ...base, price_min: 1500 }, now);
 assert.ok(priced.includes("<b data-spots>5 з 8</b>"), "учасники лишаються фактом");
 assert.ok(priced.includes("<span class=\"overline\">Ціна</span><b>1\u00a0500 ₴</b><small>Оплата на місці або напряму організатору. «Поряд» не приймає оплату й не відповідає за неї.</small>"));
 assert.ok(!priced.includes("без передоплати"), "передоплату поза «Поряд» не виключаємо");
+assert.ok(eventPage({ ...base, price_min: 300, organizer_new: true }, now).includes("<small>Новий організатор — проведених подій на «Поряд» ще немає</small>"),
+  "платна подія новачка — позначка під організатором");
+assert.ok(!priced.includes("Новий організатор"), "без organizer_new — без позначки");
 assert.ok(priced.includes("<small>Ціна</small><span>1\u00a0500 ₴</span>"), "на панелі — ціна");
 assert.ok(!priced.includes("від 1"), "від людей — без «від»");
 assert.ok(!community.includes("Оплата — напряму"), "безкоштовна — без ціни");

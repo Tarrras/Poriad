@@ -100,7 +100,8 @@ internal data class EventDto(
     // Міграція 20261118120000: фото й відео від організатора. Картки з `discover_events` і кеш до неї поля не несуть.
     val media: List<MediaDto>? = null,
     @SerialName("pay_online") val payOnline: Boolean = false,
-    @SerialName("refund_policy") val refundPolicy: String? = null
+    @SerialName("refund_policy") val refundPolicy: String? = null,
+    @SerialName("organizer_new") val organizerNew: Boolean? = null
 ) {
     fun domain() = Event(
         id = id, title = title, description = description, category = EventCategory.fromKey(category),
@@ -134,7 +135,8 @@ internal data class EventDto(
             // Ціна людини — ціле; `price_min` спільний з афішею, тож тут дробу не буває.
             price = priceMin?.toInt()?.takeIf { it > 0 },
             payOnline = payOnline && (priceMin ?: 0.0) > 0,
-            refundPolicy = RefundPolicy.of(refundPolicy)
+            refundPolicy = RefundPolicy.of(refundPolicy),
+            organizerNew = organizerNew == true
         )
     }
 

@@ -248,7 +248,9 @@ data class Gathering(
     /** Оплата онлайн організатору, реквізити — у розмові на двох; false — на місці. Лише з ціною й завжди за підтвердженням. */
     val payOnline: Boolean = false,
     /** Оплата онлайн: як повертаються гроші — людина бачить до заявки. Null — подія не онлайн. */
-    val refundPolicy: RefundPolicy? = null
+    val refundPolicy: RefundPolicy? = null,
+    /** Платна подія, а організатор ще не провів жодної з учасниками: «Новий організатор» на деталях. */
+    val organizerNew: Boolean = false
 ) {
     val seatsLeft get() = (capacity - attendeeCount).coerceAtLeast(0)
 

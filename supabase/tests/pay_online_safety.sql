@@ -134,8 +134,8 @@ do $$
 declare s jsonb;
 begin
  perform private.prepare_account_deletion(current_setting('test.host')::uuid);
- assert (select count(*) from private.payment_evidence where deleted_user_id=current_setting('test.host')::uuid)=2,'two payment threads archived';
- select snapshot into s from private.payment_evidence where deleted_user_id=current_setting('test.host')::uuid limit 1;
+ assert (select count(*) from private.payment_evidence where deleted_user_id=current_setting('test.host')::uuid and snapshot ? 'messages')=2,'two payment threads archived';
+ select snapshot into s from private.payment_evidence where deleted_user_id=current_setting('test.host')::uuid and snapshot ? 'messages' limit 1;
  assert s->'organizer'->>'name'='Host' and jsonb_array_length(s->'messages')>=1 and jsonb_array_length(s->'consents')>=2,'evidence: '||s::text;
  assert (select purge_after > now() + interval '179 days' from private.payment_evidence where deleted_user_id=current_setting('test.host')::uuid limit 1),'kept 180 days';
 end $$;

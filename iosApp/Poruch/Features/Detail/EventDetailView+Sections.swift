@@ -202,6 +202,11 @@ extension EventDetailView {
                 VStack(alignment: .leading, spacing: Space.xs) {
                     Text(cell.0.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                     Text(cell.1).font(PoruchFont.title3).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+                    // Платна подія новачка: до того, як домовлятися про передоплату поза «Поряд».
+                    if cell.0 == Copy.organizer_short, event.gathering?.organizerNew == true {
+                        Text(Copy.organizer_new_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     if cell.0 == Copy.price_fact {
                         // Онлайн — ще й правила повернення: людина бачить їх до заявки.
                         Text(event.gathering?.payOnline == true ? [Copy.price_pay_online_hint, refundText(event.gathering?.refundPolicy)].compactMap { $0 }.joined(separator: " ") : Copy.price_pay_hint)
