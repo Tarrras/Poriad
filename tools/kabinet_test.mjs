@@ -166,7 +166,7 @@ assert.match(errorText({ code: "otp_expired" }), /Код не підійшов/)
 // Як платять (docs/organizer-events.md): лише з ціною; онлайн — завжди за підтвердженням.
 assert.deepEqual(payPlan("", true), { paid: false, online: false, hint: "" }, "без ціни — нема про що");
 assert.equal(payPlan("300", false).online, false);
-assert.match(payPlan("300", false).hint, /біля ціни.*лише в чаті учасників/, "реквізити — у чаті учасників (05.11)");
+assert.equal(payPlan("300", false).hint, "", "без онлайн — без рядка під вибором: описи варіантів кажуть досить (05.11)");
 assert.equal(payPlan("300", true).online, true);
 assert.match(payPlan("300", true).hint, /не приймає оплату й не відповідає/);
 assert.equal(eventDraft({ ...pricedEvent, pay_online: true }).payOnline, true, "правка несе спосіб оплати");

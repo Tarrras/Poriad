@@ -1356,7 +1356,6 @@
   <string name="entry_paid">Платно</string>
   <string name="price_label">Ціна, ₴</string>
   <string name="price_placeholder">Наприклад, 300</string>
-  <string name="price_hint">Реквізити — лише в чаті учасників, який ви додали: в описі й розмовах «Поряд» їх не надсилають.</string>
   <!-- Коли платять (20261125190000): організатор позначає, людина бачить під ціною й на панелі. Як і куди — пише організатор. -->
   <string name="pay_when_label">Коли платять</string>
   <string name="pay_when_meeting">На зустрічі</string>

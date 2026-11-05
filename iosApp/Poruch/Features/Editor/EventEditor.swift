@@ -630,7 +630,7 @@ private struct PeopleStep: View {
                     set: { form.price = Int(String($0.filter(\.isNumber).prefix(6))) }
                 ),
                 placeholder: Copy.price_placeholder,
-                hint: payOnline ? Copy.price_hint_online : Copy.price_hint
+                hint: payOnline ? Copy.price_hint_online : nil
             )
             .keyboardType(.numberPad)
             FieldIssue(text: issues[.price])

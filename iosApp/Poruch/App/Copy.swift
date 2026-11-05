@@ -1061,7 +1061,6 @@ enum Copy {
     static let entry_paid = "Платно"
     static let price_label = "Ціна, ₴"
     static let price_placeholder = "Наприклад, 300"
-    static let price_hint = "Реквізити — лише в чаті учасників, який ви додали: в описі й розмовах «Поряд» їх не надсилають."
     static let pay_when_label = "Коли платять"
     static let pay_when_meeting = "На зустрічі"
     static let pay_when_prepay = "Передоплата"

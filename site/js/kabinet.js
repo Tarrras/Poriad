@@ -1343,9 +1343,10 @@ export const payPlan = (price, payOnline) => {
   const online = paid && Boolean(payOnline);
   return {
     paid, online,
-    hint: !paid ? "" : online
+    // Підказка лише для онлайн: на зустрічі й передоплату пояснюють самі варіанти «Коли платять».
+    hint: online
       ? "Реквізити надсилаєте в розмові тим, хто записався, а коли гроші прийдуть — натискаєте «Оплату отримано». «Поряд» не приймає оплату й не відповідає за неї й за повернення."
-      : "Учасники бачать це біля ціни. Реквізити пишіть лише в чаті учасників (Telegram), який ви додали: у назві, описі й розмовах «Поряд» їх не надсилають.",
+      : "",
   };
 };
 function payView() {
@@ -1357,7 +1358,7 @@ function payView() {
   $("[data-pay-online-option]").hidden = !payOnlineOn;
   const hint = $("[data-price-hint]");
   hint.textContent = plan.hint;
-  hint.hidden = !plan.paid;
+  hint.hidden = !plan.hint;
   if (plan.online) f.approval.checked = true;
   $("[data-pay-online]").hidden = !plan.online;
   $("[data-pay-limits]").textContent = payLimitsText(payLimits);
