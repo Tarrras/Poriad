@@ -37,7 +37,7 @@ extension AppError {
         case is AppErrorInvalidMessage: "Повідомлення порожнє або задовге (до 2000 символів)"
         case is AppErrorPaymentTermsRequired: Copy.err_payment_terms
         case is AppErrorPaidEventsActive: Copy.err_paid_events_active
-        case is AppErrorPaymentDetails: "Номер картки, IBAN чи посилання на оплату тут писати не можна: реквізити надсилають лише в розмові з людиною, у події з оплатою онлайн"
+        case is AppErrorPaymentDetails: Copy.err_payment_details
         case is AppErrorObjectionableContent: "Текст містить слова, які ми не публікуємо. Перепишіть, будь ласка."
         case is AppErrorLinkExpired: "Посилання застаріло або вже використане. Запросіть новий лист на цьому пристрої"
         case is AppErrorInvalidCode: Copy.err_invalid_code

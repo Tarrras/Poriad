@@ -128,7 +128,7 @@ assert.equal(priceParam(eventDraft(pricedEvent).price), 450, "правка шл�
 assert.equal(priceParam(repeatDraft(pricedEvent).price), 450, "«Повторити» теж");
 assert.equal(eventDraft({ ...pricedEvent, price_min: null }).price, "");
 assert.equal(errorText({ status: 400, code: "INVALID_PRICE" }), PRICE_TEXT);
-assert.equal(threadsPost(pricedEvent), "Настолки «Каркасон»\nпн, 2 листопада, 19:00 · Хрещатик, 22\nВхід — 450 ₴, оплата на місці\n\nГраємо в Каркасон і Колонізаторів. Правила пояснимо.\n\nЗапис: poriad.app/e/e1");
+assert.equal(threadsPost(pricedEvent), "Настолки «Каркасон»\nпн, 2 листопада, 19:00 · Хрещатик, 22\nВхід — 450 ₴\n\nГраємо в Каркасон і Колонізаторів. Правила пояснимо.\n\nЗапис: poriad.app/e/e1");
 assert.ok(threadsPost({ ...pricedEvent, pay_online: true }).includes("Вхід — 450 ₴, оплата онлайн\n"), "пост не каже «на місці» про оплату онлайн");
 assert.ok(!threadsPost({ ...pricedEvent, origin: "import" }).includes("Вхід"), "ціна продавця в афіші — «від», не пишемо");
 
@@ -165,15 +165,15 @@ assert.match(errorText({ code: "otp_expired" }), /Код не підійшов/)
 // Як платять (docs/organizer-events.md): лише з ціною; онлайн — завжди за підтвердженням.
 assert.deepEqual(payPlan("", true), { paid: false, online: false, hint: "" }, "без ціни — нема про що");
 assert.equal(payPlan("300", false).online, false);
-assert.match(payPlan("300", false).hint, /на місці, без передоплати/);
+assert.match(payPlan("300", false).hint, /на місці чи напряму.*лише в чаті учасників/, "без «без передоплати»: реквізити — у чаті учасників (05.11)");
 assert.equal(payPlan("300", true).online, true);
 assert.match(payPlan("300", true).hint, /не приймає оплату й не відповідає/);
 assert.equal(eventDraft({ ...pricedEvent, pay_online: true }).payOnline, true, "правка несе спосіб оплати");
 assert.equal(eventDraft(pricedEvent).payOnline, false);
 assert.equal(repeatDraft({ ...pricedEvent, pay_online: true, starts_at: "2026-10-01T16:00:00Z", ends_at: "2026-10-01T19:00:00Z" }).payOnline, true, "«Повторити» — з тим самим способом");
-assert.match(errorText({ status: 400, code: "PAYMENT_DETAILS" }), /у розмові з тими, хто записався/);
+assert.match(errorText({ status: 400, code: "PAYMENT_DETAILS" }), /у чаті учасників \(Telegram\)/, "реквізити — у чаті учасників (05.11)");
 assert.match(TALK_PAYMENT_DETAILS, /«Як платять» → «Онлайн»/);
-assert.ok(TALK_PAY_OFF.includes("тимчасово вимкнено") && !TALK_PAY_OFF.includes("«Онлайн»"), "вимкнено — не радимо вмикати");
+assert.ok(TALK_PAY_OFF.includes("чаті учасників") && !TALK_PAY_OFF.includes("«Онлайн»"), "вимкнено — реквізити в чаті учасників, не радимо вмикати");
 assert.match(errorText({ code: "PAY_ONLINE_OFF" }), /Оновіть сторінку/);
 // Безпека оплати онлайн: правила повернення, згода, межі рівня — лише для нової онлайн-події чи зміненої ціни й місць.
 const lvl0 = { enabled: true, level: 0, max_price: 500, max_capacity: 10, held: 0, terms: false, next: { held: 1, days: 30, max_price: 1500, max_capacity: 30 } };

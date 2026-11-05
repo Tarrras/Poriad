@@ -311,17 +311,21 @@ export function threadsPost(event) {
   const description = (event.description ?? "").trim();
   const about = event.blurb?.trim() || (description.length <= ABOUT_MAX ? description : description.slice(0, ABOUT_MAX).trimEnd() + "…");
   // Подія від людей з ціною (1.7) — рядок під датою; в афіші price_min — ціна продавця «від», її не пишемо.
-  const cost = event.origin !== "import" && Number(event.price_min) > 0 ? `Вхід — ${priceText(event.price_min)}, ${payWay(event)}` : null;
+  // Пост пише організатор: про спосіб оплати — лише «онлайн», якщо вона є; решту він допише сам.
+  const cost = event.origin !== "import" && Number(event.price_min) > 0 ? `Вхід — ${priceText(event.price_min)}${event.pay_online ? ", оплата онлайн" : ""}` : null;
   return [[displayTitle(event.title), [when, place].filter(Boolean).join(" · "), cost].filter(Boolean).join("\n"), about, `Запис: poriad.app/e/${event.id}`]
     .filter(Boolean).join("\n\n");
 }
 /**
- * Як платити за подію від людей (docs/organizer-events.md): на місці — без передоплати; онлайн — організатору напряму,
- * реквізити в розмові, а «Поряд» за оплату не відповідає (власник 03.11). Однаково на сторінці, у шторці, в кабінеті й
- * у пості для Threads (`ThreadsPost` у застосунку).
+ * Як платити за подію від людей (docs/organizer-events.md): на місці чи напряму організатору поза «Поряд» (реквізити —
+ * у його чаті учасників); онлайн через розмову «Поряд» — лише з вимикачем pay_online. «Поряд» за оплату не відповідає.
+ * Однаково на сторінці, у шторці, в кабінеті й у пості для Threads (`ThreadsPost` у застосунку).
  */
-export const payWay = (e) => (e.pay_online ? "оплата онлайн" : "оплата на місці");
-export const payNote = (e) => (e.pay_online ? "Оплата онлайн організатору" : "Оплата на місці, без передоплати");
+// Власник 05.11: оплати онлайн через розмову «Поряд» поки нема (вимикач pay_online) — платять на місці чи напряму
+// організатору поза «Поряд» (про це він пише в чаті учасників). «Без передоплати» більше не обіцяємо.
+export const payWay = (e) => (e.pay_online ? "оплата онлайн" : "оплата на місці чи напряму організатору");
+export const payNote = (e) => (e.pay_online ? "Оплата онлайн організатору"
+  : "Оплата на місці або напряму організатору. «Поряд» не приймає оплату й не відповідає за неї.");
 export const PAY_ONLINE_FINE = "Оплата онлайн: організатор надішле реквізити в розмові після запису. «Поряд» не приймає оплату й не відповідає за неї.";
 /**
  * Правила повернення онлайн-події (`events.refund_policy`, 20261125170000): обирає організатор, людина бачить до заявки.

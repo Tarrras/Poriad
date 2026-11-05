@@ -18,10 +18,11 @@ assert.ok(imported.includes('class="btn primary" href="https://concert.ua/x?utm_
 assert.ok(imported.includes("від 450 ₴"));
 assert.ok(!imported.includes("Учасників"), "в імпорті місць нема");
 
-// Ціна від людей (1.7): точна, поруч з учасниками й з «Оплата на місці, без передоплати»; на панелі — ціна.
+// Ціна від людей (1.7): точна, поруч з учасниками; оплата — на місці чи напряму організатору, поза «Поряд» (05.11); на панелі — ціна.
 const priced = eventPage({ ...base, price_min: 1500 }, now);
 assert.ok(priced.includes("<b data-spots>5 з 8</b>"), "учасники лишаються фактом");
-assert.ok(priced.includes("<span class=\"overline\">Ціна</span><b>1\u00a0500 ₴</b><small>Оплата на місці, без передоплати</small>"));
+assert.ok(priced.includes("<span class=\"overline\">Ціна</span><b>1\u00a0500 ₴</b><small>Оплата на місці або напряму організатору. «Поряд» не приймає оплату й не відповідає за неї.</small>"));
+assert.ok(!priced.includes("без передоплати"), "передоплату поза «Поряд» не виключаємо");
 assert.ok(priced.includes("<small>Ціна</small><span>1\u00a0500 ₴</span>"), "на панелі — ціна");
 assert.ok(!priced.includes("від 1"), "від людей — без «від»");
 assert.ok(!community.includes("Оплата — напряму"), "безкоштовна — без ціни");
@@ -40,7 +41,7 @@ assert.ok(cancelledOnline.includes("організатор має поверну
   "скасована онлайн-подія — про повернення й розмова відкрита");
 assert.ok(online.includes(' data-pay-online data-price="300">') && !online.includes("Участь за підтвердженням організатора."), "замість загального рядка — про оплату");
 assert.ok(online.includes("data-trust hidden") && online.includes("data-pay-bar hidden"), "довіра й стан заявки — у розмові");
-assert.ok(!priced.includes("data-pay-online") && !priced.includes("не відповідає за неї"), "на місці — без застереження");
+assert.ok(!priced.includes("data-pay-online") && !priced.includes('data-step="pay"'), "на місці — без шторки оплати онлайн і кроку згоди");
 assert.ok(online.includes('<input class="sr" type="file" accept="image/*" data-proof>') && online.includes("Скріншот бачите лише ви й організатор."),
   "скріншот оплати — лише онлайн, поле файлу досяжне з клавіатури");
 assert.ok(!priced.includes("data-proof"), "на місці скріншотів нема");
