@@ -685,6 +685,6 @@ private val EditorStep.label: Int
 private fun PeopleStepPricePreview() = PoruchTheme(dark = false) {
     Column(Modifier.background(Poruch.colors.canvas).padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {
         PeopleStep(EditorState(step = EditorStep.PEOPLE, form = EditorForm(capacity = "12", price = "300")), {})
-        PeopleStep(EditorState(step = EditorStep.PEOPLE, form = EditorForm(capacity = "12", price = "200000")), {})
+        PeopleStep(EditorState(step = EditorStep.PEOPLE, form = EditorForm(capacity = "12", price = "200000", prepay = true)), {})
     }
 }
