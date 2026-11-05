@@ -65,6 +65,8 @@ final class FileBytes: NSObject, MediaBytes {
 
 /// Data → ByteArray одним memcpy у спільному шарі (`bytesOf`). Кличуть не з головного потоку.
 func kotlinBytes(_ data: Data) -> KotlinByteArray { Bytes_iosKt.bytesOf(data: data) }
+/// І назад (`dataOf`): скріншот оплати зі спільного шару.
+func swiftData(_ bytes: KotlinByteArray) -> Data { Bytes_iosKt.dataOf(bytes: bytes) }
 
 /// Тека файлів чернеток. Одна на телефон: чернетки належать людині й зникають з виходом (`EventEditorModel.clearDrafts`).
 enum DraftFiles {

@@ -66,7 +66,7 @@ extension EventDetailView {
         if view.ended { return view.room?.joined == true ? (Copy.went, .neutral, PoruchIcons.check) : nil }
         if view.room?.joined == true { return (Copy.going, .success, PoruchIcons.check) }
         if view.waitlisted { return (Copy.in_queue, .accent, PoruchIcons.queue) }
-        if view.room?.awaitingApproval == true { return (Copy.request_pending, .accent, PoruchIcons.queue) }
+        if view.room?.awaitingApproval == true { return (view.payOnline ? Copy.stamp_pay : Copy.request_pending, .accent, PoruchIcons.queue) }
         if eventScarce(event), let room = view.room { return (Copy.seats_left("\(room.seatsLeft)"), .accent, nil) }
         return nil
     }
@@ -194,17 +194,41 @@ extension EventDetailView {
         if let room = event.gathering {
             cells.append((Copy.organizer_short, room.organizerName.isEmpty ? Copy.organizer_short : room.organizerName))
             cells.append((Copy.capacity_label, Copy.attendees_short("\(room.attendeeCount)", "\(room.capacity)")))
-            // «Вхід: 300 ₴» і як платити — напряму організатору (1.7).
+            // «Вхід: 300 ₴» і як платити — на місці чи онлайн організатору.
             if let price = gatheringPrice(room) { cells.append((Copy.price_fact, price)) }
         }
         return LazyVGrid(columns: [GridItem(.flexible(), alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)], spacing: Space.xl) {
             ForEach(Array(cells.enumerated()), id: \.offset) { _, cell in
                 VStack(alignment: .leading, spacing: Space.xs) {
                     Text(cell.0.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                    Text(cell.1).font(PoruchFont.title3).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
                     if cell.0 == Copy.price_fact {
-                        Text(Copy.price_pay_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        // Як платити — за ⓘ біля ціни, у спливному вікні, а не текстом під сумою (власник 05.11).
+                        HStack(spacing: Space.xs) {
+                            Text(cell.1).font(PoruchFont.title3).foregroundStyle(Palette.ink)
+                            Button { payInfoShown = true } label: {
+                                // Ціль дотику 44 pt — формою, не рамкою: рамка розсунула б рядок ціни.
+                                PoruchIcon(glyph: PoruchIcons.info, size: 18).foregroundStyle(Palette.inkSecondary)
+                                    .contentShape(Rectangle().inset(by: -13))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(Copy.pay_info_a11y)
+                            .popover(isPresented: $payInfoShown, arrowEdge: .bottom) {
+                                // Онлайн — ще й правила повернення: людина бачить їх до заявки.
+                                Text(event.gathering?.payOnline == true ? [Copy.price_pay_online_hint, refundText(event.gathering?.refundPolicy)].compactMap { $0 }.joined(separator: " ")
+                                    : event.gathering?.prepay == true ? Copy.price_prepay_hint : Copy.price_pay_hint)
+                                    .font(PoruchFont.subhead).foregroundStyle(Palette.ink)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: 280, alignment: .leading)
+                                    .padding(Space.lg)
+                                    .presentationCompactAdaptation(.popover)
+                            }
+                        }
+                        // Коли платять — одразу під ціною; решта — за ⓘ.
+                        if let room = event.gathering {
+                            Text(payWhenText(room)).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                        }
+                    } else {
+                        Text(cell.1).font(PoruchFont.title3).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -552,7 +576,7 @@ extension EventDetailView {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionHeader(title: Copy.questions_section)
             GroupedRows {
-                ForEach(Array(view.questions.enumerated()), id: \.element.askerId) { index, question in
+                ForEach(Array(view.questionsWithoutRequests.enumerated()), id: \.element.askerId) { index, question in
                     if index > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }
                     NavigationLink(value: ChatRoute(id: event.id, thread: question.askerId)) {
                         HStack(spacing: Space.md) {
@@ -582,28 +606,53 @@ extension EventDetailView {
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: Copy.request_notification_channel)
             ForEach(view.requests, id: \.userId) { person in
-                HStack(spacing: Space.md) {
+                // Два рядки: імʼя цілим (поруч із двома кнопками воно обрізалось), під ним — дії.
+                VStack(alignment: .leading, spacing: Space.md) {
                     // Імʼя й фото — вхід у картку: вирішувати, дивлячись на людину, а не на імʼя.
                     Button { openPerson(person.userId) } label: {
                         HStack(spacing: Space.md) {
                             Avatar(name: person.name, url: person.avatarUrl, size: 36)
-                            // Поступається імʼя, а не дії: з більшим кеглем кнопок «Прийняти» переносилось на два рядки.
-                            Text(person.name.isEmpty ? Copy.chat_member : person.name)
-                                .font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(1)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(person.name.isEmpty ? Copy.chat_member : person.name)
+                                    .font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(2)
+                                if view.payOnline && view.proofInThread(userId: person.userId) {
+                                    Text(Copy.pay_proof_sent).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                                }
+                            }
+                            Spacer(minLength: 0)
                         }.contentShape(Rectangle())
                     }.buttonStyle(.plain).accessibilityLabel(Copy.person_open("\(person.name)"))
-                    Spacer(minLength: 0)
-                    // Поля й тло — у мітці: поза міткою SwiftUI зараховує до дотику лише саме слово.
-                    Button { model.app.declineMember(eventId: event.id, userId: person.userId) } label: {
-                        Text(Copy.decline).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).lineLimit(1).fixedSize()
-                            .tapTarget()
-                    }.buttonStyle(.plain)
-                    Button { model.app.approveMember(eventId: event.id, userId: person.userId) } label: {
-                        Text(Copy.approve).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
-                            .padding(.horizontal, Space.lg).frame(height: 40)
-                            .background(Palette.brand, in: buttonShape)
-                            .tapTarget()
-                    }.buttonStyle(PressableStyle())
+                    .accessibilityValue(view.payOnline && view.proofInThread(userId: person.userId) ? Copy.pay_proof_sent : "")
+                    HStack(spacing: Space.md) {
+                        Spacer(minLength: 0)
+                        // Поля й тло — у мітці: поза міткою SwiftUI зараховує до дотику лише саме слово.
+                        Button { declining = person } label: {
+                            Text(Copy.decline).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).lineLimit(1).fixedSize()
+                                .tapTarget()
+                        }.buttonStyle(.plain)
+                        if view.payOnline {
+                            // Рішення про оплату — у розмові з людиною, поруч із реквізитами й скріншотом.
+                            let unread = Int(view.unreadInThread(userId: person.userId))
+                            Button { writingTo = ChatRoute(id: event.id, thread: person.userId) } label: {
+                                HStack(spacing: Space.xs) {
+                                    Text(Copy.request_chat).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
+                                    if unread > 0 { CountBadge(count: unread) }
+                                }
+                                .padding(.horizontal, Space.lg).frame(height: 40)
+                                .background(Palette.brand, in: buttonShape)
+                                .tapTarget()
+                            }.buttonStyle(PressableStyle())
+                            // Лічильник прихований від VoiceOver: кажемо його в назві кнопки разом з іменем.
+                            .accessibilityLabel(unread > 0 ? "\(Copy.thread_with(person.name)), \(Copy.unread_messages_a11y("\(unread)"))" : Copy.thread_with(person.name))
+                        } else {
+                            Button { model.app.approveMember(eventId: event.id, userId: person.userId) } label: {
+                                Text(Copy.approve).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
+                                    .padding(.horizontal, Space.lg).frame(height: 40)
+                                    .background(Palette.brand, in: buttonShape)
+                                    .tapTarget()
+                            }.buttonStyle(PressableStyle())
+                        }
+                    }
                 }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
             }
         }
@@ -746,7 +795,11 @@ extension EventDetailView {
     /// Головна дія панелі. Організатору — «Поширити анонс» замість неактивної «Ви організатор» (стан і так каже штамп
     /// на обкладинці). Записаним — тонова кнопка: головну дію вже зроблено, стан несе штамп поруч.
     @ViewBuilder func primaryAction(_ event: Event, _ view: DetailScreenState) -> some View {
-        if promotesOnPanel(view) {
+        if view.opensPaymentChat, let me = view.userId {
+            SecondaryButton(title: Copy.pay_chat_open, glyph: PoruchIcons.chat, lines: 3) { writingTo = ChatRoute(id: event.id, thread: me) }
+                .frame(maxWidth: .infinity)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        } else if promotesOnPanel(view) {
             PrimaryButton(
                 title: Copy.share_promote, glyph: PoruchIcons.share,
                 loading: threadsEvent != nil, enabled: screen.detailsLoaded && threadsEvent == nil
@@ -763,7 +816,13 @@ extension EventDetailView {
             PrimaryButton(title: view.action.title, loading: view.mutating, enabled: view.action.isEnabled && !view.mutating) {
                 let joining = view.action == .join || view.action == .request || view.action == .joinWaitlist
                 // Гість іде у вхід: штамп після нього не його дотик, тож прапорець — лише коли запит справді пішов.
-                if actions.perform(view.action, on: event, signedIn: view.signedIn) { joinTapped = joining } else { auth = .join }
+                // Заявка на онлайн-подію — спершу умови оплати напряму й правила повернення (PayTermsSheet).
+                if view.payOnline && view.action == .request && view.signedIn { payTermsFor = PayTermsTarget(event: event); return }
+                if actions.perform(view.action, on: event, signedIn: view.signedIn) {
+                    joinTapped = joining
+                    // Заявка на онлайн-подію — це розмова з організатором: відкриваємо її одразу.
+                    if view.payOnline && view.action == .request, let me = view.userId { writingTo = ChatRoute(id: event.id, thread: me) }
+                } else { auth = .join }
             }
         }
     }
@@ -777,7 +836,7 @@ extension EventDetailView {
     func participationStamp(_ view: DetailScreenState) -> (String, BadgeTone, PoruchGlyph?)? {
         switch view.action {
         case .leave: (Copy.going, .success, PoruchIcons.check)
-        case .requested: (Copy.stamp_request, .accent, nil)
+        case .requested: (view.payOnline ? Copy.stamp_pay : Copy.stamp_request, .accent, nil)
         case .leaveWaitlist: (Copy.stamp_waitlist, .accent, nil)
         default: nil
         }
@@ -789,7 +848,9 @@ extension EventDetailView {
             if let price = view.room.flatMap(gatheringPrice) {
                 Text(price).font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(1)
             }
-            Text(view.seatsSummary).font(PoruchFont.subhead)
+            // Платна й ще не минула — спершу коли платять: «Передоплата · Вільних місць: 3».
+            Text([view.room.flatMap { $0.price != nil && !view.ended && !view.cancelled ? payWhenText($0) : nil }, view.seatsSummary]
+                .compactMap { $0 }.joined(separator: " · ")).font(PoruchFont.subhead)
                 .foregroundStyle(view.event?.isCalledOff == true ? Palette.danger : Palette.inkSecondary)
                 .lineLimit(3)
         }

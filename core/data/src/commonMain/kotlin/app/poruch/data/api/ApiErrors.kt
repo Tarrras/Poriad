@@ -59,6 +59,9 @@ private val SERVER_ERRORS: Map<String, AppError> = mapOf(
     // Організатор переніс початок події (чи збір супутника) понад 5 разів за добу.
     "TOO_MANY_MOVES" to AppError.TooManyAttempts,
     "INVALID_MESSAGE" to AppError.InvalidMessage,
+    "PAYMENT_DETAILS" to AppError.PaymentDetails,
+    "PAY_TERMS_REQUIRED" to AppError.PaymentTermsRequired,
+    "INVALID_IMAGE" to AppError.ImageUploadFailed,
     "OBJECTIONABLE_CONTENT" to AppError.ObjectionableContent,
     "INVALID_IMAGE_URL" to AppError.ImageUploadFailed,
     "CHAT_CLOSED" to AppError.ChatClosed,
@@ -100,6 +103,8 @@ private val AUTH_ERRORS: Map<String?, AppError> = mapOf(
     "current_password_required" to AppError.InvalidCredentials,
     // `delete-account`: пароль акаунта не підійшов або його не передали.
     "password" to AppError.InvalidCredentials,
+    // `delete-account`: організатор має майбутню онлайн-подію, на яку вже записались (20261125170000).
+    "paid_events" to AppError.PaidEventsActive,
     "email_not_confirmed" to AppError.EmailNotConfirmed,
     "same_password" to AppError.SamePassword,
     "over_request_rate_limit" to AppError.TooManyAttempts,

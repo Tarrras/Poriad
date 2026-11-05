@@ -22,9 +22,9 @@ begin
  assert not public.question_mail_due(e, a), 'and the hour starts over';
  delete from public.events where id = e;
  assert not exists(select 1 from private.question_mails where event_id = e), 'rows go with the event';
- assert not has_function_privilege('anon', 'public.question_mail_due(uuid,uuid)', 'execute')
-  and not has_function_privilege('authenticated', 'public.question_mail_due(uuid,uuid)', 'execute')
-  and has_function_privilege('service_role', 'public.question_mail_due(uuid,uuid)', 'execute'), 'only the function key calls it';
+ assert not has_function_privilege('anon', 'public.question_mail_due(uuid,uuid,boolean)', 'execute')
+  and not has_function_privilege('authenticated', 'public.question_mail_due(uuid,uuid,boolean)', 'execute')
+  and has_function_privilege('service_role', 'public.question_mail_due(uuid,uuid,boolean)', 'execute'), 'only the function key calls it';
 end $$;
 
 rollback;

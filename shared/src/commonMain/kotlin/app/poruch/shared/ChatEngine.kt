@@ -10,12 +10,15 @@ import kotlinx.coroutines.*
 internal class ChatEngine(
     private val chat: EventChat,
     private val store: AppStore,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val profiles: ProfileRepository? = null
 ) {
     private var polling: Job? = null
     private var sending: Job? = null
     /** Лічильник опитувань: кожне [FULL_EVERY] читає весь хвіст, щоб видалені зникали й у інших. */
     private var polls = 0
+    /** Скріншоти, що вантажаться зараз: опитування не просить той самий файл удвох. Новий набір на кожен відкритий чат. */
+    private var loadingProofs = mutableSetOf<String>()
 
     val openEventId: String? get() = store.value.chat?.eventId
 
@@ -31,6 +34,8 @@ internal class ChatEngine(
         }
         polls = 0
         polling = scope.launch {
+            launch { offerSavedPaymentDetails(eventId, thread) }
+            launch { showOrganizer(eventId, thread) }
             while (isActive) {
                 poll(eventId, thread)
                 delay(ChatRules.POLL_INTERVAL_MS)
@@ -38,17 +43,42 @@ internal class ChatEngine(
         }
     }
 
+    /**
+     * Той, хто платить, у своїй розмові онлайн-події бачить, хто організатор ([ChatState.organizer]): довіра замість
+     * тривоги. Картка живе в розмові, а не в `person`: ту закривають інші екрани.
+     */
+    private suspend fun showOrganizer(eventId: String, thread: String?) {
+        val event = store.value.knownEvent(eventId) ?: return
+        val organizerId = event.organizerId ?: return
+        if (thread == null || thread != store.value.session.userId || event.gathering?.payOnline != true) return
+        val card = try { profiles?.profile(organizerId) } catch (e: CancellationException) { throw e } catch (e: Exception) { null } ?: return
+        update(eventId) { if (this.thread == thread) copy(organizer = card) else this }
+    }
+
+    /** Організатор онлайн-події в розмові з людиною: реквізити, які він уже надсилав іншим, — щоб не набирати знову. */
+    private suspend fun offerSavedPaymentDetails(eventId: String, thread: String?) {
+        val event = store.value.knownEvent(eventId) ?: return
+        if (thread == null || event.gathering?.payOnline != true || !store.value.organizes(event)) return
+        val saved = try { chat.myPaymentDetails(eventId) } catch (e: CancellationException) { throw e } catch (e: Exception) { null } ?: return
+        update(eventId) { if (this.thread == thread) copy(savedPaymentDetails = saved) else this }
+    }
+
     /** Зупиняє опитування. Відправлення в дорозі доїде: закрити екран — не те саме, що передумати. */
     fun close() {
         polling?.cancel(); polling = null
+        loadingProofs = mutableSetOf()
         if (store.value.chat != null) store.update { it.copy(chat = null) }
     }
 
-    /** Відправлення поза [AppStore.mutate]: спінер на кнопці чату, а не на всьому застосунку. */
-    fun send(text: String) {
+    /**
+     * Відправлення поза [AppStore.mutate]: спінер на кнопці чату, а не на всьому застосунку. [proof] — скріншот оплати
+     * (JPEG без метаданих): спершу файл у приватне сховище, потім повідомлення з ним. Свій скріншот видно одразу.
+     */
+    fun send(text: String, proof: ByteArray? = null) {
         val eventId = openEventId ?: return
+        if (proof != null && !store.value.canSendPaymentProof()) return
         val thread = store.value.chat?.thread
-        val body = ChatRules.normalize(text)
+        val body = ChatRules.normalize(text).ifEmpty { if (proof != null) ChatRules.PROOF_BODY else "" }
         if (!ChatRules.isBody(body)) {
             store.failed(AppError.InvalidMessage)
             return
@@ -57,16 +87,44 @@ internal class ChatEngine(
         sending = scope.launch {
             update(eventId) { copy(sending = true) }
             try {
-                chat.send(eventId, body, thread)
+                val image = proof?.let { bytes ->
+                    chat.uploadProof(eventId, bytes).also { path -> update(eventId) { copy(proofs = proofs + (path to bytes)) } }
+                }
+                chat.send(eventId, body, thread, image)
                 poll(eventId, thread)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 // Платформа чистить поле до відповіді: текст повертається через стан, а не губиться.
-                update(eventId) { copy(failedDraft = text) }
+                if (text.isNotBlank()) update(eventId) { copy(failedDraft = text) }
                 store.failed(e.asAppError(), byPerson = true)
             } finally {
                 update(eventId) { copy(sending = false) }
+            }
+        }
+    }
+
+    /**
+     * Довантажує скріншоти, яких ще нема в [ChatState.proofs]; живуть лише поки чат відкритий. Недоступний (видалено,
+     * нема права) іде в [ChatState.missingProofs], і більше його не просимо.
+     */
+    private suspend fun loadProofs(eventId: String) = coroutineScope {
+        val open = store.value.chat?.takeIf { it.eventId == eventId } ?: return@coroutineScope
+        val loading = loadingProofs
+        for (path in open.messages.mapNotNull { it.image }.distinct()) {
+            if (path in open.proofs || path in open.missingProofs || !loading.add(path)) continue
+            launch {
+                try {
+                    val bytes = chat.proof(path)
+                    update(eventId) { copy(proofs = proofs + (path to bytes)) }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Без мережі — спробуємо з наступним опитуванням.
+                    if (e.asAppError() !is AppError.Network) update(eventId) { copy(missingProofs = missingProofs + path) }
+                } finally {
+                    loading.remove(path)
+                }
             }
         }
     }
@@ -111,6 +169,7 @@ internal class ChatEngine(
             if (current.loading || fresh.any { it.authorId != me }) {
                 try { chat.markRead(eventId, thread) } catch (e: CancellationException) { throw e } catch (e: Exception) { /* best-effort */ }
             }
+            loadProofs(eventId)
         } catch (e: CancellationException) {
             throw e
         } catch (e: AppFailure) {
@@ -163,7 +222,15 @@ data class ChatState(
      * Текст, який не вдалося надіслати: екран повертає його в поле вводу і кличе
      * `PoruchApp.consumeFailedDraft()`, щоб не повернути двічі.
      */
-    val failedDraft: String? = null
+    val failedDraft: String? = null,
+    /** Скріншоти оплати: шлях у сховищі → JPEG. */
+    val proofs: Map<String, ByteArray> = emptyMap(),
+    /** Скріншоти, яких не вийшло завантажити: екран показує заглушку. */
+    val missingProofs: Set<String> = emptySet(),
+    /** Реквізити, які організатор уже надсилав у цій події: запропонувати ті самі ([repeatablePaymentDetails]). */
+    val savedPaymentDetails: String? = null,
+    /** Тому, хто платить: картка організатора для шапки розмови. */
+    val organizer: Profile? = null
 )
 
 internal fun ChatState.isFor(eventId: String, thread: String?) = this.eventId == eventId && this.thread == thread

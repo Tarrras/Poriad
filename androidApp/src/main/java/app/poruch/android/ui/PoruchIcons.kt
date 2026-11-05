@@ -621,6 +621,30 @@ object PoruchIcons {
             .build()
     }
 
+    /** Ⓘ: коло «alert», перевернуте — крапка вгорі, риска під нею. */
+    val info: ImageVector by lazy {
+        builder("info")
+            .fill {
+                moveTo(10.75f, 7.6f)
+                curveTo(10.75f, 8.29f, 11.31f, 8.85f, 12f, 8.85f)
+                curveTo(12.69f, 8.85f, 13.25f, 8.29f, 13.25f, 7.6f)
+                curveTo(13.25f, 6.91f, 12.69f, 6.35f, 12f, 6.35f)
+                curveTo(11.31f, 6.35f, 10.75f, 6.91f, 10.75f, 7.6f)
+                close()
+            }
+            .stroke {
+                moveTo(3.5f, 12f)
+                curveTo(3.5f, 7.306f, 7.306f, 3.5f, 12f, 3.5f)
+                curveTo(16.694f, 3.5f, 20.5f, 7.306f, 20.5f, 12f)
+                curveTo(20.5f, 16.694f, 16.694f, 20.5f, 12f, 20.5f)
+                curveTo(7.306f, 20.5f, 3.5f, 16.694f, 3.5f, 12f)
+                close()
+                moveTo(12f, 11f)
+                lineTo(12f, 16.5f)
+            }
+            .build()
+    }
+
     val clock: ImageVector by lazy {
         builder("clock")
             .stroke {

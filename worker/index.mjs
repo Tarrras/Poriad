@@ -5,7 +5,7 @@
 
 // Назви, дати й ціна — ті самі правила, що на сайті (site/js/poriad.js, порт TitleRules і формату застосунку).
 // wrangler збирає цей імпорт у воркер; той самий файл сайт віддає браузеру.
-import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS, icsFile } from "../site/js/poriad.js";
+import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS, icsFile, payNote, payWhen, payWay, PAY_ONLINE_FINE, refundText } from "../site/js/poriad.js";
 import { kabinetPage, geocode } from "./kabinet.mjs";
 export { esc };
 
@@ -44,6 +44,8 @@ const supabase = (env) => ({ "connect-src": env.SUPABASE_URL });
 const storage = (env) => ({ "media-src": env.SUPABASE_URL && `${env.SUPABASE_URL}/storage/v1/object/public/` });
 // Кабінет перевіряє вибране відео (тривалість, постер) до вивантаження — з blob:.
 const LOCAL_MEDIA = { "media-src": "blob:" };
+// Скріншот оплати в розмові — з приватного бакета з токеном людини, тож показуємо його з blob:.
+const PROOFS = { "img-src": "blob:" };
 
 /** Частини CSP → рядок: значення однієї директиви склеюються, порожні пропускаються. */
 function csp(...parts) {
@@ -52,7 +54,7 @@ function csp(...parts) {
   return Object.entries(out).map(([name, value]) => `${name} ${value}`).join("; ");
 }
 const CSP = {
-  event: (env) => csp(BASE, SHARE, supabase(env), storage(env)),
+  event: (env) => csp(BASE, SHARE, supabase(env), storage(env), PROOFS),
   city: () => csp(BASE, SHARE),
   pages: (env) => csp(BASE, MAP, supabase(env), storage(env), LOCAL_MEDIA),
   // Кабінет (worker/kabinet.mjs) тримає токен організатора: картинки — лише свої, сховище й прев'ю з blob:, а не будь-який https.
@@ -214,7 +216,9 @@ export function eventPage(e, now, shelters = [], invite = null) {
   const parent = UUID.test(e.companion_of ?? "") ? { id: e.companion_of, title: displayTitle(e.companion_of_title || "подію") } : null;
   const cost = price(e);
   const spots = !imported && e.capacity ? `Учасників: ${e.attendee_count} з ${e.capacity}` : !imported && e.attendee_count > 0 ? `Учасників: ${e.attendee_count}` : null;
-  const notice = past ? "Ця подія вже минула." : cancelled ? (imported ? STATES.cancelled : "Подію скасовано.")
+  // Скасована онлайн-подія: організатор повертає гроші (Умови, «Оплата онлайн»), розмова про це лишається відкритою.
+  const notice = past ? "Ця подія вже минула." : cancelled ? (imported ? STATES.cancelled
+      : e.pay_online ? "Подію скасовано. Якщо ви вже оплатили, організатор має повернути гроші — напишіть йому в розмові." : "Подію скасовано.")
     : withdrawn ? STATES[state] : moved ? `Перенесено: було ${moved}. Якщо нова дата не підходить, квиток повертають там, де купували.` : null;
   const live = !cancelled && !withdrawn && !past;
   // «Не знайшли» — без тривоги: ми не знаємо, що сталось. Перенесена жива — теж не червоним.
@@ -230,8 +234,8 @@ export function eventPage(e, now, shelters = [], invite = null) {
     ["Коли", overline(e, now, true), null],
     ["Де", place.split(", ")[0] || e.city, place],
     ...(spots ? [["Учасники", spots.replace("Учасників: ", ""), null]] : []),
-    // Ціна від людей (1.7) — поруч з учасниками; як оплатити, людина домовляється з організатором.
-    ...(!spots || (!imported && cost) ? [["Ціна", cost || "Уточнюйте", !imported && cost ? "Оплата — напряму організатору" : null]] : []),
+    // Ціна від людей (1.7) — поруч з учасниками. Коли платять — під ціною, одразу; решта — за ⓘ біля неї (власник 05.11).
+    ...(!spots || (!imported && cost) ? [["Ціна", cost || "Уточнюйте", !imported && cost ? payWhen(e) : null, !imported && cost ? payNote(e) : null]] : []),
     [imported ? "Джерело" : "Організовує", imported ? sellers || "Афіша" : e.organizer_name || "Організатор", null],
   ];
 
@@ -250,7 +254,9 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     body: `<article class="sheet-box">
   <header class="cover-big ticket v cat-${category}">${media.length ? mediaCarousel(media, category) : `<div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img src="${esc(image)}" alt="">` : ""}</div>`}
     ${invite ? `<p class="quiet"><b>${esc(invite.name)}</b> кличе тебе</p>` : ""}<h1${title.length > 64 ? ` class="long"` : ""}>${esc(title)}</h1>
-    <div class="facts">${facts.map(([label, value, sub]) => `<div><span class="overline">${label}</span><b${label === "Учасники" ? " data-spots" : ""}>${esc(value)}</b>${sub && sub !== value ? `<small>${esc(sub)}</small>` : ""}</div>`).join("")}</div>
+    <div class="facts">${facts.map(([label, value, sub, info]) => `<div><span class="overline">${label}</span><b${label === "Учасники" ? " data-spots" : ""}>${esc(value)}${info
+      ? ` <button class="info" type="button" popovertarget="fact-info" aria-label="Як платити">${icon("info")}</button>` : ""}</b>${sub && sub !== value ? `<small>${esc(sub)}</small>` : ""}${info
+      ? `<div class="info-pop" id="fact-info" popover>${esc(info)}</div>` : ""}</div>`).join("")}</div>
     <p class="stub"><span class="kind">${icon(category)}${esc(CATEGORIES[category])}</span><small>${imported ? "Афіша" : "Від людей"}${e.min_age ? ` · ${Number(e.min_age)}+` : ""}</small></p>
   </header>
   <div class="detail">
@@ -263,7 +269,9 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
       <a href="poriad://event/${e.id}${by}"><i>${icon("bookmark")}</i>У «Поряд»</a>
       <a href="/afisha.html${e.city && e.city !== "Київ" ? `?city=${encodeURIComponent(e.city)}` : ""}" data-afisha><i>${icon("map")}</i>Афіша</a>
     </div>
-    ${!imported && e.approval_required ? `<p class="fine">Участь за підтвердженням організатора.</p>` : ""}
+    ${!imported && e.pay_online ? `<p class="fine">${esc(PAY_ONLINE_FINE)}${e.refund_policy ? ` ${esc(refundText(e.refund_policy))}` : ""}</p>`
+      : !imported && e.approval_required ? `<p class="fine">Участь за підтвердженням організатора.</p>` : ""}
+    ${!imported && (live || (cancelled && e.pay_online && !past)) && UUID.test(e.organizer_id ?? "") ? `<button class="btn secondary ask" type="button" data-ask>${icon("chat")}Написати організатору</button>` : ""}
     ${imported && !past ? sellersSection(live ? liveOffers : offers, !live, e.checked_at, e.time_zone) : ""}
     ${e.description ? `<div class="block"><h2>Опис</h2><p class="description">${esc(e.description)}</p></div>` : ""}
     ${live ? sheltersSection(shelters) : ""}
@@ -272,7 +280,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
       <div class="stores">${storeButtons(ct)}</div></div>
   </div>
   <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${imported ? "" : `<b class="stamp" data-going hidden></b>`}${spots && !cost ? `<small>Учасники</small><span data-spots>${esc(spots.replace("Учасників: ", ""))}</span>`
-      : `${cost || !spots ? "<small>Ціна</small>" : ""}<span>${esc(cost || spots || "Вхід уточнюйте")}</span>`}</div>
+      : `${cost || !spots ? `<small>${!imported && cost ? `Ціна · ${payWay(e)}` : "Ціна"}</small>` : ""}<span>${esc(cost || spots || "Вхід уточнюйте")}</span>`}</div>
     ${ticketUrl && live ? `<a class="btn primary" href="${esc(ticketHref(ticketUrl))}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
       : imported ? `<a class="btn primary" href="/app?from=${ct}">Завантажити «Поряд»</a>`
       : open ? `<button class="btn primary" type="button" data-join>Йду</button>` : `<p class="closed">Запис на цю подію закрито</p>`}</div>
@@ -280,7 +288,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>
 ${imported ? "" : `${joinSheet(e, ct, now)}
-<script type="module" src="/js/join.js?v=14"></script>`}`,
+<script type="module" src="/js/join.js?v=18"></script>`}`,
   });
 }
 
@@ -350,7 +358,7 @@ function joinSheet(e, ct, now) {
   const name = e.organizer_name || "Організатор";
   const city = Object.entries(CITY_PAGES).find(([, [n]]) => n === e.city);
   const ages = `${e.min_age ? ` data-min-age="${Number(e.min_age)}"` : ""}${e.max_age ? ` data-max-age="${Number(e.max_age)}"` : ""}`;
-  return `<dialog class="install join-sheet" aria-label="Запис на подію" data-event="${e.id}" data-organizer="${organizer}" data-organizer-name="${esc(name)}" data-city="${esc(e.city ?? "")}"${ages}>
+  return `<dialog class="install join-sheet" aria-label="Запис на подію" data-event="${e.id}" data-organizer="${organizer}" data-organizer-name="${esc(name)}" data-city="${esc(e.city ?? "")}"${ages}${e.pay_online ? ` data-pay-online data-price="${Number(e.price_min) || ""}"${e.status === "cancelled" ? " data-cancelled" : ""}` : ""}>
 <div class="install-box">
   <button class="round" type="button" data-close aria-label="Закрити">${icon("close")}</button>
   <section data-step="start">
@@ -371,6 +379,17 @@ function joinSheet(e, ct, now) {
       <button class="btn primary" type="submit">Підтвердити</button></form>
     <p class="links"><button class="link" type="button" data-resend disabled>Надіслати ще раз</button><button class="link" type="button" data-back>Інша пошта</button></p>
   </section>
+  ${e.pay_online ? `<section data-step="pay" hidden>
+    <h2>Оплата напряму організатору</h2>
+    <p class="lead">Заявка — це розмова з організатором: він напише, як оплатити, ви надішлете скріншот, а він підтвердить оплату.</p>
+    <ul class="pay-terms">
+      <li>Гроші йдуть організатору напряму. «Поряд» не приймає оплату й не відповідає за неї.</li>
+      ${e.refund_policy ? `<li>${esc(refundText(e.refund_policy))}</li>` : ""}
+      <li>Сумніваєтесь в організаторі — не платіть і поскаржтеся в розмові.</li>
+    </ul>
+    <button class="btn primary" type="button" data-pay-agree>Погоджуюсь і подаю заявку</button>
+    <p class="fine">Докладно — в <a href="/terms.html#online">Умовах, «Оплата онлайн»</a>.</p>
+  </section>` : ""}
   <section data-step="profile" hidden>
     <h2>Як вас звати?</h2>
     <form data-form="profile"><label class="field"><span>Імʼя</span><input name="name" autocomplete="name" maxlength="80" required></label>
@@ -383,6 +402,7 @@ function joinSheet(e, ct, now) {
     ${ticket(`<b class="stamp" data-going hidden></b>`)}
     <p class="lead" data-text hidden></p>
     <button class="btn primary" type="button" data-waitlist hidden>Стати в чергу</button>
+    <button class="btn primary" type="button" data-open-ask hidden>${icon("chat")}Відкрити розмову</button>
     <button class="btn primary" type="button" data-unfollow hidden>Не стежити</button>
     <a class="btn secondary" href="/e/${e.id}.ics" data-ics hidden>${icon("calendar")}Додати в календар</a>
     <button class="link" type="button" data-leave hidden></button>
@@ -392,6 +412,16 @@ function joinSheet(e, ct, now) {
       <div class="app-pitch"><b>Нагадаємо за день і скажемо першим, коли звільниться місце</b><p class="fine" data-google-hint hidden>У застосунку увійдіть через Google — цей запис уже буде там.</p><div class="stores">${storeButtons(ct)}</div></div>
     </div>
     ${city ? `<div class="block week" data-week hidden><h2>Цього тижня ${esc(city[1][1])}</h2><div class="rows" data-cards></div><a class="link" href="/afisha/${city[0]}">Уся афіша ${esc(cityOf(city[1][0]).of)}</a></div>` : ""}
+  </section>
+  <section data-step="ask" hidden>
+    <h2>Розмова з організатором</h2>
+    <p class="lead">Бачите лише ви й ${esc(name)}. Пошти й телефону одне одного ви не бачите.</p>
+    ${e.pay_online ? `<p class="fine" data-trust hidden></p><p class="pay-bar" data-pay-bar hidden><span></span><b></b></p>` : ""}
+    <div class="thread" data-thread></div><p class="sr" data-thread-live aria-live="polite"></p>
+    ${e.pay_online ? `<div class="proof-box" data-proof-pick hidden><label class="btn secondary proof-pick">${icon("plus")}Надіслати скріншот оплати<input class="sr" type="file" accept="image/*" data-proof></label>
+    <p class="fine">Скріншот бачите лише ви й організатор.</p></div>` : ""}
+    <form data-form="ask"><label class="field"><span class="sr">Повідомлення</span><textarea name="body" rows="3" maxlength="2000" placeholder="Напишіть організатору" required></textarea></label>
+      <button class="btn primary" type="submit">Надіслати</button></form>
   </section>
   <p class="error" data-error role="alert" hidden></p>
   <p class="account" data-account hidden>Ви ввійшли як <b data-account-email></b> · <button class="link" type="button" data-signout>Вийти</button></p>
@@ -581,8 +611,8 @@ function layout({ title, description, image, url, head, body }) {
 <meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=14">
-<link rel="stylesheet" href="/web.css?v=14">
+<link rel="stylesheet" href="/tokens.css?v=18">
+<link rel="stylesheet" href="/web.css?v=18">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">

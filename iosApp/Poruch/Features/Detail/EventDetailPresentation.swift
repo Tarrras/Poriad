@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Shared
 
 /// Стан деталей складає спільний `DetailPresenter` — та сама згортка, що й на Android: сеанс каруселі,
@@ -82,7 +83,7 @@ extension DetailScreenState {
         }
         guard let room else { return "" }
         if ended { return Copy.event_ended }
-        if room.awaitingApproval { return Copy.request_pending_hint }
+        if room.awaitingApproval { return room.payOnline ? Copy.pay_waiting_hint : Copy.request_pending_hint }
         // Гостю — що його чекає, не текст перемикача з редактора.
         if room.approvalRequired && !room.joined && !organizer { return Copy.approval_guest_hint }
         if room.isFull && !room.joined && !organizer { return Copy.waitlist_hint }
@@ -127,3 +128,91 @@ let reportReasons: [(value: ReportReason, title: String)] = [
     (.spam, Copy.reason_spam),
     (.other, Copy.category_other)
 ]
+
+// ---- Оплата онлайн: умови перед заявкою
+
+/// Умови перед заявкою на онлайн-подію: гроші напряму організатору, «Поряд» не приймає оплату, правила повернення.
+/// Згода зберігається на сервері (`accept_pay_terms`) разом із заявкою.
+struct PayTermsSheet: View {
+    let event: Event
+    let agree: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Space.lg) {
+                Text(Copy.pay_terms_title).font(PoruchFont.brandTitle2).foregroundStyle(Palette.ink)
+                Text(Copy.pay_terms_body).font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    ForEach([Copy.pay_terms_direct, refundText(event.gathering?.refundPolicy), Copy.pay_terms_doubt].compactMap { $0 }, id: \.self) { line in
+                        HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+                            Text("•").foregroundStyle(Palette.inkTertiary)
+                            Text(line).font(PoruchFont.subhead).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                PrimaryButton(title: Copy.pay_terms_agree) { agree() }
+                SecondaryButton(title: Copy.cancel) { dismiss() }
+            }
+            .padding(Space.page)
+        }
+    }
+}
+
+/// Правила повернення людськими словами; онлайн-подія без правил (стара) — nil.
+/// Коли платять (`events.prepay`, 20261125190000): під ціною на деталях і на панелі. Онлайн-подія — своє.
+func payWhenText(_ room: Gathering) -> String {
+    room.payOnline ? Copy.price_online : room.prepay ? Copy.price_prepay : Copy.price_at_meeting
+}
+
+func refundText(_ policy: RefundPolicy?) -> String? {
+    guard let policy else { return nil }
+    let rule = switch policy {
+    case .before48h: Copy.refund_before_48h
+    case .before24h: Copy.refund_before_24h
+    default: Copy.refund_cancel_only
+    }
+    return "\(rule) \(Copy.refund_organizer_cancels)"
+}
+
+/// Онлайн-подія: умови оплати перед заявкою; після згоди — заявка й розмова з організатором. Розмова відкривається,
+/// коли заявка справді пройшла (після дати народження теж) і шторка вже закрилась: два переходи разом SwiftUI губить.
+/// Подія, для якої показуємо умови (Event з Kotlin не Identifiable).
+struct PayTermsTarget: Identifiable {
+    let event: Event
+    var id: String { event.id }
+}
+
+struct PayTermsFlow: ViewModifier {
+    @EnvironmentObject var model: AppModel
+    @Binding var target: PayTermsTarget?
+    @Binding var writingTo: ChatRoute?
+    @Binding var joinTapped: Bool
+    /// `DetailScreenState.opensPaymentChat`: заявка на онлайн-подію вже є.
+    let requested: Bool
+    @State private var agreed: Event?
+    @State private var sheetOpen = false
+    /// `requested` у стані: замикання onDismiss тримає значення з миті, коли шторку показали.
+    @State private var isRequested = false
+
+    func body(content: Content) -> some View {
+        content.sheet(item: $target, onDismiss: { sheetOpen = false; openChat() }) { target in
+            PayTermsSheet(event: target.event) {
+                joinTapped = true
+                model.app.requestOnlineEvent(id: target.event.id)
+                agreed = target.event
+                self.target = nil
+            }
+            .presentationDetents([.medium, .large])
+            .onAppear { sheetOpen = true }
+        }
+        .onChange(of: requested, initial: true) { _, now in isRequested = now; openChat() }
+    }
+
+    private func openChat() {
+        guard let done = agreed, isRequested, !sheetOpen, let me = model.state?.session.userId else { return }
+        agreed = nil
+        writingTo = ChatRoute(id: done.id, thread: me)
+    }
+}

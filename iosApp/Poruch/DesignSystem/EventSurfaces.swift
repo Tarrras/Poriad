@@ -49,7 +49,8 @@ func eventState(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone,
     // Місця й «ви йдете» після кінця нічого не кажуть: рядок покаже категорію.
     if event.hasEnded(now: nowInstant()) { return nil }
     if room.joined { return (Copy.going, .success, PoruchIcons.check) }
-    if room.awaitingApproval { return (Copy.request_pending, .accent, PoruchIcons.queue) }
+    // Онлайн-оплата: заявка — «Чекає оплати», як штамп і смуга в розмові.
+    if room.awaitingApproval { return (room.payOnline ? Copy.stamp_pay : Copy.request_pending, .accent, PoruchIcons.queue) }
     if waitlisted { return (Copy.in_queue, .accent, PoruchIcons.queue) }
     if room.isFull { return (Copy.full, .neutral, nil) }
     if room.isScarce { return (Copy.seats_left_short("\(room.seatsLeft)"), .accent, nil) }

@@ -50,6 +50,8 @@ struct EventDetailView: View, Equatable {
     /// Шит входу з причиною: підзаголовок каже, навіщо профіль саме зараз.
     @State var auth: AuthReason?
     @State var cancelling = false
+    /// Чию заявку відхиляємо: спершу питання, бо людина отримає сповіщення.
+    @State var declining: Attendee?
     @State var reporting: ReportTarget?
     @State var blocking = false
     /// Попередження перед виходом у чужий чат: спершу кажемо, куди й хто це додав.
@@ -93,6 +95,12 @@ struct EventDetailView: View, Equatable {
     @State var loaderShown = false
     /// Збіг «Піти разом»: супутник, куди сервер записав обох, — відкриваємо його, там чат.
     @State var matched: EventRoute?
+    /// Розмова, яку організатор відкрив з картки людини («Написати»).
+    @State var writingTo: ChatRoute?
+    /// Онлайн-подія: умови оплати перед заявкою; після згоди — заявка й розмова з організатором.
+    @State var payTermsFor: PayTermsTarget?
+    /// Ⓘ біля ціни: як платити — спливне вікно.
+    @State var payInfoShown = false
     /// Системне «Поділитися» з готовим текстом: щойно створений супутник чи «Покликати».
     @State var sharing: ShareText?
     /// «Покликати» чекає посилання від сервера: повторний тап нічого не робить.
@@ -185,8 +193,12 @@ struct EventDetailView: View, Equatable {
             guard let event = view.event, view.organizer, view.requests.contains(where: { $0.userId == userId }) else { return nil }
             return PersonRequest(
                 approve: { model.app.approveMember(eventId: event.id, userId: userId) },
-                decline: { model.app.declineMember(eventId: event.id, userId: userId) }
+                decline: { model.app.declineMember(eventId: event.id, userId: userId) },
+                approveTitle: view.payOnline ? Copy.approve_paid : Copy.approve
             )
+        }, write: { userId in
+            guard let event = view.event, view.canWriteTo(userId: userId) else { return nil }
+            return { writingTo = ChatRoute(id: event.id, thread: userId) }
         }, onBlocked: { userId in
             // Організатор — разом із подією; учасник зникає лише з ростеру.
             if userId == view.event?.organizerId { dismiss() }
@@ -205,6 +217,8 @@ struct EventDetailView: View, Equatable {
             matched = EventRoute(id: id)
         }
         .navigationDestination(item: $matched) { EventDetailView(app: model.app, eventID: $0.id).equatable().id($0.id) }
+        .navigationDestination(item: $writingTo) { ChatView(eventID: $0.id, thread: $0.thread) }
+        .modifier(PayTermsFlow(target: $payTermsFor, writingTo: $writingTo, joinTapped: $joinTapped, requested: view.opensPaymentChat))
         .sheet(isPresented: $seekingCompany) { if let event = view.event { CompanionSheet(event: event) } }
         .sheet(item: $movingMeet) { target in
             if let event = view.event, let parent = view.companionOf, let start = parent.startsAt {
@@ -322,7 +336,7 @@ struct EventDetailView: View, Equatable {
         // Тут, а не в корені: з мапи деталі відкриваються шторкою, і корінь лежав би під нею.
         .coachMarks([.companion, .invite], enabled: view.canSeekCompany || (view.canInvite && view.signedIn))
         .modifier(DetailSheets(event: event, view: view, editing: $editing, actions: actions))
-        .modifier(DetailDialogs(event: event, view: view, openingContact: $openingContact, cancelling: $cancelling, blocking: $blocking, reporting: $reporting, actions: actions))
+        .modifier(DetailDialogs(event: event, view: view, openingContact: $openingContact, cancelling: $cancelling, declining: $declining, blocking: $blocking, reporting: $reporting, actions: actions))
     }
 
     /// Секції під обкладинкою. Окремою функцією: в одному виразі компілятор не встигав вивести тип.
@@ -370,7 +384,7 @@ struct EventDetailView: View, Equatable {
             if view.organizer && !view.requests.isEmpty {
                 joinRequests(event, view).id(requestsSectionID).overlay { companyFlashRing(requestsSectionID).padding(-Space.sm) }
             }
-            if view.organizer && !view.questions.isEmpty { questions(event, view) }
+            if view.organizer && !view.questionsWithoutRequests.isEmpty { questions(event, view) }
             if view.canRate { RateEventSection(event: event, mine: view.myRating) }
             if view.organizer && view.ended && !view.cancelled { RatingsSummary(ratings: view.ratings) }
             // Після кінця редагувати й скасовувати нічого: лишаються відгуки.
@@ -422,6 +436,7 @@ struct DetailDialogs: ViewModifier {
     let view: DetailScreenState
     @Binding var openingContact: Bool
     @Binding var cancelling: Bool
+    @Binding var declining: Attendee?
     @Binding var blocking: Bool
     @Binding var reporting: ReportTarget?
     @ObservedObject var actions: EventActionsModel
@@ -436,6 +451,12 @@ struct DetailDialogs: ViewModifier {
         }
         .confirmationDialog(Copy.cancel_event_confirm, isPresented: $cancelling, titleVisibility: .visible) {
             Button(Copy.cancel_event, role: .destructive) { actions.cancel(event) }
+        }
+        .confirmationDialog(Copy.decline_confirm_title, isPresented: Binding(get: { declining != nil }, set: { if !$0 { declining = nil } }), titleVisibility: .visible) {
+            Button(Copy.decline, role: .destructive) { if let person = declining { model.app.declineMember(eventId: event.id, userId: person.userId) } }
+        } message: {
+            let name = declining.map { $0.name.isEmpty ? Copy.chat_member : $0.name } ?? Copy.chat_member
+            Text(view.payOnline ? Copy.decline_confirm_body_pay(name) : Copy.decline_confirm_body(name))
         }
         .confirmationDialog(
             Copy.block_user_body,

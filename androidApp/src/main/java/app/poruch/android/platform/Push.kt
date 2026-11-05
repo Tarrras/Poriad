@@ -65,7 +65,10 @@ class PushService : FirebaseMessagingService() {
                 val open = app.state.value.chat?.let { it.eventId == eventId && it.thread == thread } == true
                 if (eventId != null && !(foreground() && open)) ChatNotificationCenter(this).notifyQuestion(eventId, thread, title, body)
             }
-            "request" -> eventId?.let { alerts.notify(listOf(RequestAlert(it, title, 1))) }
+            // Текст сервера: в онлайн-події він просить написати, як оплатити.
+            "request" -> eventId?.let {
+                if (body.isNotBlank()) alerts.notifyRequest(it, title, body) else alerts.notify(listOf(RequestAlert(it, title, 1)))
+            }
             "joined" -> eventId?.let { alerts.notifyJoined(it, title, body) }
             "moved", "cancelled" -> eventId?.let { alerts.notifyEventChange(it, title, body, kind) }
             // Рішення організатора про мою участь. Сервер шле їх лише з `decision` у features пристрою.

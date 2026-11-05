@@ -7,7 +7,8 @@
 // свіжий код Sign in with Apple: з ним спершу відкликаємо токени Apple (5.1.1(v)), best effort — див. apple.ts.
 // Акаунт з поштою без пароля (вхід кодом з пошти) замість пароля входить кодом ще раз: вхід не старший за 10 хв
 // (claim `amr` токена, reauth.ts) теж підтверджує.
-//   200 {"deleted":true} · 401 без/з недійсним токеном · 403 {"error":"password"} · 500 {"error":…}
+//   200 {"deleted":true} · 401 без/з недійсним токеном · 403 {"error":"password"} · 409 {"error":"paid_events"} — спершу
+//   скасувати онлайн-події, на які записались · 500 {"error":…}
 //
 // Порядок: спершу фото й відео користувача в бакетах event-images і event-videos (<uid>/…, files.ts), потім
 // auth.admin.deleteUser. Каскади FK у базі прибирають решту (профіль, участь, власні події з чатом, оцінки, токени,
@@ -38,6 +39,16 @@ Deno.serve(async (req) => {
   if (needsReauth(user.app_metadata?.providers ?? []) && !freshLogin(token, Date.now() / 1000)) {
     const password = typeof body?.password === "string" ? body.password : "";
     if (!user.email || !password || !(await passwordOk(user.email, password))) return json({ error: "password" }, 403);
+  }
+
+  // Оплата онлайн: організатор спершу скасовує події, на які записались, а розмови про оплату лишаються доказом на 180
+  // днів (prepare_account_deletion, 20261125170000_pay_online_safety). До Apple й файлів: відмова нічого не чіпає.
+  const { error: held } = await admin.rpc("prepare_account_deletion", { p_user: user.id });
+  if (held?.message?.includes("PAID_EVENTS_ACTIVE")) return json({ error: "paid_events" }, 409);
+  // Сервер без міграції (PGRST202) — видаляємо як раніше.
+  if (held && held.code !== "PGRST202") {
+    console.error("delete-account prepare failed", user.id, held.message);
+    return json({ error: "delete failed" }, 500);
   }
 
   try {

@@ -132,6 +132,9 @@ interface EventAuthoring {
 /** Участь: двері й черга під ними. */
 interface EventParticipation {
     suspend fun join(id: String)
+
+    /** Оплата онлайн: людина погодилась на умови цієї події (гроші напряму організатору, правила повернення). */
+    suspend fun acceptPaymentTerms(id: String) {}
     suspend fun leave(id: String)
 
     /** Події, де цей акаунт у черзі. */

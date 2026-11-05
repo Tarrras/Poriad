@@ -3,6 +3,8 @@ package app.poruch.android.feature.chat
 import app.poruch.domain.ChatMessage
 import app.poruch.domain.ReportReason
 import app.poruch.shared.PersonState
+import app.poruch.domain.Profile
+import app.poruch.shared.PaymentStatus
 
 /** Стан екрана чату: зріз [app.poruch.shared.ChatState] плюс те, що потрібно лише для промальовки. */
 data class ChatState(
@@ -38,8 +40,31 @@ data class ChatState(
     /** Картка автора: тап по аватару. */
     val person: PersonState? = null,
     /** Люди, за якими стежу: кнопка «Стежити» на картці автора. */
-    val followedOrganizers: Set<String> = emptySet()
+    val followedOrganizers: Set<String> = emptySet(),
+    /** Біля поля вводу — «+» для скріншота оплати. */
+    val canSendPaymentProof: Boolean = false,
+    /** Скріншоти оплати: шлях → JPEG. */
+    val proofs: Map<String, ByteArray> = emptyMap(),
+    /** Скріншоти, яких не вийшло завантажити: заглушка замість картинки. */
+    val missingProofs: Set<String> = emptySet(),
+    /** Відкритий на весь екран скріншот (шлях). */
+    val viewing: String? = null,
+    /** Стан оплати людини в розмові онлайн-події; null — розмова не про оплату. */
+    val paymentStatus: PaymentStatus? = null,
+    /** Сума онлайн-оплати в гривнях — праворуч у смузі заявки. */
+    val price: Int? = null,
+    /** Тому, хто платить: картка організатора — довіра замість тривоги в шапці розмови. */
+    val organizerProfile: Profile? = null,
+    /** Реквізити, які організатор уже надсилав у цій події: «Вставити ті самі реквізити» над полем. */
+    val repeatableDetails: String? = null,
+    /** Рішення про заявку в дорозі: кнопки в розмові чекають. */
+    val mutating: Boolean = false
 ) {
+    val personHasWritten get() = thread != null && messages.any { it.authorId == thread }
+    /** Під останнім скріншотом людини організатор вирішує, дивлячись на доказ: «Оплату отримано» — там, а не нагорі. */
+    val lastProofId get() = if (organizer && paymentStatus == PaymentStatus.PROOF_SENT) messages.lastOrNull { it.image != null && it.authorId == thread }?.id else null
+    /** Людині з новою заявкою про це вже каже порожня розмова, тож смуги заявки їй ще не треба. */
+    val showsPaymentBar get() = paymentStatus != null && (organizer || paymentStatus == PaymentStatus.PAID || messages.isNotEmpty())
     fun isMine(message: ChatMessage) = message.authorId == userId
     fun canDelete(message: ChatMessage) = organizer || isMine(message)
 }
@@ -64,6 +89,13 @@ sealed interface ChatIntent {
     data class ToggleFollowPerson(val userId: String, val name: String) : ChatIntent
     /** Ціль їде всередині: шторка спершу закривається (і скидає [ChatState.reporting]), а вже потім шле це. */
     data class SendReport(val message: ChatMessage, val reason: ReportReason, val details: String) : ChatIntent
+    /** Скріншот оплати з Photo Picker: уже JPEG без метаданих. Текст поля йде підписом. */
+    class SendProof(val jpeg: ByteArray) : ChatIntent
+    /** Скріншот на весь екран; `null` — закрити. */
+    data class ViewProof(val path: String?) : ChatIntent
+    /** Організатор у розмові з людиною онлайн-події: «Оплату отримано» (схвалити заявку) чи «Відхилити». */
+    data object ConfirmPayment : ChatIntent
+    data object DeclineRequest : ChatIntent
 }
 
 sealed interface ChatEffect {

@@ -97,6 +97,8 @@ internal class SupabaseEventAuthoring(
         } ?: JsonNull)
         // Завжди: 0 — безкоштовно (правка прибирає ціну). Null сервер читає як старий клієнт і ціну лишає.
         put("p_price", d.price ?: 0)
+        // Теж завжди: false повертає «на зустрічі». Сервер без 20261125190000 цього параметра не знає — спершу міграція.
+        put("p_prepay", d.prepay && d.price != null)
         // Лише коли є: сервер без міграції чату не знає цього параметра, а відсутній означає «без чату».
         ContactRules.normalize(d.contactUrl)?.let { put("p_contact_url", it) }
     }

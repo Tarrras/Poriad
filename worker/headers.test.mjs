@@ -17,6 +17,7 @@ assert.ok(!/<style|\sstyle=|\son[a-z]+=/i.test(moved + eventPage(base, now, shel
 
 globalThis.fetch = detailsOk;
 const page = await eventResponse(base.id, env);
+assert.equal(directive(page, "img-src"), "img-src 'self' https: data: blob:", "скріншот оплати з приватного бакета — через blob:");
 assert.equal(directive(page, "script-src"), `script-src 'self' https://static.cloudflareinsights.com ${share}`, "хеш у CSP — від цього скрипта");
 assert.equal(directive(page, "connect-src"), "connect-src 'self' https://cloudflareinsights.com https://db.invalid", "запис з вебу — у Supabase напряму");
 assert.equal(directive(page, "media-src"), "media-src https://db.invalid/storage/v1/object/public/", "відео — лише з публічного сховища");

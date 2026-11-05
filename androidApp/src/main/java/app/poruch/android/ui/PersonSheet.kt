@@ -58,7 +58,7 @@ private fun Stat(value: Int, label: String, modifier: Modifier) {
 
 /** «вересня 2026»: родовий відмінок, бо стоїть після «з». */
 @Composable
-private fun memberSince(iso: String?): String? = remember(iso) {
+internal fun memberSince(iso: String?): String? = remember(iso) {
     iso?.let { runCatching { Instant.parse(it) }.getOrNull() }?.atZone(ZoneId.systemDefault())
         ?.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.forLanguageTag("uk")))
 }

@@ -62,7 +62,13 @@ internal class Events: EventDiscovery, SavedEvents, EventAuthoring, EventPartici
     var failSend=false
     var slowSend=false
     val sentThreads=mutableListOf<String?>()
-    override suspend fun send(eventId:String,body:String,thread:String?):String { if(slowSend) delay(100); if(failSend) fail(AppError.Network); sent+=eventId to body; sentThreads+=thread; val m=ChatMessage("m${sent.size}",eventId,"user","Я",null,body,"2026-09-16T10:0${sent.size}:00Z"); chatMessages=chatMessages+m; return m.id }
+    val sentImages=mutableListOf<String?>()
+    override suspend fun send(eventId:String,body:String,thread:String?,image:String?):String { if(slowSend) delay(100); if(failSend) fail(AppError.Network); sent+=eventId to body; sentThreads+=thread; sentImages+=image; val m=ChatMessage("m${sent.size}",eventId,"user","Я",null,body,"2026-09-16T10:0${sent.size}:00Z",image=image); chatMessages=chatMessages+m; return m.id }
+    val uploadedProofs=mutableListOf<Pair<String,ByteArray>>()
+    var proofFiles=emptyMap<String,ByteArray>()
+    override suspend fun uploadProof(eventId:String,jpeg:ByteArray):String { val path="user/$eventId/p${uploadedProofs.size+1}.jpg"; uploadedProofs+=path to jpeg; return path }
+    val proofDownloads=mutableListOf<String>()
+    override suspend fun proof(path:String):ByteArray { proofDownloads+=path; return proofFiles[path] ?: fail(AppError.NotOwner) }
     override suspend fun delete(messageId:String) { chatMessages=chatMessages.filterNot { it.id==messageId } }
     var unreadChats=emptyList<ChatUnread>()
     val readMarks=mutableListOf<String>()
@@ -72,6 +78,8 @@ internal class Events: EventDiscovery, SavedEvents, EventAuthoring, EventPartici
     var questions=emptyList<QuestionThread>()
     val questionCalls=mutableListOf<String>()
     override suspend fun questions(eventId:String):List<QuestionThread> { questionCalls+=eventId; return questions }
+    var paymentDetails:String?=null
+    override suspend fun myPaymentDetails(eventId:String):String? = paymentDetails
     val queries=mutableListOf<EventQuery>()
     val cardRequests=mutableListOf<List<String>>()
     val createIds=mutableListOf<String>()
@@ -203,7 +211,9 @@ internal class Events: EventDiscovery, SavedEvents, EventAuthoring, EventPartici
     override suspend fun announcement(text:String,city:String,today:String,timeZone:String):AnnouncementFill {
         announceCalls+=listOf(text,city,today,timeZone); announceError?.let { fail(it) }; return announced
     }
-    override suspend fun join(id:String) {}
+    val participationCalls=mutableListOf<String>()
+    override suspend fun join(id:String) { participationCalls+="join:$id" }
+    override suspend fun acceptPaymentTerms(id:String) { participationCalls+="terms:$id" }
     override suspend fun leave(id:String) {}
     override suspend fun waitlistIds()=emptyList<String>()
     override suspend fun joinWaitlist(id:String) {}

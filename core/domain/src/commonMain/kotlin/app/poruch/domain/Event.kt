@@ -243,8 +243,17 @@ data class Gathering(
     val companionOf: CompanionParent? = null,
     /** Афішу перенесли, збір чекає рішення організатора (R7а). */
     val pendingMeet: PendingMeet? = null,
-    /** Ціна входу в гривнях, точна, без «від» (`events.price_min`). Як оплатити — з організатором напряму. Null — безкоштовно. */
-    val price: Int? = null
+    /** Ціна входу в гривнях, точна, без «від» (`events.price_min`). Null — безкоштовно. */
+    val price: Int? = null,
+    /** Оплата онлайн організатору, реквізити — у розмові на двох; false — на місці. Лише з ціною й завжди за підтвердженням. */
+    val payOnline: Boolean = false,
+    /** Оплата онлайн: як повертаються гроші — людина бачить до заявки. Null — подія не онлайн. */
+    val refundPolicy: RefundPolicy? = null,
+    /**
+     * Коли платять: true — передоплата (як і куди — пише організатор), false — на зустрічі. Лише з ціною; онлайн-подія
+     * теж передоплата. Позначка, не оплата: «Поряд» гроші не приймає.
+     */
+    val prepay: Boolean = false
 ) {
     val seatsLeft get() = (capacity - attendeeCount).coerceAtLeast(0)
 
@@ -454,7 +463,9 @@ data class EventDraft(
      */
     val mediaBase: Set<String>? = null,
     /** Ціна входу в гривнях, [EventRules.price]. Null — безкоштовно: правка її теж прибирає. */
-    val price: Int? = null
+    val price: Int? = null,
+    /** Передоплата, а не на зустрічі ([Gathering.prepay]). Без ціни сервер її не зберігає. */
+    val prepay: Boolean = false
 ) {
     fun validate(now: String): List<DraftField> = buildList {
         if (title.trim().length !in EventRules.titleLength) add(DraftField.TITLE)

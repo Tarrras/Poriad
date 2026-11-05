@@ -11,11 +11,11 @@
 <meta name="theme-color" content="#F2F2F4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 <link rel="preload" href="fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="tokens.css?v=14">
-<link rel="stylesheet" href="web.css?v=14">
+<link rel="stylesheet" href="tokens.css?v=18">
+<link rel="stylesheet" href="web.css?v=18">
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
-<script type="module" src="js/kabinet.js?v=14"></script>
+<script type="module" src="js/kabinet.js?v=18"></script>
 </head>
 <body class="kab">
 
@@ -75,6 +75,12 @@
         <tbody data-people></tbody>
       </table></div>
       <p class="kab-hint" data-people-empty hidden>Поки ніхто не записався. Поділіться посиланням — наприклад, постом у Threads.</p>
+    </div>
+    <div class="kab-people" data-talks>
+      <div class="kab-head small"><h2>Розмови</h2></div>
+      <p class="kab-hint">Розмова на двох: людина бачить лише вас, а пошти й телефону ви одне одного не бачите. Написати першим можна тим, хто записався, — кнопкою «Написати» в таблиці.</p>
+      <ul class="kab-talk-list" data-talk-list></ul>
+      <p class="kab-hint" data-talks-empty hidden>Поки ніхто не писав.</p>
     </div>
   </section>
 
@@ -136,9 +142,29 @@
             <label class="kab-field"><span>Вік від</span><input type="number" name="minAge" min="18" max="100" inputmode="numeric" required></label>
             <label class="kab-field"><span>до <small>(необовʼязково)</small></span><input type="number" name="maxAge" min="18" max="120" inputmode="numeric"></label>
           </div>
-          <label class="kab-field kab-price"><span>Ціна, ₴ <small>(необовʼязково)</small></span><input type="number" name="price" min="1" max="100000" step="1" inputmode="numeric" placeholder="Безкоштовно"></label>
-          <p class="kab-hint">Ціну побачать на сторінці події. Як оплатити, люди домовляться з вами напряму.</p>
-          <label class="kab-check"><input type="checkbox" name="approval"><span><b>За підтвердженням</b><small>Ви вирішуєте, кого взяти: людина надсилає заявку, а не записується одразу</small></span></label>
+          <div class="kab-field" role="radiogroup" aria-labelledby="kab-entry">
+            <span id="kab-entry">Вхід</span>
+            <div class="kab-seg"><label><input type="radio" name="entry" value="free" checked><span>Безкоштовно</span></label><label><input type="radio" name="entry" value="paid"><span>Платно</span></label></div>
+          </div>
+          <label class="kab-field kab-price" data-price-box hidden><span>Ціна, ₴</span><input type="number" name="price" min="1" max="100000" step="1" inputmode="numeric" placeholder="Наприклад, 300"></label>
+          <div class="kab-field" role="radiogroup" aria-labelledby="kab-pay" data-pay-box hidden>
+            <span id="kab-pay">Коли платять</span>
+            <label class="kab-check"><input type="radio" name="pay" value="onsite" checked><span><b>На зустрічі</b><small>Учасники платять вам на місці</small></span></label>
+            <label class="kab-check"><input type="radio" name="pay" value="prepay"><span><b>Передоплата</b><small>Як і коли платити, ви пишете учасникам самі — у чаті учасників чи особисто</small></span></label>
+            <label class="kab-check" data-pay-online-option hidden><input type="radio" name="pay" value="online"><span><b>Онлайн у розмові «Поряд»</b><small>Людина подає заявку, ви надсилаєте реквізити в розмові й підтверджуєте оплату</small></span></label>
+          </div>
+          <div class="kab-pay-online" data-pay-online hidden>
+            <p class="kab-hint" data-pay-limits></p>
+            <div class="kab-field" role="radiogroup" aria-labelledby="kab-refund">
+              <span id="kab-refund">Повернення грошей</span>
+              <label class="kab-check"><input type="radio" name="refund" value="before_48h"><span><b>До 48 год до початку</b><small>Людина скасувала заявку раніше — повертаєте все</small></span></label>
+              <label class="kab-check"><input type="radio" name="refund" value="before_24h"><span><b>До 24 год до початку</b><small>Людина скасувала заявку раніше — повертаєте все</small></span></label>
+              <label class="kab-check"><input type="radio" name="refund" value="cancel_only"><span><b>Лише якщо подію скасовано</b><small>Інакше гроші не повертаються</small></span></label>
+            </div>
+            <label class="kab-check" data-pay-terms-box><input type="checkbox" name="payterms"><span><b>Погоджуюсь з <a href="/terms.html#online" target="_blank" rel="noopener">Правилами оплати онлайн</a></b><small>Реквізити — мої. Податки й чеки — на мені. Скасую подію — поверну гроші всім, хто оплатив.</small></span></label>
+          </div>
+          <p class="kab-hint" data-price-hint>Учасники бачать це біля ціни. Реквізити пишіть лише в чаті учасників (Telegram), який ви додали: у назві, описі й розмовах «Поряд» їх не надсилають.</p>
+          <label class="kab-check"><input type="checkbox" name="approval"><span><b>За підтвердженням</b><small data-approval-note>Ви вирішуєте, кого взяти: людина надсилає заявку, а не записується одразу</small></span></label>
           <label class="kab-field"><span>Чат учасників <small>(необовʼязково)</small></span><input type="url" name="contact" maxlength="500" placeholder="https://t.me/…" autocomplete="off"></label>
           <p class="kab-hint">Посилання бачать лише підтверджені учасники.</p>
         </fieldset>
@@ -247,6 +273,28 @@
     <p class="kab-hint">«Поширити анонс» відкриває Threads з готовим текстом і посиланням для запису; фото додайте в пості самі.</p>
   </section>
 </main>
+
+<!-- Розмова з учасником: «Поряд» — міст між організатором і людиною -->
+<dialog class="install" data-talk aria-labelledby="kab-talk-title">
+  <form class="install-box kab-auth kab-talk" data-talk-form novalidate>
+    <button class="round" type="button" data-talk-close aria-label="Закрити"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-close"/></svg></button>
+    <div>
+      <h2 id="kab-talk-title" data-talk-title>Розмова</h2>
+      <div class="kab-person" data-talk-person aria-live="polite"></div>
+      <div class="kab-row" data-talk-actions hidden>
+        <span class="kab-expected" data-talk-expected></span>
+        <button class="btn small primary" type="button" data-talk-approve>Оплату отримано</button>
+        <button class="btn small" type="button" data-talk-decline>Відхилити</button>
+      </div>
+      <p class="kab-hint" data-talk-note></p>
+      <div class="thread" data-talk-thread></div><p class="sr" data-talk-live aria-live="polite"></p>
+      <button class="btn small" type="button" data-talk-again hidden>Вставити ті самі реквізити</button>
+      <label class="kab-field"><span class="sr">Повідомлення</span><textarea name="body" rows="3" maxlength="2000" placeholder="Повідомлення"></textarea></label>
+      <button class="btn primary kab-wide" type="submit">Надіслати</button>
+    </div>
+    <p class="kab-error" data-talk-error role="alert"></p>
+  </form>
+</dialog>
 
 <!-- Публікація (1.6): квиток друкується, поки вантажаться файли -->
 <dialog class="kab-publishing" data-publishing aria-labelledby="kab-publishing-title">

@@ -46,7 +46,15 @@ internal class EventUseCases(
         pendingCreation = null
     }
 
-    fun join(id: String) = store.mutate {
+    /** Заявка на онлайн-подію: спершу згода на умови оплати (людина щойно їх бачила), потім сама заявка. */
+    fun requestOnline(id: String) = store.mutate {
+        participation.acceptPaymentTerms(id)
+        joinNow(id)
+    }
+
+    fun join(id: String) = store.mutate { joinNow(id) }
+
+    private suspend fun joinNow(id: String) {
         PoruchLog.i("action") { "joinEvent ${id.shortId()}" }
         // Супутник — з картки на сторінці афіші або зі своєї сторінки. Завжди за запитом.
         val fromCard = store.value.detail.companions?.any { it.id == id } == true
@@ -249,7 +257,7 @@ internal class EventUseCases(
             .let { parts -> if (parts.size == 2 && parts[1] in parts[0]) parts.take(1) else parts }.joinToString(", ")
         return PublishedEvent(
             id = id, link = EventLinks.url(id),
-            post = ThreadsPost.text(id, TitleRules.display(draft.title.trim()), draft.startsAt, draft.timeZone, draft.address.trim(), null, draft.description, draft.price),
+            post = ThreadsPost.text(id, TitleRules.display(draft.title.trim()), draft.startsAt, draft.timeZone, draft.address.trim(), null, draft.description, draft.price, prepay = draft.prepay),
             // Звичайна подія свого організатора: саме вона щойно опублікована, тож завжди анонс.
             shareMode = ShareMode.PROMOTE,
             title = draft.title.trim(),

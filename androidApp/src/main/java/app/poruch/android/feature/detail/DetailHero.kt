@@ -130,7 +130,7 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
                 state.screen.ended -> if (room?.joined == true) Triple(stringResource(R.string.went), BadgeTone.Neutral, PoruchIcons.check) else null
                 room?.joined == true -> Triple(stringResource(R.string.going), BadgeTone.Success, PoruchIcons.check)
                 state.screen.waitlisted -> Triple(stringResource(R.string.in_queue), BadgeTone.Accent, PoruchIcons.queue)
-                room?.awaitingApproval == true -> Triple(stringResource(R.string.request_pending), BadgeTone.Accent, PoruchIcons.clock)
+                room?.awaitingApproval == true -> Triple(stringResource(if (room.payOnline) R.string.stamp_pay else R.string.request_pending), BadgeTone.Accent, PoruchIcons.clock)
                 room?.isScarce == true -> Triple(stringResource(R.string.seats_left, room.seatsLeft), BadgeTone.Accent, null)
                 else -> null
             }

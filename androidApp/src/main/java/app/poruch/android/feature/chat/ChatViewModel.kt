@@ -5,11 +5,14 @@ import app.poruch.android.mvi.MviViewModel
 import app.poruch.domain.ChatRules
 import app.poruch.domain.FollowKind
 import app.poruch.shared.PoruchApp
+import app.poruch.shared.canSendPaymentProof
+import app.poruch.shared.paymentInOpenChat
+import app.poruch.shared.threadPersonName
+import app.poruch.shared.chatReadOnly
+import app.poruch.shared.repeatablePaymentDetails
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlin.time.Clock
-import kotlin.time.Duration.Companion.days
 
 /**
  * Екран чату однієї події або, з [thread] (хто питає), розмови «Запитати організатора». Опитування веде спільний шар:
@@ -21,18 +24,14 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
     init {
         if (thread != null) app.openQuestion(eventId, thread) else app.openChat(eventId)
         observe(app) { shared ->
-            val event = (listOf(shared.detail.event) + shared.library.myEvents).firstOrNull { it?.id == eventId }
+            val event = shared.knownEvent(eventId)
             val chat = shared.chat?.takeIf { it.eventId == eventId && it.thread == thread }
-            val now = Clock.System.now()
             copy(
                 title = event?.title ?: title,
                 members = event?.gathering?.let { it.attendeeCount + 1 } ?: members,
                 messages = chat?.messages ?: messages,
-                // Організатор бачить, хто питає: з розмови або з деталей, поки вона вантажиться.
-                askerName = thread?.let { asker ->
-                    chat?.messages?.firstOrNull { it.authorId == asker }?.authorName
-                        ?: shared.detail.questions.firstOrNull { it.askerId == asker }?.askerName
-                } ?: askerName,
+                // Організатор міг написати першим, тож ім'я людини — не лише з її повідомлень.
+                askerName = thread?.let { shared.threadPersonName(eventId, it) } ?: askerName,
                 loading = chat?.loading ?: loading,
                 sending = chat?.sending ?: false,
                 available = chat?.available ?: available,
@@ -40,9 +39,18 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
                 userId = shared.session.userId,
                 organizer = event != null && shared.organizes(event),
                 // Той самий поріг, що на сервері: тиждень після кінця.
-                readOnly = event != null && (event.isCancelled || event.endInstant?.let { it + CHAT_GRACE < now } == true),
+                // Той самий поріг, що на сервері; розмова про оплату — 30 днів і після скасування (OnlinePayment.kt).
+                readOnly = event != null && event.chatReadOnly(thread != null),
                 person = shared.person,
-                followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId }
+                followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId },
+                canSendPaymentProof = chat != null && shared.canSendPaymentProof(),
+                proofs = chat?.proofs ?: proofs,
+                missingProofs = chat?.missingProofs ?: missingProofs,
+                paymentStatus = chat?.let { shared.paymentInOpenChat() },
+                price = event?.gathering?.price,
+                repeatableDetails = chat?.let { shared.repeatablePaymentDetails() },
+                organizerProfile = chat?.organizer,
+                mutating = shared.mutating
             )
         }
         // Текст, що не пішов, повертається в поле, якщо людина ще не почала нове.
@@ -85,15 +93,20 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String, pri
                 reduce { copy(reporting = null) }
                 app.reportMessage(intent.message.id, intent.reason, intent.details)
             }
+            is ChatIntent.SendProof -> {
+                if (!state.value.canSendPaymentProof || state.value.sending) return
+                val text = state.value.draft
+                reduce { copy(draft = "") }
+                app.sendPaymentProof(intent.jpeg, text)
+            }
+            is ChatIntent.ViewProof -> reduce { copy(viewing = intent.path) }
+            ChatIntent.ConfirmPayment -> thread?.let { app.approveMember(eventId, it) }
+            ChatIntent.DeclineRequest -> thread?.let { app.declineMember(eventId, it) }
         }
     }
 
     override fun onCleared() {
         app.closeChat(eventId); app.closePerson()
         super.onCleared()
-    }
-
-    private companion object {
-        val CHAT_GRACE = 7.days
     }
 }

@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -34,18 +35,32 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import app.poruch.android.R
+import app.poruch.android.feature.detail.rememberImagePicker
 import app.poruch.android.ui.*
+import app.poruch.android.platform.copyText
+import app.poruch.domain.ChatRules
 import app.poruch.domain.Attendee
 import app.poruch.domain.ChatMessage
 import app.poruch.domain.ReportReason
 import app.poruch.domain.TitleRules
+import app.poruch.domain.EventRules
+import app.poruch.shared.PaymentStatus
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Чат події: повний екран зі своєю шапкою, стрічкою по днях і полем унизу.
@@ -56,6 +71,21 @@ fun ChatScreen(state: ChatState, onIntent: (ChatIntent) -> Unit) {
     val colors = Poruch.colors
     Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding().imePadding()) {
         Header(state, onIntent)
+        // «Відхилити» — після питання: людина отримає сповіщення, а гроші, якщо вже прийшли, повертає організатор.
+        var declining by remember { mutableStateOf(false) }
+        if (state.showsPaymentBar) PaymentRequestBar(
+            state.paymentStatus!!, state.organizer, personName(state), state.price, enabled = !state.mutating,
+            onConfirm = { onIntent(ChatIntent.ConfirmPayment) }, onDecline = { declining = true }
+        )
+        if (declining) PoruchConfirmSheet(
+            title = stringResource(R.string.decline_confirm_title),
+            message = stringResource(R.string.decline_confirm_body_pay, personName(state)),
+            confirmLabel = stringResource(R.string.decline),
+            dismissLabel = stringResource(R.string.cancel),
+            onConfirm = { declining = false; onIntent(ChatIntent.DeclineRequest) },
+            onDismiss = { declining = false },
+            tone = colors.danger
+        )
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 !state.available -> EmptyState(
@@ -72,6 +102,7 @@ fun ChatScreen(state: ChatState, onIntent: (ChatIntent) -> Unit) {
         if (state.readOnly) ClosedNote() else Composer(state, onIntent)
     }
     state.selected?.let { message -> MessageActions(state, message, onIntent) }
+    state.viewing?.let { path -> state.proofs[path]?.let { ProofViewer(it) { onIntent(ChatIntent.ViewProof(null)) } } }
     state.deleting?.let { message ->
         PoruchConfirmSheet(
             title = stringResource(R.string.chat_delete_title),
@@ -112,10 +143,17 @@ fun ChatScreen(state: ChatState, onIntent: (ChatIntent) -> Unit) {
 @Composable
 private fun Header(state: ChatState, onIntent: (ChatIntent) -> Unit) {
     val colors = Poruch.colors
-    // Розмова з організатором: організатор бачить, хто питає, а той, хто питає, — що розмова лише на двох.
+    // Розмова з організатором: організатор бачить, з ким вона, а людина — що розмова лише на двох.
     val subtitle = if (state.thread != null) {
-        if (state.organizer) stringResource(R.string.question_from, state.askerName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_member))
-        else stringResource(R.string.question_subtitle)
+        if (state.organizer) stringResource(
+            if (state.paymentStatus == null && state.personHasWritten) R.string.question_from else R.string.thread_with, personName(state)
+        )
+        else state.organizerProfile?.let { p ->
+            listOfNotNull(
+                p.name, memberSince(p.memberSince)?.let { stringResource(R.string.profile_member_since, it) },
+                p.organized.takeIf { it > 0 }?.let { "$it " + pluralStringResource(R.plurals.profile_organized, it) }
+            ).joinToString(" · ")
+        } ?: stringResource(R.string.question_subtitle)
     } else if (state.members > 0) stringResource(
         R.string.chat_subtitle, pluralStringResource(R.plurals.chat_members, state.members, state.members)
     ) else stringResource(R.string.chat_subtitle_plain)
@@ -135,13 +173,59 @@ private fun Header(state: ChatState, onIntent: (ChatIntent) -> Unit) {
                     style = PoruchType.brandTitle3,
                     color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             Box(Modifier.size(40.dp).background(colors.surfaceMuted, CircleShape), contentAlignment = Alignment.Center) {
                 Icon(PoruchIcons.chat, null, Modifier.size(18.dp), tint = colors.inkSecondary)
             }
         }
         HorizontalDivider(color = colors.hairline)
+    }
+}
+
+@Composable
+private fun personName(state: ChatState) = state.askerName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_member)
+
+/** Заявка в розмові онлайн-події: стан і сума; організатору — ще «Відхилити» й «Оплату отримано». */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PaymentRequestBar(
+    status: PaymentStatus, organizer: Boolean, person: String, price: Int?, enabled: Boolean, onConfirm: () -> Unit, onDecline: () -> Unit
+) {
+    val colors = Poruch.colors
+    val awaiting = status != PaymentStatus.PAID && status != PaymentStatus.CANCELLED
+    Column(
+        Modifier.fillMaxWidth().background(if (awaiting) colors.accentContainer else colors.surfaceMuted)
+            .padding(horizontal = Spacing.page, vertical = Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Text(
+                when (status) {
+                    PaymentStatus.WAITING_FOR_DETAILS ->
+                        if (organizer) stringResource(R.string.pay_thread_details_org, person) else stringResource(R.string.pay_thread_details_mine)
+                    PaymentStatus.WAITING_FOR_PAYMENT ->
+                        if (organizer) stringResource(R.string.pay_thread_waiting_org, person) else stringResource(R.string.pay_thread_waiting_mine)
+                    PaymentStatus.PROOF_SENT ->
+                        if (organizer) stringResource(R.string.pay_thread_proof_org, person) else stringResource(R.string.pay_thread_proof_mine)
+                    PaymentStatus.PAID ->
+                        if (organizer) stringResource(R.string.pay_thread_paid_org, person) else stringResource(R.string.pay_thread_paid_mine)
+                    PaymentStatus.CANCELLED ->
+                        stringResource(if (organizer) R.string.pay_thread_cancelled_org else R.string.pay_thread_cancelled_mine)
+                },
+                style = MaterialTheme.typography.bodyMedium, color = colors.ink, modifier = Modifier.weight(1f)
+            )
+            price?.let { Text(stringResource(R.string.price_value, EventRules.formatPrice(it)), style = MaterialTheme.typography.titleSmall, color = colors.ink) }
+        }
+        // Великий шрифт: кнопки переносяться одна під одну, а не вилазять за край.
+        if (organizer && awaiting) FlowRow(
+            Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.End),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+        ) {
+            GhostButton(stringResource(R.string.decline), onDecline, tone = colors.inkSecondary)
+            // Є скріншот — «Оплату отримано» стоїть під ним, тут лишається «Відхилити».
+            if (status != PaymentStatus.PROOF_SENT) PrimaryButton(stringResource(R.string.approve_paid), onConfirm, enabled = enabled)
+        }
     }
 }
 
@@ -178,18 +262,31 @@ private fun Feed(state: ChatState, onIntent: (ChatIntent) -> Unit) {
             Column {
                 row.day?.let { DayLabel(it) }
                 Spacer(Modifier.height(if (row.continued) 3.dp else Spacing.md))
-                Bubble(row.message, row.continued, state.isMine(row.message), onIntent)
+                val mine = state.isMine(row.message)
+                Bubble(
+                    row.message, row.continued, mine, onIntent,
+                    proof = row.message.image?.let { state.proofs[it] }, missing = row.message.image?.let { it in state.missingProofs } == true,
+                    // Застереження — для того, хто платить: організатор його не бачить (як кабінет на вебі).
+                    payWarning = row.message.paymentDetails && !mine && !state.organizer,
+                    decision = if (row.message.id == state.lastProofId) {
+                        { ProofDecision(state.price, enabled = !state.mutating) { onIntent(ChatIntent.ConfirmPayment) } }
+                    } else null
+                )
             }
         }
         item(key = "rules") {
             Column {
                 Rules()
-                if (state.messages.isEmpty()) EmptyState(
-                    PoruchIcons.social,
-                    stringResource(if (state.thread == null) R.string.chat_empty_title else R.string.question_empty_title),
-                    stringResource(if (state.thread == null) R.string.chat_empty_hint else R.string.question_empty_hint),
-                    Modifier.padding(top = Spacing.section)
-                )
+                if (state.messages.isEmpty()) {
+                    val (title, hint) = when {
+                        state.thread == null -> R.string.chat_empty_title to R.string.chat_empty_hint
+                        state.paymentStatus != null && state.organizer -> R.string.pay_empty_title_org to R.string.pay_empty_hint_org
+                        state.paymentStatus != null -> R.string.pay_empty_title_mine to R.string.pay_empty_hint_mine
+                        state.organizer -> R.string.question_empty_title_org to R.string.question_empty_hint_org
+                        else -> R.string.question_empty_title to R.string.question_empty_hint
+                    }
+                    EmptyState(PoruchIcons.social, stringResource(title), stringResource(hint), Modifier.padding(top = Spacing.section))
+                }
             }
         }
     }
@@ -225,7 +322,15 @@ private fun DayLabel(day: LocalDate) {
 }
 
 @Composable
-private fun Bubble(message: ChatMessage, continued: Boolean, mine: Boolean, onIntent: (ChatIntent) -> Unit) {
+private fun Bubble(
+    message: ChatMessage, continued: Boolean, mine: Boolean, onIntent: (ChatIntent) -> Unit,
+    /** Скріншот оплати, якщо вже завантажено; [missing] — не вийшло (заглушка). */
+    proof: ByteArray? = null, missing: Boolean = false,
+    /** Реквізити від організатора тому, хто платить: застереження й «Поскаржитись». */
+    payWarning: Boolean = false,
+    /** Під останнім скріншотом — «Оплату отримано» для організатора. */
+    decision: (@Composable () -> Unit)? = null
+) {
     val colors = Poruch.colors
     val name = message.authorName.ifBlank { stringResource(R.string.chat_member) }
     val time = remember(message.createdAt) { clock(message.createdAt) }
@@ -256,7 +361,10 @@ private fun Bubble(message: ChatMessage, continued: Boolean, mine: Boolean, onIn
             verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             if (!mine && !continued) Text(name, style = MaterialTheme.typography.labelMedium, color = colors.inkSecondary)
+            message.image?.let { path -> ProofThumb(path, proof, missing, mine, onIntent) }
+            decision?.invoke()
             Text(message.body, style = MaterialTheme.typography.bodyLarge, color = if (mine) colors.onBrand else colors.ink)
+            if (payWarning) PaymentNote(remember(message.body) { ChatRules.paymentNumber(message.body) }) { onIntent(ChatIntent.ShowReport(message)) }
             // Час у правому нижньому куті, як у месенджерах.
             Text(
                 time, style = PoruchType.caption,
@@ -267,6 +375,118 @@ private fun Bubble(message: ChatMessage, continued: Boolean, mine: Boolean, onIn
         if (!mine) Spacer(Modifier.width(56.dp))
     }
 }
+
+/** Скріншот оплати в бульбашці: картинка (тап — на весь екран), поки вантажиться — тонова плашка, недоступний — підпис. */
+@Composable
+private fun ProofThumb(path: String, bytes: ByteArray?, missing: Boolean, mine: Boolean, onIntent: (ChatIntent) -> Unit) {
+    val colors = Poruch.colors
+    val decoded = rememberProof(bytes, THUMB_SIDE)
+    val image = decoded?.image
+    val label = stringResource(R.string.proof_open)
+    when {
+        image != null -> Image(
+            image, label,
+            Modifier.widthIn(max = 240.dp).heightIn(max = 320.dp).clip(RoundedCornerShape(12.dp))
+                .clickable(onClickLabel = label) { onIntent(ChatIntent.ViewProof(path)) },
+            contentScale = ContentScale.Crop
+        )
+        missing || decoded != null -> Text(
+            stringResource(R.string.proof_unavailable), style = PoruchType.caption,
+            color = if (mine) colors.onBrand.copy(alpha = 0.75f) else colors.inkSecondary
+        )
+        else -> Box(Modifier.size(width = 160.dp, height = 120.dp).clip(RoundedCornerShape(12.dp)).background(colors.surfaceMuted), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(Modifier.size(18.dp), color = colors.inkSecondary, strokeWidth = 2.dp)
+        }
+    }
+}
+
+/** Під реквізитами від організатора: «Поряд» не приймає оплату й не відповідає за неї; «Поскаржитись» — одразу. */
+/** «Оплату отримано» під скріншотом: скільки мало прийти — поруч, щоб звірити з банком. */
+@Composable
+private fun ProofDecision(price: Int?, enabled: Boolean, onConfirm: () -> Unit) {
+    val colors = Poruch.colors
+    Column(Modifier.padding(vertical = Spacing.xs), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        price?.let { Text(stringResource(R.string.pay_expected, stringResource(R.string.price_value, EventRules.formatPrice(it))), style = PoruchType.caption, color = colors.inkSecondary) }
+        PrimaryButton(stringResource(R.string.approve_paid), onConfirm, enabled = enabled)
+    }
+}
+
+/**
+ * Під реквізитами тому, хто платить: номер — скопіювати одним дотиком (без пробілів: не всі банки приймають групи), і
+ * спокійне речення, що гроші йдуть повз «Поряд», зі скаргою поруч. Довіра замість тривоги — без червоного.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PaymentNote(number: String?, onReport: () -> Unit) {
+    val colors = Poruch.colors
+    val context = LocalContext.current
+    var copied by remember { mutableStateOf(false) }
+    LaunchedEffect(copied) { if (copied) { kotlinx.coroutines.delay(2000); copied = false } }
+    val strong = PoruchType.caption.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+    Column(Modifier.padding(top = Spacing.xs), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        number?.let {
+            // Номер — одним рядком, кнопка поруч; довгий IBAN — кнопка переноситься під нього.
+            FlowRow(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(colors.surfaceMuted).padding(start = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    it, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, fontFeatureSettings = "tnum"),
+                    color = colors.ink, modifier = Modifier.padding(vertical = 12.dp)
+                )
+                val copyLabel = stringResource(R.string.copy_number)
+                Text(
+                    stringResource(if (copied) R.string.chat_copied else R.string.chat_copy), style = strong, color = colors.ink,
+                    modifier = Modifier.semantics { contentDescription = copyLabel }
+                        .clickable(role = Role.Button) { context.copyText(it.replace(" ", "")); copied = true }
+                        .heightIn(min = 48.dp).padding(horizontal = 10.dp).wrapContentHeight(Alignment.CenterVertically)
+                )
+            }
+        }
+        Text(stringResource(R.string.payment_warning), style = PoruchType.caption, color = colors.inkSecondary)
+        Text(
+            stringResource(R.string.pay_report), style = strong, color = colors.ink,
+            modifier = Modifier.clickable(role = Role.Button, onClick = onReport).heightIn(min = 48.dp).wrapContentHeight(Alignment.CenterVertically)
+        )
+    }
+}
+
+/** Скріншот на весь екран: звірити суму й імʼя з банком. Тап чи «назад» — закрити. */
+@Composable
+private fun ProofViewer(bytes: ByteArray, onClose: () -> Unit) {
+    val image = rememberProof(bytes, ChatRules.PROOF_SIDE)?.image ?: return
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(Modifier.fillMaxSize().background(Color.Black).clickable(onClick = onClose), contentAlignment = Alignment.Center) {
+            Image(image, stringResource(R.string.proof_open), Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            Box(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(Spacing.md)) {
+                ScrimButton(PoruchIcons.close, stringResource(R.string.close), onClose)
+            }
+        }
+    }
+}
+
+/** Розкодований скріншот; [image] null — байти не картинка. */
+private class DecodedProof(val image: ImageBitmap?)
+
+/** Мініатюра: 240×320 dp — до ~960 px на щільному екрані; повний розмір — лише на весь екран. */
+private const val THUMB_SIDE = 960
+
+/**
+ * JPEG скріншота → картинка поза головним потоком, довша сторона не менша за [side] (грубо, `inSampleSize`): у
+ * мініатюрі не тримаємо повних 2048 px. null — ще декодуємо чи байтів нема.
+ */
+@Composable
+private fun rememberProof(bytes: ByteArray?, side: Int): DecodedProof? = produceState<DecodedProof?>(null, bytes, side) {
+    value = bytes?.let { data -> withContext(Dispatchers.Default) { DecodedProof(decodeProof(data, side)) } }
+}.value
+
+private fun decodeProof(bytes: ByteArray, side: Int): ImageBitmap? = runCatching {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    var sample = 1
+    while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= side) sample *= 2
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+}.getOrNull()
 
 /** Бульбашка з «хвостиком»: кут біля співрозмовника гострий, у продовженні серії — усі округлі. */
 private fun bubbleShape(mine: Boolean, continued: Boolean): RoundedCornerShape {
@@ -300,12 +520,39 @@ private fun Composer(state: ChatState, onIntent: (ChatIntent) -> Unit) {
     val motion = Motion.quick<Color>(Poruch.reducedMotion)
     val border by animateColorAsState(if (focused) colors.ink.copy(alpha = 0.35f) else colors.hairline, motion, label = "border")
     val sendTint by animateColorAsState(if (canSend) colors.brand else colors.inkTertiary, motion, label = "send")
+    // Photo Picker без дозволу на галерею; на сервер — JPEG без метаданих.
+    val picker = rememberImagePicker(ChatRules.PROOF_SIDE) { bytes, _ -> onIntent(ChatIntent.SendProof(bytes)) }
     Column {
         HorizontalDivider(color = colors.hairline)
+        // Організатор уже надсилав реквізити в цій події: ті самі — в поле, перевірити й надіслати.
+        if (state.repeatableDetails != null && state.draft.isEmpty()) Row(
+            Modifier.fillMaxWidth().background(colors.surface).padding(horizontal = Spacing.page).padding(top = Spacing.sm)
+        ) {
+            Text(
+                stringResource(R.string.pay_details_again),
+                style = PoruchType.caption.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = colors.ink,
+                modifier = Modifier.heightIn(min = 48.dp).clip(CircleShape).background(colors.surfaceMuted)
+                    .clickable(role = Role.Button) { onIntent(ChatIntent.EditDraft(state.repeatableDetails)) }
+                    .padding(horizontal = Spacing.md).wrapContentHeight(Alignment.CenterVertically)
+            )
+        }
+        if (state.canSendPaymentProof) Text(
+            stringResource(if (picker.failed) R.string.photo_read_failed else R.string.proof_hint),
+            style = PoruchType.caption, color = if (picker.failed) colors.danger else colors.inkSecondary,
+            modifier = Modifier.fillMaxWidth().background(colors.surface).padding(horizontal = Spacing.page).padding(top = Spacing.sm)
+        )
         Row(
             Modifier.fillMaxWidth().background(colors.surface).padding(horizontal = Spacing.page, vertical = Spacing.sm).navigationBarsPadding(),
             verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
+            if (state.canSendPaymentProof) Box(
+                Modifier.size(44.dp).background(colors.surfaceMuted, CircleShape)
+                    .pressable(enabled = !state.sending && !picker.reading, onClick = picker.open),
+                contentAlignment = Alignment.Center
+            ) {
+                if (picker.reading) CircularProgressIndicator(Modifier.size(18.dp), color = colors.ink, strokeWidth = 2.dp)
+                else Icon(PoruchIcons.plus, stringResource(R.string.proof_attach), Modifier.size(20.dp), tint = colors.ink)
+            }
             BasicTextField(
                 state.draft, { onIntent(ChatIntent.EditDraft(it)) },
                 Modifier.weight(1f).clip(RoundedCornerShape(22.dp)).background(colors.canvas).border(1.dp, border, RoundedCornerShape(22.dp))

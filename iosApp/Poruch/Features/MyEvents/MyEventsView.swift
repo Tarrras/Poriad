@@ -14,6 +14,8 @@ struct MyEventsView: View, Equatable {
     /// (`RootView.minePath`).
     var openEvent: (String, String?) -> Void
     var openChat: (String) -> Void
+    /// Розмова організатора з людиною (подія, людина): туди веде заявка на онлайн-подію.
+    var openThread: (String, String) -> Void = { _, _ in }
     @State private var tab = MyEventsTab.going
     /// Розріз уже обрано — людиною чи першою дошкою. Далі дошка його не перемикає.
     @State private var tabChosen = false
@@ -298,7 +300,7 @@ struct MyEventsView: View, Equatable {
                                requests: view.requestsFor(id: first.id).filter { !isDeclining($0) },
                                declined: declining.flatMap { $0.eventId == first.id ? $0 : nil },
                                preparing: preparing,
-                               open: { open($0, from: "my_panel") }, chat: openChat,
+                               open: { open($0, from: "my_panel") }, chat: openChat, thread: openThread,
                                decline: startDecline, undo: { declining = nil },
                                threads: startThreads, repeatEvent: startRepeat)
             }
@@ -572,6 +574,7 @@ private struct OrganizerPanel: View {
     let preparing: Bool
     let open: (String) -> Void
     let chat: (String) -> Void
+    let thread: (String, String) -> Void
     let decline: (JoinRequest) -> Void
     let undo: () -> Void
     let threads: (Event) -> Void
@@ -635,9 +638,14 @@ private struct OrganizerPanel: View {
                 PoruchIcon(glyph: PoruchIcons.close, size: 16).foregroundStyle(Palette.ink)
                     .frame(width: 40, height: 40).background(Palette.surface, in: Circle()).tapTarget()
             }.buttonStyle(PressableStyle()).accessibilityLabel(Copy.decline_request_a11y("\(request.name)"))
-            // Поля й тло — у мітці: поза міткою SwiftUI зараховує до дотику лише саме слово.
-            Button { model.app.approveMember(eventId: event.id, userId: request.userId) } label: {
-                Text(Copy.approve).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
+            // Поля й тло — у мітці: поза міткою SwiftUI зараховує до дотику лише саме слово. Онлайн-подія: рішення про
+            // оплату — у розмові з людиною.
+            Button {
+                if event.gathering?.payOnline == true { thread(event.id, request.userId) }
+                else { model.app.approveMember(eventId: event.id, userId: request.userId) }
+            } label: {
+                Text(event.gathering?.payOnline == true ? Copy.request_chat : Copy.approve)
+                    .font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
                     .padding(.horizontal, Space.lg).frame(height: 40)
                     .background(Palette.brand, in: buttonShape)
                     .tapTarget()

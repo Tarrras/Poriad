@@ -23,7 +23,7 @@ class EventData(
     val authoring: EventAuthoring = SupabaseEventAuthoring(rpc, auth, storage)
     val participation: EventParticipation = SupabaseEventParticipation(rpc, auth, mine)
     val requests: EventRequests = SupabaseEventRequests(rpc)
-    val chat: EventChat = SupabaseEventChat(rpc)
+    val chat: EventChat = SupabaseEventChat(rpc, auth, storage)
     val push: PushTokens = SupabasePushTokens(rpc)
     val follows: Follows = SupabaseFollows(rpc)
 }

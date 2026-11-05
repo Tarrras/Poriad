@@ -39,10 +39,15 @@ struct EditorForm: Codable, Equatable {
     var media: [DraftItem]?
     /// Ціна входу, гривні (docs/organizers-1.5.md, 1.7). Nil — безкоштовно.
     var price: Int?
+    /// Коли платять: передоплата, а не на зустрічі. Лише з ціною. Optional, щоб старі чернетки читались далі.
+    var prepay: Bool?
+    /// Вхід платний: тоді є ціна й «Коли платять». Nil (стара чернетка) — платна, якщо є ціна.
+    var paid: Bool?
+    var isPaid: Bool { paid ?? (price != nil) }
 
     private enum CodingKeys: String, CodingKey {
         case title, description, categoryKey = "category", city, address, latitude, longitude, placed
-        case starts, ends, timeZone, capacity, minAge, maxAge, approvalRequired, contactUrl, media, price
+        case starts, ends, timeZone, capacity, minAge, maxAge, approvalRequired, contactUrl, media, price, prepay, paid
     }
 
     /// Посилання, як його бачить чернетка: обрізане, порожнє стає nil.
@@ -74,7 +79,8 @@ struct EditorForm: Codable, Equatable {
             timeZone: timeZone, capacity: Int32(capacity), imageUrl: imageUrl,
             minAge: Int32(minAge), maxAge: maxAge.map { KotlinInt(int: Int32($0)) },
             approvalRequired: approvalRequired, contactUrl: contactLink, media: media, mediaBase: mediaBase,
-            price: price.map { KotlinInt(int: Int32(clamping: $0)) }
+            // Платно без ціни — 0: правило ціни назве поле, а не опублікує безкоштовну подію.
+            price: isPaid ? KotlinInt(int: Int32(clamping: price ?? 0)) : nil, prepay: isPaid && prepay == true
         )
     }
 }
@@ -211,6 +217,8 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     }
 
     var editing: Bool { event != nil }
+    /// Правка події з оплатою онлайн (спосіб оплати змінюють лише в кабінеті).
+    var payOnline: Bool { event?.gathering?.payOnline == true }
     var repeating: Bool { repeated != nil }
 
     /// Хто збирає — ім'я на квитку, як його побачать на головній.
@@ -602,7 +610,7 @@ extension EditorForm {
                 (item as? DraftMediaCopied).map { DraftItem($0.media, origin: .copied) }
                     ?? (item as? DraftMediaRemote).map { DraftItem($0.media, origin: .remote) }
             },
-            price: draft.price.map { Int(truncating: $0) }
+            price: draft.price.map { Int(truncating: $0) }, prepay: draft.prepay, paid: draft.price != nil
         )
     }
 }

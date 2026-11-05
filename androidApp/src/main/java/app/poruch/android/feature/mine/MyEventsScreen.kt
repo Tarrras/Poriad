@@ -746,8 +746,10 @@ private fun RequestRow(
                 .pressable(enabled = !mutating) { onIntent(MyEventsIntent.Decline(request)) },
             contentAlignment = Alignment.Center
         ) { Icon(PoruchIcons.close, null, Modifier.size(16.dp), tint = colors.ink) }
+        // Онлайн-подія: рішення про оплату — у розмові з людиною.
+        val payOnline = event.gathering?.payOnline == true
         Text(
-            stringResource(R.string.approve),
+            stringResource(if (payOnline) R.string.request_chat else R.string.approve),
             style = MaterialTheme.typography.labelLarge,
             color = colors.onBrand,
             modifier = Modifier
@@ -756,10 +758,8 @@ private fun RequestRow(
                 .clip(ButtonShape)
                 .pressable(enabled = !mutating) {
                     onIntent(
-                        MyEventsIntent.Approve(
-                            event.id,
-                            request.userId
-                        )
+                        if (payOnline) MyEventsIntent.OpenChat(event.id, request.userId)
+                        else MyEventsIntent.Approve(event.id, request.userId)
                     )
                 }
                 .padding(horizontal = Spacing.lg)

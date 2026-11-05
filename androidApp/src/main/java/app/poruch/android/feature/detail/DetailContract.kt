@@ -18,6 +18,8 @@ data class DetailState(
     /** Потяг вниз у дорозі. */
     val refreshing: Boolean = false,
     val confirmingCancel: Boolean = false,
+    /** Онлайн-подія: умови оплати напряму й правила повернення перед заявкою. */
+    val confirmingPayTerms: Boolean = false,
     val reporting: ReportTarget? = null,
     val confirmingBlock: Boolean = false,
     /** Попередження перед виходом у чужий чат: спершу кажемо, куди й хто це додав. */
@@ -52,6 +54,8 @@ sealed interface DetailIntent {
     data object Back : DetailIntent
     /** Штамп запису вже впав (чи показаний без руху): [DetailState.stampPending] гасимо. */
     data object StampShown : DetailIntent
+    /** Умови оплати онлайн: true — погодився й подає заявку, false — передумав. */
+    data class PayTermsAnswered(val agreed: Boolean) : DetailIntent
     /** Відповідь системи на [DetailEffect.AskNotificationPermission]. */
     data class NotificationPermissionAnswered(val granted: Boolean) : DetailIntent
     /** Потяг вниз: перечитати місця, членство й запити. */

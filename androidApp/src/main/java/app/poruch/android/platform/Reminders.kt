@@ -320,6 +320,12 @@ class RequestNotificationCenter(context: Context) : RequestNotifier {
         )
     }
 
+    /**
+     * Пуш про нову заявку — текстом сервера (онлайн-подія: «… хоче прийти — напишіть, як оплатити»). Той самий id, що в
+     * [notify]: свіжіше сповіщення про заявки на цю подію заміняє попереднє.
+     */
+    fun notifyRequest(eventId: String, eventTitle: String, text: String) = post(TAG, eventId, eventTitle, text, reason = "request")
+
     /** Хтось приєднався до відкритої події: той самий канал і тап на подію, свій простір id. */
     fun notifyJoined(eventId: String, eventTitle: String, text: String) = post(JOINED_TAG, eventId, eventTitle, text, reason = "joined")
 

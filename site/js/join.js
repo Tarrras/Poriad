@@ -2,8 +2,9 @@
 // кешує зі сторінкою, а цей скрипт входить (auth.js), записує, показує стан запису й «Після запису». Він же робить
 // `?unfollow` з листа. На сторінці без шторки (афіша) нічого не робить. Правила без DOM — експорти, перевірка —
 // `node tools/join_test.mjs`.
-import { session, sendCode, verifyCode, google, completeRedirect, rpc, signOut, inAppBrowser, browserLinks } from "./auth.js?v=14";
-import { SUPABASE, discover, fold, cardsByIds, esc, displayTitle, stubParts, timeOf, CATEGORIES, price, threadsPost, threadsIntent } from "./poriad.js?v=14";
+import { session, sendCode, verifyCode, google, completeRedirect, rpc, signOut, inAppBrowser, browserLinks } from "./auth.js?v=18";
+import { SUPABASE, discover, fold, cardsByIds, esc, displayTitle, stubParts, timeOf, CATEGORIES, price, priceText, threadsPost, threadsIntent, plural, POST_MONTHS } from "./poriad.js?v=18";
+import { threadFeed, sendProof, forgetProofs, openProof, payStage } from "./chat.js?v=18";
 
 /** Відповідь бази на запис → стан шторки (таблиця «Інші відповіді на запис»). Невідома — null: показуємо помилку. */
 const OUTCOMES = {
@@ -17,10 +18,13 @@ export const outcome = (code) => OUTCOMES[code] ?? null;
 
 /** Стани шторки: заголовок, підпис і що з дій видно. `leave` — текст скасування. */
 export const STATUS = {
-  approved: { title: "Ви в списку", ics: true, leave: "Скасувати запис", after: true },
-  requested: { title: "Заявку надіслано", text: "Відповідь організатора прийде на пошту.", leave: "Скасувати заявку", after: true },
+  approved: { title: "Ви в списку", ics: true, leave: "Скасувати запис", after: true, ask: true },
+  requested: { title: "Заявку надіслано", text: "Відповідь організатора прийде на пошту.", leave: "Скасувати заявку", after: true, ask: true },
+  // Оплата онлайн (docs/organizer-events.md): заявка — це розмова про оплату; заголовок і текст — за нею (payStatus).
+  requestedPay: { title: "Чекає оплати", leave: "Скасувати заявку", after: true, ask: true },
+  approvedPay: { title: "Оплачено — ви в списку", ics: true, leave: "Скасувати запис", after: true, ask: true },
   full: { title: "Місць уже нема", text: "Якщо хтось відмовиться, напишемо.", waitlist: true, after: true, week: true },
-  waitlist: { title: "Ви в черзі", text: "Якщо хтось відмовиться, напишемо.", leave: "Вийти з черги", after: true, week: true },
+  waitlist: { title: "Ви в черзі", text: "Якщо хтось відмовиться, напишемо.", leave: "Вийти з черги", after: true, week: true, ask: true },
   closed: { title: "Запис на цю подію закрито." },
   age: { title: "" }, // ageLimit
   denied: { title: "Записатися не вийшло." },
@@ -32,9 +36,37 @@ export const STATUS = {
   signedOut: { title: "Ви вийшли", text: "На цьому пристрої сторінка більше не памʼятає вашого акаунта." },
 };
 /** Напис на кнопці внизу сторінки. */
-const LABELS = { none: "Йду", approved: "Ви в списку", requested: "Заявку надіслано", waitlist: "Ви в черзі" };
+const LABELS = { none: "Йду", approved: "Ви в списку", approvedPay: "Ви в списку", requested: "Заявку надіслано", requestedPay: "Чекає оплати", waitlist: "Ви в черзі" };
 /** Штамп стану на квитку шторки й панелі (DESIGN.md, Ticket Stamp): участь — success, запит і черга — штампова фарба. */
-export const STAMPS = { approved: ["Ви йдете", "success"], requested: ["Запит", "accent"], waitlist: ["Черга", "accent"] };
+export const STAMPS = { approved: ["Ви йдете", "success"], approvedPay: ["Ви йдете", "success"], requested: ["Запит", "accent"],
+  requestedPay: ["Чекає оплати", "accent"], waitlist: ["Черга", "accent"] };
+/** Стан для шторки й кнопки: у події з оплатою онлайн заявка — «Чекає оплати», запис — «Оплачено». */
+export const statusKind = (state, payOnline) => (payOnline && (state === "requested" || state === "approved") ? `${state}Pay` : state);
+/** Заявка з оплатою онлайн за розмовою (chat.js, payStage): заголовок шторки й що робити далі. `sum` — «250 ₴». */
+export const payStatus = (stage, sum = "") => ({
+  details: { title: "Чекає оплати", text: `Організатор напише в розмові, як оплатити${sum ? ` ${sum}` : ""}. Лист прийде на пошту.` },
+  payment: { title: "Реквізити в розмові", text: `Оплатіть${sum ? ` ${sum}` : ""} за реквізитами й надішліть скріншот у розмові.` },
+  proof: { title: "Оплату перевіряє організатор", text: "Коли гроші прийдуть, організатор підтвердить заявку — і ви в списку." },
+}[stage]);
+/**
+ * Тому, хто платить: хто організатор — довіра замість тривоги, як у шапці розмови в застосунку («Марта · На «Поряд» з
+ * вересня 2026 · 3 події організовано»). `card` — рядок `profile_card`.
+ */
+export function organizerTrust(card) {
+  if (!card) return "";
+  const at = new Date(card.member_since ?? "");
+  const organized = Number(card.organized) || 0;
+  return [card.display_name, Number.isNaN(at.getTime()) ? "" : `На «Поряд» з ${POST_MONTHS[at.getUTCMonth()]} ${at.getUTCFullYear()}`,
+    organized ? plural(organized, ["подію організовано", "події організовано", "подій організовано"]) : ""].filter(Boolean).join(" · ");
+}
+/** Смуга над розмовою — ті самі слова, що в застосунку (`pay_thread_*_mine`). */
+export const PAY_BAR = {
+  details: "Чекає оплати: організатор напише тут, як оплатити.",
+  payment: "Оплатіть за реквізитами й надішліть сюди скріншот.",
+  proof: "Скріншот надіслано: організатор звірить оплату й підтвердить заявку.",
+  paid: "Оплачено — ви в списку.",
+  cancelled: "Подію скасовано. Якщо ви вже оплатили, організатор має повернути гроші — напишіть йому тут.",
+};
 
 /** Помилки входу й дрібних дій — текстом під формою. */
 const MESSAGES = {
@@ -46,6 +78,13 @@ const MESSAGES = {
   access_denied: "Вхід через Google скасовано.",
   INVALID_BIRTH_DATE: "Перевірте дату народження.",
   FOLLOW_UNAVAILABLE: "Стежити за цим організатором зараз не можна.", TOO_MANY_FOLLOWS: "Ви вже стежите за 200 організаторами й місцями.",
+  // Розмова з організатором.
+  PAYMENT_DETAILS: "Реквізити тут не надсилаються: про оплату домовляйтеся з організатором у чаті учасників чи на місці.",
+  TOO_MANY_MESSAGES: "Забагато повідомлень. Зачекайте хвилину.", CHAT_CLOSED: "Розмову закрито: подія давно минула.",
+  INVALID_MESSAGE: "Повідомлення — до 2000 символів.", OBJECTIONABLE_CONTENT: "Текст містить слова, які ми не публікуємо. Перепишіть, будь ласка.",
+  NOT_MEMBER: "Написати організатору зараз не можна.",
+  NOT_IMAGE: "Оберіть зображення — скріншот оплати.", TOO_BIG: "Скріншот завеликий навіть після стиснення.",
+  INVALID_IMAGE: "Скріншот не вдалося надіслати. Спробуйте ще раз.",
 };
 
 /**
@@ -106,7 +145,13 @@ export function start(sheet) {
   const data = sheet.dataset;
   const id = data.event;
   const bar = document.querySelector("[data-join]");
-  let action = "join"; // що зробити після входу: join чи unfollow
+  let action = "join"; // що зробити після входу: join, unfollow чи ask (написати організатору)
+  const payOnline = "payOnline" in data;
+  const sum = Number(data.price) > 0 ? priceText(data.price) : "";
+  let stage = "details"; // оплата онлайн: де заявка за розмовою (payStage)
+  let person = null; // чия розмова з організатором відкрита: моя заявка
+  let talked = false; // у розмові вже щось є: порожню пояснює її власний текст, смуга лише повторила б його
+  let agreed = false; // оплата онлайн: людина погодилась на умови цієї події (accept_pay_terms) — можна подавати заявку
   let state = "none";
   let shown = null; // що зараз у шторці
   let version = 0; // скільки разів мінявся стан: тихе оновлення не перезаписує свіжішого
@@ -129,7 +174,9 @@ export function start(sheet) {
   function open(step) {
     for (const section of sheet.querySelectorAll("[data-step]")) section.hidden = section.dataset.step !== step;
     $("[data-error]").hidden = true;
-    if (step === "start") $("[data-head]").textContent = action === "unfollow" ? "Не стежити за організатором" : "Записатися";
+    if (step === "start") $("[data-head]").textContent = action === "unfollow" ? "Не стежити за організатором" : action === "ask" ? "Написати організатору" : "Записатися";
+    // Назва вікна для читача екрана — заголовок кроку, який видно, а не загальне «Запис на подію».
+    sheet.setAttribute("aria-label", $(`[data-step="${step}"] h2`)?.textContent || "Запис на подію");
     if (!sheet.open) sheet.showModal();
     signedInAs(step).catch(() => {});
   }
@@ -147,6 +194,8 @@ export function start(sheet) {
     el.hidden = false;
   }
   function fail(e) {
+    // Сервер не знайшов згоди на оплату онлайн (інша вкладка, стара сторінка) — показуємо умови ще раз.
+    if (e?.code === "PAY_TERMS_REQUIRED" && payOnline) { agreed = false; return open("pay"); }
     const kind = outcome(e?.code);
     if (kind === "profile") return askProfile();
     if (kind === "start") return open("start");
@@ -158,10 +207,13 @@ export function start(sheet) {
   function setState(next) {
     state = next;
     version += 1;
-    if (bar) bar.textContent = LABELS[next];
+    if (bar) bar.textContent = LABELS[statusKind(next, payOnline)];
+    const proofPick = $("[data-proof-pick]");
+    if (proofPick) proofPick.hidden = next !== "requested"; // оплачено — скріншот більше не потрібен
+    paintPayBar();
     // Записаний — на квитку штамп, а «Йду» стає тоновою: головна дія вже зроблена.
     document.querySelector(".bar")?.setAttribute("data-state", next);
-    const [word, tone] = STAMPS[next] ?? ["", ""];
+    const [word, tone] = STAMPS[statusKind(next, payOnline)] ?? ["", ""];
     for (const stamp of [$("[data-going]"), document.querySelector(".bar [data-going]")]) {
       if (!stamp) continue;
       stamp.textContent = word;
@@ -170,7 +222,8 @@ export function start(sheet) {
     }
   }
   function show(kind) {
-    const s = STATUS[kind];
+    kind = statusKind(kind, payOnline);
+    const s = kind === "requestedPay" ? { ...STATUS.requestedPay, ...payStatus(stage, sum) } : STATUS[kind];
     shown = kind;
     $("[data-title]").textContent = kind === "age" ? ageLimit(Number(data.minAge), Number(data.maxAge))
       : kind === "unfollowAsk" ? unfollowTitle(data.organizer ? data.organizerName : "") : s.title;
@@ -181,6 +234,8 @@ export function start(sheet) {
     $("[data-ics]").hidden = !s.ics;
     const unfollowButton = $("[data-unfollow]"); // сторінка з кешу могла прийти ще без цієї кнопки
     if (unfollowButton) unfollowButton.hidden = !s.unfollow;
+    const askButton = $("[data-open-ask]");
+    if (askButton) askButton.hidden = !s.ask || !feed;
     const leave = $("[data-leave]");
     leave.textContent = s.leave ?? "";
     leave.hidden = !s.leave;
@@ -188,6 +243,7 @@ export function start(sheet) {
     const week = $("[data-week]");
     if (week && !s.week) week.hidden = true;
     open("status");
+    if (kind === "requestedPay") readStage().catch(() => {});
     if (s.after) after().catch(() => {});
     if (s.week) thisWeek().catch(() => {});
   }
@@ -195,7 +251,69 @@ export function start(sheet) {
   // ---- Запис
   async function proceed() {
     if (!(await session())) return open("start");
-    return action === "unfollow" ? askUnfollow() : join();
+    return action === "unfollow" ? askUnfollow() : action === "ask" ? openAsk() : join();
+  }
+
+  // ---- Розмова з організатором («Поряд» — міст: пошти й телефону одне одного не видно). Стрічка — chat.js.
+  const threadBox = $("[data-thread]"); // сторінка з кешу могла прийти ще без розмови
+  const feed = threadBox && threadFeed(threadBox, {
+    empty: `<p class="fine" data-empty>${payOnline ? "Організатор напише тут, як оплатити. Можете й самі спитати щось про подію." : "Спитайте про подію — відповідь прийде сюди й на пошту."}</p>`,
+    alive: () => sheet.open && !$('[data-step="ask"]').hidden,
+    changed: (rows) => {
+      if (talked !== rows.length > 0) { talked = rows.length > 0; paintPayBar(); }
+      setStage(payStage(rows, person));
+    },
+    live: $("[data-thread-live]"),
+  });
+  /** Де заявка з оплатою онлайн: смуга над розмовою, а відкрита шторка стану — новим заголовком. */
+  function setStage(next) {
+    if (next === stage) return;
+    stage = next;
+    paintPayBar();
+    if (shown === "requestedPay" && !$('[data-step="status"]').hidden) show("requestedPay");
+  }
+  /** Шторка стану без відкритої розмови: стадію читаємо з тієї ж розмови. */
+  async function readStage() {
+    const me = (await session())?.user?.id;
+    if (!me) return;
+    person = me;
+    const rows = (await rpc("event_messages", { p_event_id: id, p_after: null, p_limit: 100, p_thread: me })) ?? [];
+    setStage(payStage(rows, me));
+  }
+  /** Хто організатор — один раз за сторінку: картка не змінюється, поки людина в розмові. */
+  async function showTrust() {
+    const line = payOnline && data.organizer && $("[data-trust]");
+    if (!line || line.textContent) return;
+    const rows = await rpc("profile_card", { p_user_id: data.organizer });
+    line.textContent = organizerTrust(rows?.[0]);
+    line.hidden = !line.textContent;
+  }
+  /** Смуга над розмовою (оплата онлайн): що зараз із заявкою і скільки платити — як у застосунку. */
+  function paintPayBar() {
+    const payBar = payOnline && $("[data-pay-bar]");
+    if (!payBar) return;
+    const text = "cancelled" in data && state !== "none" ? PAY_BAR.cancelled
+      : state === "approved" ? PAY_BAR.paid : state === "requested" && talked ? PAY_BAR[stage] : "";
+    payBar.hidden = !text;
+    payBar.querySelector("span").textContent = text;
+    payBar.querySelector("b").textContent = sum;
+    payBar.classList.toggle("done", state === "approved");
+    // Реквізити прийшли — наступний крок людини скріншот: кнопка над полем стає головною.
+    const pick = $(".proof-pick");
+    pick?.classList.toggle("primary", state === "requested" && stage === "payment");
+    pick?.classList.toggle("secondary", !(state === "requested" && stage === "payment"));
+  }
+  async function openAsk() {
+    if (!feed) return;
+    const me = (await session())?.user?.id;
+    if (!me) { action = "ask"; return open("start"); }
+    // З листа розмову відкривають без стану запису, а скріншот можна лише записаним (як `can_upload_proof`).
+    if (state === "none") refresh().catch(() => {});
+    person = me;
+    open("ask");
+    showTrust().catch(() => {});
+    await feed.show({ event: id, thread: me, me, organizer: data.organizer });
+    $('[data-form="ask"] textarea')?.focus();
   }
   /** «Не стежити» з листа — лише після підтвердження: посилання могли відкрити випадково чи підсунути. */
   function askUnfollow() {
@@ -203,6 +321,8 @@ export function start(sheet) {
     refresh().catch(() => {}); // кнопка внизу має знати, що людина записана
   }
   async function join(waitlist = false) {
+    // Онлайн-подія: спершу умови оплати напряму й правила повернення (згода зберігається на сервері).
+    if (payOnline && !waitlist && !agreed) return open("pay");
     try {
       await rpc(waitlist ? "join_waitlist_web" : "join_event_web", { p_event: id });
     } catch (e) {
@@ -237,6 +357,9 @@ export function start(sheet) {
   }
   async function leave() {
     const was = state;
+    // Гроші повертає організатор, не «Поряд»: хто, можливо, вже заплатив, має це знати до скасування.
+    if (payOnline && (was === "approved" || stage !== "details")
+      && !confirm(`${STATUS[statusKind(was, payOnline)].leave}? Якщо ви вже оплатили, про повернення грошей домовтеся з організатором у розмові.`)) return;
     await rpc(was === "waitlist" ? "leave_waitlist" : "leave_event", { p_event_id: id });
     setState("none");
     show({ approved: "left", requested: "withdrawn", waitlist: "unqueued" }[was]);
@@ -254,6 +377,13 @@ export function start(sheet) {
     details = null;
     follows = null;
     mode = "friend";
+    feed?.clear();
+    forgetProofs();
+    person = null;
+    stage = "details";
+    talked = false;
+    const ask = document.querySelector("[data-ask]");
+    if (ask) ask.hidden = false;
     if (shareButton) shareButton.lastChild.textContent = "Поділитися з другом";
     const copyLink = document.querySelector("[data-copy-link]");
     if (copyLink) copyLink.hidden = true;
@@ -357,6 +487,9 @@ export function start(sheet) {
     // Чотири дії в ряд на телефоні: організатору на своїй сторінці «Скопіювати посилання» замість «Афіші».
     const afisha = document.querySelector("[data-afisha]");
     if (afisha) afisha.hidden = mode === "promote";
+    // Організатор на своїй сторінці: собі не пишуть, розмови з людьми — у кабінеті.
+    const ask = document.querySelector("[data-ask]");
+    if (ask) ask.hidden = event.organizer_id === me;
     if (mode === "friend") prepareInvite();
   }
   /** Токен запрошення; збій (мережа, ліміт, подія минула) лише знеособлює посилання, як у застосунку. */
@@ -411,8 +544,54 @@ export function start(sheet) {
     return proceed();
   }));
   $("[data-close]").addEventListener("click", () => sheet.close());
+  document.querySelector("[data-ask]")?.addEventListener("click", task(() => {
+    action = "ask";
+    return proceed();
+  }));
+  $("[data-open-ask]")?.addEventListener("click", task(openAsk));
+  $('[data-form="ask"]')?.addEventListener("submit", task(async (event) => {
+    const form = event.target;
+    const body = form.body.value.trim();
+    if (!body) return;
+    const me = (await session())?.user?.id;
+    if (!me) { action = "ask"; return open("start"); }
+    $("[data-error]").hidden = true;
+    await rpc("send_message", { p_event_id: id, p_body: body, p_thread: me });
+    form.reset();
+    await feed.load();
+  }));
+  // Скріншот оплати — з текстом поля.
+  $("[data-proof]")?.addEventListener("change", task(async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const me = (await session())?.user?.id;
+    if (!me) { action = "ask"; return open("start"); }
+    $("[data-error]").hidden = true;
+    const form = $('[data-form="ask"]');
+    await sendProof({ event: id, me, file, body: form.body.value.trim() });
+    form.reset();
+    await feed.load();
+  }));
+  threadBox?.addEventListener("click", (event) => { if (openProof(event)) event.preventDefault(); });
+  // Номер з реквізитів — у буфер без пробілів: не всі банки приймають групи. Браузер не дав буфера — виділяємо номер,
+  // щоб скопіювати вручну.
+  threadBox?.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-copy-number]");
+    if (!button) return;
+    if (await copy(button.dataset.copyNumber)) flash(button, "Скопійовано");
+    else getSelection()?.selectAllChildren(button.previousElementSibling);
+  });
+  threadBox?.addEventListener("click", task(async (event) => {
+    const button = event.target.closest("[data-report]");
+    if (!button) return;
+    if (!confirm("Поскаржитись на це повідомлення як на шахрайство? Модератори побачать його текст.")) return;
+    await rpc("report_message", { p_message_id: button.dataset.report, p_reason: "scam" });
+    button.replaceWith(Object.assign(document.createElement("span"), { textContent: "Скаргу надіслано" }));
+  }));
   // Закрили шторку — передумали: наступне перезавантаження не відкриває крок з кодом.
   sheet.addEventListener("close", () => {
+    feed?.stop();
     sessionStorage.removeItem(PENDING);
     if (fresh) document.querySelector(".bar")?.setAttribute("data-fresh", "");
     fresh = false;
@@ -450,6 +629,11 @@ export function start(sheet) {
     await join();
   }));
   $("[data-waitlist]").addEventListener("click", task(() => join(true)));
+  $("[data-pay-agree]")?.addEventListener("click", task(async () => {
+    await rpc("accept_pay_terms", { p_role: "payer", p_event_id: id });
+    agreed = true;
+    await join();
+  }));
   $("[data-leave]").addEventListener("click", task(leave));
   $("[data-unfollow]")?.addEventListener("click", task(unfollow));
   $("[data-signout]")?.addEventListener("click", task(leaveAccount));
@@ -481,6 +665,14 @@ export function start(sheet) {
       if (e.intent?.event === id) { action = e.intent.action; open("start"); throw e; }
     }
     const url = new URL(location.href);
+    // «Відкрити розмову» з листа: організатор написав.
+    if (url.searchParams.has("ask") && feed) {
+      url.searchParams.delete("ask");
+      history.replaceState(history.state, "", url);
+      action = "ask";
+      if (await session()) await openAsk(); else open("start");
+      return true;
+    }
     const unfollowing = url.searchParams.has("unfollow");
     if (unfollowing) {
       url.searchParams.delete("unfollow");

@@ -450,6 +450,20 @@ dialog[open]::backdrop { animation: fade .3s ease; }
 .facts > div { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; background: var(--surface); }
 .facts b { font: 600 16px/21px var(--font); overflow-wrap: anywhere; }
 .facts small { font: 400 14px/19px var(--font); color: var(--ink-secondary); overflow-wrap: anywhere; }
+/* Ⓘ біля ціни: як платити — у спливному вікні (popover), а не текстом під сумою. Ціль дотику — 44 px. */
+.facts .info { display: inline-grid; place-items: center; width: 44px; height: 44px; margin: -12px -10px -12px -6px; vertical-align: middle;
+  border: 0; background: none; color: var(--ink-secondary); cursor: pointer; border-radius: 50%; }
+.facts .info .ico { width: 18px; height: 18px; }
+.info-pop { max-width: min(320px, calc(100vw - 32px)); margin: auto; padding: 14px 16px; border: 1px solid var(--edge); border-radius: var(--r-md);
+  background: var(--surface); color: var(--ink); font: 400 15px/21px var(--font); box-shadow: 0 12px 32px rgb(0 0 0 / 0.18); }
+.info-pop::backdrop { background: rgb(0 0 0 / 0.12); }
+/* Де вміє — під ⓘ, правим краєм до нього; без підтримки — посередині екрана. */
+@supports (position-area: bottom) {
+  .facts .info { anchor-name: --fact-info; }
+  .info-pop { position-anchor: --fact-info; position-area: bottom span-left; position-try-fallbacks: flip-block;
+    position-visibility: anchors-visible; margin: 4px 0 4px 16px; }
+  .info-pop::backdrop { background: none; }
+}
 .artist-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .artist-chips button { height: 44px; padding: 0 18px; border-radius: 999px; background: var(--surface); border: 1px solid var(--edge); font: 500 15px/18px var(--font); display: inline-flex; align-items: center; gap: 8px; transition: background .2s; }
 .artist-chips button:hover { background: var(--surface-muted); }
@@ -764,8 +778,9 @@ a.row:hover { background: var(--surface-muted); }
 .join-sheet .btn .ico { width: 20px; height: 20px; }
 .join-sheet .lead b { overflow-wrap: anywhere; }
 .field { display: flex; flex-direction: column; gap: 6px; font: 600 13px/18px var(--font); color: var(--ink-secondary); }
-.field input { height: 52px; padding: 0 16px; border: 1px solid var(--hairline); border-radius: var(--r-md); background: var(--canvas); font: 400 17px/22px var(--font); color: var(--ink); }
-.field input:focus { outline: none; box-shadow: 0 0 0 2px var(--ink); }
+.field input, .field textarea { border: 1px solid var(--hairline); border-radius: var(--r-md); background: var(--canvas); color: var(--ink); }
+.field input { height: 52px; padding: 0 16px; font: 400 17px/22px var(--font); }
+.field input:focus, .field textarea:focus { outline: none; box-shadow: 0 0 0 2px var(--ink); }
 .field input[inputmode="numeric"] { font: 800 28px/1 var(--xcond); letter-spacing: 6px; font-variant-numeric: tabular-nums; }
 .or { display: flex; align-items: center; gap: 12px; font: 500 13px/18px var(--font); color: var(--ink-tertiary); }
 .or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--hairline); }
@@ -786,6 +801,39 @@ a.row:hover { background: var(--surface-muted); }
 .app-pitch { display: flex; flex-direction: column; gap: 10px; padding-top: 16px; border-top: 1px solid var(--hairline); }
 .app-pitch b { font: 700 22px/26px var(--cond); }
 .join-sheet .week { padding-top: 16px; border-top: 1px solid var(--hairline); }
+/* Розмова з організатором (docs/organizer-events.md): «Поряд» — міст. Свої — праворуч чорнилом, організатора — ліворуч;
+   під реквізитами — застереження кольором попередження й «Поскаржитись». */
+.detail > .ask { width: 100%; margin: 4px 0 0; }
+.field textarea { padding: 12px 16px; font: 400 17px/24px var(--font); resize: vertical; }
+.thread { display: flex; flex-direction: column; gap: 10px; max-height: min(46svh, 420px); min-height: 72px; overflow-y: auto; overscroll-behavior: contain; padding: 2px; }
+.msg { align-self: flex-start; max-width: 86%; display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; border-radius: var(--r-md) var(--r-md) var(--r-md) 4px; background: var(--canvas); }
+.msg.mine { align-self: flex-end; border-radius: var(--r-md) var(--r-md) 4px var(--r-md); background: var(--ink); color: var(--on-brand); }
+.msg small { font: 600 12px/16px var(--font); color: var(--ink-tertiary); }
+.msg.mine small { color: color-mix(in srgb, var(--on-brand) 70%, transparent); }
+.msg p { font: 400 16px/22px var(--font); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Під реквізитами тому, хто платить: номер з «Скопіювати» і спокійне речення — довіра замість тривоги, без червоного. */
+.msg .pay-note { margin-top: 6px; display: grid; gap: 6px; white-space: normal; }
+.msg .pay-note > p { margin: 0; color: var(--ink-secondary); font: 400 13px/18px var(--font); }
+.msg .pay-note .link { display: inline-flex; align-items: center; min-height: 44px; font: 600 13px/18px var(--font); color: var(--ink); }
+.msg .pay-number { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; padding-left: 10px; border-radius: var(--r-sm); background: var(--surface-muted); }
+.msg .pay-number b { flex: 1; padding: 10px 0; color: var(--ink); font: 600 16px/22px var(--font); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.msg .pay-number .link { padding: 0 10px; }
+/* Скріншот оплати: прев'ю в бульбашці, тап — повністю. Поки вантажиться з приватного бакета — тонова плашка. */
+.msg .proof { display: block; padding: 0; border-radius: var(--r-sm); overflow: hidden; background: var(--surface-muted); cursor: zoom-in; }
+.msg .proof img { display: block; width: 100%; max-width: 240px; min-width: 120px; min-height: 96px; max-height: 320px; object-fit: cover; }
+.proof-pick { cursor: pointer; }
+/* Поле файлу приховане від очей, але не від клавіатури: Tab стає на кнопку, рамка — навколо неї. */
+.proof-pick:focus-within { outline: 2px solid var(--focus, var(--ink)); outline-offset: 3px; }
+/* Скріншот — лише записаним (join.js, setState); блок не міняє відступів кроку. */
+.proof-box:not([hidden]) { display: contents; }
+/* Смуга заявки над розмовою (оплата онлайн): що зараз із заявкою і скільки платити — як у застосунку. */
+.pay-bar:not([hidden]) { display: flex; align-items: baseline; gap: 12px; margin: 0; padding: 10px 12px; border-radius: var(--r-sm); background: var(--accent-container); color: var(--ink); font: 500 14px/20px var(--font); }
+.pay-bar span { flex: 1; }
+.pay-bar b { font-weight: 700; white-space: nowrap; }
+.pay-bar.done { background: var(--surface-muted); }
+/* Умови оплати онлайн перед заявкою: три короткі пункти, без тривоги. */
+.pay-terms { margin: 0 0 16px; padding-left: 20px; display: grid; gap: 8px; color: var(--ink-secondary); font: 400 15px/21px var(--font); }
+.kab-pay-online:not([hidden]) { display: grid; gap: 12px; }
 /* Записаний (design-wow-1.5): над числом місць — штамп стану, «Ви в списку» — тоном, бо головну дію вже зроблено. */
 .bar .meta .stamp { align-self: flex-start; margin: 0 0 5px 1px; }
 .bar .meta:has(.stamp:not([hidden])) small { display: none; }
@@ -859,7 +907,8 @@ a.row:hover { background: var(--surface-muted); }
 .kab-done b { font: 700 20px/24px var(--cond); }
 .kab-tools { display: flex; flex-wrap: wrap; gap: 10px; }
 .kab-people { margin-top: 44px; }
-.kab-table-wrap { overflow-x: auto; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--edge); }
+/* position — щоб прихований підпис колонки «Дії» (.sr, absolute) лишався в обгортці, а не розширював сторінку. */
+.kab-table-wrap { position: relative; overflow-x: auto; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--edge); }
 .kab-table { width: 100%; border-collapse: collapse; font: 400 15px/21px var(--font); }
 .kab-table th, .kab-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--hairline); white-space: nowrap; }
 .kab-table thead th { font: 600 11px/14px var(--font); letter-spacing: 1px; text-transform: uppercase; color: var(--ink-tertiary); }
@@ -867,18 +916,33 @@ a.row:hover { background: var(--surface-muted); }
 .kab-table tbody th { font-weight: 600; }
 .kab-table .kab-act { text-align: right; }
 .kab-act .btn + .btn { margin-left: 8px; }
+.kab-expected { font: 600 14px/20px var(--font); color: var(--ink); font-variant-numeric: tabular-nums; }
+.kab-expected:empty { display: none; }
+/* Телефон: рядок таблиці — картка. Імʼя й стан, під ними коли й звідки, дії — на всю ширину. */
+@media (max-width: 560px) {
+  .kab-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .kab-table, .kab-table tbody { display: block; }
+  .kab-table tr { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--hairline); }
+  .kab-table tbody tr:last-child { border-bottom: 0; }
+  .kab-table th, .kab-table td { padding: 0; border: 0; white-space: normal; }
+  .kab-table td:nth-child(3), .kab-table td:nth-child(4) { font-size: 13px; line-height: 18px; color: var(--ink-secondary); }
+  .kab-table td:nth-child(4) { text-align: right; }
+  .kab-table .kab-act { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; text-align: left; }
+  .kab-act .btn + .btn { margin-left: 0; }
+}
 .kab-people .kab-hint { margin-top: 12px; }
 
 /* Редактор: форма зліва, квиток-чернетка справа (на телефоні — лише форма). */
 .kab-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; align-items: start; }
 .kab-form { display: flex; flex-direction: column; gap: 16px; }
 .kab-card { margin: 0; padding: 22px 24px 24px; border: 1px solid var(--edge); border-radius: var(--r-lg); background: var(--surface); display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.kab-card > legend { float: left; width: 100%; padding: 0; font: 800 26px/30px var(--cond); letter-spacing: -.01em; }
+.kab-card > legend, .kab-card-title { font: 800 26px/30px var(--cond); letter-spacing: -.01em; }
+.kab-card > legend { float: left; width: 100%; padding: 0; }
 .kab-card > legend + * { clear: both; }
 .kab-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .kab-field > span:first-child, .kab-field > label { font: 600 14px/18px var(--font); color: var(--ink-secondary); }
 .kab-field small { font-weight: 400; color: var(--ink-tertiary); }
-.kab input:not([type=checkbox]):not([type=file]), .kab textarea, .kab select { width: 100%; min-height: 48px; padding: 0 14px; border: 1px solid var(--edge); border-radius: var(--r-sm);
+.kab input:not([type=checkbox]):not([type=radio]):not([type=file]), .kab textarea, .kab select { width: 100%; min-height: 48px; padding: 0 14px; border: 1px solid var(--edge); border-radius: var(--r-sm);
   background: var(--canvas); color: var(--ink); font: 400 16px/22px var(--font); transition: box-shadow .2s; }
 .kab textarea { padding: 12px 14px; resize: vertical; }
 .kab input:focus, .kab textarea:focus, .kab select:focus { outline: none; box-shadow: 0 0 0 2px var(--ink); }
@@ -886,9 +950,32 @@ a.row:hover { background: var(--surface-muted); }
 .kab-when { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .kab-chips { flex-wrap: wrap; overflow: visible; align-items: center; }
 .kab-check { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
-.kab-check input { width: 22px; height: 22px; margin: 1px 0 0; flex: none; accent-color: var(--ink); }
+/* Свої radio й прапорець: нативні браузер малює різного розміру (прапорець здавався зсунутим), а глобальний
+   :focus-visible давав radio квадратну рамку. Обидва — 22 px у рядок із заголовком; рамка фокусу йде за формою. */
+.kab-check input { appearance: none; width: 22px; height: 22px; margin: 0; flex: none; display: grid; place-content: center;
+  border: 2px solid var(--ink-tertiary); border-radius: 6px; background: none; cursor: pointer; }
+.kab-check input[type=radio] { border-radius: 50%; }
+.kab-check input:checked { border-color: var(--ink); }
+.kab-check input[type=checkbox]:checked { background: var(--ink); }
+.kab-check input::before { content: ""; width: 10px; height: 10px; transform: scale(0); transition: transform .12s; }
+.kab-check input[type=radio]::before { border-radius: 50%; background: var(--ink); }
+.kab-check input[type=checkbox]::before { width: 12px; height: 12px; background: var(--on-brand);
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%); }
+.kab-check input:checked::before { transform: scale(1); }
+/* Фокус у кабінеті — тінню (.kab input:focus), а не outline: на нативному radio вона й була квадратом. Тут — кільце
+   з відступом за формою, лише з клавіатури: клік мишею кільця не лишає. */
+.kab .kab-check input:focus { box-shadow: none; }
+.kab .kab-check input:focus-visible { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.kab-check input:disabled { opacity: .5; cursor: default; }
 .kab-check span { display: flex; flex-direction: column; font: 400 16px/22px var(--font); }
 .kab-check small { font: 400 14px/20px var(--font); color: var(--ink-secondary); }
+/* Перемикач-пігулка, як SegmentedPill у застосунку: «Вхід — безкоштовно чи платно». */
+.kab-seg { display: flex; padding: 4px; border-radius: 999px; background: var(--brand-container); }
+.kab-seg label { flex: 1; position: relative; cursor: pointer; }
+.kab-seg input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.kab-seg span { display: grid; place-items: center; min-height: 40px; padding: 0 12px; border-radius: 999px; font: 600 15px/20px var(--font); color: var(--ink-secondary); }
+.kab-seg input:checked + span { background: var(--surface); color: var(--ink); }
+.kab-seg input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 2px; }
 .kab-or { text-align: center; font: 400 14px/20px var(--font); color: var(--ink-tertiary); }
 .kab-preview { position: sticky; top: 96px; display: flex; flex-direction: column; gap: 12px; }
 .kab-preview .poster { width: 100%; }
@@ -932,7 +1019,7 @@ a.row:hover { background: var(--surface-muted); }
 
 /* Вхід і акаунт організатора: пароль з «Показати», текстові дії, аватар — фото або літера, як Avatar у застосунку. */
 .kab-secret { position: relative; }
-.kab .kab-secret input:not([type=checkbox]):not([type=file]) { padding-right: 96px; }
+.kab .kab-secret input:not([type=checkbox]):not([type=radio]):not([type=file]) { padding-right: 96px; }
 .kab-reveal { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); height: 36px; padding: 0 12px; border-radius: var(--r-xs);
   font: 600 14px/18px var(--font); color: var(--ink-secondary); }
 .kab-reveal:hover { color: var(--ink); background: var(--surface-muted); }
@@ -949,13 +1036,30 @@ a.row:hover { background: var(--surface-muted); }
 .kab-me-link[aria-current] { box-shadow: inset 0 0 0 1.5px var(--ink); }
 .kab-head.kab-me { justify-content: flex-start; align-items: center; }
 .kab-settings { display: flex; flex-direction: column; gap: 16px; max-width: 720px; }
-.kab-card-title { font: 800 26px/30px var(--cond); letter-spacing: -.01em; }
 .kab-photo { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
 .kab-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 20px; margin: 0; font: 400 16px/22px var(--font); }
 .kab-facts > div { display: contents; }
 .kab-facts dt { color: var(--ink-secondary); }
 .kab-facts dd { margin: 0; overflow-wrap: anywhere; }
 .kab-delete { margin-top: 8px; }
+/* Розмови з учасниками (docs/organizer-events.md): рядок — імʼя, останнє повідомлення, непрочитані. */
+.kab-talk-list { margin: 0 0 4px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.kab-talk-row { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; padding: 12px 16px; border-radius: var(--r-md);
+  background: var(--surface); border: 1px solid var(--edge); text-align: left; transition: background .2s; }
+.kab-talk-row:hover { background: var(--surface-muted); }
+.kab-talk-row b { font: 600 16px/22px var(--font); }
+.kab-talk-row span { grid-column: 1; font: 400 14px/20px var(--font); color: var(--ink-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kab-unread { grid-column: 2; grid-row: 1 / span 2; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 999px; background: var(--accent-text); color: #fff;
+  font: 600 13px/24px var(--font); font-style: normal; text-align: center; }
+.kab-talk .thread { max-height: min(50svh, 440px); }
+/* Хто в розмові: фото, стан на події, профіль і звідки записався — організатор має знати, з ким говорить. */
+.kab-person { display: flex; gap: 14px; align-items: flex-start; padding: 12px; border-radius: var(--r-md); background: var(--canvas); }
+.kab-person:empty { display: none; }
+.kab-person > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.kab-person small { font: 400 13px/18px var(--font); color: var(--ink-secondary); }
+.kab-person-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.kab-person-bio { font: 400 15px/21px var(--font); overflow-wrap: anywhere; }
+.kab-people + .kab-people { margin-top: 32px; }
 .kab-delete a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
 /* Публікація й «Подію створено» (1.6): квиток Lottie 240×160 (3:2) друкується, потім на нього падає штамп. */

@@ -121,7 +121,7 @@ class PoruchApp internal constructor(
         guestSaves,
         guestArtists
     )
-    private val chatEngine = ChatEngine(chat, store, scope)
+    private val chatEngine = ChatEngine(chat, store, scope, profiles)
     private val reloader = Reloader(discovery, library)
     private val pushSync = PushSync(push, seenRequests, seenMessages, store, pendingPush, deviceTouch)
     private val places = PlaceLookup(addresses, timeZones, scope)
@@ -362,6 +362,8 @@ class PoruchApp internal constructor(
      * знімають запізно (iOS — `deinit`, Android — `onCleared`), коли ту саму подію вже відкрили знову.
      */
     internal var detailScreen: DetailPresenter? = null
+    /** Живі екрани деталей у порядку появи ([DetailPresenter.release]). */
+    internal val detailScreens = ArrayList<DetailPresenter>()
     fun loadMyEvents() = library.load()
 
     /** Повернення на передній план: перечитує «мої» і відкриту подію, мапу — якщо видача не свіжа. */
@@ -404,6 +406,9 @@ class PoruchApp internal constructor(
     }
     fun sendMessage(text: String) = chatEngine.send(text)
 
+    /** Скріншот оплати (JPEG без метаданих) у моїй розмові з організатором; [caption] — текст поля, можна порожній. */
+    fun sendPaymentProof(jpeg: ByteArray, caption: String) = chatEngine.send(caption, proof = jpeg)
+
     /** Текст, що не пішов (див. [ChatState.failedDraft]), для поля вводу. Віддає раз. */
     fun consumeFailedDraft(): String? = chatEngine.consumeFailedDraft()
     fun deleteMessage(messageId: String) = chatEngine.delete(messageId)
@@ -413,6 +418,8 @@ class PoruchApp internal constructor(
     // ---- Події
 
     fun joinEvent(id: String) = eventUseCases.join(id)
+    /** Заявка на онлайн-подію після згоди на умови оплати (екран їх щойно показав). */
+    fun requestOnlineEvent(id: String) = eventUseCases.requestOnline(id)
     fun joinWaitlist(id: String) = eventUseCases.joinWaitlist(id)
     fun leaveWaitlist(id: String) = eventUseCases.leaveWaitlist(id)
     fun leaveEvent(id: String) = eventUseCases.leave(id)

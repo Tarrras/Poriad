@@ -1,5 +1,6 @@
 package app.poruch.data.events
 
+import app.poruch.domain.RefundPolicy
 import app.poruch.domain.Artist
 import app.poruch.domain.ArtistHit
 import app.poruch.domain.ArtistRadar
@@ -97,7 +98,10 @@ internal data class EventDto(
     @SerialName("checked_at") val checkedAt: String? = null,
     val offers: List<OfferDto> = emptyList(),
     // Міграція 20261118120000: фото й відео від організатора. Картки з `discover_events` і кеш до неї поля не несуть.
-    val media: List<MediaDto>? = null
+    val media: List<MediaDto>? = null,
+    @SerialName("pay_online") val payOnline: Boolean = false,
+    @SerialName("refund_policy") val refundPolicy: String? = null,
+    @SerialName("prepay") val prepay: Boolean? = null
 ) {
     fun domain() = Event(
         id = id, title = title, description = description, category = EventCategory.fromKey(category),
@@ -129,7 +133,10 @@ internal data class EventDto(
             companionOf = companionOf?.let { CompanionParent(it, companionOfTitle.orEmpty(), companionOfStartsAt) },
             pendingMeet = meetProposed?.let { proposed -> meetDecideBy?.let { PendingMeet(proposed, it) } },
             // Ціна людини — ціле; `price_min` спільний з афішею, тож тут дробу не буває.
-            price = priceMin?.toInt()?.takeIf { it > 0 }
+            price = priceMin?.toInt()?.takeIf { it > 0 },
+            payOnline = payOnline && (priceMin ?: 0.0) > 0,
+            refundPolicy = RefundPolicy.of(refundPolicy),
+            prepay = prepay == true && (priceMin ?: 0.0) > 0
         )
     }
 
@@ -382,9 +389,11 @@ internal data class ChatMessageDto(
     @SerialName("author_name") val authorName: String = "",
     @SerialName("avatar_url") val avatarUrl: String? = null,
     val body: String = "",
-    @SerialName("created_at") val createdAt: String = ""
+    @SerialName("created_at") val createdAt: String = "",
+    @SerialName("payment_details") val paymentDetails: Boolean = false,
+    val image: String? = null
 ) {
-    fun domain() = app.poruch.domain.ChatMessage(id, eventId, authorId, authorName, avatarUrl, body, createdAt)
+    fun domain() = app.poruch.domain.ChatMessage(id, eventId, authorId, authorName, avatarUrl, body, createdAt, paymentDetails, image)
 }
 
 /** Рядок `public.chat_unread_result` з `my_chat_unread`. */
@@ -410,9 +419,10 @@ internal data class QuestionThreadDto(
     @SerialName("last_body") val lastBody: String? = null,
     @SerialName("last_at") val lastAt: String = "",
     @SerialName("last_mine") val lastMine: Boolean = false,
-    val unread: Int = 0
+    val unread: Int = 0,
+    @SerialName("has_proof") val hasProof: Boolean = false
 ) {
-    fun domain() = app.poruch.domain.QuestionThread(askerId, askerName, askerAvatar, lastBody.orEmpty(), lastAt, lastMine, unread)
+    fun domain() = app.poruch.domain.QuestionThread(askerId, askerName, askerAvatar, lastBody.orEmpty(), lastAt, lastMine, unread, hasProof)
 }
 
 /** Рядок `public.join_request_result` з `my_join_requests`. */

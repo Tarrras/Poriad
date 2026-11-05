@@ -1,5 +1,9 @@
 package app.poruch.android.feature.detail
 
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.window.Popup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -52,11 +56,15 @@ import androidx.compose.ui.unit.dp
 import app.poruch.android.EventMap
 import app.poruch.android.R
 import app.poruch.shared.DetailAction
+import app.poruch.shared.questionsWithoutRequests
+import app.poruch.shared.unreadInThread
+import app.poruch.shared.proofInThread
 import app.poruch.android.ui.*
 import app.poruch.android.feature.mine.countdownOverline
 import app.poruch.android.feature.wallet.WalletTicketCard
 import app.poruch.android.feature.wallet.WalletUi
 import app.poruch.domain.WalletTicket
+import app.poruch.domain.Attendee
 import app.poruch.domain.Artist
 import app.poruch.domain.ArtistRole
 import app.poruch.domain.ContactRules
@@ -271,7 +279,7 @@ internal fun Questions(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         SectionHeader(stringResource(R.string.questions_section))
         Column(Modifier.fillMaxWidth().cardSurface()) {
-            state.screen.questions.forEachIndexed { index, question ->
+            state.screen.questionsWithoutRequests.forEachIndexed { index, question ->
                 if (index > 0) HorizontalDivider(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md), color = colors.hairline)
                 val name = question.askerName.ifBlank { stringResource(R.string.chat_member) }
                 Row(
@@ -316,21 +324,55 @@ internal fun JoinRequests(
         verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         SectionHeader(stringResource(R.string.requests_section))
+        // «Відхилити» — після питання: людина отримає сповіщення.
+        var declining by remember { mutableStateOf<Attendee?>(null) }
+        declining?.let { person ->
+            PoruchConfirmSheet(
+                title = stringResource(R.string.decline_confirm_title),
+                message = stringResource(if (state.screen.payOnline) R.string.decline_confirm_body_pay else R.string.decline_confirm_body, person.name),
+                confirmLabel = stringResource(R.string.decline),
+                dismissLabel = stringResource(R.string.cancel),
+                onConfirm = { declining = null; onIntent(DetailIntent.DeclineRequest(person.userId)) },
+                onDismiss = { declining = null },
+                tone = colors.danger
+            )
+        }
         state.screen.requests.forEach { person ->
-            Row(
-                Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
-            ) {
+            // Два рядки: імʼя цілим (поруч із двома кнопками воно ламалось посеред слова), під ним — дії.
+            Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 // Імʼя й фото — вхід у картку: вирішувати, дивлячись на людину, а не на імʼя.
                 Row(
-                    Modifier.weight(1f).clip(Radius.sm).clickable { onIntent(DetailIntent.OpenPerson(person.userId)) },
+                    Modifier.fillMaxWidth().clip(Radius.sm).clickable { onIntent(DetailIntent.OpenPerson(person.userId)) },
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
                     Avatar(person.name, person.avatarUrl, 36.dp)
-                    Text(person.name, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Column {
+                        Text(person.name, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        // Людина вже надіслала скріншот: звірити з банком, не відкриваючи кожну розмову.
+                        if (state.screen.payOnline && state.screen.proofInThread(person.userId)) {
+                            Text(stringResource(R.string.pay_proof_sent), style = PoruchType.caption, color = colors.inkSecondary)
+                        }
+                    }
                 }
-                GhostButton(stringResource(R.string.decline), { onIntent(DetailIntent.DeclineRequest(person.userId)) }, tone = colors.inkSecondary)
-                PrimaryButton(stringResource(R.string.approve), { onIntent(DetailIntent.ApproveRequest(person.userId)) }, enabled = !state.screen.mutating)
+                Row(
+                    Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.End)
+                ) {
+                    GhostButton(stringResource(R.string.decline), { declining = person }, tone = colors.inkSecondary)
+                    if (state.screen.payOnline) {
+                        // Рішення про оплату — у розмові з людиною, поруч із реквізитами й скріншотом.
+                        val unread = state.screen.unreadInThread(person.userId)
+                        // Лічильник прихований від TalkBack: кажемо його в назві кнопки разом з іменем.
+                        val label = stringResource(R.string.thread_with, person.name) +
+                            if (unread > 0) ", " + stringResource(R.string.unread_messages_a11y, unread) else ""
+                        Box(Modifier.semantics(mergeDescendants = true) { contentDescription = label }) {
+                            PrimaryButton(stringResource(R.string.request_chat), { onIntent(DetailIntent.OpenQuestion(person.userId)) })
+                            if (unread > 0) CountBadge(unread, Modifier.align(Alignment.TopEnd))
+                        }
+                    } else {
+                        PrimaryButton(stringResource(R.string.approve), { onIntent(DetailIntent.ApproveRequest(person.userId)) }, enabled = !state.screen.mutating)
+                    }
+                }
             }
         }
     }
@@ -619,20 +661,30 @@ internal fun BoughtCard(saved: Boolean, onIntent: (DetailIntent) -> Unit, onAddT
 /** Факти про подію сіткою два на два, як картка дня в Moonly: підпис над значенням, без гліфів. */
 @Composable
 internal fun Facts(event: Event) {
+    var payInfo: String? = null
+    val priceLabel = stringResource(R.string.price_fact)
     val cells = buildList {
         add(Triple(stringResource(R.string.when_label), eventTime(event, dateWords()), null))
         add(Triple(stringResource(R.string.where), listOf(event.city, event.address).filter { it.isNotBlank() }.joinToString(" · "), null))
         event.gathering?.let { room ->
             add(Triple(stringResource(R.string.organizer_short), room.organizerName.ifBlank { stringResource(R.string.organizer_short) }, null))
             add(Triple(stringResource(R.string.capacity_label), stringResource(R.string.attendees_short, room.attendeeCount, room.capacity), null))
-            // Платна зустріч (docs/organizers-1.5.md, 1.7): ціна й те, що платять організатору напряму, не через нас.
-            peoplePrice(event)?.let { add(Triple(stringResource(R.string.price_fact), it, stringResource(R.string.price_pay_hint))) }
+            // Ціна й коли платять — під нею, одразу; решта — за ⓘ (власник 05.11). Онлайн — ще й правила повернення.
+            payInfo = when {
+                room.payOnline -> listOfNotNull(stringResource(R.string.price_pay_online_hint), refundText(room.refundPolicy)).joinToString(" ")
+                room.prepay -> stringResource(R.string.price_prepay_hint)
+                else -> stringResource(R.string.price_pay_hint)
+            }
+            val payWhen = payWhenText(room)
+            peoplePrice(event)?.let { add(Triple(stringResource(R.string.price_fact), it, payWhen)) }
         }
     }
     Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.xl), verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {
         cells.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
-                row.forEach { (label, value, caption) -> FactCell(label, value, Modifier.weight(1f), caption) }
+                row.forEach { (label, value, caption) ->
+                    FactCell(label, value, Modifier.weight(1f), caption, info = if (label == priceLabel) payInfo else null)
+                }
                 if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
@@ -640,12 +692,38 @@ internal fun Facts(event: Event) {
 }
 
 @Composable
-internal fun FactCell(label: String, value: String, modifier: Modifier, caption: String? = null) {
+internal fun FactCell(label: String, value: String, modifier: Modifier, caption: String? = null, info: String? = null) {
     val colors = Poruch.colors
     Column(modifier.semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
-        Text(value, style = MaterialTheme.typography.titleMedium, color = colors.ink)
+        if (info == null) Text(value, style = MaterialTheme.typography.titleMedium, color = colors.ink)
+        else Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(value, style = MaterialTheme.typography.titleMedium, color = colors.ink)
+            InfoPopup(info)
+        }
         caption?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
+    }
+}
+
+/** Ⓘ і спливне вікно під ним: пояснення, яке не мусить стояти текстом на екрані (як платити за вхід). */
+@Composable
+private fun InfoPopup(text: String) {
+    val colors = Poruch.colors
+    var shown by remember { mutableStateOf(false) }
+    Box {
+        Icon(
+            PoruchIcons.info, stringResource(R.string.pay_info_a11y),
+            // Без minimumInteractiveComponentSize: 48 dp розсунули б рядок ціни; Compose сам розширює ціль дотику до 48 dp.
+            Modifier.clip(CircleShape).clickable(role = Role.Button) { shown = true }.padding(Spacing.xs).size(18.dp),
+            tint = colors.inkSecondary
+        )
+        if (shown) Popup(alignment = Alignment.TopStart, offset = IntOffset(0, with(LocalDensity.current) { 32.dp.roundToPx() }), onDismissRequest = { shown = false }, properties = PopupProperties(focusable = true)) {
+            Text(
+                text, style = MaterialTheme.typography.bodyMedium, color = colors.ink,
+                modifier = Modifier.widthIn(max = 280.dp).shadow(12.dp, RoundedCornerShape(14.dp))
+                    .background(colors.surface, RoundedCornerShape(14.dp)).padding(Spacing.lg)
+            )
+        }
     }
 }
 

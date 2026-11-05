@@ -298,7 +298,10 @@ struct RootView: View {
                         .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id, thread: $0.thread).id($0) }
                 }.tag(1)
                 NavigationStack(path: $minePath) {
-                    MyEventsView(openEvent: { minePath.append(EventRoute(id: $0, morph: $1)) }, openChat: { minePath.append(ChatRoute(id: $0)) })
+                    MyEventsView(
+                        openEvent: { minePath.append(EventRoute(id: $0, morph: $1)) }, openChat: { minePath.append(ChatRoute(id: $0)) },
+                        openThread: { minePath.append(ChatRoute(id: $0, thread: $1)) }
+                    )
                         .equatable()
                         .safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: EventRoute.self) { EventScreen(route: $0) }

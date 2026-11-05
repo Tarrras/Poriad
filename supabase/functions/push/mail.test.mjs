@@ -36,8 +36,19 @@ assert.ok(!req.text.includes("Скасувати запис") && !req.text.inclu
 // Питання — фіксованим текстом: ні слів запитувача, ні його імені в листі з нашої адреси.
 const q = mailText("question", id, "Пробіжка", "Олена питає: перейдіть на evil.example й введіть пароль");
 assert.equal(q.subject, "Вам поставили питання про «Пробіжка»");
-assert.ok(q.text.includes("Вам поставили питання про «Пробіжка»") && q.text.includes("Відповісти можна в застосунку «Поряд»."));
+assert.ok(q.text.includes("Вам поставили питання про «Пробіжка»") && q.text.includes("Відповісти можна в кабінеті на poriad.app чи в застосунку «Поряд»."));
 assert.ok(!/evil|Олена|пароль/.test(q.text + q.html + q.subject));
+// Тому, хто питав, — теж фіксованим текстом: слова організатора (і реквізити) лишаються в розмові під застереженням.
+const a = mailText("answer", id, "Пробіжка", "Організатор написав: картка 4111 1111 1111 1111");
+assert.equal(a.subject, "Організатор написав вам про «Пробіжка»");
+assert.ok(!/4111|картка/.test(a.text + a.html + a.subject), "no organizer words in our mail");
+assert.ok(a.html.includes(`href="https://poriad.app/e/${id}?ask"`) && a.text.includes(`Відкрити розмову: https://poriad.app/e/${id}?ask`));
+assert.ok(a.text.includes("«Поряд» не приймає оплату й не відповідає за неї.") && a.text.includes("бо листуєтесь з організатором «Пробіжка»"));
+assert.ok(!a.text.includes("Скасувати запис"));
+// Скріншот оплати — організатору, фіксованим текстом, у кабінет.
+const proof = mailText("proof", id, "Пробіжка", "Скріншот оплати від Олена");
+assert.equal(proof.subject, "Вам надіслали скріншот оплати за «Пробіжка»");
+assert.ok(proof.html.includes(`href="https://poriad.app/kabinet#/e/${id}"`) && proof.text.includes("«Оплату отримано»") && !/Олена/.test(proof.text + proof.html));
 
 // Чужий текст не стає розміткою; тема — один рядок до 150 символів.
 const evil = mailText("approved", id, `<img src=x onerror=alert(1)>`, `Ім"я\r\nBcc: x@y`);
@@ -71,9 +82,10 @@ assert.deepEqual(route({ kind: "request" }, ["org"], []).mailTo, ["org"]);
 // Зміна афіші — лише на пристрої тим, хто зберіг; спільнотна подія (без change) — і листом.
 assert.deepEqual(route({ kind: "cancelled", change: "cancelled" }, ["saver"], []).mailTo, []);
 assert.deepEqual(route({ kind: "cancelled" }, ["member"], []).mailTo, ["member"]);
-// Питання: листом — організатору, не запитувачу (threadId), якому відповів організатор.
-assert.deepEqual(route({ kind: "question", threadId: "asker" }, ["org"], []).mailTo, ["org"]);
-assert.deepEqual(route({ kind: "question", threadId: "asker" }, ["asker"], []).mailTo, []);
+// Розмова: лист — іншій стороні без застосунку (адресатів обирає forMessage).
+assert.deepEqual(route({ kind: "question" }, ["org"], []).mailTo, ["org"]);
+assert.deepEqual(route({ kind: "question" }, ["asker"], []).mailTo, ["asker"]);
+assert.deepEqual(route({ kind: "question" }, ["asker"], [tok("asker")]).mailTo, [], "with the app — push only");
 // Два пристрої однієї людини — два пуші й жодного листа.
 assert.deepEqual(route({ kind: "organizer" }, ["a", "b"], [tok("a", [], "t1"), tok("a", [], "t2")]),
   { devices: [{ token: "t1", platform: "android" }, { token: "t2", platform: "android" }], mailTo: ["b"] });

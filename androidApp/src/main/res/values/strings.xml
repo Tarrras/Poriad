@@ -183,6 +183,7 @@
   <string name="going">Ви йдете</string>
   <!-- Штамп стану на панелі дії після запису (docs/design-wow-1.5.md): заявка й черга; участь — going. -->
   <string name="stamp_request">Запит</string>
+  <string name="stamp_pay">Чекає оплати</string>
   <string name="stamp_waitlist">Черга</string>
   <string name="seats_left">Лишилось %1$d місць</string>
   <string name="attendees">%1$d з %2$d учасників</string>
@@ -492,10 +493,28 @@
   <string name="questions_section_hint">Бачите лише ви й людина, яка питає.</string>
   <string name="question_subtitle">Бачите лише ви й організатор</string>
   <string name="question_from">Питає %1$s</string>
-  <string name="question_placeholder">Ваше питання…</string>
-  <string name="question_reply_placeholder">Відповісти…</string>
+  <!-- Організатор пише першим (людина ще нічого не питала) або це заявка онлайн-події. -->
+  <string name="thread_with">Розмова: %1$s</string>
+  <string name="question_placeholder">Напишіть організатору…</string>
+  <string name="question_reply_placeholder">Повідомлення…</string>
   <string name="question_empty_title">Що хочете дізнатися?</string>
   <string name="question_empty_hint">Що взяти, чи можна з другом, як знайти місце — організатор відповість тут. Учасники цієї розмови не бачать.</string>
+  <string name="question_empty_title_org">Напишіть першим</string>
+  <string name="question_empty_hint_org">Цю розмову бачите лише ви й людина. Учасники її не бачать.</string>
+  <!-- Заявка на онлайн-подію — це й розмова про оплату. -->
+  <string name="pay_empty_title_org">Напишіть, як оплатити</string>
+  <string name="pay_empty_hint_org">Картка, IBAN чи банка — лише тут. Людина скопіює номер одним дотиком, а скріншот оплати надішле сюди.</string>
+  <string name="pay_empty_title_mine">Заявку надіслано</string>
+  <string name="pay_empty_hint_mine">Організатор напише тут, як оплатити. Можете написати й самі.</string>
+  <!-- Смуга заявки над розмовою: стан іде за розмовою (реквізити → скріншот → «Оплату отримано»), сума — праворуч. -->
+  <string name="pay_thread_details_org">%1$s хоче прийти · напишіть, як оплатити</string>
+  <string name="pay_thread_waiting_org">%1$s хоче прийти · чекає оплати</string>
+  <string name="pay_thread_proof_org">%1$s · скріншот надіслано, звірте з банком</string>
+  <string name="pay_thread_paid_org">%1$s · оплачено, у списку</string>
+  <string name="pay_thread_details_mine">Чекає оплати: організатор напише тут, як оплатити.</string>
+  <string name="pay_thread_waiting_mine">Оплатіть за реквізитами й надішліть сюди скріншот.</string>
+  <string name="pay_thread_proof_mine">Скріншот надіслано: організатор звірить оплату й підтвердить заявку.</string>
+  <string name="pay_thread_paid_mine">Оплачено — ви в списку.</string>
   <string name="chat_title">Чат події</string>
   <string name="chat_placeholder">Написати учасникам…</string>
   <string name="chat_send">Надіслати</string>
@@ -541,6 +560,41 @@
   <string name="err_chat_closed">Чат закрито: подія давно минула</string>
   <string name="err_too_many_messages">Забагато повідомлень поспіль. Зачекайте хвилину</string>
   <string name="err_invalid_message">Повідомлення порожнє або задовге (до 2000 символів)</string>
+  <string name="err_payment_terms">Спершу погодьтеся з умовами оплати онлайн — і подайте заявку ще раз</string>
+  <string name="err_paid_events_active">Спершу скасуйте події з оплатою онлайн, на які вже записались: гроші учасникам повертаєте ви</string>
+  <string name="err_payment_details">Номер картки, IBAN чи посилання на оплату тут писати не можна. Про оплату домовляються в чаті учасників, який додав організатор, чи на місці</string>
+  <!-- Оплата онлайн у розмові з організатором: скріншот оплати й застереження під реквізитами. -->
+  <string name="proof_attach">Надіслати скріншот оплати</string>
+  <string name="proof_hint">Оплатили? Надішліть скріншот кнопкою «+» — його побачить лише організатор.</string>
+  <string name="proof_open">Скріншот оплати</string>
+  <string name="proof_unavailable">Скріншот недоступний</string>
+  <!-- Під реквізитами тому, хто платить: спокійно, без червоного — довіра замість тривоги. Речення про «Поряд» — дослівно (юридичний аудит). -->
+  <string name="payment_warning">Оплата йде організатору напряму. «Поряд» не приймає оплату й не відповідає за неї.</string>
+  <string name="pay_report">Сумніваєтесь? Поскаржитись</string>
+  <string name="copy_number">Скопіювати номер</string>
+  <!-- Організатор уже надсилав реквізити в цій події: вставити їх у поле одним дотиком. -->
+  <string name="pay_details_again">Вставити ті самі реквізити</string>
+  <!-- Правила повернення онлайн-події (events.refund_policy) — ті самі слова, що на сайті (REFUNDS у poriad.js). -->
+  <string name="refund_before_48h">Повне повернення, якщо скасувати заявку щонайменше за 48 год до початку.</string>
+  <string name="refund_before_24h">Повне повернення, якщо скасувати заявку щонайменше за 24 год до початку.</string>
+  <string name="refund_cancel_only">Гроші повертаються, лише якщо подію скасують.</string>
+  <string name="refund_organizer_cancels">Скасує організатор — поверне все.</string>
+  <!-- Перед заявкою на онлайн-подію: умови, на які людина погоджується (accept_pay_terms). -->
+  <string name="pay_terms_title">Оплата напряму організатору</string>
+  <string name="pay_terms_body">Заявка — це розмова з організатором: він напише, як оплатити, ви надішлете скріншот, а він підтвердить оплату.</string>
+  <string name="pay_terms_direct">Гроші йдуть організатору напряму. «Поряд» не приймає оплату й не відповідає за неї.</string>
+  <string name="pay_terms_doubt">Сумніваєтесь в організаторі — не платіть і поскаржтеся в розмові.</string>
+  <string name="pay_terms_agree">Погоджуюсь і подаю заявку</string>
+  <!-- Скасована онлайн-подія: розмова лишається для повернення грошей. -->
+  <string name="pay_thread_cancelled_mine">Подію скасовано. Якщо ви вже оплатили, організатор має повернути гроші — напишіть йому тут.</string>
+  <string name="pay_thread_cancelled_org">Подію скасовано · поверніть гроші тим, хто оплатив</string>
+  <!-- Організатору: на заявці — людина вже надіслала скріншот; під скріншотом — скільки мало прийти. -->
+  <string name="pay_proof_sent">Скріншот надіслано</string>
+  <string name="pay_expected">Очікувано: %1$s</string>
+  <string name="approve_paid">Оплату отримано</string>
+  <!-- Заявка онлайн-події веде в розмову з людиною: там реквізити, скріншот і рішення. -->
+  <string name="request_chat">Розмова</string>
+  <string name="person_write">Написати</string>
   <string name="contact_confirm_title">Відкрити посилання від організатора?</string>
   <string name="contact_confirm_body">Ви переходите на %1$s. Це посилання додав організатор події. «Поряд» не перевіряє його і не відповідає за вміст сторінки чи чату за ним. Не переходьте, якщо не довіряєте організатору.</string>
   <string name="contact_confirm_open">Перейти</string>
@@ -578,9 +632,16 @@
   <string name="requests_section">Запити на участь</string>
   <string name="approve">Прийняти</string>
   <string name="decline">Відхилити</string>
+  <!-- Відхилити заявку — після підтвердження: людина дізнається про це сповіщенням, а гроші за онлайн-оплату повертає організатор. -->
+  <string name="decline_confirm_title">Відхилити заявку?</string>
+  <string name="decline_confirm_body">%1$s отримає сповіщення, що заявку відхилено.</string>
+  <string name="decline_confirm_body_pay">%1$s отримає сповіщення, що заявку відхилено. Якщо оплата вже прийшла, поверніть гроші: «Поряд» цього не робить.</string>
   <string name="request_join">Надіслати запит</string>
   <string name="request_pending">Запит надіслано</string>
   <string name="request_pending_hint">Організатор ще не відповів</string>
+  <!-- Оплата онлайн: заявка й розмова про оплату — одне. Кнопка на панелі й рядок під нею. -->
+  <string name="pay_chat_open">Розмова з організатором</string>
+  <string name="pay_waiting_hint">Реквізити й підтвердження — у розмові</string>
 
   <string name="report">Поскаржитись</string>
   <string name="report_event_title">Поскаржитись на подію</string>
@@ -1288,12 +1349,31 @@
   <string name="media_make_cover_a11y">Зробити обкладинкою</string>
   <!-- Над формою з паролем: «або поштою» поруч із «Увійти кодом з пошти» читалось як те саме. -->
   <string name="auth_or_password">або поштою й паролем</string>
-  <!-- Ціна події від людей (docs/organizers-1.5.md, 1.7): лише ціна, оплату людина узгоджує з організатором напряму. -->
-  <string name="price_label">Ціна, ₴ (необовʼязково)</string>
-  <string name="price_placeholder">Безкоштовно</string>
-  <string name="price_hint">Ціну побачать на сторінці події. Як оплатити, люди домовляться з вами напряму.</string>
+  <!-- Ціна події від людей і як платять: на місці чи онлайн організатору. -->
+  <!-- Вхід (власник 05.11): спершу «Безкоштовно / Платно»; платно — ціна й коли платять. -->
+  <string name="entry_label">Вхід</string>
+  <string name="entry_free">Безкоштовно</string>
+  <string name="entry_paid">Платно</string>
+  <string name="price_label">Ціна, ₴</string>
+  <string name="price_placeholder">Наприклад, 300</string>
+  <string name="price_hint">Реквізити — лише в чаті учасників, який ви додали: в описі й розмовах «Поряд» їх не надсилають.</string>
+  <!-- Коли платять (20261125190000): організатор позначає, людина бачить під ціною й на панелі. Як і куди — пише організатор. -->
+  <string name="pay_when_label">Коли платять</string>
+  <string name="pay_when_meeting">На зустрічі</string>
+  <string name="pay_when_prepay">Передоплата</string>
+  <string name="pay_when_meeting_hint">Учасники платять вам на місці.</string>
+  <string name="pay_when_prepay_hint">Як і коли платити, ви пишете учасникам самі — у чаті учасників чи особисто.</string>
+  <string name="price_at_meeting">Оплата на зустрічі</string>
+  <string name="price_prepay">Передоплата</string>
+  <string name="price_online">Оплата онлайн</string>
+  <!-- Правка події з оплатою онлайн: спосіб оплати застосунок не міняє, лише кабінет. -->
+  <string name="price_hint_online">Оплата онлайн: людина подає заявку, а реквізити ви надсилаєте їй у розмові. Спосіб оплати змінюють у кабінеті на сайті.</string>
   <string name="price_value">%1$s ₴</string>
   <string name="price_fact">Вхід</string>
-  <string name="price_pay_hint">Оплата — напряму організатору</string>
+  <!-- Ⓘ біля ціни: як платити — у спливному вікні, а не текстом під сумою (власник 05.11). -->
+  <string name="pay_info_a11y">Як платити</string>
+  <string name="price_pay_hint">Платите організатору на зустрічі. «Поряд» не приймає оплату й не відповідає за неї.</string>
+  <string name="price_prepay_hint">Організатор попросить заплатити заздалегідь і сам напише, як і коли. «Поряд» не приймає оплату й не відповідає за неї.</string>
+  <string name="price_pay_online_hint">Оплата онлайн організатору. «Поряд» не приймає оплату й не відповідає за неї.</string>
   <string name="err_price">Ціна — від 1 до 100 000 ₴</string>
 </resources>

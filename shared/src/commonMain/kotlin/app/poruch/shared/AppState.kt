@@ -97,6 +97,9 @@ data class AppState(
     fun isWaitlisted(id: String) = id in library.waitlistedIds
     fun organizes(event: Event) = session.userId != null && event.organizerId == session.userId
 
+    /** Подія [id] з того, що вже в памʼяті: відкриті деталі чи «Мої події». */
+    fun knownEvent(id: String): Event? = detail.event?.takeIf { it.id == id } ?: library.myEvents.firstOrNull { it.id == id }
+
     /** Своя подія: організую або йду. Це і є «плани» на головній і в нагадуваннях. */
     fun concerns(event: Event) = event.gathering?.joined == true || organizes(event)
 

@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import {
   instant, local, repeatTimes, endAfter, durationLabel, DURATIONS, mediaProblem, videoTooLong, fit, MEDIA,
   threadsPost, threadsIntent, firstLine, cleanText, rosterText, errorText, publishPlan, writeDraft, forgetDraft, recolorStub,
-  priceProblem, priceParam, PRICE_TEXT, eventDraft, repeatDraft, passwordProblem, passwordMode, providersText, editorDefaults, sinceText, plural,
-  weakPasswordText, redirectErrorText,
+  priceProblem, priceParam, PRICE_TEXT, eventDraft, params, repeatDraft, passwordProblem, passwordMode, providersText, editorDefaults, sinceText,
+  weakPasswordText, redirectErrorText, payPlan, payProblems, payLimitsText, TALK_PAYMENT_DETAILS, TALK_PAY_OFF, talkStatus, talkFacts, payWords, declineQuestion, nameProblem, contactOk,
 } from "../site/js/kabinet.js";
 import { readFileSync } from "node:fs";
 
@@ -128,7 +128,9 @@ assert.equal(priceParam(eventDraft(pricedEvent).price), 450, "правка шл�
 assert.equal(priceParam(repeatDraft(pricedEvent).price), 450, "«Повторити» теж");
 assert.equal(eventDraft({ ...pricedEvent, price_min: null }).price, "");
 assert.equal(errorText({ status: 400, code: "INVALID_PRICE" }), PRICE_TEXT);
-assert.equal(threadsPost(pricedEvent), "Настолки «Каркасон»\nпн, 2 листопада, 19:00 · Хрещатик, 22\nВхід — 450 ₴\n\nГраємо в Каркасон і Колонізаторів. Правила пояснимо.\n\nЗапис: poriad.app/e/e1");
+assert.equal(threadsPost(pricedEvent), "Настолки «Каркасон»\nпн, 2 листопада, 19:00 · Хрещатик, 22\nВхід — 450 ₴, оплата на зустрічі\n\nГраємо в Каркасон і Колонізаторів. Правила пояснимо.\n\nЗапис: poriad.app/e/e1");
+assert.ok(threadsPost({ ...pricedEvent, pay_online: true }).includes("Вхід — 450 ₴, оплата онлайн\n"), "пост не каже «на місці» про оплату онлайн");
+assert.ok(threadsPost({ ...pricedEvent, prepay: true }).includes("Вхід — 450 ₴, передоплата\n"), "коли платять — одразу в пості");
 assert.ok(!threadsPost({ ...pricedEvent, origin: "import" }).includes("Вхід"), "ціна продавця в афіші — «від», не пишемо");
 
 // Вхід і акаунт організатора.
@@ -150,8 +152,9 @@ assert.deepEqual(editorDefaults({ kabinet: { contact: "https://t.me/a b" } }), {
 assert.deepEqual(editorDefaults(undefined), {});
 assert.equal(sinceText("2026-09-30T22:30:00Z"), "з нами з жовтня 2026", "місяць — за Києвом");
 assert.equal(sinceText(null), "");
-assert.deepEqual([1, 2, 5, 11, 12, 21, 22, 25, 111].map((n) => plural(n, ["подія", "події", "подій"])),
-  ["подія", "події", "подій", "подій", "подій", "подія", "події", "подій", "подій"]);
+assert.equal(nameProblem("Олена"), "");
+assert.match(nameProblem("О"), /від 2 до 60/);
+assert.ok(contactOk("https://t.me/club") && !contactOk("http://t.me/club") && !contactOk("https://t.me/a b"));
 assert.match(weakPasswordText(["pwned"]), /витоках/);
 assert.match(weakPasswordText(["characters"]), /літери/);
 assert.equal(errorText({ status: 422, code: "weak_password", reasons: ["length"] }), "Пароль — щонайменше 8 символів");
@@ -160,4 +163,54 @@ assert.equal(errorText({ status: 400, code: "same_password" }), "Новий па
 assert.match(redirectErrorText({ code: "otp_expired" }), /Посилання застаріло/, "протухле посилання — не «код не підійшов»");
 assert.match(redirectErrorText({ code: "flow_state_expired" }), /Посилання застаріло/);
 assert.match(errorText({ code: "otp_expired" }), /Код не підійшов/);
+// Як платять (docs/organizer-events.md): лише з ціною; онлайн — завжди за підтвердженням.
+assert.deepEqual(payPlan("", true), { paid: false, online: false, hint: "" }, "без ціни — нема про що");
+assert.equal(payPlan("300", false).online, false);
+assert.match(payPlan("300", false).hint, /біля ціни.*лише в чаті учасників/, "реквізити — у чаті учасників (05.11)");
+assert.equal(payPlan("300", true).online, true);
+assert.match(payPlan("300", true).hint, /не приймає оплату й не відповідає/);
+assert.equal(eventDraft({ ...pricedEvent, pay_online: true }).payOnline, true, "правка несе спосіб оплати");
+// Коли платять (20261125190000): правка несе передоплату, а збереження шле її завжди — false повертає «на зустрічі».
+assert.equal(eventDraft({ ...pricedEvent, prepay: true }).prepay, true);
+assert.equal(params(eventDraft({ ...pricedEvent, prepay: true }), "e1").p_prepay, true);
+assert.equal(params(eventDraft(pricedEvent), "e1").p_prepay, false);
+assert.equal(params({ ...eventDraft(pricedEvent), prepay: true, payOnline: true }, "e1").p_prepay, false, "онлайн — своє");
+assert.equal(eventDraft(pricedEvent).payOnline, false);
+assert.equal(repeatDraft({ ...pricedEvent, pay_online: true, starts_at: "2026-10-01T16:00:00Z", ends_at: "2026-10-01T19:00:00Z" }).payOnline, true, "«Повторити» — з тим самим способом");
+assert.match(errorText({ status: 400, code: "PAYMENT_DETAILS" }), /у чаті учасників \(Telegram\)/, "реквізити — у чаті учасників (05.11)");
+assert.match(TALK_PAYMENT_DETAILS, /«Як платять» → «Онлайн»/);
+assert.ok(TALK_PAY_OFF.includes("чаті учасників") && !TALK_PAY_OFF.includes("«Онлайн»"), "вимкнено — реквізити в чаті учасників, не радимо вмикати");
+assert.match(errorText({ code: "PAY_ONLINE_OFF" }), /Оновіть сторінку/);
+// Безпека оплати онлайн: правила повернення, згода, межі рівня — лише для нової онлайн-події чи зміненої ціни й місць.
+const lvl0 = { enabled: true, level: 0, max_price: 500, max_capacity: 10, held: 0, terms: false, next: { held: 1, days: 30, max_price: 1500, max_capacity: 30 } };
+assert.deepEqual(payProblems({ price: "300", capacity: 10, refund: "before_48h", payTerms: true }, lvl0), []);
+assert.deepEqual(payProblems({ price: "300", capacity: 10, refund: "", payTerms: false }, lvl0), ["Оберіть, як повертаєте гроші", "Погодьтеся з Правилами оплати онлайн"]);
+assert.equal(payProblems({ price: "600", capacity: 12, refund: "cancel_only", payTerms: true }, lvl0).length, 2, "price and capacity over the tier");
+assert.deepEqual(payProblems({ price: "600", capacity: 12, refund: "cancel_only" }, { ...lvl0, terms: true }, { pay_online: true, price_min: 600, capacity: 12 }), [],
+  "unchanged online event above the tier stays editable");
+assert.deepEqual(payProblems({ price: "300", capacity: 5, refund: "cancel_only" }, { ...lvl0, enabled: false }), ["Оплату онлайн для вас призупинено. Оберіть «На місці»"]);
+assert.deepEqual(payProblems({ price: "300", capacity: 5, refund: "cancel_only" }, null), [], "guest: limits come after sign-in");
+assert.match(payLimitsText(lvl0), /^Вам зараз — до 500 ₴ за людину й до 10 місць\. Після 1 проведеної події з учасниками й 30 днів на «Поряд» — до 1\s500 ₴ і 30 місць\.$/);
+assert.match(payLimitsText({ ...lvl0, enabled: false }), /призупинено/);
+assert.equal(payLimitsText(null), "");
+
+// Хто в розмові (кабінет): стан на події й рядки картки.
+const people = { roster: [{ user_id: "a", joined_at: "2026-11-02T10:00:00Z", via: "app" }], requests: [{ user_id: "g", joined_at: "2026-11-03T09:00:00Z", via: "web" }] };
+assert.deepEqual(talkStatus("g", { ...people, payOnline: true }), { stamp: "Чекає оплати", tone: "accent", at: "2026-11-03T09:00:00Z", via: "web", pending: true });
+assert.equal(talkStatus("a", { ...people, payOnline: true }).stamp, "Оплачено");
+assert.equal(talkStatus("g", { ...people, payOnline: true, stage: "proof" }).stamp, "Скріншот надіслано", "надіслала скріншот — звірити з банком");
+assert.equal(talkStatus("g", { ...people, stage: "proof" }).stamp, "Заявка", "на місці стадій оплати нема");
+assert.equal(talkStatus("a", people).stamp, "У списку");
+assert.equal(payWords(true).approve, "Оплату отримано", "таблиця й розмова — тими самими словами");
+assert.equal(payWords(false).done, "Схвалено");
+assert.equal(declineQuestion("Іра", false), "Відхилити заявку? Іра отримає сповіщення, що заявку відхилено.");
+assert.ok(declineQuestion("Іра", true).endsWith("поверніть гроші: «Поряд» цього не робить."), "оплата онлайн — про повернення");
+assert.ok(declineQuestion("", false).includes("Учасник отримає"), "без імені — як handle_new_user");
+assert.equal(talkStatus("g", people).stamp, "Заявка");
+assert.deepEqual(talkStatus("x", people), { stamp: "Питає", tone: "", at: null, via: null, pending: false });
+assert.deepEqual(talkFacts({ member_since: "2026-09-12T10:00:00Z", attended: 3, organized: 0 }, talkStatus("g", { ...people, payOnline: true })),
+  { profile: "з нами з вересня 2026 · відвідано подій: 3", joined: "Заявка 3 листопада о 11:00 · з вебу" });
+assert.equal(talkFacts(null, talkStatus("x", people)).joined, "Ще не записались на подію");
+assert.equal(talkFacts(null, talkStatus("x", people)).profile, "");
+
 console.log("kabinet ok");

@@ -12,7 +12,7 @@ sessionStorage = memory();
 location = { hostname: "poriad.app", href: "https://poriad.app/e/1", assign(url) { this.assigned = url; } };
 history = { state: null, replaceState(state, title, url) { location.href = String(url); } };
 const { session, sendCode, verifyCode, google, completeRedirect, rpc, upload, signOut, inAppBrowser, browserLinks, signInWithPassword, signUp,
-  resendSignup, requestRecovery, updatePassword, reauthenticate, updateMetadata, currentUser, verifyPassword, signInMethods, isEmail, isPassword } = await import("../site/js/auth.js");
+  resendSignup, requestRecovery, updatePassword, reauthenticate, updateMetadata, currentUser, verifyPassword, signInMethods, isEmail } = await import("../site/js/auth.js");
 
 const DB = "https://tzdogzdvctlumsqlqskr.supabase.co";
 let calls = [];
@@ -138,7 +138,6 @@ assert.deepEqual(signInMethods({ access_token: "битий" }), []);
 respond(() => [400, { code: 400, error_code: "invalid_credentials", msg: "Invalid login credentials" }]);
 await assert.rejects(signInWithPassword("olena@example.com", "nope"), { status: 400, code: "invalid_credentials" });
 assert.equal(stored().refresh_token, "p1", "хибний пароль сесії не чіпає");
-assert.ok(isPassword("12345678") && !isPassword("1234567") && !isPassword("x".repeat(73)), "8–72, як AccountRules і bcrypt");
 assert.ok(isEmail(" a@b.ua ") && !isEmail("a@b"));
 
 // Реєстрація: імʼя й 18+ у метаданих, PKCE на кабінет, verifier — у localStorage (лист відкриють у новій вкладці).

@@ -3,9 +3,10 @@
 // організатора. Вхід (Google або пошта з паролем, docs/web-auth.md) — auth.js, дані —
 // ті самі функції бази, що в застосунку; сторінка перевіряє лише очевидне, решту каже сервер. Чисті правила вгорі (дати,
 // тривалість, медіа, текст для Threads) перевіряє `node tools/kabinet_test.mjs`; DOM — нижче, лише в браузері.
-import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText } from "./poriad.js?v=14";
+import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText, plural, EVENTS, POST_MONTHS, payWay } from "./poriad.js?v=18";
+import { threadFeed, openProof, forgetProofs, fit, jpeg, jpegFile, PHOTO, payStage } from "./chat.js?v=18";
 import { session, verifyCode, google, completeRedirect, rpc, upload, signOut, inAppBrowser, browserLinks, signInWithPassword, signUp, resendSignup,
-  requestRecovery, updatePassword, reauthenticate, verifyPassword, currentUser, updateMetadata, signInMethods, isEmail, MIN_PASSWORD, MAX_PASSWORD } from "./auth.js?v=14";
+  requestRecovery, updatePassword, reauthenticate, verifyPassword, currentUser, updateMetadata, signInMethods, isEmail, MIN_PASSWORD, MAX_PASSWORD } from "./auth.js?v=18";
 
 // ---- Дати. Усі п'ять міст в одному поясі; подія з іншим поясом (з застосунку) редагується у своєму.
 export const TZ = "Europe/Kyiv";
@@ -61,7 +62,7 @@ export function durationLabel(minutes) {
 }
 
 // ---- Фото й відео (1.2): фото стискає браузер, відео — лише готовий mp4.
-export const MEDIA = { max: 5, side: 2048, photoBytes: 5 * 1024 * 1024, videoBytes: 50 * 1024 * 1024, videoSeconds: 30 };
+export const MEDIA = { max: 5, side: PHOTO.side, photoBytes: PHOTO.bytes, videoBytes: 50 * 1024 * 1024, videoSeconds: 30 };
 /** Що не так із файлом ще до відкриття: null — можна. `count` — скільки вже вибрано. */
 export function mediaProblem({ type = "", size = 0 }, count) {
   if (count >= MEDIA.max) return "Уже 5 файлів — більше не можна";
@@ -73,11 +74,7 @@ export function mediaProblem({ type = "", size = 0 }, count) {
 }
 /** Тривалість з `<video>`; невідома (NaN, Infinity) — теж задовга. Півсекунди запасу на округлення контейнера. */
 export const videoTooLong = (seconds) => !(seconds <= MEDIA.videoSeconds + 0.5);
-/** Розмір кадру з довшою стороною до `max`. */
-export function fit(width, height, max = MEDIA.side) {
-  const k = Math.min(1, max / Math.max(width, height));
-  return [Math.round(width * k), Math.round(height * k)];
-}
+export { fit }; // chat.js: спільне з розмовою (скріншот оплати)
 
 // ---- Ціна (1.7): лише ціна, гроші — з організатором напряму. Порожньо — безкоштовно.
 export const PRICE_TEXT = "Ціна — від 1 до 100 000 ₴";
@@ -91,7 +88,7 @@ export function priceProblem(price) {
 export const priceParam = (price) => String(price ?? "").trim() ? Math.round(Number(price)) : 0;
 
 // ---- «Пост для Threads» (1.5) — у poriad.js: той самий текст ділить і сторінка події (1.6).
-export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=14";
+export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=18";
 
 // ---- Анімації публікації (1.6, design/lottie/LICENSES.md): корінець запечений кольором музики — фарбуємо в жанр.
 const MUSIC_STUB = [0x60, 0x41, 0xb1].map((v) => v / 255);
@@ -189,7 +186,24 @@ const ERRORS = {
   pkce_missing: "Вхід почався в іншій вкладці чи браузері. Відкрийте посилання там, де його просили, або почніть ще раз тут",
   flow_state_expired: LINK_EXPIRED,
   flow_state_not_found: LINK_EXPIRED,
+  // Оплата онлайн і розмови (docs/organizer-events.md).
+  PAYMENT_DETAILS: "Реквізити (картка, IBAN, банка) не пишуть у назві, описі, адресі чи посиланні. Надсилайте їх у чаті учасників (Telegram), який ви додали",
+  TOO_MANY_MESSAGES: "Забагато повідомлень. Зачекайте хвилину",
+  CHAT_CLOSED: "Розмову закрито: подія давно минула",
+  INVALID_MESSAGE: "Повідомлення — до 2000 символів",
+  NOT_MEMBER: "Написати можна лише тим, хто записався, подав заявку чи вже писав вам",
+  // Сторінку відкрили, поки оплату онлайн ще не вимкнули (20261125160000_pay_online_switch).
+  PAY_ONLINE_OFF: "Оплату онлайн тимчасово вимкнено. Оновіть сторінку — подія буде з оплатою на місці",
+  // Безпека оплати онлайн (20261125170000_pay_online_safety).
+  PAY_ONLINE_LIMIT: "Ціна чи кількість місць більші, ніж зараз можна вам з оплатою онлайн. Зменште їх або оберіть «На місці»",
+  PAY_TERMS_REQUIRED: "Погодьтеся з Правилами оплати онлайн",
+  REFUND_POLICY_REQUIRED: "Оберіть, як повертаєте гроші",
+  PAY_ONLINE_BLOCKED: "Оплату онлайн для вас призупинено після скарг учасників. Оберіть «На місці» чи напишіть на hello@poriad.app",
 };
+/** Реквізити в розмові події «на місці»: інший текст, ніж для опису. */
+export const TALK_PAYMENT_DETAILS = "Реквізити в розмові — лише для подій з оплатою онлайн. Увімкніть її в редагуванні: «Як платять» → «Онлайн».";
+/** Те саме, коли оплату онлайн вимкнено вимикачем: увімкнути її в редагуванні зараз не можна. */
+export const TALK_PAY_OFF = "Реквізити в розмовах «Поряд» не надсилаються. Напишіть їх у чаті учасників (Telegram), який ви додали до події.";
 export function errorText(error) {
   if (error?.code === "weak_password") return weakPasswordText(error.reasons);
   if (ERRORS[error?.code]) return ERRORS[error.code];
@@ -213,6 +227,11 @@ export function redirectErrorText(error) {
 }
 
 // ---- Пароль і акаунт: правила без DOM.
+
+/** Імʼя акаунта (як `handle_new_user` і застосунок): 2–60 символів. Текст помилки або "". */
+export const nameProblem = (name) => (name.length < 2 || name.length > 60 ? "Вкажіть імʼя від 2 до 60 символів" : "");
+/** Посилання на чат: лише https://, без пробілів (`INVALID_CONTACT_URL`). */
+export const contactOk = (url) => Boolean(httpsOrNull(url)) && !/\s/.test(url);
 
 /** Новий пароль і повтор → текст помилки або "" (межі — як `AccountRules` у застосунку). */
 export function passwordProblem(password, repeat = password) {
@@ -245,23 +264,51 @@ export function editorDefaults(meta) {
   if (!d || typeof d !== "object") return {};
   const out = {};
   if (CITIES.some((c) => c.name === d.city)) out.city = d.city;
-  if (typeof d.contact === "string" && d.contact.length <= 500 && !/\s/.test(d.contact) && httpsOrNull(d.contact)) out.contact = d.contact;
+  if (typeof d.contact === "string" && d.contact.length <= 500 && contactOk(d.contact)) out.contact = d.contact;
   if (typeof d.approval === "boolean") out.approval = d.approval;
   return out;
 }
 
-const MONTHS = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
+/**
+ * Слова про учасників за способом оплати — однаково в таблиці й у розмові: з оплатою онлайн заявка — «Чекає оплати», а
+ * схвалити — «Оплату отримано».
+ */
+export const payWords = (online) => (online
+  ? { waiting: "Чекає оплати", approve: "Оплату отримано", approved: "Оплачено", done: "Оплату підтверджено" }
+  : { waiting: "Заявка", approve: "Схвалити", approved: "У списку", done: "Схвалено" });
+
+/** Питання перед «Відхилити» — однаково з таблиці й з розмови: людина отримає сповіщення, а гроші повертає організатор. */
+export const declineQuestion = (name, online) => `Відхилити заявку? ${name || DEFAULT_NAME} отримає сповіщення, що заявку відхилено.`
+  + (online ? " Якщо оплата вже прийшла, поверніть гроші: «Поряд» цього не робить." : "");
+
+/**
+ * Хто в розмові з організатором (кабінет): стан людини на цій події з ростера й заявок; без запису — лише питає. `stage` —
+ * де заявка з оплатою онлайн за розмовою (chat.js, payStage): надіслала скріншот — «Скріншот надіслано».
+ */
+export function talkStatus(user, { roster = [], requests = [], payOnline = false, stage = "details" } = {}) {
+  const words = payWords(payOnline);
+  const approved = roster.find((p) => p.user_id === user), request = requests.find((p) => p.user_id === user);
+  if (approved) return { stamp: words.approved, tone: "success", at: approved.joined_at, via: approved.via, pending: false };
+  if (request) return { stamp: payOnline && stage === "proof" ? "Скріншот надіслано" : words.waiting, tone: "accent", at: request.joined_at, via: request.via, pending: true };
+  return { stamp: "Питає", tone: "", at: null, via: null, pending: false };
+}
+/** Рядки картки учасника в розмові: профіль (`profile_card`) і стан запису. Пошти не показуємо — її нема й у картці. */
+export function talkFacts(card, status, tz = TZ) {
+  const attended = Number(card?.attended) || 0, organized = Number(card?.organized) || 0;
+  const profile = [sinceText(card?.member_since, tz), attended ? `відвідано подій: ${attended}` : "", organized ? `організовано: ${organized}` : ""]
+    .filter(Boolean).join(" · ");
+  const when = status.at ? new Intl.DateTimeFormat("uk-UA", { timeZone: tz, day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date(status.at)) : "";
+  const joined = status.at ? `${status.pending ? "Заявка" : "Записались"} ${when} · ${status.via === "web" ? "з вебу" : "із застосунку"}`
+    : "Ще не записались на подію";
+  return { profile, joined };
+}
+
 /** «з нами з жовтня 2026», як шапка профілю в застосунку. */
 export function sinceText(iso, tz = TZ) {
   const ms = Date.parse(iso ?? "");
   if (Number.isNaN(ms)) return "";
   const { year, month } = parts(ms, tz);
-  return `з нами з ${MONTHS[Number(month) - 1]} ${year}`;
-}
-/** 1 подія, 2 події, 5 подій. */
-export function plural(n, [one, few, many]) {
-  const ten = n % 10, hundred = n % 100;
-  return ten === 1 && hundred !== 11 ? one : ten >= 2 && ten <= 4 && (hundred < 12 || hundred > 14) ? few : many;
+  return `з нами з ${POST_MONTHS[Number(month) - 1]} ${year}`;
 }
 
 // ================= Сторінка =================
@@ -277,6 +324,27 @@ let ready = null; // id, для якого імʼя й вік уже є
 let card = null; // свій profile_card: імʼя, фото, «про вас», з якого часу, скільки подій
 const busy = new Set();
 
+/** Помилка, яку показуємо як є (перевірка поля), а не словами `errorText`. */
+class Problem extends Error {}
+/**
+ * Дія форми чи кнопки: одна за раз (кнопка вимкнена, поки триває), помилка й підказка — у своїх рядках. `fn` кидає
+ * помилку чи `Problem` і може повернути текст підказки.
+ */
+async function act(button, { error, note = null }, fn) {
+  if (button.disabled) return;
+  error.textContent = "";
+  if (note) note.textContent = "";
+  button.disabled = true;
+  try {
+    const text = await fn();
+    if (note && text) note.textContent = text;
+  } catch (e) {
+    error.textContent = e instanceof Problem ? e.message : errorText(e);
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function signedIn() {
   me = (await session().catch(() => null))?.user ?? null;
   if (!me) card = null;
@@ -285,17 +353,25 @@ async function signedIn() {
   return Boolean(me);
 }
 
+let cardLoad = null; // { id, promise } — profile_card у дорозі: вхід і сторінка акаунта питають його разом
 /** Свій profile_card; `force` — перечитати (після входу з іншого акаунта чи на сторінці акаунта). */
-async function loadCard(force = false) {
-  if (!force && card?.user_id === me.id) return card;
+function loadCard(force = false) {
+  if (!force && card?.user_id === me.id) return Promise.resolve(card);
   const id = me.id;
-  const [row] = await rpc("profile_card", { p_user_id: id }) ?? [];
-  if (me?.id !== id) return card; // поки чекали, людина вийшла чи ввійшла іншим акаунтом
-  card = row ?? null;
-  paintNav();
-  return card;
+  if (cardLoad?.id !== id) {
+    const promise = rpc("profile_card", { p_user_id: id }).then((rows) => {
+      if (me?.id !== id) return card; // поки чекали, людина вийшла чи ввійшла іншим акаунтом
+      card = rows?.[0] ?? null;
+      paintNav();
+      return card;
+    }).finally(() => { if (cardLoad?.promise === promise) cardLoad = null; });
+    cardLoad = { id, promise };
+  }
+  return cardLoad.promise;
 }
-const cardName = () => (card?.display_name && card.display_name !== DEFAULT_NAME ? card.display_name : "");
+/** Імʼя з картки; «Учасник» — ще не назвався. */
+const nameOf = (c) => (c?.display_name && c.display_name !== DEFAULT_NAME ? c.display_name : "");
+const cardName = () => nameOf(card);
 /** Аватар: фото або перша літера, як `Avatar` у застосунку. */
 const avatarHtml = (name, url) => (url ? `<img src="${esc(url)}" alt="">` : esc([...(name || "?").trim()][0]?.toUpperCase() ?? "?"));
 /** «Акаунт» у шапці — лише з входом, з фото чи літерою. */
@@ -347,13 +423,13 @@ function cooldown(button) {
 }
 
 /**
- * Вікно входу; true — людина ввійшла й має імʼя. `profile` — одразу крок імені, `at` — інший крок (`password` після
+ * Вікно входу; true — людина ввійшла й має імʼя. `at` — з якого кроку (`profile` — одразу імʼя, `password` — після
  * листа відновлення).
  */
-function signIn({ lead = null, profile = false, intent = null, at = null } = {}) {
+function signIn({ lead = null, intent = null, at = "start" } = {}) {
   auth.intent = intent;
   $("[data-auth-lead]", auth.dialog).textContent = lead ?? "Тією самою поштою чи Google, що й у застосунку, — і ви побачите свої події.";
-  step(profile ? "profile" : at ?? "start");
+  step(at);
   if (!auth.dialog.open) auth.dialog.showModal();
   return new Promise((resolve) => { auth.done = resolve; });
 }
@@ -383,7 +459,7 @@ async function entered() {
 /** Вхід перед дією: true — можна. */
 async function account(options = {}) {
   if (await signedIn() && await profileReady()) return true;
-  return signIn({ ...options, profile: Boolean(me) });
+  return signIn({ ...options, at: me ? "profile" : "start" });
 }
 
 /** Один перемикач «Показати» на всі поля пароля кроку чи форми: пароль і повтор видно разом. */
@@ -400,9 +476,9 @@ function setupReveal(root) {
     }
   });
 }
-/** Сховати паролі знову: після входу чи закриття вікна вони не мають лишатись відкритим текстом. */
-function hideSecrets(root) {
-  for (const input of $$(".kab-secret input", root)) input.type = "password";
+/** Стерти й сховати паролі: після входу, збереження чи закриття вікна вони не лишаються на сторінці. */
+function clearSecrets(root) {
+  for (const input of $$(".kab-secret input", root)) Object.assign(input, { type: "password", value: "" });
   for (const button of $$("[data-reveal]", root)) { button.setAttribute("aria-pressed", "false"); button.textContent = "Показати"; }
 }
 
@@ -421,7 +497,7 @@ function setupAuth() {
   setupReveal(form);
   $("[data-auth-close]").addEventListener("click", () => finishAuth(false));
   auth.dialog.addEventListener("cancel", () => finishAuth(false));
-  auth.dialog.addEventListener("close", () => { hideSecrets(form); form.password.value = form.signupPassword.value = form.newPassword.value = form.repeatPassword.value = ""; });
+  auth.dialog.addEventListener("close", () => clearSecrets(form));
   $("[data-google]").addEventListener("click", () => google(returnTo(), comeback()));
   form.addEventListener("click", (event) => {
     const link = event.target.closest("[data-goto]");
@@ -456,79 +532,85 @@ function setupAuth() {
     step(at, text);
   };
 
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const at = current();
-    const button = $(`[data-step="${at}"] [type=submit]`, form);
-    if (!button || button.disabled) return;
-    button.disabled = true;
-    try {
-      if (at === "start") {
-        const email = form.email.value.trim();
-        if (!isEmail(email)) return error("Вкажіть коректний email");
-        if (!form.password.value) return error("Введіть пароль");
-        try {
-          await signInWithPassword(email, form.password.value);
-        } catch (e) {
-          if (e.code !== "email_not_confirmed") throw e;
-          // Зареєструвались, а пошту не підтвердили: шлемо код ще раз і просимо його тут же.
-          await resendSignup(email, returnTo(), comeback());
-          return sent("signup", email, "confirm", "Пошту ще не підтверджено — надіслали код ще раз.");
-        }
-        auth.email = email;
-        await entered();
-      } else if (at === "signup") {
-        const name = form.signupName.value.trim(), email = form.signupEmail.value.trim(), password = form.signupPassword.value;
-        if (name.length < 2 || name.length > 60) return error("Вкажіть імʼя від 2 до 60 символів");
-        if (!isEmail(email)) return error("Вкажіть коректний email");
-        const weak = passwordProblem(password);
-        if (weak) return error(weak);
-        const result = await signUp(email, password, name, returnTo(), comeback());
-        if (result.exists) {
-          form.email.value = email;
-          form.password.value = "";
-          step("start");
-          return error("Акаунт з цією поштою вже є. Увійдіть з паролем чи через Google, або натисніть «Забули пароль?».");
-        }
-        if (result.session) return void (await entered());
-        sent("signup", email, "confirm");
-      } else if (at === "confirm") {
-        const code = form.code.value.replace(/\s/g, "");
-        if (!code) return error("Введіть код з листа");
-        await verifyCode(auth.email, code);
-        await entered();
-      } else if (at === "forgot") {
-        const email = form.forgotEmail.value.trim();
-        if (!isEmail(email)) return error("Вкажіть коректний email");
-        await requestRecovery(email, returnTo(), comeback());
-        sent("recovery", email, "sent");
-      } else if (at === "password") {
-        const problem = passwordProblem(form.newPassword.value, form.repeatPassword.value);
-        if (problem) return error(problem);
-        await updatePassword(form.newPassword.value);
-        ui.toast("Пароль збережено");
-        await entered();
-      } else {
-        const name = form.name.value.trim();
-        if (name.length < 2 || name.length > 60) return error("Вкажіть імʼя від 2 до 60 символів");
-        await authed(`/rest/v1/profiles?id=eq.${me.id}`, { method: "PATCH", body: JSON.stringify({ display_name: name }) });
-        await rpc("confirm_adult");
-        ready = me.id;
-        if (card) card = { ...card, display_name: name };
-        paintNav();
-        finishAuth(true);
+  const email = (input) => {
+    const value = input.value.trim();
+    if (!isEmail(value)) throw new Problem("Вкажіть коректний email");
+    return value;
+  };
+  const named = (input) => {
+    const name = input.value.trim(), problem = nameProblem(name);
+    if (problem) throw new Problem(problem);
+    return name;
+  };
+  /** Що робить «Далі» на кожному кроці вікна. */
+  const steps = {
+    async start() {
+      const address = email(form.email);
+      if (!form.password.value) throw new Problem("Введіть пароль");
+      try {
+        await signInWithPassword(address, form.password.value);
+      } catch (e) {
+        if (e.code !== "email_not_confirmed") throw e;
+        // Зареєструвались, а пошту не підтвердили: шлемо код ще раз і просимо його тут же.
+        await resendSignup(address, returnTo(), comeback());
+        return sent("signup", address, "confirm", "Пошту ще не підтверджено — надіслали код ще раз.");
       }
-    } catch (e) {
-      error(e);
-    } finally {
-      button.disabled = false;
-    }
+      auth.email = address;
+      await entered();
+    },
+    async signup() {
+      const name = named(form.signupName), address = email(form.signupEmail), password = form.signupPassword.value;
+      const weak = passwordProblem(password);
+      if (weak) throw new Problem(weak);
+      const result = await signUp(address, password, name, returnTo(), comeback());
+      if (result.exists) {
+        form.email.value = address;
+        form.password.value = "";
+        step("start");
+        throw new Problem("Акаунт з цією поштою вже є. Увійдіть з паролем чи через Google, або натисніть «Забули пароль?».");
+      }
+      if (result.session) await entered(); else sent("signup", address, "confirm");
+    },
+    async confirm() {
+      const code = form.code.value.replace(/\s/g, "");
+      if (!code) throw new Problem("Введіть код з листа");
+      await verifyCode(auth.email, code);
+      await entered();
+    },
+    async forgot() {
+      const address = email(form.forgotEmail);
+      await requestRecovery(address, returnTo(), comeback());
+      sent("recovery", address, "sent");
+    },
+    async password() {
+      const problem = passwordProblem(form.newPassword.value, form.repeatPassword.value);
+      if (problem) throw new Problem(problem);
+      await updatePassword(form.newPassword.value);
+      ui.toast("Пароль збережено");
+      await entered();
+    },
+    async profile() {
+      const name = named(form.name);
+      await authed(`/rest/v1/profiles?id=eq.${me.id}`, { method: "PATCH", body: JSON.stringify({ display_name: name }) });
+      await rpc("confirm_adult");
+      ready = me.id;
+      if (card) card = { ...card, display_name: name };
+      paintNav();
+      finishAuth(true);
+    },
+  };
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const at = current(), button = $(`[data-step="${at}"] [type=submit]`, form);
+    if (button && steps[at]) act(button, { error: $("[data-auth-error]") }, steps[at]);
   });
 }
 
 /** Вихід: на спільному компʼютері наступний не має побачити чужої чернетки, файлів і акаунта. */
 async function leave({ everywhere = false } = {}) {
   forgetDraft();
+  forgetProofs();
+  talkFeed?.clear();
   media = [];
   await signOut({ everywhere });
   me = null;
@@ -588,7 +670,7 @@ function paintAccount() {
   const name = cardName();
   $("[data-me-avatar]").innerHTML = avatarHtml(name || me.email, card?.avatar_url);
   const organized = Number(card?.organized) || 0;
-  $("[data-me-line]").textContent = [name, me.email, sinceText(card?.member_since), organized ? `${organized} ${plural(organized, ["подія", "події", "подій"])}` : ""]
+  $("[data-me-line]").textContent = [name, me.email, sinceText(card?.member_since), organized ? plural(organized, EVENTS) : ""]
     .filter(Boolean).join(" · ");
   const f = $("[data-profile-form]");
   f.name.value = name;
@@ -619,14 +701,7 @@ function setPhoto(next) {
   $("[data-photo-pick]").textContent = shown ? "Змінити фото" : "Завантажити фото";
 }
 /** Фото профілю: JPEG без метаданих, довша сторона до 512 — як аватар у застосунку. */
-async function avatarJpeg(file) {
-  const bitmap = await createImageBitmap(file).catch(() => { throw new Error("Не вдалося відкрити це фото"); });
-  try {
-    return await jpeg(bitmap, fit(bitmap.width, bitmap.height, 512), 0.86);
-  } finally {
-    bitmap.close();
-  }
-}
+const avatarJpeg = (file) => jpegFile(file, { side: 512, bytes: Infinity, qualities: [0.86] });
 
 /** Форма пароля під спосіб входу цієї сесії. `methods` — `amr`: чим саме ввійшли, щоб сказати це словами. */
 function passwordView(mode, methods = [], text = "") {
@@ -669,17 +744,14 @@ function setupAccount() {
     }
   });
   $("[data-photo-remove]").addEventListener("click", () => setPhoto({ blob: null, url: null, removed: true, preview: null }));
-  profileForm.addEventListener("submit", async (event) => {
+  const profileOut = { error: $("[data-profile-error]"), note: $("[data-profile-note]") };
+  profileForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    const button = $("[type=submit]", profileForm), error = $("[data-profile-error]"), note = $("[data-profile-note]");
-    if (button.disabled) return;
-    error.textContent = note.textContent = "";
-    const name = profileForm.name.value.trim(), bio = profileForm.bio.value.trim();
-    if (name.length < 2 || name.length > 60) return void (error.textContent = "Вкажіть імʼя від 2 до 60 символів");
-    if (bio.length > 300) return void (error.textContent = "Про вас — до 300 символів");
-    button.disabled = true;
-    const before = card?.avatar_url ?? null;
-    try {
+    act($("[type=submit]", profileForm), profileOut, async () => {
+      const name = profileForm.name.value.trim(), bio = profileForm.bio.value.trim();
+      const problem = nameProblem(name) || (bio.length > 300 ? "Про вас — до 300 символів" : "");
+      if (problem) throw new Problem(problem);
+      const before = card?.avatar_url ?? null;
       let avatar = photo.removed ? null : before;
       // Уже вивантажене фото повтор (після відмови стоп-словника, скажімо) не вантажить удруге.
       if (photo.blob) avatar = photo.url ??= await upload("event-images", `${me.id}/avatar/${crypto.randomUUID()}.jpg`, photo.blob);
@@ -690,45 +762,32 @@ function setupAccount() {
       ready = me.id;
       paintAccount();
       paintNav();
-      $("[data-profile-note]").textContent = "Профіль збережено";
-    } catch (e) {
-      error.textContent = errorText(e);
-    } finally {
-      button.disabled = false;
-    }
+      return "Профіль збережено";
+    });
   });
 
   // ---- Нові події
-  defaultsForm.addEventListener("submit", async (event) => {
+  const defaultsOut = { error: $("[data-defaults-error]"), note: $("[data-defaults-note]") };
+  defaultsForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    const button = $("[type=submit]", defaultsForm), error = $("[data-defaults-error]"), note = $("[data-defaults-note]");
-    if (button.disabled) return;
-    error.textContent = note.textContent = "";
-    const contact = defaultsForm.contact.value.trim();
-    if (contact && (!httpsOrNull(contact) || /\s/.test(contact))) return void (error.textContent = ERRORS.INVALID_CONTACT_URL);
-    button.disabled = true;
-    try {
+    act($("[type=submit]", defaultsForm), defaultsOut, async () => {
+      const contact = defaultsForm.contact.value.trim();
+      if (contact && !contactOk(contact)) throw new Problem(ERRORS.INVALID_CONTACT_URL);
       me = await updateMetadata({ kabinet: { city: defaultsForm.city.value, contact: contact || null, approval: defaultsForm.approval.checked } });
-      note.textContent = "Збережено. Так заповнимо наступну нову подію.";
-    } catch (e) {
-      error.textContent = errorText(e);
-    } finally {
-      button.disabled = false;
-    }
+      return "Збережено. Так заповнимо наступну нову подію.";
+    });
   });
 
   // ---- Пароль
-  passwordForm.addEventListener("submit", async (event) => {
+  const passwordOut = { error: $("[data-password-error]"), note: $("[data-password-note]") };
+  passwordForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    const f = passwordForm, button = $("[data-password-submit]"), error = $("[data-password-error]"), note = $("[data-password-note]");
-    if (button.disabled) return;
-    error.textContent = note.textContent = "";
-    const problem = passwordProblem(f.password.value, f.repeat.value);
-    if (problem) return void (error.textContent = problem);
-    const current = passwordAt === "recovery" ? "" : f.current.value;
-    if (passwordAt === "change" && !current) return void (error.textContent = ERRORS.current_password_required);
-    button.disabled = true;
-    try {
+    const f = passwordForm, button = $("[data-password-submit]");
+    act(button, passwordOut, async () => {
+      const problem = passwordProblem(f.password.value, f.repeat.value);
+      if (problem) throw new Problem(problem);
+      const current = passwordAt === "recovery" ? "" : f.current.value;
+      if (passwordAt === "change" && !current) throw new Problem(ERRORS.current_password_required);
       // Поточний пароль перевіряємо самі, як застосунок, і шлемо серверу: з «Require current password» він звірить ще раз.
       if (current) {
         await verifyPassword(me.email, current).catch((e) => { throw e.code === "invalid_credentials" ? Object.assign(e, { code: "current_password_mismatch" }) : e; });
@@ -742,8 +801,7 @@ function setupAccount() {
           $("[data-nonce-field]").hidden = false;
           f.nonce.value = "";
           f.nonce.focus();
-          note.textContent = `Для безпеки надіслали код на ${me.email}. Введіть його й натисніть «${button.textContent}» ще раз.`;
-          return;
+          return `Для безпеки надіслали код на ${me.email}. Введіть його й натисніть «${button.textContent}» ще раз.`;
         }
         if (e.code === "current_password_required" && passwordAt !== "change") {
           passwordView("change", [], "У акаунта вже є пароль. Введіть поточний — або «Забули поточний пароль?», і надішлемо посилання.");
@@ -752,27 +810,21 @@ function setupAccount() {
         }
         throw e;
       }
-      f.current.value = f.password.value = f.repeat.value = f.nonce.value = "";
+      clearSecrets(f);
+      f.nonce.value = "";
       $("[data-nonce-field]").hidden = true;
-      hideSecrets(f);
       passwordView("change");
-      note.textContent = "Пароль збережено. На інших пристроях і в застосунку треба буде увійти знову.";
-    } catch (e) {
-      error.textContent = errorText(e);
-    } finally {
-      button.disabled = false;
-    }
+      return "Пароль збережено. На інших пристроях і в застосунку треба буде увійти знову.";
+    });
   });
+  // «Забули поточний пароль?» — лист не частіше, ніж раз на хвилину, як «Надіслати ще раз».
   $("[data-password-forgot]").addEventListener("click", async (event) => {
-    const button = event.currentTarget, error = $("[data-password-error]"), note = $("[data-password-note]");
-    button.disabled = true;
-    error.textContent = note.textContent = "";
-    try {
+    const button = event.currentTarget;
+    await act(button, passwordOut, async () => {
       await requestRecovery(me.email, returnTo(), { hash: "#/account" });
-      note.textContent = `Надіслали посилання на ${me.email}. Відкрийте його в цьому браузері протягом кількох хвилин — і задасте новий пароль.`;
-    } catch (e) {
-      error.textContent = errorText(e);
-    }
+      return `Надіслали посилання на ${me.email}. Відкрийте його в цьому браузері протягом кількох хвилин — і задасте новий пароль.`;
+    });
+    button.disabled = true;
     setTimeout(() => { button.disabled = false; }, RESEND_AFTER);
   });
 
@@ -849,7 +901,8 @@ async function showEvent(id) {
 
   $("[data-event-title]").textContent = displayTitle(event.title);
   $("[data-event-when]").textContent = overline(event, new Date(), true);
-  $("[data-event-place]").textContent = [[event.address, event.city].filter(Boolean).join(", "), Number(event.price_min) > 0 ? priceText(event.price_min) : ""].filter(Boolean).join(" · ");
+  $("[data-event-place]").textContent = [[event.address, event.city].filter(Boolean).join(", "),
+    Number(event.price_min) > 0 ? `${priceText(event.price_min)}, ${payWay(event)}` : ""].filter(Boolean).join(" · ");
   $("[data-open]").href = `/e/${event.id}`;
   $("[data-edit]").href = `#/e/${event.id}/edit`;
   const live = event.status === "published" && Date.parse(event.starts_at) > Date.now();
@@ -857,28 +910,161 @@ async function showEvent(id) {
   $("[data-cancel]").hidden = !live;
   $("[data-threads]").hidden = event.status !== "published" || ended(event);
   current = event;
+  // Розмови — окремо: таблиця учасників не чекає на них і не падає разом з ними.
+  loadTalks(event).catch(() => { $("[data-talks]").hidden = true; });
   await loadPeople(event);
 }
 
 let current = null; // подія на екрані «Подія»
 let roster = [];
+let requests = []; // заявки події на екрані: стан людини в розмові
 
 async function loadPeople(event) {
-  const [approved, requested] = await Promise.all([
+  const [approved, requested, talks] = await Promise.all([
     rpc("event_attendees", { p_event_id: event.id, p_limit: 100 }),
     event.approval_required ? rpc("event_requests", { p_event_id: event.id, p_limit: 100 }) : [],
+    // Оплата онлайн: хто вже надіслав скріншот — видно в таблиці, без відкривання кожної розмови.
+    event.pay_online ? rpc("event_questions", { p_event_id: event.id }).catch(() => []) : [],
   ]);
+  const proofs = new Set((talks ?? []).filter((t) => t.has_proof).map((t) => t.thread_user_id));
   roster = approved ?? [];
+  requests = requested ?? [];
   const when = (iso) => new Intl.DateTimeFormat("uk-UA", { timeZone: event.time_zone || TZ, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
   const from = (via) => via === "web" ? "Веб" : "Застосунок";
-  const line = (p, state, actions = "") => `<tr><th scope="row">${esc(p.display_name || DEFAULT_NAME)}</th><td>${state}</td><td>${esc(when(p.joined_at))}</td><td>${from(p.via)}</td><td class="kab-act">${actions}</td></tr>`;
-  $("[data-people]").innerHTML = (requested ?? []).map((p) => line(p, `<span class="stamp accent">Заявка</span>`,
-    `<button class="btn small primary" type="button" data-approve="${esc(p.user_id)}">Схвалити</button><button class="btn small" type="button" data-decline="${esc(p.user_id)}">Відхилити</button>`)).join("")
-    + roster.map((p) => line(p, `<span class="stamp success">У списку</span>`)).join("");
-  $("[data-people-title]").textContent = `Учасники · ${roster.length}${event.capacity ? ` з ${event.capacity}` : ""}${requested?.length ? ` · заявок ${requested.length}` : ""}`;
-  $("[data-people-empty]").hidden = Boolean(roster.length || requested?.length);
+  // «Написати» — кожному в таблиці: організатор пише першим тим, хто записався (оплата онлайн — реквізити).
+  const write = (p) => `<button class="btn small" type="button" data-write="${esc(p.user_id)}" data-name="${esc(p.display_name || DEFAULT_NAME)}">Написати</button>`;
+  const line = (p, state, actions = "") => `<tr><th scope="row">${esc(p.display_name || DEFAULT_NAME)}</th><td>${state}</td><td>${esc(when(p.joined_at))}</td><td>${from(p.via)}</td><td class="kab-act">${actions}${write(p)}</td></tr>`;
+  const words = payWords(event.pay_online);
+  $("[data-people]").innerHTML = requests.map((p) => line(p, `<span class="stamp accent">${proofs.has(p.user_id) ? "Скріншот надіслано" : words.waiting}</span>`,
+    `<button class="btn small primary" type="button" data-approve="${esc(p.user_id)}">${words.approve}</button><button class="btn small" type="button" data-decline="${esc(p.user_id)}">Відхилити</button>`)).join("")
+    + roster.map((p) => line(p, `<span class="stamp success">${words.approved}</span>`)).join("");
+  $("[data-people-title]").textContent = `Учасники · ${roster.length}${event.capacity ? ` з ${event.capacity}` : ""}${requests.length ? ` · заявок ${requests.length}` : ""}`;
+  $("[data-people-empty]").hidden = Boolean(roster.length || requests.length);
   $(".kab-table-wrap").hidden = !$("[data-people-empty]").hidden;
   $("[data-copy]").hidden = !roster.length;
+}
+
+// ---- Розмови з учасниками: «Поряд» — міст. Список — event_questions, розмова — event_messages з p_thread = людина.
+
+async function loadTalks(event) {
+  const box = $("[data-talks]");
+  box.hidden = false;
+  const talks = (await rpc("event_questions", { p_event_id: event.id })) ?? [];
+  if (current?.id !== event.id) return;
+  $("[data-talk-list]").innerHTML = talks.map((t) => `<li><button class="kab-talk-row" type="button" data-write="${esc(t.thread_user_id)}" data-name="${esc(t.asker_name || DEFAULT_NAME)}">
+    <b>${esc(t.asker_name || DEFAULT_NAME)}${t.has_proof && event.pay_online ? ` <small class="stamp accent">Скріншот надіслано</small>` : ""}</b><span>${t.last_mine ? "Ви: " : ""}${esc(String(t.last_body || "").replace(/\s+/g, " ").slice(0, 120))}</span>${t.unread ? `<i class="kab-unread">${Number(t.unread)}</i>` : ""}</button></li>`).join("");
+  $("[data-talks-empty]").hidden = talks.length > 0;
+}
+
+/** Рішення про заявку — з таблиці учасників і з розмови. */
+async function decide(user, approve) {
+  await rpc(approve ? "approve_member" : "decline_member", { p_event_id: current.id, p_user_id: user });
+  ui.toast(approve ? payWords(current.pay_online).done : "Відхилено");
+  await loadPeople(current);
+}
+
+const talk = { user: null, name: "", card: null, stage: "details", from: "[data-talk-list]", saved: null }; // з ким розмова на екрані
+let talkFeed = null; // стрічка розмови (chat.js), setupTalk
+
+async function openTalk(user, name) {
+  const dialog = $("[data-talk]");
+  Object.assign(talk, { user, name: name || DEFAULT_NAME, card: null, stage: "details", saved: null });
+  paintAgain();
+  // Реквізити, які вже надсилали в цій події, — вставити одним дотиком, а не набирати для кожного.
+  if (current?.pay_online) rpc("my_payment_details", { p_event_id: current.id }).then((text) => { if (talk.user === user) { talk.saved = text || null; paintAgain(); } }).catch(() => {});
+  $("[data-talk-note]").textContent = Number(current?.price_min) > 0
+    ? current.pay_online
+      ? `Оплата онлайн, ${priceText(current.price_min)}: надішліть тут реквізити. Прийде скріншот — звірте з банком і натисніть «Оплату отримано».`
+      : "Реквізити в розмовах «Поряд» не надсилаються — пишіть їх у чаті учасників (Telegram), який ви додали до події."
+    : "Людина бачить лише вас; пошти й телефону ви одне одного не бачите.";
+  $("[data-talk-error]").textContent = "";
+  paintTalkPerson();
+  if (!dialog.open) dialog.showModal();
+  // Профіль — паралельно з розмовою: організатор має розуміти, з ким говорить (фото, «з нами з», відвідані події).
+  rpc("profile_card", { p_user_id: user }).then((rows) => { if (talk.user === user) { talk.card = rows?.[0] ?? null; paintTalkPerson(); } }).catch(() => {});
+  await talkFeed.show({ event: current.id, thread: user, me: me.id, organizer: me.id });
+  $("[data-talk-form]").body.focus();
+}
+
+/** Картка учасника над розмовою: хто це, стан на події, коли й звідки записався; для заявки — «Оплату отримано» / «Відхилити». */
+function paintTalkPerson() {
+  const status = talkStatus(talk.user, { roster, requests, payOnline: Boolean(current?.pay_online), stage: talk.stage });
+  const name = nameOf(talk.card) || talk.name;
+  const { profile, joined } = talkFacts(talk.card, status, current?.time_zone || TZ);
+  $("[data-talk-title]").textContent = name;
+  $("[data-talk-person]").innerHTML = `<span class="kab-avatar big" aria-hidden="true">${avatarHtml(name, talk.card?.avatar_url)}</span>
+    <div><p class="kab-person-line"><span class="stamp ${status.tone}">${esc(status.stamp)}</span>${profile ? `<small>${esc(profile)}</small>` : ""}</p>
+    ${talk.card?.bio ? `<p class="kab-person-bio">${esc(talk.card.bio)}</p>` : ""}<small>${esc(joined)}</small></div>`;
+  $("[data-talk-actions]").hidden = !status.pending;
+  $("[data-talk-approve]").textContent = payWords(current?.pay_online).approve;
+  // Скільки мало прийти — поруч із рішенням, щоб звірити зі скріншотом і банком.
+  $("[data-talk-expected]").textContent = current?.pay_online && Number(current.price_min) > 0 ? `Очікувано: ${priceText(current.price_min)}` : "";
+}
+
+/** «Вставити ті самі реквізити»: є що вставити, цій людині ще не надсилали, а поле порожнє. */
+function paintAgain() {
+  const form = $("[data-talk-form]");
+  $("[data-talk-again]").hidden = !(talk.saved && talk.stage === "details" && !form.body.value.trim());
+}
+
+function setupTalk() {
+  const dialog = $("[data-talk]"), form = $("[data-talk-form]");
+  const open = (event) => {
+    const button = event.target.closest("[data-write]");
+    if (!button) return;
+    // Список і таблицю після розмови перемальовуємо: фокус повертаємо на ту саму кнопку в новій розмітці.
+    talk.from = button.closest("[data-people]") ? "[data-people]" : "[data-talk-list]";
+    openTalk(button.dataset.write, button.dataset.name).catch((e) => ui.toast(errorText(e)));
+  };
+  $("[data-people]").addEventListener("click", open);
+  $("[data-talk-list]").addEventListener("click", open);
+  $("[data-talk-close]").addEventListener("click", () => dialog.close());
+  talkFeed = threadFeed($("[data-talk-thread]"), {
+    empty: `<p class="kab-hint" data-empty>Напишіть першим — людина отримає сповіщення в застосунку чи лист.</p>`,
+    alive: () => dialog.open,
+    live: $("[data-talk-live]"),
+    changed: (rows) => {
+      const stage = payStage(rows, talk.user);
+      if (stage !== talk.stage) { talk.stage = stage; paintTalkPerson(); paintAgain(); }
+    },
+  });
+  const out = { error: $("[data-talk-error]") };
+  // Рішення прямо з розмови: побачив скріншот — підтвердив оплату.
+  const decision = (approve) => (event) => {
+    if (!approve && !confirm(declineQuestion(talk.name, current?.pay_online))) return;
+    act(event.currentTarget, out, async () => {
+      await decide(talk.user, approve);
+      paintTalkPerson();
+    });
+  };
+  $("[data-talk-approve]").addEventListener("click", decision(true));
+  $("[data-talk-decline]").addEventListener("click", decision(false));
+  $("[data-talk-thread]").addEventListener("click", (event) => { if (openProof(event)) event.preventDefault(); });
+  $("[data-talk-again]").addEventListener("click", () => {
+    form.body.value = talk.saved;
+    paintAgain();
+    form.body.focus();
+  });
+  form.body.addEventListener("input", paintAgain);
+  dialog.addEventListener("close", () => {
+    talkFeed.stop();
+    const { user, from } = talk;
+    talk.user = null;
+    const back = () => $(`${from} [data-write="${CSS.escape(user ?? "")}"]`)?.focus();
+    back();
+    if (current) loadTalks(current).then(back, () => {});
+  });
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const body = form.body.value.trim();
+    if (!body) return;
+    act($("[type=submit]", form), out, async () => {
+      await rpc("send_message", { p_event_id: current.id, p_body: body, p_thread: talk.user })
+        .catch((e) => { throw e.code === "PAYMENT_DETAILS" ? new Problem(payOnlineOn ? TALK_PAYMENT_DETAILS : TALK_PAY_OFF) : e; });
+      form.body.value = "";
+      await talkFeed.load();
+    });
+  });
 }
 
 async function copyText(text) {
@@ -897,12 +1083,11 @@ function setupEvent() {
   $("[data-people]").addEventListener("click", async (event) => {
     const button = event.target.closest("[data-approve], [data-decline]");
     if (!button || button.disabled) return;
+    const name = button.closest("tr")?.querySelector("th")?.textContent;
+    if ("decline" in button.dataset && !confirm(declineQuestion(name, current.pay_online))) return;
     button.disabled = true;
-    const approve = "approve" in button.dataset;
     try {
-      await rpc(approve ? "approve_member" : "decline_member", { p_event_id: current.id, p_user_id: button.dataset.approve ?? button.dataset.decline });
-      ui.toast(approve ? "Схвалено" : "Відхилено");
-      await loadPeople(current);
+      await decide(button.dataset.approve ?? button.dataset.decline, "approve" in button.dataset);
     } catch (e) {
       button.disabled = false;
       ui.toast(errorText(e));
@@ -966,7 +1151,7 @@ async function animate(container, name, category) {
   wanted.set(container, call);
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   try {
-    const [lottie, data] = await Promise.all([loadLottie(), fetch(`vendor/lottie/${name}${isDark() ? "_dark" : ""}.json?v=14`).then((r) => r.json())]);
+    const [lottie, data] = await Promise.all([loadLottie(), fetch(`vendor/lottie/${name}${isDark() ? "_dark" : ""}.json?v=18`).then((r) => r.json())]);
     if (wanted.get(container) !== call) return;
     const stub = getComputedStyle(document.documentElement).getPropertyValue(`--cat-${category}-stub`).trim();
     const loop = name === "publishing";
@@ -1014,6 +1199,11 @@ function doneTicket(e) {
 // через Google перезавантажує сторінку).
 
 let editing = null; // подія, яку редагуємо; null — нова
+// Оплата онлайн за вимикачем на сервері (`pay_online_enabled`, 20261125160000): вимкнено — «Як платять» не показуємо.
+let payOnlineOn = true;
+// Що можна цьому організатору з оплатою онлайн (`my_pay_online_limits`): межі рівня, згода, наступний рівень. null —
+// ще не питали, undefined — питаємо.
+let payLimits = null;
 let media = []; // [{ key, kind, url?, poster?, blob?, posterBlob?, copied? }]
 let place = { lat: null, lon: null, placed: false };
 let minutes = 120; // тривалість, яку тримають чипи й зсув початку
@@ -1027,7 +1217,8 @@ const FIELDS = ["title", "description", "address", "startDate", "startTime", "en
 const blank = () => {
   const d = editorDefaults(me?.user_metadata);
   return { title: "", description: "", category: null, city: d.city ?? (ui?.savedCity.get() || CITIES[0].name), address: "", lat: null, lon: null, placed: false,
-    startDate: "", startTime: "", endDate: "", endTime: "", capacity: 10, minAge: 18, maxAge: "", approval: d.approval ?? false, contact: d.contact ?? "", price: "", id: null };
+    startDate: "", startTime: "", endDate: "", endTime: "", capacity: 10, minAge: 18, maxAge: "", approval: d.approval ?? false, contact: d.contact ?? "", price: "",
+    payOnline: false, prepay: false, paid: false, refund: "", payTerms: false, id: null };
 };
 
 function readDraft() { try { return JSON.parse(localStorage.getItem(DRAFT)); } catch { return null; } }
@@ -1101,6 +1292,7 @@ export function eventDraft(e) {
   return { ...blank(), title: e.title, description: e.description ?? "", category: e.category, city: e.city, address: e.address ?? "",
     lat: e.latitude, lon: e.longitude, placed: true, startDate: start.date, startTime: start.time, endDate: end.date, endTime: end.time,
     capacity: e.capacity ?? 10, minAge: e.min_age ?? 18, maxAge: e.max_age ?? "", approval: Boolean(e.approval_required), contact: e.contact_url ?? "", tz,
+    payOnline: Boolean(e.pay_online), prepay: Boolean(e.prepay), paid: Number(e.price_min) > 0, refund: e.refund_policy ?? "",
     price: Number(e.price_min) > 0 ? String(Math.round(Number(e.price_min))) : "" };
 }
 
@@ -1110,6 +1302,12 @@ function fill(d) {
   for (const name of FIELDS) f[name].value = d[name] ?? "";
   f.city.value = CITIES.some((c) => c.name === d.city) ? d.city : CITIES[0].name;
   f.approval.checked = Boolean(d.approval);
+  // Стара чернетка без прапорця — платна, якщо є ціна.
+  for (const radio of $$("[name=entry]", f)) radio.checked = radio.value === ((d.paid ?? Boolean(String(d.price ?? "").trim())) ? "paid" : "free");
+  for (const radio of $$("[name=pay]", f)) radio.checked = radio.value === (d.payOnline ? "online" : d.prepay ? "prepay" : "onsite");
+  for (const radio of $$("[name=refund]", f)) radio.checked = radio.value === d.refund;
+  f.payterms.checked = Boolean(d.payTerms);
+  payView();
   f.dataset.id = d.id ?? "";
   f.dataset.tz = d.tz ?? TZ;
   setCategory(d.category);
@@ -1123,7 +1321,8 @@ function fill(d) {
 /** Форма → чернетка. */
 function draft() {
   const f = form();
-  const d = { id: f.dataset.id || null, tz: f.dataset.tz || TZ, category: f.dataset.category || null, approval: f.approval.checked, city: f.city.value, ...place };
+  const d = { id: f.dataset.id || null, tz: f.dataset.tz || TZ, category: f.dataset.category || null, approval: f.approval.checked, city: f.city.value, ...place,
+    payOnline: f.pay.value === "online", prepay: f.pay.value === "prepay", paid: f.entry.value === "paid", refund: f.refund.value, payTerms: f.payterms.checked };
   for (const name of FIELDS) d[name] = f[name].value;
   return d;
 }
@@ -1132,6 +1331,42 @@ let saveTimer;
 function changed() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => { if (!editing) writeDraft(draft()); preview(); }, 300);
+}
+
+/**
+ * Коли платять (docs/organizer-events.md): лише з ціною — на зустрічі чи передоплата (як і куди — пише організатор), а з
+ * вимикачем ще й онлайн у розмові. Онлайн — завжди за підтвердженням: схвалення заявки і є «Оплату отримано», тож
+ * галочку тримаємо й не даємо зняти.
+ */
+export const payPlan = (price, payOnline) => {
+  const paid = priceParam(price) > 0;
+  const online = paid && Boolean(payOnline);
+  return {
+    paid, online,
+    hint: !paid ? "" : online
+      ? "Реквізити надсилаєте в розмові тим, хто записався, а коли гроші прийдуть — натискаєте «Оплату отримано». «Поряд» не приймає оплату й не відповідає за неї й за повернення."
+      : "Учасники бачать це біля ціни. Реквізити пишіть лише в чаті учасників (Telegram), який ви додали: у назві, описі й розмовах «Поряд» їх не надсилають.",
+  };
+};
+function payView() {
+  // Платно — ціна й коли платять одразу, ще до суми (підказка та сама, що з сумою).
+  const f = form(), paid = f.entry.value === "paid";
+  const plan = payPlan(paid ? f.price.value || "1" : "", payOnlineOn && f.pay.value === "online");
+  $("[data-price-box]").hidden = !paid;
+  $("[data-pay-box]").hidden = !plan.paid;
+  $("[data-pay-online-option]").hidden = !payOnlineOn;
+  const hint = $("[data-price-hint]");
+  hint.textContent = plan.hint;
+  hint.hidden = !plan.paid;
+  if (plan.online) f.approval.checked = true;
+  $("[data-pay-online]").hidden = !plan.online;
+  $("[data-pay-limits]").textContent = payLimitsText(payLimits);
+  $("[data-pay-terms-box]").hidden = Boolean(payLimits?.terms);
+  if (plan.online && me && payLimits === null) loadPayLimits();
+  f.approval.disabled = plan.online;
+  $("[data-approval-note]").textContent = plan.online
+    ? "З оплатою онлайн — завжди: людина подає заявку, а ви підтверджуєте оплату"
+    : "Ви вирішуєте, кого взяти: людина надсилає заявку, а не записується одразу";
 }
 
 function setCategory(key) {
@@ -1184,26 +1419,8 @@ const once = (el, name) => new Promise((resolve, reject) => {
   el.addEventListener(name, resolve, { once: true });
   el.addEventListener("error", () => reject(new Error("Не вдалося додати цей файл")), { once: true });
 });
-const jpeg = (source, [width, height], quality) => new Promise((resolve, reject) => {
-  const canvas = Object.assign(document.createElement("canvas"), { width, height });
-  canvas.getContext("2d").drawImage(source, 0, 0, width, height);
-  canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Не вдалося додати цей файл"))), "image/jpeg", quality);
-});
-
-/** Фото: canvas → JPEG, довша сторона до 2048, до 5 МБ. Перекодування заодно прибирає метадані (як `pickedJPEG`). */
-async function photoItem(file) {
-  // createImageBitmap, а не <img>.decode(): decode у фоновій вкладці може не завершитись; поворот з EXIF — як у браузера.
-  const bitmap = await createImageBitmap(file).catch(() => { throw new Error("Не вдалося відкрити це фото"); });
-  try {
-    const size = fit(bitmap.width, bitmap.height);
-    let blob;
-    for (const quality of [0.86, 0.75, 0.6]) if ((blob = await jpeg(bitmap, size, quality)).size <= MEDIA.photoBytes) break;
-    if (blob.size > MEDIA.photoBytes) throw new Error("Фото завелике навіть після стиснення");
-    return { key: crypto.randomUUID(), kind: "photo", blob };
-  } finally {
-    bitmap.close();
-  }
-}
+/** Фото: JPEG без метаданих, довша сторона до 2048, до 5 МБ (chat.js, jpegFile). */
+const photoItem = async (file) => ({ key: crypto.randomUUID(), kind: "photo", blob: await jpegFile(file) });
 
 /** Відео: лише mp4 до 50 МБ і 30 с (перевіряє `<video>`), обкладинка — перший кадр. */
 async function videoItem(file) {
@@ -1441,18 +1658,58 @@ function problems(d) {
   if (!start) out.push("Початок — дата й час у майбутньому");
   else if (!end || end <= start) out.push("Кінець — пізніше за початок");
   if (!(+d.capacity >= 1)) out.push("Кількість місць — від 1 до 10000");
-  const price = priceProblem(d.price);
+  const price = d.paid && !String(d.price ?? "").trim() ? "Вкажіть ціну входу" : priceProblem(d.price);
   if (price) out.push(price);
+  if (payOnlineOn && payPlan(d.price, d.payOnline).online) out.push(...payProblems(d, payLimits, editing));
   return out;
 }
 
-const params = (d, id) => ({
-  p_id: id, p_title: d.title.trim(), p_description: d.description.trim(), p_category: d.category, p_city: d.city, p_address: d.address.trim(),
-  p_latitude: d.lat, p_longitude: d.lon, p_starts_at: instant(d.startDate, d.startTime, d.tz), p_ends_at: instant(d.endDate, d.endTime, d.tz),
-  p_time_zone: d.tz, p_capacity: Math.round(+d.capacity), p_image_url: editing?.image_url ?? null, p_min_age: Math.round(+d.minAge || 18),
-  p_max_age: d.maxAge === "" ? null : Math.round(+d.maxAge), p_approval_required: d.approval, p_contact_url: d.contact.trim() || null,
-  p_price: priceParam(d.price),
-});
+/** Межі й згода організатора — з сервера, раз за сесію кабінету (згода й рівень змінюються рідко). */
+async function loadPayLimits() {
+  payLimits = undefined;
+  try { payLimits = (await rpc("my_pay_online_limits")) ?? null; } catch { payLimits = null; }
+  payView();
+}
+
+/**
+ * Оплата онлайн у редакторі (20261125170000_pay_online_safety): правила повернення, згода й межі рівня. Межі — лише
+ * для нової онлайн-події чи зміненої ціни й місць: стара подія, вища за рівень, лишається як є (так і сервер).
+ */
+export function payProblems(d, limits, before = null) {
+  const out = [];
+  if (!d.refund) out.push("Оберіть, як повертаєте гроші");
+  if (!limits) return out;
+  if (limits.enabled === false) return [...out, "Оплату онлайн для вас призупинено. Оберіть «На місці»"];
+  if (!limits.terms && !d.payTerms) out.push("Погодьтеся з Правилами оплати онлайн");
+  const changed = !before?.pay_online || priceParam(d.price) !== Number(before.price_min) || +d.capacity !== Number(before.capacity);
+  if (changed && priceParam(d.price) > limits.max_price) out.push(`З оплатою онлайн вам зараз можна до ${priceText(limits.max_price)} за людину`);
+  if (changed && +d.capacity > limits.max_capacity) out.push(`З оплатою онлайн вам зараз можна до ${limits.max_capacity} місць`);
+  return out;
+}
+
+/** Межі зараз і що відкриється далі — щоб новий організатор знав, як отримати більше. */
+export function payLimitsText(l) {
+  if (!l) return "";
+  if (l.enabled === false) return "Оплату онлайн для вас призупинено після скарг учасників. Напишіть на hello@poriad.app, щоб розібратись.";
+  const now = `Вам зараз — до ${priceText(l.max_price)} за людину й до ${l.max_capacity} місць.`;
+  const next = l.next ? ` Після ${plural(l.next.held, ["проведеної події", "проведених подій", "проведених подій"])} з учасниками й ${l.next.days} днів на «Поряд» — до ${priceText(l.next.max_price)} і ${l.next.max_capacity} місць.` : "";
+  return now + next;
+}
+
+export function params(d, id) {
+  const online = payPlan(d.price, payOnlineOn && d.payOnline).online; // онлайн — завжди за підтвердженням
+  return {
+    p_id: id, p_title: d.title.trim(), p_description: d.description.trim(), p_category: d.category, p_city: d.city, p_address: d.address.trim(),
+    p_latitude: d.lat, p_longitude: d.lon, p_starts_at: instant(d.startDate, d.startTime, d.tz), p_ends_at: instant(d.endDate, d.endTime, d.tz),
+    p_time_zone: d.tz, p_capacity: Math.round(+d.capacity), p_image_url: editing?.image_url ?? null, p_min_age: Math.round(+d.minAge || 18),
+    p_max_age: d.maxAge === "" ? null : Math.round(+d.maxAge), p_approval_required: d.approval || online,
+    // Вимкнено — спосіб оплати не чіпаємо (null): увімкнуть знову — подія, що була онлайн, знову онлайн.
+    p_contact_url: d.contact.trim() || null, p_price: priceParam(d.price), p_pay_online: payOnlineOn ? online : null,
+    p_refund_policy: payOnlineOn && online ? d.refund : null,
+    // Завжди явно: false повертає «на зустрічі»; без ціни сервер передоплату не зберігає.
+    p_prepay: !online && Boolean(d.prepay),
+  };
+}
 
 const PUBLIC = "/storage/v1/object/public/";
 const publicUrl = (bucket, key) => `${SUPABASE.url}${PUBLIC}${bucket}/${key}`;
@@ -1504,6 +1761,16 @@ async function publish() {
   if (wrong.length) return;
   if (!editing) writeDraft(d); // вхід через Google перезавантажить сторінку
   if (!(await account({ lead: "Подія майже готова. Увійдіть, щоб опублікувати її: тією самою поштою чи Google, що й у застосунку.", intent: { publish: true } }))) return;
+  // Оплата онлайн: межі й згода — після входу (гостю їх не знати), згода — до створення події.
+  if (payOnlineOn && payPlan(d.price, d.payOnline).online) {
+    if (!payLimits) await loadPayLimits();
+    const pay = payProblems(d, payLimits, editing);
+    error.textContent = pay.join(". ");
+    if (pay.length) return;
+    if (payLimits && !payLimits.terms) {
+      try { await rpc("accept_pay_terms", { p_role: "organizer" }); payLimits.terms = true; } catch (e) { error.textContent = errorText(e); return; }
+    }
+  }
   busy.add("publish");
   button.disabled = true;
   // Поки вантажаться файли — квиток друкується (П2), лічильник файлів під ним; закрити накладку посеред запису не можна.
@@ -1529,7 +1796,7 @@ async function publish() {
     location.hash = editing ? `#/e/${id}` : `#/e/${id}/done`;
   } catch (e) {
     overlay.close();
-    if (e.code === "AGE_REQUIRED" && await signIn({ profile: true, lead: null })) { busy.delete("publish"); button.disabled = false; return publish(); }
+    if (e.code === "AGE_REQUIRED" && await signIn({ at: "profile" })) { busy.delete("publish"); button.disabled = false; return publish(); }
     if (e.code === "session_expired") { me = null; ready = null; }
     error.textContent = errorText(e);
     saveMedia(); // вже вивантажене — з адресою: повтор його не вантажить
@@ -1565,6 +1832,16 @@ function setupEditor() {
     durations();
   });
   f.addEventListener("input", changed);
+  f.price.addEventListener("input", payView);
+  for (const radio of $$("[name=pay]", f)) radio.addEventListener("change", payView);
+  // Безкоштовно прибирає ціну й спосіб оплати: інакше вони тихо поїхали б на сервер.
+  for (const radio of $$("[name=entry]", f)) radio.addEventListener("change", () => {
+    if (f.entry.value === "free") {
+      f.price.value = "";
+      for (const pay of $$("[name=pay]", f)) pay.checked = pay.value === "onsite";
+    }
+    payView(); changed();
+  });
   f.addEventListener("change", changed);
   f.addEventListener("submit", (event) => { event.preventDefault(); publish(); });
   $("[data-publishing]").addEventListener("cancel", (event) => event.preventDefault());
@@ -1574,12 +1851,14 @@ function setupEditor() {
 }
 
 async function start() {
-  ui = await import("./ui.js?v=14");
+  ui = await import("./ui.js?v=18");
   window.poriadReady = true;
   setupAuth();
   setupAccount();
   setupEvent();
+  setupTalk();
   setupEditor();
+  rpc("pay_online_enabled").then((on) => { payOnlineOn = on !== false; payView(); }).catch(() => {});
   $("[data-signin]").addEventListener("click", () => signIn().then((ok) => ok && route()));
   // Повернення від Google чи з листа: намір несе маршрут і «опублікувати», з якими людина пішла; лист відновлення —
   // ще й крок нового пароля, поки решта сторінки чекає.

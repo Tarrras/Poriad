@@ -11,7 +11,7 @@ import kotlinx.serialization.json.put
 
 /**
  * Завантаження в Supabase Storage. Окремо від [ApiClient]: інший шлях, публічний URL і помилки. Бакети: [IMAGES] — фото,
- * постери відео й аватари, [VIDEOS] — відео подій (mp4).
+ * постери відео й аватари, [VIDEOS] — відео подій (mp4), [PROOFS] — приватні скріншоти оплати ([download]).
  */
 class ImageStorage(private val client: HttpClient, private val baseUrl: String, private val key: String) {
     suspend fun upload(path: String, bytes: ByteArray, mime: String, token: String, bucket: String = IMAGES): String {
@@ -46,6 +46,14 @@ class ImageStorage(private val client: HttpClient, private val baseUrl: String, 
         catch (e: Exception) { fail(AppError.ImageUploadFailed) }
     }
 
+    /** Файл приватного бакета ([PROOFS]) з токеном людини. */
+    suspend fun download(bucket: String, path: String, token: String): ByteArray {
+        if (key.isBlank()) fail(AppError.NotConfigured)
+        val response = client.get(base() + OBJECT + "authenticated/$bucket/$path") { header("apikey", key); bearerAuth(token) }
+        if (!response.status.isSuccess()) throw apiFailure(response.status.value, response.bodyAsText(), "storage download")
+        return response.readRawBytes()
+    }
+
     /** Видаляє файл за публічною адресою, яку повернули [upload] чи [copy]. Чуже посилання — нічого. */
     suspend fun delete(url: String, token: String) {
         val (bucket, path) = located(url) ?: return
@@ -67,6 +75,8 @@ class ImageStorage(private val client: HttpClient, private val baseUrl: String, 
     companion object {
         const val IMAGES = "event-images"
         const val VIDEOS = "event-videos"
+        /** Скріншоти оплати, приватний: `<uid>/<подія>/<uuid>.jpg`. */
+        const val PROOFS = "payment-proofs"
         private val BUCKETS = setOf(IMAGES, VIDEOS)
         private const val OBJECT = "/storage/v1/object/"
         private const val PUBLIC = "/storage/v1/object/public/"

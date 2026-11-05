@@ -18,13 +18,47 @@ assert.ok(imported.includes('class="btn primary" href="https://concert.ua/x?utm_
 assert.ok(imported.includes("від 450 ₴"));
 assert.ok(!imported.includes("Учасників"), "в імпорті місць нема");
 
-// Ціна від людей (1.7): точна, поруч з учасниками й з «Оплата — напряму організатору»; на панелі — ціна.
+// Ціна від людей (1.7): точна, поруч з учасниками; коли платять — передоплата чи на зустрічі, поза «Поряд» (05.11); на панелі — ціна.
 const priced = eventPage({ ...base, price_min: 1500 }, now);
 assert.ok(priced.includes("<b data-spots>5 з 8</b>"), "учасники лишаються фактом");
-assert.ok(priced.includes("<span class=\"overline\">Ціна</span><b>1\u00a0500 ₴</b><small>Оплата — напряму організатору</small>"));
-assert.ok(priced.includes("<small>Ціна</small><span>1\u00a0500 ₴</span>"), "на панелі — ціна");
+// Як платити — за ⓘ біля ціни, у спливному вікні (popover), а не текстом під сумою (власник 05.11).
+assert.ok(priced.includes('<span class="overline">Ціна</span><b>1\u00a0500 ₴ <button class="info" type="button" popovertarget="fact-info" aria-label="Як платити">'));
+assert.ok(priced.includes('<div class="info-pop" id="fact-info" popover>Платите організатору на зустрічі. «Поряд» не приймає оплату й не відповідає за неї.</div>'));
+// Коли платять — під ціною одразу й на панелі (власник 05.11): передоплата чи на зустрічі.
+assert.ok(priced.includes("<small>Оплата на зустрічі</small>") && priced.includes("<small>Ціна · оплата на зустрічі</small>"));
+const prepaid = eventPage({ ...base, price_min: 300, prepay: true }, now);
+assert.ok(prepaid.includes("<small>Передоплата</small>") && prepaid.includes("<small>Ціна · передоплата</small>")
+  && prepaid.includes("Організатор попросить заплатити заздалегідь і сам напише, як і коли. «Поряд» не приймає оплату й не відповідає за неї."), "передоплата: підпис, панель і ⓘ");
+assert.ok(!priced.includes("без передоплати"), "передоплату поза «Поряд» не виключаємо");
+
+assert.ok(priced.includes("<small>Ціна · оплата на зустрічі</small><span>1\u00a0500 ₴</span>"), "на панелі — ціна й коли платять");
 assert.ok(!priced.includes("від 1"), "від людей — без «від»");
 assert.ok(!community.includes("Оплата — напряму"), "безкоштовна — без ціни");
+
+// Оплата онлайн (docs/organizer-events.md): підпис і застереження «Поряд не відповідає» — раз на сторінці (у розмові —
+// під реквізитами, chat.js); у шторці — рядок довіри й смуга заявки з сумою.
+const online = eventPage({ ...base, price_min: 300, approval_required: true, pay_online: true, refund_policy: "before_48h" }, now);
+assert.ok(online.includes('<div class="info-pop" id="fact-info" popover>Оплата онлайн організатору</div>'));
+assert.equal(online.split("«Поряд» не приймає оплату й не відповідає за неї.").length - 1, 2, "на сторінці й у кроці згоди перед заявкою — не на кожному кроці");
+// Перед заявкою — умови й правила повернення (20261125170000_pay_online_safety).
+assert.ok(online.includes('data-step="pay"') && online.includes("data-pay-agree") && online.includes("за 48 год до початку. Скасує організатор — поверне все."),
+  "згода платника з правилами повернення");
+const cancelledOnline = eventPage({ ...base, price_min: 300, approval_required: true, pay_online: true, refund_policy: "cancel_only", status: "cancelled",
+  organizer_id: "c3000000-0000-4000-8000-000000000003" }, now);
+assert.ok(cancelledOnline.includes("організатор має повернути гроші") && cancelledOnline.includes("data-ask>") && cancelledOnline.includes(" data-cancelled"),
+  "скасована онлайн-подія — про повернення й розмова відкрита");
+assert.ok(online.includes(' data-pay-online data-price="300">') && !online.includes("Участь за підтвердженням організатора."), "замість загального рядка — про оплату");
+assert.ok(online.includes("data-trust hidden") && online.includes("data-pay-bar hidden"), "довіра й стан заявки — у розмові");
+assert.ok(!priced.includes("data-pay-online") && !priced.includes('data-step="pay"'), "на місці — без шторки оплати онлайн і кроку згоди");
+assert.ok(online.includes('<input class="sr" type="file" accept="image/*" data-proof>') && online.includes("Скріншот бачите лише ви й організатор."),
+  "скріншот оплати — лише онлайн, поле файлу досяжне з клавіатури");
+assert.ok(!priced.includes("data-proof"), "на місці скріншотів нема");
+// «Написати організатору» — подія від людей з організатором, ще не минула; розмова — у шторці.
+const host = { ...base, organizer_id: "c3000000-0000-4000-8000-000000000003" };
+assert.ok(eventPage(host, now).includes("data-ask>") && community.includes('data-step="ask"') && community.includes("data-open-ask"));
+assert.ok(!community.includes("data-ask>"), "без організатора писати нікому");
+assert.ok(!imported.includes("data-ask>"), "в афіші організатора нема");
+assert.ok(!eventPage(host, new Date("2026-10-05T00:00:00Z")).includes("data-ask>"), "минула — без кнопки");
 
 const withShelters = eventPage(base, now, shelters);
 assert.ok(withShelters.includes("Укриття поруч") && withShelters.includes("Метро · 66 м · Є пандус"));

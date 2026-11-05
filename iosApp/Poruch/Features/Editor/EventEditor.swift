@@ -54,7 +54,7 @@ struct EventEditor: View {
                         case .about: AboutStep(editor: editor)
                         case .place: PlaceStep(editor: editor)
                         case .schedule: ScheduleStep(form: $editor.form, issues: editor.issueTexts)
-                        case .people: PeopleStep(form: $editor.form, issues: editor.issueTexts)
+                        case .people: PeopleStep(form: $editor.form, issues: editor.issueTexts, payOnline: editor.payOnline)
                         }
                     }
                     .padding(Space.page)
@@ -591,6 +591,8 @@ private struct PeopleStep: View {
     @Binding var form: EditorForm
     /// Тексти під полями значенням, а не замиканням: замикання SwiftUI не порівнює, і крок не перемальовувався.
     let issues: [DraftField: String]
+    /// Правка події з оплатою онлайн: підказка під ціною — про неї, а не «на місці».
+    var payOnline = false
     var body: some View {
         // Число набирають, степер — для дрібних поправок: 1→200 стрілками — двісті дотиків.
         VStack(alignment: .leading, spacing: Space.sm) {
@@ -607,8 +609,19 @@ private struct PeopleStep: View {
             .keyboardType(.numberPad)
             FieldIssue(text: issues[.capacity])
         }.id(DraftField.capacity)
-        // Ціна поруч з місцями (docs/organizers-1.5.md, 1.7): порожньо — безкоштовно. Як оплатити, люди домовляються з
-        // організатором самі, тож ні режимів, ні реквізитів.
+        // Вхід: спершу безкоштовно чи платно (власник 05.11). Платно — ціна й коли платять; безкоштовно прибирає обидва.
+        VStack(alignment: .leading, spacing: Space.sm) {
+            Text(Copy.entry_label.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+            SegmentedPill(items: [Copy.entry_free, Copy.entry_paid], selection: form.isPaid ? 1 : 0) { index in
+                if index == 1 {
+                    form.paid = true
+                } else {
+                    form.paid = false; form.price = nil; form.prepay = nil
+                }
+            }
+        }
+        // Онлайн застосунок не вмикає (лише кабінет на сайті), а коли платять — обирає.
+        if form.isPaid {
         VStack(alignment: .leading, spacing: Space.sm) {
             LabelledField(
                 label: Copy.price_label,
@@ -617,11 +630,24 @@ private struct PeopleStep: View {
                     set: { form.price = Int(String($0.filter(\.isNumber).prefix(6))) }
                 ),
                 placeholder: Copy.price_placeholder,
-                hint: Copy.price_hint
+                hint: payOnline ? Copy.price_hint_online : Copy.price_hint
             )
             .keyboardType(.numberPad)
             FieldIssue(text: issues[.price])
         }.id(DraftField.price)
+        }
+        // Коли платять: людина бачить це під ціною й на панелі. Онлайн-подію змінюють у кабінеті.
+        if form.isPaid && !payOnline {
+            VStack(alignment: .leading, spacing: Space.sm) {
+                Text(Copy.pay_when_label.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                SegmentedPill(items: [Copy.pay_when_meeting, Copy.pay_when_prepay], selection: form.prepay == true ? 1 : 0) {
+                    form.prepay = $0 == 1
+                }
+                Text(form.prepay == true ? Copy.pay_when_prepay_hint : Copy.pay_when_meeting_hint)
+                    .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
         VStack(alignment: .leading, spacing: Space.md) {
             VStack(alignment: .leading, spacing: Space.lg) {
                 VStack(alignment: .leading, spacing: Space.xs) {

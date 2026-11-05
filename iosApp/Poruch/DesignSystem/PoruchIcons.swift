@@ -571,6 +571,28 @@ enum PoruchIcons {
         }
     )
 
+    /// Ⓘ: коло «alert», перевернуте — крапка вгорі, риска під нею.
+    static let info = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(3.5, 12, s))
+            path.addCurve(to: point(12, 3.5, s), control1: point(3.5, 7.306, s), control2: point(7.306, 3.5, s))
+            path.addCurve(to: point(20.5, 12, s), control1: point(16.694, 3.5, s), control2: point(20.5, 7.306, s))
+            path.addCurve(to: point(12, 20.5, s), control1: point(20.5, 16.694, s), control2: point(16.694, 20.5, s))
+            path.addCurve(to: point(3.5, 12, s), control1: point(7.306, 20.5, s), control2: point(3.5, 16.694, s))
+            path.closeSubpath()
+            path.move(to: point(12, 11, s))
+            path.addLine(to: point(12, 16.5, s))
+        },
+        fill: { path, s in
+            path.move(to: point(10.75, 7.6, s))
+            path.addCurve(to: point(12, 8.85, s), control1: point(10.75, 8.29, s), control2: point(11.31, 8.85, s))
+            path.addCurve(to: point(13.25, 7.6, s), control1: point(12.69, 8.85, s), control2: point(13.25, 8.29, s))
+            path.addCurve(to: point(12, 6.35, s), control1: point(13.25, 6.91, s), control2: point(12.69, 6.35, s))
+            path.addCurve(to: point(10.75, 7.6, s), control1: point(11.31, 6.35, s), control2: point(10.75, 6.91, s))
+            path.closeSubpath()
+        }
+    )
+
     static let clock = PoruchGlyph(
         stroke: { path, s in
             path.move(to: point(3.5, 12, s))

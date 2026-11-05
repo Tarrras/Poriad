@@ -82,6 +82,8 @@ import app.poruch.domain.ReportReason
 import app.poruch.domain.ShelterKind
 import app.poruch.domain.ListingState
 import app.poruch.shared.DetailAction
+import app.poruch.shared.opensPaymentChat
+import app.poruch.shared.questionsWithoutRequests
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -217,7 +219,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit, focusRequ
                         if (state.screen.organizer && state.screen.requests.isNotEmpty()) JoinRequests(
                             state, onIntent, { highlight.value }, Modifier.onGloballyPositioned { requestsTop = it.positionInRoot().y }
                         )
-                        if (state.screen.organizer && state.screen.questions.isNotEmpty()) Questions(state, onIntent)
+                        if (state.screen.organizer && state.screen.questionsWithoutRequests.isNotEmpty()) Questions(state, onIntent)
                         if (state.screen.canRate) RateEvent(state, onIntent)
                         if (state.screen.organizer && state.screen.ended && !state.screen.cancelled) Ratings(state)
                         // Після кінця редагувати й скасовувати нічого: лишаються відгуки.
@@ -277,6 +279,17 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit, focusRequ
     if (state.seekingCompany) CompanionSheet(event, state.screen.mutating, onIntent)
     // `AGE_REQUIRED`: організатор обмежив вік, а в акаунта лише галочка (чи віку нема зовсім). Дата — тут, і запис іде
     // одразу після неї.
+    if (state.confirmingPayTerms) PoruchConfirmSheet(
+        title = stringResource(R.string.pay_terms_title),
+        message = listOfNotNull(
+            stringResource(R.string.pay_terms_body), stringResource(R.string.pay_terms_direct),
+            refundText(state.screen.room?.refundPolicy), stringResource(R.string.pay_terms_doubt)
+        ).joinToString("\n\n"),
+        confirmLabel = stringResource(R.string.pay_terms_agree),
+        dismissLabel = stringResource(R.string.cancel),
+        onConfirm = { onIntent(DetailIntent.PayTermsAnswered(true)) },
+        onDismiss = { onIntent(DetailIntent.PayTermsAnswered(false)) }
+    )
     if (state.askingBirthDate) {
         val limited = state.screen.room?.let { it.minAge > SafetyRules.MIN_SIGNUP_AGE || it.maxAge != null } == true
         BirthDateSheet(
@@ -302,6 +315,10 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit, focusRequ
                 onIntent(DetailIntent.ToggleFollowPerson(person.userId, person.profile?.name.orEmpty()))
             }
         ) { sheet ->
+            if (state.screen.canWriteTo(person.userId)) SecondaryButton(
+                stringResource(R.string.person_write), { sheet.close { onIntent(DetailIntent.OpenQuestion(person.userId)) } },
+                Modifier.fillMaxWidth()
+            )
             if (request) {
                 Text(stringResource(R.string.person_request), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -310,7 +327,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit, focusRequ
                         Modifier.weight(1f), enabled = !state.screen.mutating
                     )
                     PrimaryButton(
-                        stringResource(R.string.approve), { sheet.close { onIntent(DetailIntent.ApproveRequest(person.userId)) } },
+                        stringResource(if (state.screen.payOnline) R.string.approve_paid else R.string.approve), { sheet.close { onIntent(DetailIntent.ApproveRequest(person.userId)) } },
                         Modifier.weight(1f), enabled = !state.screen.mutating
                     )
                 }
@@ -368,7 +385,7 @@ internal fun StickyAction(
                 // ширину, а дія під ним. Поруч із кнопкою воно обрізалось саме в момент рішення. Записаним стан каже
                 // штамп перед ним, а кнопка під ним стає тоновою.
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                    JoinStamp(state.screen.action, state.stampPending) { onIntent(DetailIntent.StampShown) }
+                    JoinStamp(state.screen.action, state.screen.payOnline, state.stampPending) { onIntent(DetailIntent.StampShown) }
                     hint(Modifier.weight(1f))
                 }
                 // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
@@ -415,6 +432,9 @@ private fun CompanySearchingRow(onClick: () -> Unit) {
 internal fun PrimaryAction(state: DetailState, onIntent: (DetailIntent) -> Unit, modifier: Modifier = Modifier) {
     val action = state.screen.action
     when {
+        state.screen.opensPaymentChat -> SecondaryButton(
+            stringResource(R.string.pay_chat_open), { onIntent(DetailIntent.OpenQuestion()) }, modifier, icon = PoruchIcons.chat
+        )
         // Організатору панель не каже «Ви організатор» неактивною кнопкою (це вже каже штамп на обкладинці), а дає
         // головне, що він тут робить, — поширити. Та сама дія, що була круглою; круглих у нього тепер три.
         action == DetailAction.ORGANIZER -> when {
@@ -450,11 +470,11 @@ private val STAMPED = setOf(DetailAction.LEAVE, DetailAction.REQUESTED, DetailAc
  * [onShown] гасить [pending], щойно панель перемкнулась.
  */
 @Composable
-private fun JoinStamp(action: DetailAction, pending: Boolean, onShown: () -> Unit) {
+private fun JoinStamp(action: DetailAction, payOnline: Boolean, pending: Boolean, onShown: () -> Unit) {
     LaunchedEffect(action) { if (pending && action in STAMPED) onShown() }
     val (word, tone) = when (action) {
         DetailAction.LEAVE -> R.string.going to BadgeTone.Success
-        DetailAction.REQUESTED -> R.string.stamp_request to BadgeTone.Accent
+        DetailAction.REQUESTED -> (if (payOnline) R.string.stamp_pay else R.string.stamp_request) to BadgeTone.Accent
         DetailAction.LEAVE_WAITLIST -> R.string.stamp_waitlist to BadgeTone.Accent
         else -> return
     }
@@ -477,13 +497,17 @@ internal fun stickyHint(state: DetailState): String {
     val room = state.screen.room ?: return ""
     return when {
         state.screen.ended -> stringResource(R.string.event_ended)
-        room.awaitingApproval -> stringResource(R.string.request_pending_hint)
+        room.awaitingApproval -> stringResource(if (room.payOnline) R.string.pay_waiting_hint else R.string.request_pending_hint)
         // Гостю — що його чекає, не текст перемикача з редактора.
         room.approvalRequired && !room.joined && !state.screen.organizer -> stringResource(R.string.approval_guest_hint)
         room.isFull && !room.joined && !state.screen.organizer -> stringResource(R.string.waitlist_hint)
         else -> stringResource(R.string.seats, room.seatsLeft)
-        // Платна — ціна першою, як на квитку в стрічці: «300 ₴ · Вільних місць: 20». Після кінця вона нічого не каже.
-    }.let { hint -> room.price?.takeIf { !state.screen.ended }?.let { stringResource(R.string.price_value, EventRules.formatPrice(it)) + " · " + hint } ?: hint }
+        // Платна — ціна першою, як на квитку в стрічці, і коли платять: «300 ₴, передоплата · Вільних місць: 20».
+        // Після кінця вона нічого не каже.
+    }.let { hint ->
+        val payWhen = payWhenText(room).replaceFirstChar { it.lowercase() }
+        room.price?.takeIf { !state.screen.ended }?.let { stringResource(R.string.price_value, EventRules.formatPrice(it)) + ", " + payWhen + " · " + hint } ?: hint
+    }
 }
 
 internal val DetailAction.label: Int

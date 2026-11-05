@@ -64,6 +64,12 @@ sealed interface AppError {
     data object ChatClosed : AppError
     data object TooManyMessages : AppError
     data object InvalidMessage : AppError
+    /** Реквізити для оплати поза розмовою на двох онлайн-події: у назві, описі, загальному чаті чи події «на місці». */
+    data object PaymentDetails : AppError
+    /** Заявка на онлайн-подію без згоди на умови оплати: показати їх ще раз. */
+    data object PaymentTermsRequired : AppError
+    /** Видалення акаунта: спершу скасувати онлайн-події, на які вже записались (гроші повертає організатор). */
+    data object PaidEventsActive : AppError
     /** Стоп-словник сервера: текст не опублікуємо, людина має переписати. */
     data object ObjectionableContent : AppError
 

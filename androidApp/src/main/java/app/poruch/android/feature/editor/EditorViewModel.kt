@@ -84,7 +84,8 @@ class EditorViewModel(
             copy(
                 form = restored, mapLatitude = latitude, mapLongitude = longitude,
                 host = (event?.gathering?.organizerName ?: shared.library.profile?.name)?.takeIf { it.isNotBlank() },
-                taken = event?.gathering?.attendeeCount ?: 0
+                taken = event?.gathering?.attendeeCount ?: 0,
+                payOnline = event?.gathering?.payOnline == true
             )
         }
         resumed = repeated == null && state.value.canStartOver
@@ -459,7 +460,8 @@ class EditorViewModel(
         address = address, latitude = latitude.format(), longitude = longitude.format(), timeZone = timeZone,
         starts = startsAt.toLocal(timeZone), ends = endsAt.toLocal(timeZone), capacity = capacity.toString(),
         minAge = minAge.toString(), maxAge = maxAge?.toString().orEmpty(), approvalRequired = approvalRequired,
-        contactUrl = contactUrl.orEmpty(), media = media.orEmpty(), price = price?.toString().orEmpty()
+        contactUrl = contactUrl.orEmpty(), media = media.orEmpty(), price = price?.toString().orEmpty(), prepay = prepay,
+        paid = price != null
     )
 
     private fun String.toLocal(zone: String) = runCatching {
