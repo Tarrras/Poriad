@@ -609,7 +609,19 @@ private struct PeopleStep: View {
             .keyboardType(.numberPad)
             FieldIssue(text: issues[.capacity])
         }.id(DraftField.capacity)
-        // Порожньо — безкоштовно. Онлайн застосунок не вмикає (лише кабінет на сайті), а коли платять — обирає.
+        // Вхід: спершу безкоштовно чи платно (власник 05.11). Платно — ціна й коли платять; безкоштовно прибирає обидва.
+        VStack(alignment: .leading, spacing: Space.sm) {
+            Text(Copy.entry_label.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+            SegmentedPill(items: [Copy.entry_free, Copy.entry_paid], selection: form.isPaid ? 1 : 0) { index in
+                if index == 1 {
+                    form.paid = true
+                } else {
+                    form.paid = false; form.price = nil; form.prepay = nil
+                }
+            }
+        }
+        // Онлайн застосунок не вмикає (лише кабінет на сайті), а коли платять — обирає.
+        if form.isPaid {
         VStack(alignment: .leading, spacing: Space.sm) {
             LabelledField(
                 label: Copy.price_label,
@@ -623,8 +635,9 @@ private struct PeopleStep: View {
             .keyboardType(.numberPad)
             FieldIssue(text: issues[.price])
         }.id(DraftField.price)
-        // Коли платять — з ціною: людина бачить це під ціною й на панелі. Онлайн-подію змінюють у кабінеті.
-        if form.price != nil && !payOnline {
+        }
+        // Коли платять: людина бачить це під ціною й на панелі. Онлайн-подію змінюють у кабінеті.
+        if form.isPaid && !payOnline {
             VStack(alignment: .leading, spacing: Space.sm) {
                 Text(Copy.pay_when_label.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                 SegmentedPill(items: [Copy.pay_when_meeting, Copy.pay_when_prepay], selection: form.prepay == true ? 1 : 0) {

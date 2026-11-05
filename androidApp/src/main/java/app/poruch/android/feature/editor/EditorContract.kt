@@ -39,7 +39,9 @@ data class EditorForm(
     /** Ціна входу, гривні (docs/organizers-1.5.md, 1.7). Порожньо — безкоштовно. */
     val price: String = "",
     /** Коли платять: передоплата, а не на зустрічі. Лише з ціною. */
-    val prepay: Boolean = false
+    val prepay: Boolean = false,
+    /** Вхід платний: тоді є ціна й «Коли платять». Платно без ціни — помилка ціни, а не безкоштовна подія. */
+    val paid: Boolean = false
 ) {
     /** Крапка зустрічі, якщо є. З самих координат, а не з прапорця: прапорець розходився з ними. */
     val point: Pair<Double, Double>?
@@ -60,7 +62,7 @@ data class EditorForm(
             timeZone = timeZone, capacity = capacity.toInt(), imageUrl = imageUrl,
             minAge = minAge.toInt(), maxAge = maxAge.trim().takeIf { it.isNotEmpty() }?.toInt(),
             approvalRequired = approvalRequired, contactUrl = ContactRules.normalize(contactUrl), media = media,
-            mediaBase = mediaBase, price = price.trim().takeIf { it.isNotEmpty() }?.toInt(), prepay = prepay
+            mediaBase = mediaBase, price = if (paid) price.trim().toInt() else null, prepay = paid && prepay
         ).also {
             if (!SafetyRules.isAgeLimit(it.minAge, it.maxAge)) error("age limits")
             if (!ContactRules.isContactUrl(it.contactUrl)) error("contact url")
@@ -82,7 +84,7 @@ data class EditorForm(
             capacity = capacity.toIntOrNull() ?: 0, minAge = minAge.toIntOrNull() ?: 0,
             maxAge = maxAge.trim().takeIf { it.isNotEmpty() }?.let { it.toIntOrNull() ?: -1 },
             approvalRequired = approvalRequired, contactUrl = ContactRules.normalize(contactUrl), media = media,
-            price = price.trim().takeIf { it.isNotEmpty() }?.let { it.toIntOrNull() ?: -1 }
+            price = if (paid) price.trim().toIntOrNull() ?: -1 else null
         ).validate(now.toString())
     }
 

@@ -1218,7 +1218,7 @@ const blank = () => {
   const d = editorDefaults(me?.user_metadata);
   return { title: "", description: "", category: null, city: d.city ?? (ui?.savedCity.get() || CITIES[0].name), address: "", lat: null, lon: null, placed: false,
     startDate: "", startTime: "", endDate: "", endTime: "", capacity: 10, minAge: 18, maxAge: "", approval: d.approval ?? false, contact: d.contact ?? "", price: "",
-    payOnline: false, prepay: false, refund: "", payTerms: false, id: null };
+    payOnline: false, prepay: false, paid: false, refund: "", payTerms: false, id: null };
 };
 
 function readDraft() { try { return JSON.parse(localStorage.getItem(DRAFT)); } catch { return null; } }
@@ -1292,7 +1292,7 @@ export function eventDraft(e) {
   return { ...blank(), title: e.title, description: e.description ?? "", category: e.category, city: e.city, address: e.address ?? "",
     lat: e.latitude, lon: e.longitude, placed: true, startDate: start.date, startTime: start.time, endDate: end.date, endTime: end.time,
     capacity: e.capacity ?? 10, minAge: e.min_age ?? 18, maxAge: e.max_age ?? "", approval: Boolean(e.approval_required), contact: e.contact_url ?? "", tz,
-    payOnline: Boolean(e.pay_online), prepay: Boolean(e.prepay), refund: e.refund_policy ?? "",
+    payOnline: Boolean(e.pay_online), prepay: Boolean(e.prepay), paid: Number(e.price_min) > 0, refund: e.refund_policy ?? "",
     price: Number(e.price_min) > 0 ? String(Math.round(Number(e.price_min))) : "" };
 }
 
@@ -1302,6 +1302,8 @@ function fill(d) {
   for (const name of FIELDS) f[name].value = d[name] ?? "";
   f.city.value = CITIES.some((c) => c.name === d.city) ? d.city : CITIES[0].name;
   f.approval.checked = Boolean(d.approval);
+  // Стара чернетка без прапорця — платна, якщо є ціна.
+  for (const radio of $$("[name=entry]", f)) radio.checked = radio.value === ((d.paid ?? Boolean(String(d.price ?? "").trim())) ? "paid" : "free");
   for (const radio of $$("[name=pay]", f)) radio.checked = radio.value === (d.payOnline ? "online" : d.prepay ? "prepay" : "onsite");
   for (const radio of $$("[name=refund]", f)) radio.checked = radio.value === d.refund;
   f.payterms.checked = Boolean(d.payTerms);
@@ -1320,7 +1322,7 @@ function fill(d) {
 function draft() {
   const f = form();
   const d = { id: f.dataset.id || null, tz: f.dataset.tz || TZ, category: f.dataset.category || null, approval: f.approval.checked, city: f.city.value, ...place,
-    payOnline: f.pay.value === "online", prepay: f.pay.value === "prepay", refund: f.refund.value, payTerms: f.payterms.checked };
+    payOnline: f.pay.value === "online", prepay: f.pay.value === "prepay", paid: f.entry.value === "paid", refund: f.refund.value, payTerms: f.payterms.checked };
   for (const name of FIELDS) d[name] = f[name].value;
   return d;
 }
@@ -1347,7 +1349,10 @@ export const payPlan = (price, payOnline) => {
   };
 };
 function payView() {
-  const f = form(), plan = payPlan(f.price.value, payOnlineOn && f.pay.value === "online");
+  // Платно — ціна й коли платять одразу, ще до суми (підказка та сама, що з сумою).
+  const f = form(), paid = f.entry.value === "paid";
+  const plan = payPlan(paid ? f.price.value || "1" : "", payOnlineOn && f.pay.value === "online");
+  $("[data-price-box]").hidden = !paid;
   $("[data-pay-box]").hidden = !plan.paid;
   $("[data-pay-online-option]").hidden = !payOnlineOn;
   const hint = $("[data-price-hint]");
@@ -1653,7 +1658,7 @@ function problems(d) {
   if (!start) out.push("Початок — дата й час у майбутньому");
   else if (!end || end <= start) out.push("Кінець — пізніше за початок");
   if (!(+d.capacity >= 1)) out.push("Кількість місць — від 1 до 10000");
-  const price = priceProblem(d.price);
+  const price = d.paid && !String(d.price ?? "").trim() ? "Вкажіть ціну входу" : priceProblem(d.price);
   if (price) out.push(price);
   if (payOnlineOn && payPlan(d.price, d.payOnline).online) out.push(...payProblems(d, payLimits, editing));
   return out;
@@ -1829,6 +1834,14 @@ function setupEditor() {
   f.addEventListener("input", changed);
   f.price.addEventListener("input", payView);
   for (const radio of $$("[name=pay]", f)) radio.addEventListener("change", payView);
+  // Безкоштовно прибирає ціну й спосіб оплати: інакше вони тихо поїхали б на сервер.
+  for (const radio of $$("[name=entry]", f)) radio.addEventListener("change", () => {
+    if (f.entry.value === "free") {
+      f.price.value = "";
+      for (const pay of $$("[name=pay]", f)) pay.checked = pay.value === "onsite";
+    }
+    payView(); changed();
+  });
   f.addEventListener("change", changed);
   f.addEventListener("submit", (event) => { event.preventDefault(); publish(); });
   $("[data-publishing]").addEventListener("cancel", (event) => event.preventDefault());

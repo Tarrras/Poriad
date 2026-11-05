@@ -1350,8 +1350,12 @@
   <!-- Над формою з паролем: «або поштою» поруч із «Увійти кодом з пошти» читалось як те саме. -->
   <string name="auth_or_password">або поштою й паролем</string>
   <!-- Ціна події від людей і як платять: на місці чи онлайн організатору. -->
-  <string name="price_label">Ціна, ₴ (необовʼязково)</string>
-  <string name="price_placeholder">Безкоштовно</string>
+  <!-- Вхід (власник 05.11): спершу «Безкоштовно / Платно»; платно — ціна й коли платять. -->
+  <string name="entry_label">Вхід</string>
+  <string name="entry_free">Безкоштовно</string>
+  <string name="entry_paid">Платно</string>
+  <string name="price_label">Ціна, ₴</string>
+  <string name="price_placeholder">Наприклад, 300</string>
   <string name="price_hint">Реквізити — лише в чаті учасників, який ви додали: в описі й розмовах «Поряд» їх не надсилають.</string>
   <!-- Коли платять (20261125190000): організатор позначає, людина бачить під ціною й на панелі. Як і куди — пише організатор. -->
   <string name="pay_when_label">Коли платять</string>

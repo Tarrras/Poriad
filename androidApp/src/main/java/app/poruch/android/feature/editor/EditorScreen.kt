@@ -501,16 +501,25 @@ private fun PeopleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         stringResource(R.string.capacity), form.capacity, { value -> onIntent(EditorIntent.Edit { copy(capacity = value.filter(Char::isDigit).take(5)) }) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next), error = state.problem(DraftField.CAPACITY)
     )
-    // Порожньо — безкоштовно. Онлайн застосунок не вмикає (лише кабінет на сайті), а коли платять — обирає.
-    LabelledField(
+    // Вхід: спершу безкоштовно чи платно (власник 05.11). Платно — ціна й коли платять; безкоштовно прибирає обидва.
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Text(stringResource(R.string.entry_label).uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+        SegmentedPill(
+            listOf(stringResource(R.string.entry_free), stringResource(R.string.entry_paid)), if (form.paid) 1 else 0,
+            { index -> onIntent(EditorIntent.Edit { if (index == 1) copy(paid = true) else copy(paid = false, price = "", prepay = false) }) }
+        )
+    }
+    // Онлайн застосунок не вмикає (лише кабінет на сайті), а коли платять — обирає.
+    if (form.paid) LabelledField(
         stringResource(R.string.price_label), form.price, { value -> onIntent(EditorIntent.Edit { copy(price = value.filter(Char::isDigit).take(6)) }) },
         placeholder = stringResource(R.string.price_placeholder),
         hint = stringResource(if (state.payOnline) R.string.price_hint_online else R.string.price_hint),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-        error = DraftField.PRICE.rule().takeIf { form.price.isNotEmpty() && form.price.toInt() !in EventRules.price }
+        // Платно без ціни — після спроби далі; поза межами — одразу.
+        error = DraftField.PRICE.rule().takeIf { form.price.isNotEmpty() && form.price.toInt() !in EventRules.price } ?: state.problem(DraftField.PRICE)
     )
-    // Коли платять — з ціною: людина бачить це під ціною й на панелі. Онлайн-подію змінюють у кабінеті.
-    if (form.price.isNotEmpty() && !state.payOnline) Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+    // Коли платять: людина бачить це під ціною й на панелі. Онлайн-подію змінюють у кабінеті.
+    if (form.paid && !state.payOnline) Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Text(stringResource(R.string.pay_when_label).uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
         SegmentedPill(
             listOf(stringResource(R.string.pay_when_meeting), stringResource(R.string.pay_when_prepay)), if (form.prepay) 1 else 0,
@@ -684,7 +693,8 @@ private val EditorStep.label: Int
 @Composable
 private fun PeopleStepPricePreview() = PoruchTheme(dark = false) {
     Column(Modifier.background(Poruch.colors.canvas).padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {
-        PeopleStep(EditorState(step = EditorStep.PEOPLE, form = EditorForm(capacity = "12", price = "300")), {})
-        PeopleStep(EditorState(step = EditorStep.PEOPLE, form = EditorForm(capacity = "12", price = "200000", prepay = true)), {})
+        PeopleStep(EditorState(step = EditorStep.PEOPLE, form = EditorForm(capacity = "12")), {})
+        PeopleStep(EditorState(step = EditorStep.PEOPLE, form = EditorForm(capacity = "12", price = "300", paid = true)), {})
+        PeopleStep(EditorState(step = EditorStep.PEOPLE, form = EditorForm(capacity = "12", price = "200000", paid = true, prepay = true)), {})
     }
 }

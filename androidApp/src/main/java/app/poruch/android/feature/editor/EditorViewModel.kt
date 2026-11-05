@@ -460,7 +460,8 @@ class EditorViewModel(
         address = address, latitude = latitude.format(), longitude = longitude.format(), timeZone = timeZone,
         starts = startsAt.toLocal(timeZone), ends = endsAt.toLocal(timeZone), capacity = capacity.toString(),
         minAge = minAge.toString(), maxAge = maxAge?.toString().orEmpty(), approvalRequired = approvalRequired,
-        contactUrl = contactUrl.orEmpty(), media = media.orEmpty(), price = price?.toString().orEmpty(), prepay = prepay
+        contactUrl = contactUrl.orEmpty(), media = media.orEmpty(), price = price?.toString().orEmpty(), prepay = prepay,
+        paid = price != null
     )
 
     private fun String.toLocal(zone: String) = runCatching {

@@ -142,7 +142,11 @@
             <label class="kab-field"><span>Вік від</span><input type="number" name="minAge" min="18" max="100" inputmode="numeric" required></label>
             <label class="kab-field"><span>до <small>(необовʼязково)</small></span><input type="number" name="maxAge" min="18" max="120" inputmode="numeric"></label>
           </div>
-          <label class="kab-field kab-price"><span>Ціна, ₴ <small>(необовʼязково)</small></span><input type="number" name="price" min="1" max="100000" step="1" inputmode="numeric" placeholder="Безкоштовно"></label>
+          <div class="kab-field" role="radiogroup" aria-labelledby="kab-entry">
+            <span id="kab-entry">Вхід</span>
+            <div class="kab-seg"><label><input type="radio" name="entry" value="free" checked><span>Безкоштовно</span></label><label><input type="radio" name="entry" value="paid"><span>Платно</span></label></div>
+          </div>
+          <label class="kab-field kab-price" data-price-box hidden><span>Ціна, ₴</span><input type="number" name="price" min="1" max="100000" step="1" inputmode="numeric" placeholder="Наприклад, 300"></label>
           <div class="kab-field" role="radiogroup" aria-labelledby="kab-pay" data-pay-box hidden>
             <span id="kab-pay">Коли платять</span>
             <label class="kab-check"><input type="radio" name="pay" value="onsite" checked><span><b>На зустрічі</b><small>Учасники платять вам на місці</small></span></label>
