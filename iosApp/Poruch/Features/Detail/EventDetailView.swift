@@ -99,6 +99,8 @@ struct EventDetailView: View, Equatable {
     @State var writingTo: ChatRoute?
     /// Онлайн-подія: умови оплати перед заявкою; після згоди — заявка й розмова з організатором.
     @State var payTermsFor: PayTermsTarget?
+    /// Ⓘ біля ціни: як платити — спливне вікно.
+    @State var payInfoShown = false
     /// Системне «Поділитися» з готовим текстом: щойно створений супутник чи «Покликати».
     @State var sharing: ShareText?
     /// «Покликати» чекає посилання від сервера: повторний тап нічого не робить.

@@ -201,17 +201,29 @@ extension EventDetailView {
             ForEach(Array(cells.enumerated()), id: \.offset) { _, cell in
                 VStack(alignment: .leading, spacing: Space.xs) {
                     Text(cell.0.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                    Text(cell.1).font(PoruchFont.title3).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
-                    // Платна подія новачка: до того, як домовлятися про передоплату поза «Поряд».
-                    if cell.0 == Copy.organizer_short, event.gathering?.organizerNew == true {
-                        Text(Copy.organizer_new_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
                     if cell.0 == Copy.price_fact {
-                        // Онлайн — ще й правила повернення: людина бачить їх до заявки.
-                        Text(event.gathering?.payOnline == true ? [Copy.price_pay_online_hint, refundText(event.gathering?.refundPolicy)].compactMap { $0 }.joined(separator: " ") : Copy.price_pay_hint)
-                            .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        // Як платити — за ⓘ біля ціни, у спливному вікні, а не текстом під сумою (власник 05.11).
+                        HStack(spacing: Space.xs) {
+                            Text(cell.1).font(PoruchFont.title3).foregroundStyle(Palette.ink)
+                            Button { payInfoShown = true } label: {
+                                // Ціль дотику 44 pt — формою, не рамкою: рамка розсунула б рядок ціни.
+                                PoruchIcon(glyph: PoruchIcons.info, size: 18).foregroundStyle(Palette.inkSecondary)
+                                    .contentShape(Rectangle().inset(by: -13))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(Copy.pay_info_a11y)
+                            .popover(isPresented: $payInfoShown, arrowEdge: .bottom) {
+                                // Онлайн — ще й правила повернення: людина бачить їх до заявки.
+                                Text(event.gathering?.payOnline == true ? [Copy.price_pay_online_hint, refundText(event.gathering?.refundPolicy)].compactMap { $0 }.joined(separator: " ") : Copy.price_pay_hint)
+                                    .font(PoruchFont.subhead).foregroundStyle(Palette.ink)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: 280, alignment: .leading)
+                                    .padding(Space.lg)
+                                    .presentationCompactAdaptation(.popover)
+                            }
+                        }
+                    } else {
+                        Text(cell.1).font(PoruchFont.title3).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

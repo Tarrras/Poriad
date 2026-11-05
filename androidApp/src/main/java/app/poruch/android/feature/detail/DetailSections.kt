@@ -1,5 +1,9 @@
 package app.poruch.android.feature.detail
 
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.window.Popup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -657,25 +661,27 @@ internal fun BoughtCard(saved: Boolean, onIntent: (DetailIntent) -> Unit, onAddT
 /** Факти про подію сіткою два на два, як картка дня в Moonly: підпис над значенням, без гліфів. */
 @Composable
 internal fun Facts(event: Event) {
+    var payInfo: String? = null
+    val priceLabel = stringResource(R.string.price_fact)
     val cells = buildList {
         add(Triple(stringResource(R.string.when_label), eventTime(event, dateWords()), null))
         add(Triple(stringResource(R.string.where), listOf(event.city, event.address).filter { it.isNotBlank() }.joinToString(" · "), null))
         event.gathering?.let { room ->
-            // Платна подія новачка: до того, як домовлятися про передоплату поза «Поряд».
-            add(Triple(stringResource(R.string.organizer_short), room.organizerName.ifBlank { stringResource(R.string.organizer_short) },
-                if (room.organizerNew) stringResource(R.string.organizer_new_hint) else null))
+            add(Triple(stringResource(R.string.organizer_short), room.organizerName.ifBlank { stringResource(R.string.organizer_short) }, null))
             add(Triple(stringResource(R.string.capacity_label), stringResource(R.string.attendees_short, room.attendeeCount, room.capacity), null))
             // Ціна й як платять — на місці чи онлайн організатору, не через нас.
-            // Онлайн — ще й правила повернення: людина бачить їх до заявки.
-            val payHint = if (room.payOnline) listOfNotNull(stringResource(R.string.price_pay_online_hint), refundText(room.refundPolicy)).joinToString(" ")
+            // Онлайн — ще й правила повернення: людина бачить їх до заявки. Як платити — за ⓘ біля ціни (власник 05.11).
+            payInfo = if (room.payOnline) listOfNotNull(stringResource(R.string.price_pay_online_hint), refundText(room.refundPolicy)).joinToString(" ")
                 else stringResource(R.string.price_pay_hint)
-            peoplePrice(event)?.let { add(Triple(stringResource(R.string.price_fact), it, payHint)) }
+            peoplePrice(event)?.let { add(Triple(stringResource(R.string.price_fact), it, null)) }
         }
     }
     Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.xl), verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {
         cells.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
-                row.forEach { (label, value, caption) -> FactCell(label, value, Modifier.weight(1f), caption) }
+                row.forEach { (label, value, caption) ->
+                    FactCell(label, value, Modifier.weight(1f), caption, info = if (label == priceLabel) payInfo else null)
+                }
                 if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
@@ -683,12 +689,38 @@ internal fun Facts(event: Event) {
 }
 
 @Composable
-internal fun FactCell(label: String, value: String, modifier: Modifier, caption: String? = null) {
+internal fun FactCell(label: String, value: String, modifier: Modifier, caption: String? = null, info: String? = null) {
     val colors = Poruch.colors
     Column(modifier.semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
-        Text(value, style = MaterialTheme.typography.titleMedium, color = colors.ink)
+        if (info == null) Text(value, style = MaterialTheme.typography.titleMedium, color = colors.ink)
+        else Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(value, style = MaterialTheme.typography.titleMedium, color = colors.ink)
+            InfoPopup(info)
+        }
         caption?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
+    }
+}
+
+/** Ⓘ і спливне вікно під ним: пояснення, яке не мусить стояти текстом на екрані (як платити за вхід). */
+@Composable
+private fun InfoPopup(text: String) {
+    val colors = Poruch.colors
+    var shown by remember { mutableStateOf(false) }
+    Box {
+        Icon(
+            PoruchIcons.info, stringResource(R.string.pay_info_a11y),
+            // Без minimumInteractiveComponentSize: 48 dp розсунули б рядок ціни; Compose сам розширює ціль дотику до 48 dp.
+            Modifier.clip(CircleShape).clickable(role = Role.Button) { shown = true }.padding(Spacing.xs).size(18.dp),
+            tint = colors.inkSecondary
+        )
+        if (shown) Popup(alignment = Alignment.TopStart, offset = IntOffset(0, with(LocalDensity.current) { 32.dp.roundToPx() }), onDismissRequest = { shown = false }, properties = PopupProperties(focusable = true)) {
+            Text(
+                text, style = MaterialTheme.typography.bodyMedium, color = colors.ink,
+                modifier = Modifier.widthIn(max = 280.dp).shadow(12.dp, RoundedCornerShape(14.dp))
+                    .background(colors.surface, RoundedCornerShape(14.dp)).padding(Spacing.lg)
+            )
+        }
     }
 }
 

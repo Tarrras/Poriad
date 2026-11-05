@@ -21,11 +21,11 @@ assert.ok(!imported.includes("Учасників"), "в імпорті місц�
 // Ціна від людей (1.7): точна, поруч з учасниками; оплата — на місці чи напряму організатору, поза «Поряд» (05.11); на панелі — ціна.
 const priced = eventPage({ ...base, price_min: 1500 }, now);
 assert.ok(priced.includes("<b data-spots>5 з 8</b>"), "учасники лишаються фактом");
-assert.ok(priced.includes("<span class=\"overline\">Ціна</span><b>1\u00a0500 ₴</b><small>Оплата на місці або напряму організатору. «Поряд» не приймає оплату й не відповідає за неї.</small>"));
+// Як платити — за ⓘ біля ціни, у спливному вікні (popover), а не текстом під сумою (власник 05.11).
+assert.ok(priced.includes('<span class="overline">Ціна</span><b>1\u00a0500 ₴ <button class="info" type="button" popovertarget="fact-info" aria-label="Як платити">'));
+assert.ok(priced.includes('<div class="info-pop" id="fact-info" popover>Оплата на місці або напряму організатору. «Поряд» не приймає оплату й не відповідає за неї.</div>'));
 assert.ok(!priced.includes("без передоплати"), "передоплату поза «Поряд» не виключаємо");
-assert.ok(eventPage({ ...base, price_min: 300, organizer_new: true }, now).includes("<small>Новий організатор — проведених подій на «Поряд» ще немає</small>"),
-  "платна подія новачка — позначка під організатором");
-assert.ok(!priced.includes("Новий організатор"), "без organizer_new — без позначки");
+
 assert.ok(priced.includes("<small>Ціна</small><span>1\u00a0500 ₴</span>"), "на панелі — ціна");
 assert.ok(!priced.includes("від 1"), "від людей — без «від»");
 assert.ok(!community.includes("Оплата — напряму"), "безкоштовна — без ціни");
@@ -33,7 +33,7 @@ assert.ok(!community.includes("Оплата — напряму"), "безкош�
 // Оплата онлайн (docs/organizer-events.md): підпис і застереження «Поряд не відповідає» — раз на сторінці (у розмові —
 // під реквізитами, chat.js); у шторці — рядок довіри й смуга заявки з сумою.
 const online = eventPage({ ...base, price_min: 300, approval_required: true, pay_online: true, refund_policy: "before_48h" }, now);
-assert.ok(online.includes("<b>300 ₴</b><small>Оплата онлайн організатору</small>"));
+assert.ok(online.includes('<div class="info-pop" id="fact-info" popover>Оплата онлайн організатору</div>'));
 assert.equal(online.split("«Поряд» не приймає оплату й не відповідає за неї.").length - 1, 2, "на сторінці й у кроці згоди перед заявкою — не на кожному кроці");
 // Перед заявкою — умови й правила повернення (20261125170000_pay_online_safety).
 assert.ok(online.includes('data-step="pay"') && online.includes("data-pay-agree") && online.includes("за 48 год до початку. Скасує організатор — поверне все."),

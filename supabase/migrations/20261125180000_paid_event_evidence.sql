@@ -1,53 +1,8 @@
--- Безпека платних подій без оплати онлайн (власник 05.11): гроші й реквізити — поза «Поряд», у чаті учасників
--- організатора, тож лишаємо два запобіжники.
--- 1. «Новий організатор»: платна подія від людей, а організатор ще не провів жодної з учасниками (events_held) —
---    сторінка й застосунки кажуть про це до того, як людина домовлятиметься про передоплату.
--- 2. Знімок платної події при видаленні акаунта організатора: подія, організатор (імʼя, пошта, з якого часу), посилання
---    на його чат і скільки записалось — 180 днів після події в private.payment_evidence, для скарг і запитів
---    правоохоронців (Політика конфіденційності, розділ 5). Видаляє той самий крон purge-payment-evidence.
-
-alter type public.event_result add attribute organizer_new boolean;
-
--- Тіло — з 20261125170000, додано: organizer_new.
-create or replace function private.event_rows(p_ids uuid[])
-returns setof public.event_result language sql stable security definer set search_path='' as $$
- select e.id,e.title,e.description,e.category,e.city,e.address,e.organizer_id,
- coalesce(p.display_name, s.name),
- e.starts_at,e.ends_at,e.time_zone,e.status,e.latitude,e.longitude,e.capacity,
- (select count(*)::integer from public.event_members m where m.event_id=e.id and m.status='approved'),
- exists(select 1 from public.event_members m where m.event_id=e.id and m.user_id=auth.uid() and m.status='approved'),
- e.image_url,e.min_age,e.max_age,e.approval_required,
- coalesce((select m.status from public.event_members m where m.event_id=e.id and m.user_id=auth.uid()),'none'),
- e.origin,s.name,e.canonical_url,e.import_status,e.price_min,e.is_free,
- -- Чат — лише своїм: організатору й підтвердженим. Запит і черга ще не всередині.
- case when e.organizer_id=auth.uid()
-       or exists(select 1 from public.event_members m where m.event_id=e.id and m.user_id=auth.uid() and m.status='approved')
-      then e.contact_url end,
- e.companion_of,
- pe.title,
- cs.state, cs.previous_starts_at, cs.checked_at,
- case when e.origin <> 'community' then private.event_offers_json(e.id, e.canonical_url) end,
- -- R7а: питання до організатора збору бачать усі, кому видно збір (учасникам — «Організатор вирішує»).
- case when e.status = 'published' then d.proposed_at end,
- case when e.status = 'published' then d.decide_by end,
- pe.starts_at,
- e.media,
- -- Вимкнено (усім чи цьому організатору) — усі бачать «на місці»; правила повернення — лише в онлайн-події.
- e.pay_online and private.pay_online_allowed(e.organizer_id),
- case when e.pay_online and private.pay_online_allowed(e.organizer_id) then e.refund_policy end,
- -- Платна подія від людей, а організатор ще не провів жодної з учасниками: «Новий організатор» на сторінці.
- case when e.origin='community' and coalesce(e.price_min,0) > 0 and e.organizer_id is not null then private.events_held(e.organizer_id) = 0 end
- from public.events e
- left join public.profiles p on p.id=e.organizer_id
- left join public.event_sources s on s.id=e.source_id
- left join public.events pe on pe.id=e.companion_of
- left join private.companion_decisions d on d.companion_id=e.id
- cross join lateral private.event_client_state(e.id, e.origin, e.starts_at, e.import_status) cs
- where e.id=any(p_ids) and private.has_event_access(e.id)
- and (e.organizer_id is null
-      or e.organizer_id=auth.uid()
-      or (private.account_active(e.organizer_id) and not private.blocked_between(auth.uid(),e.organizer_id)));
-$$;
+-- Знімок платних подій при видаленні акаунта організатора (власник 05.11). Оплата тепер поза «Поряд» — на місці чи
+-- напряму в чаті учасників організатора, — тож без цього знімка подія зникла б разом з акаунтом, а людям, які
+-- заплатили, не було б на що послатися. Подія, організатор (імʼя, пошта, з якого часу), посилання на його чат і
+-- скільки записалось — 180 днів після події в private.payment_evidence, для скарг і запитів правоохоронців (Політика
+-- конфіденційності, розділ 5). Видаляє той самий крон purge-payment-evidence.
 
 -- Тіло — з 20261125170000, додано: знімок платних подій.
 create or replace function private.prepare_account_deletion(p_user uuid) returns void

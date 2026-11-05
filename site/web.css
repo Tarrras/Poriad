@@ -450,6 +450,20 @@ dialog[open]::backdrop { animation: fade .3s ease; }
 .facts > div { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; background: var(--surface); }
 .facts b { font: 600 16px/21px var(--font); overflow-wrap: anywhere; }
 .facts small { font: 400 14px/19px var(--font); color: var(--ink-secondary); overflow-wrap: anywhere; }
+/* Ⓘ біля ціни: як платити — у спливному вікні (popover), а не текстом під сумою. Ціль дотику — 44 px. */
+.facts .info { display: inline-grid; place-items: center; width: 44px; height: 44px; margin: -12px -10px -12px -6px; vertical-align: middle;
+  border: 0; background: none; color: var(--ink-secondary); cursor: pointer; border-radius: 50%; }
+.facts .info .ico { width: 18px; height: 18px; }
+.info-pop { max-width: min(320px, calc(100vw - 32px)); margin: auto; padding: 14px 16px; border: 1px solid var(--edge); border-radius: var(--r-md);
+  background: var(--surface); color: var(--ink); font: 400 15px/21px var(--font); box-shadow: 0 12px 32px rgb(0 0 0 / 0.18); }
+.info-pop::backdrop { background: rgb(0 0 0 / 0.12); }
+/* Де вміє — під ⓘ, правим краєм до нього; без підтримки — посередині екрана. */
+@supports (position-area: bottom) {
+  .facts .info { anchor-name: --fact-info; }
+  .info-pop { position-anchor: --fact-info; position-area: bottom span-left; position-try-fallbacks: flip-block;
+    position-visibility: anchors-visible; margin: 4px 0 4px 16px; }
+  .info-pop::backdrop { background: none; }
+}
 .artist-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .artist-chips button { height: 44px; padding: 0 18px; border-radius: 999px; background: var(--surface); border: 1px solid var(--edge); font: 500 15px/18px var(--font); display: inline-flex; align-items: center; gap: 8px; transition: background .2s; }
 .artist-chips button:hover { background: var(--surface-muted); }

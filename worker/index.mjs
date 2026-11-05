@@ -5,7 +5,7 @@
 
 // Назви, дати й ціна — ті самі правила, що на сайті (site/js/poriad.js, порт TitleRules і формату застосунку).
 // wrangler збирає цей імпорт у воркер; той самий файл сайт віддає браузеру.
-import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS, icsFile, payNote, PAY_ONLINE_FINE, refundText, NEW_ORGANIZER } from "../site/js/poriad.js";
+import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS, icsFile, payNote, PAY_ONLINE_FINE, refundText } from "../site/js/poriad.js";
 import { kabinetPage, geocode } from "./kabinet.mjs";
 export { esc };
 
@@ -234,10 +234,9 @@ export function eventPage(e, now, shelters = [], invite = null) {
     ["Коли", overline(e, now, true), null],
     ["Де", place.split(", ")[0] || e.city, place],
     ...(spots ? [["Учасники", spots.replace("Учасників: ", ""), null]] : []),
-    // Ціна від людей (1.7) — поруч з учасниками; як платити — на місці чи онлайн організатору (docs/organizer-events.md).
-    ...(!spots || (!imported && cost) ? [["Ціна", cost || "Уточнюйте", !imported && cost ? payNote(e) : null]] : []),
-    // Платна подія новачка: людина бачить це до того, як домовлятиметься про передоплату поза «Поряд».
-    [imported ? "Джерело" : "Організовує", imported ? sellers || "Афіша" : e.organizer_name || "Організатор", !imported && e.organizer_new ? NEW_ORGANIZER : null],
+    // Ціна від людей (1.7) — поруч з учасниками; як платити — за ⓘ біля ціни, не текстом під нею (власник 05.11).
+    ...(!spots || (!imported && cost) ? [["Ціна", cost || "Уточнюйте", null, !imported && cost ? payNote(e) : null]] : []),
+    [imported ? "Джерело" : "Організовує", imported ? sellers || "Афіша" : e.organizer_name || "Організатор", null],
   ];
 
   return layout({
@@ -255,7 +254,9 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     body: `<article class="sheet-box">
   <header class="cover-big ticket v cat-${category}">${media.length ? mediaCarousel(media, category) : `<div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img src="${esc(image)}" alt="">` : ""}</div>`}
     ${invite ? `<p class="quiet"><b>${esc(invite.name)}</b> кличе тебе</p>` : ""}<h1${title.length > 64 ? ` class="long"` : ""}>${esc(title)}</h1>
-    <div class="facts">${facts.map(([label, value, sub]) => `<div><span class="overline">${label}</span><b${label === "Учасники" ? " data-spots" : ""}>${esc(value)}</b>${sub && sub !== value ? `<small>${esc(sub)}</small>` : ""}</div>`).join("")}</div>
+    <div class="facts">${facts.map(([label, value, sub, info]) => `<div><span class="overline">${label}</span><b${label === "Учасники" ? " data-spots" : ""}>${esc(value)}${info
+      ? ` <button class="info" type="button" popovertarget="fact-info" aria-label="Як платити">${icon("info")}</button>` : ""}</b>${sub && sub !== value ? `<small>${esc(sub)}</small>` : ""}${info
+      ? `<div class="info-pop" id="fact-info" popover>${esc(info)}</div>` : ""}</div>`).join("")}</div>
     <p class="stub"><span class="kind">${icon(category)}${esc(CATEGORIES[category])}</span><small>${imported ? "Афіша" : "Від людей"}${e.min_age ? ` · ${Number(e.min_age)}+` : ""}</small></p>
   </header>
   <div class="detail">
