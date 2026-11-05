@@ -37,7 +37,9 @@ data class EditorForm(
     /** Фото й відео в порядку показу, перше — обкладинка. Нові лежать на телефоні до публікації. */
     val media: List<DraftMedia> = emptyList(),
     /** Ціна входу, гривні (docs/organizers-1.5.md, 1.7). Порожньо — безкоштовно. */
-    val price: String = ""
+    val price: String = "",
+    /** Коли платять: передоплата, а не на зустрічі. Лише з ціною. */
+    val prepay: Boolean = false
 ) {
     /** Крапка зустрічі, якщо є. З самих координат, а не з прапорця: прапорець розходився з ними. */
     val point: Pair<Double, Double>?
@@ -58,7 +60,7 @@ data class EditorForm(
             timeZone = timeZone, capacity = capacity.toInt(), imageUrl = imageUrl,
             minAge = minAge.toInt(), maxAge = maxAge.trim().takeIf { it.isNotEmpty() }?.toInt(),
             approvalRequired = approvalRequired, contactUrl = ContactRules.normalize(contactUrl), media = media,
-            mediaBase = mediaBase, price = price.trim().takeIf { it.isNotEmpty() }?.toInt()
+            mediaBase = mediaBase, price = price.trim().takeIf { it.isNotEmpty() }?.toInt(), prepay = prepay
         ).also {
             if (!SafetyRules.isAgeLimit(it.minAge, it.maxAge)) error("age limits")
             if (!ContactRules.isContactUrl(it.contactUrl)) error("contact url")

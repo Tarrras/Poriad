@@ -161,6 +161,11 @@ struct PayTermsSheet: View {
 }
 
 /// Правила повернення людськими словами; онлайн-подія без правил (стара) — nil.
+/// Коли платять (`events.prepay`, 20261125190000): під ціною на деталях і на панелі. Онлайн-подія — своє.
+func payWhenText(_ room: Gathering) -> String {
+    room.payOnline ? Copy.price_online : room.prepay ? Copy.price_prepay : Copy.price_at_meeting
+}
+
 func refundText(_ policy: RefundPolicy?) -> String? {
     guard let policy else { return nil }
     let rule = switch policy {

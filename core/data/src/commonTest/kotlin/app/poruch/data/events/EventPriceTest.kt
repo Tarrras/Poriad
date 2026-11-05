@@ -32,6 +32,20 @@ class EventPriceTest {
         assertEquals(0, sent.last()["p_price"]!!.jsonPrimitive.int)
     }
 
+    /** Коли платять — завжди явно: false повертає «на зустрічі»; без ціни передоплати не буває. */
+    @Test fun prepayIsAlwaysSent() = runTest {
+        authoring().create("e1", draft.copy(price = 300, prepay = true))
+        assertTrue(sent.last()["p_prepay"]!!.jsonPrimitive.boolean)
+        authoring().update("e1", draft.copy(prepay = true))
+        assertFalse(sent.last()["p_prepay"]!!.jsonPrimitive.boolean)
+        val json = Json { ignoreUnknownKeys = true }
+        val base = """"id":"e1","title":"Клуб","category":"social","city":"Київ","address":"Поділ","starts_at":"2090-01-06T17:00:00Z",
+            "ends_at":"2090-01-06T19:00:00Z","time_zone":"Europe/Kyiv","status":"published","latitude":50.0,"longitude":30.0,
+            "origin":"community","organizer_id":"o1","capacity":12"""
+        assertTrue(json.decodeFromString<EventDto>("""{$base,"price_min":300,"prepay":true}""").domain().gathering!!.prepay)
+        assertFalse(json.decodeFromString<EventDto>("""{$base,"price_min":300}""").domain().gathering!!.prepay)
+    }
+
     @Test fun aRefusedPriceNamesTheField() = runTest {
         val error = assertFailsWith<AppFailure> {
             authoring(HttpStatusCode.BadRequest, """{"code":"22023","message":"INVALID_PRICE"}""").update("e1", draft)

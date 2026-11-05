@@ -501,7 +501,7 @@ private fun PeopleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         stringResource(R.string.capacity), form.capacity, { value -> onIntent(EditorIntent.Edit { copy(capacity = value.filter(Char::isDigit).take(5)) }) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next), error = state.problem(DraftField.CAPACITY)
     )
-    // Порожньо — безкоштовно. Спосіб оплати застосунок не змінює: онлайн вмикають у кабінеті на сайті.
+    // Порожньо — безкоштовно. Онлайн застосунок не вмикає (лише кабінет на сайті), а коли платять — обирає.
     LabelledField(
         stringResource(R.string.price_label), form.price, { value -> onIntent(EditorIntent.Edit { copy(price = value.filter(Char::isDigit).take(6)) }) },
         placeholder = stringResource(R.string.price_placeholder),
@@ -509,6 +509,18 @@ private fun PeopleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
         error = DraftField.PRICE.rule().takeIf { form.price.isNotEmpty() && form.price.toInt() !in EventRules.price }
     )
+    // Коли платять — з ціною: людина бачить це під ціною й на панелі. Онлайн-подію змінюють у кабінеті.
+    if (form.price.isNotEmpty() && !state.payOnline) Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Text(stringResource(R.string.pay_when_label).uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+        SegmentedPill(
+            listOf(stringResource(R.string.pay_when_meeting), stringResource(R.string.pay_when_prepay)), if (form.prepay) 1 else 0,
+            { index -> onIntent(EditorIntent.Edit { copy(prepay = index == 1) }) }
+        )
+        Text(
+            stringResource(if (form.prepay) R.string.pay_when_prepay_hint else R.string.pay_when_meeting_hint),
+            style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary
+        )
+    }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
             LabelledField(

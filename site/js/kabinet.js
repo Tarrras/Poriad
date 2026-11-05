@@ -1218,7 +1218,7 @@ const blank = () => {
   const d = editorDefaults(me?.user_metadata);
   return { title: "", description: "", category: null, city: d.city ?? (ui?.savedCity.get() || CITIES[0].name), address: "", lat: null, lon: null, placed: false,
     startDate: "", startTime: "", endDate: "", endTime: "", capacity: 10, minAge: 18, maxAge: "", approval: d.approval ?? false, contact: d.contact ?? "", price: "",
-    payOnline: false, refund: "", payTerms: false, id: null };
+    payOnline: false, prepay: false, refund: "", payTerms: false, id: null };
 };
 
 function readDraft() { try { return JSON.parse(localStorage.getItem(DRAFT)); } catch { return null; } }
@@ -1292,7 +1292,7 @@ export function eventDraft(e) {
   return { ...blank(), title: e.title, description: e.description ?? "", category: e.category, city: e.city, address: e.address ?? "",
     lat: e.latitude, lon: e.longitude, placed: true, startDate: start.date, startTime: start.time, endDate: end.date, endTime: end.time,
     capacity: e.capacity ?? 10, minAge: e.min_age ?? 18, maxAge: e.max_age ?? "", approval: Boolean(e.approval_required), contact: e.contact_url ?? "", tz,
-    payOnline: Boolean(e.pay_online), refund: e.refund_policy ?? "",
+    payOnline: Boolean(e.pay_online), prepay: Boolean(e.prepay), refund: e.refund_policy ?? "",
     price: Number(e.price_min) > 0 ? String(Math.round(Number(e.price_min))) : "" };
 }
 
@@ -1302,7 +1302,7 @@ function fill(d) {
   for (const name of FIELDS) f[name].value = d[name] ?? "";
   f.city.value = CITIES.some((c) => c.name === d.city) ? d.city : CITIES[0].name;
   f.approval.checked = Boolean(d.approval);
-  for (const radio of $$("[name=pay]", f)) radio.checked = radio.value === (d.payOnline ? "online" : "onsite");
+  for (const radio of $$("[name=pay]", f)) radio.checked = radio.value === (d.payOnline ? "online" : d.prepay ? "prepay" : "onsite");
   for (const radio of $$("[name=refund]", f)) radio.checked = radio.value === d.refund;
   f.payterms.checked = Boolean(d.payTerms);
   payView();
@@ -1320,7 +1320,7 @@ function fill(d) {
 function draft() {
   const f = form();
   const d = { id: f.dataset.id || null, tz: f.dataset.tz || TZ, category: f.dataset.category || null, approval: f.approval.checked, city: f.city.value, ...place,
-    payOnline: f.pay.value === "online", refund: f.refund.value, payTerms: f.payterms.checked };
+    payOnline: f.pay.value === "online", prepay: f.pay.value === "prepay", refund: f.refund.value, payTerms: f.payterms.checked };
   for (const name of FIELDS) d[name] = f[name].value;
   return d;
 }
@@ -1332,8 +1332,9 @@ function changed() {
 }
 
 /**
- * Як платять (docs/organizer-events.md): лише з ціною. Онлайн — завжди за підтвердженням: схвалення заявки і є
- * «Оплату отримано», тож галочку тримаємо й не даємо зняти.
+ * Коли платять (docs/organizer-events.md): лише з ціною — на зустрічі чи передоплата (як і куди — пише організатор), а з
+ * вимикачем ще й онлайн у розмові. Онлайн — завжди за підтвердженням: схвалення заявки і є «Оплату отримано», тож
+ * галочку тримаємо й не даємо зняти.
  */
 export const payPlan = (price, payOnline) => {
   const paid = priceParam(price) > 0;
@@ -1342,12 +1343,13 @@ export const payPlan = (price, payOnline) => {
     paid, online,
     hint: !paid ? "" : online
       ? "Реквізити надсилаєте в розмові тим, хто записався, а коли гроші прийдуть — натискаєте «Оплату отримано». «Поряд» не приймає оплату й не відповідає за неї й за повернення."
-      : "Учасники платять вам на місці чи напряму — як домовитесь. Реквізити пишіть лише в чаті учасників (Telegram), який ви додали: у назві, описі й розмовах «Поряд» їх не надсилають.",
+      : "Учасники бачать це біля ціни. Реквізити пишіть лише в чаті учасників (Telegram), який ви додали: у назві, описі й розмовах «Поряд» їх не надсилають.",
   };
 };
 function payView() {
   const f = form(), plan = payPlan(f.price.value, payOnlineOn && f.pay.value === "online");
-  $("[data-pay-box]").hidden = !plan.paid || !payOnlineOn;
+  $("[data-pay-box]").hidden = !plan.paid;
+  $("[data-pay-online-option]").hidden = !payOnlineOn;
   const hint = $("[data-price-hint]");
   hint.textContent = plan.hint;
   hint.hidden = !plan.paid;
@@ -1689,7 +1691,7 @@ export function payLimitsText(l) {
   return now + next;
 }
 
-function params(d, id) {
+export function params(d, id) {
   const online = payPlan(d.price, payOnlineOn && d.payOnline).online; // онлайн — завжди за підтвердженням
   return {
     p_id: id, p_title: d.title.trim(), p_description: d.description.trim(), p_category: d.category, p_city: d.city, p_address: d.address.trim(),
@@ -1699,6 +1701,8 @@ function params(d, id) {
     // Вимкнено — спосіб оплати не чіпаємо (null): увімкнуть знову — подія, що була онлайн, знову онлайн.
     p_contact_url: d.contact.trim() || null, p_price: priceParam(d.price), p_pay_online: payOnlineOn ? online : null,
     p_refund_policy: payOnlineOn && online ? d.refund : null,
+    // Завжди явно: false повертає «на зустрічі»; без ціни сервер передоплату не зберігає.
+    p_prepay: !online && Boolean(d.prepay),
   };
 }
 

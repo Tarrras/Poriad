@@ -214,13 +214,18 @@ extension EventDetailView {
                             .accessibilityLabel(Copy.pay_info_a11y)
                             .popover(isPresented: $payInfoShown, arrowEdge: .bottom) {
                                 // Онлайн — ще й правила повернення: людина бачить їх до заявки.
-                                Text(event.gathering?.payOnline == true ? [Copy.price_pay_online_hint, refundText(event.gathering?.refundPolicy)].compactMap { $0 }.joined(separator: " ") : Copy.price_pay_hint)
+                                Text(event.gathering?.payOnline == true ? [Copy.price_pay_online_hint, refundText(event.gathering?.refundPolicy)].compactMap { $0 }.joined(separator: " ")
+                                    : event.gathering?.prepay == true ? Copy.price_prepay_hint : Copy.price_pay_hint)
                                     .font(PoruchFont.subhead).foregroundStyle(Palette.ink)
                                     .fixedSize(horizontal: false, vertical: true)
                                     .frame(maxWidth: 280, alignment: .leading)
                                     .padding(Space.lg)
                                     .presentationCompactAdaptation(.popover)
                             }
+                        }
+                        // Коли платять — одразу під ціною; решта — за ⓘ.
+                        if let room = event.gathering {
+                            Text(payWhenText(room)).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                         }
                     } else {
                         Text(cell.1).font(PoruchFont.title3).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
@@ -843,7 +848,9 @@ extension EventDetailView {
             if let price = view.room.flatMap(gatheringPrice) {
                 Text(price).font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(1)
             }
-            Text(view.seatsSummary).font(PoruchFont.subhead)
+            // Платна й ще не минула — спершу коли платять: «Передоплата · Вільних місць: 3».
+            Text([view.room.flatMap { $0.price != nil && !view.ended && !view.cancelled ? payWhenText($0) : nil }, view.seatsSummary]
+                .compactMap { $0 }.joined(separator: " · ")).font(PoruchFont.subhead)
                 .foregroundStyle(view.event?.isCalledOff == true ? Palette.danger : Palette.inkSecondary)
                 .lineLimit(3)
         }

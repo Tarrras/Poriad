@@ -609,7 +609,7 @@ private struct PeopleStep: View {
             .keyboardType(.numberPad)
             FieldIssue(text: issues[.capacity])
         }.id(DraftField.capacity)
-        // Порожньо — безкоштовно. Спосіб оплати застосунок не змінює: онлайн вмикають у кабінеті на сайті.
+        // Порожньо — безкоштовно. Онлайн застосунок не вмикає (лише кабінет на сайті), а коли платять — обирає.
         VStack(alignment: .leading, spacing: Space.sm) {
             LabelledField(
                 label: Copy.price_label,
@@ -623,6 +623,18 @@ private struct PeopleStep: View {
             .keyboardType(.numberPad)
             FieldIssue(text: issues[.price])
         }.id(DraftField.price)
+        // Коли платять — з ціною: людина бачить це під ціною й на панелі. Онлайн-подію змінюють у кабінеті.
+        if form.price != nil && !payOnline {
+            VStack(alignment: .leading, spacing: Space.sm) {
+                Text(Copy.pay_when_label.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                SegmentedPill(items: [Copy.pay_when_meeting, Copy.pay_when_prepay], selection: form.prepay == true ? 1 : 0) {
+                    form.prepay = $0 == 1
+                }
+                Text(form.prepay == true ? Copy.pay_when_prepay_hint : Copy.pay_when_meeting_hint)
+                    .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
         VStack(alignment: .leading, spacing: Space.md) {
             VStack(alignment: .leading, spacing: Space.lg) {
                 VStack(alignment: .leading, spacing: Space.xs) {

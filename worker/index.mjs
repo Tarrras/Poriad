@@ -5,7 +5,7 @@
 
 // Назви, дати й ціна — ті самі правила, що на сайті (site/js/poriad.js, порт TitleRules і формату застосунку).
 // wrangler збирає цей імпорт у воркер; той самий файл сайт віддає браузеру.
-import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS, icsFile, payNote, PAY_ONLINE_FINE, refundText } from "../site/js/poriad.js";
+import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS, icsFile, payNote, payWhen, payWay, PAY_ONLINE_FINE, refundText } from "../site/js/poriad.js";
 import { kabinetPage, geocode } from "./kabinet.mjs";
 export { esc };
 
@@ -234,8 +234,8 @@ export function eventPage(e, now, shelters = [], invite = null) {
     ["Коли", overline(e, now, true), null],
     ["Де", place.split(", ")[0] || e.city, place],
     ...(spots ? [["Учасники", spots.replace("Учасників: ", ""), null]] : []),
-    // Ціна від людей (1.7) — поруч з учасниками; як платити — за ⓘ біля ціни, не текстом під нею (власник 05.11).
-    ...(!spots || (!imported && cost) ? [["Ціна", cost || "Уточнюйте", null, !imported && cost ? payNote(e) : null]] : []),
+    // Ціна від людей (1.7) — поруч з учасниками. Коли платять — під ціною, одразу; решта — за ⓘ біля неї (власник 05.11).
+    ...(!spots || (!imported && cost) ? [["Ціна", cost || "Уточнюйте", !imported && cost ? payWhen(e) : null, !imported && cost ? payNote(e) : null]] : []),
     [imported ? "Джерело" : "Організовує", imported ? sellers || "Афіша" : e.organizer_name || "Організатор", null],
   ];
 
@@ -280,7 +280,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
       <div class="stores">${storeButtons(ct)}</div></div>
   </div>
   <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${imported ? "" : `<b class="stamp" data-going hidden></b>`}${spots && !cost ? `<small>Учасники</small><span data-spots>${esc(spots.replace("Учасників: ", ""))}</span>`
-      : `${cost || !spots ? "<small>Ціна</small>" : ""}<span>${esc(cost || spots || "Вхід уточнюйте")}</span>`}</div>
+      : `${cost || !spots ? `<small>${!imported && cost ? `Ціна · ${payWay(e)}` : "Ціна"}</small>` : ""}<span>${esc(cost || spots || "Вхід уточнюйте")}</span>`}</div>
     ${ticketUrl && live ? `<a class="btn primary" href="${esc(ticketHref(ticketUrl))}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
       : imported ? `<a class="btn primary" href="/app?from=${ct}">Завантажити «Поряд»</a>`
       : open ? `<button class="btn primary" type="button" data-join>Йду</button>` : `<p class="closed">Запис на цю подію закрито</p>`}</div>

@@ -26,7 +26,7 @@ object EventEdit {
             imageUrl = event.imageUrl, minAge = room.minAge, maxAge = room.maxAge, approvalRequired = room.approvalRequired,
             contactUrl = room.contactUrl, media = media.map { DraftMedia.Remote(it) },
             mediaBase = if (event.mediaLoaded) media.flatMap { listOfNotNull(it.url, it.poster) }.toSet() else null,
-            price = room.price
+            price = room.price, prepay = room.prepay
         )
     }
 }
@@ -86,7 +86,7 @@ object ThreadsPost {
      * ```
      * {Назва}
      * {нд, 2 листопада, 19:00} · {Місце}
-     * Вхід — {300} ₴ (з «, оплата онлайн», якщо вона є) — лише з ціною, як у кабінеті (`threadsPost` у site/js/poriad.js)
+     * Вхід — {300} ₴, передоплата (чи «оплата на зустрічі», «оплата онлайн») — лише з ціною, як у кабінеті (`threadsPost` у site/js/poriad.js)
      *
      * {blurb або перші 200 символів опису}
      *
@@ -96,13 +96,13 @@ object ThreadsPost {
      */
     fun text(event: Event): String = text(
         event.id, event.displayTitle, event.startsAt, event.timeZone, event.placeLabel, event.blurb, event.description,
-        event.gathering?.price, event.gathering?.payOnline == true
+        event.gathering?.price, event.gathering?.payOnline == true, event.gathering?.prepay == true
     )
 
     /** Те саме з полів: щойно опублікована подія ([EventDraft]) ще не має картки. */
     fun text(
         id: String, title: String, startsAt: String, timeZone: String, place: String, blurb: String?, description: String, price: Int?,
-        payOnline: Boolean = false
+        payOnline: Boolean = false, prepay: Boolean = false
     ): String {
         val zone = runCatching { TimeZone.of(timeZone) }.getOrDefault(TimeZone.UTC)
         val start = runCatching { Instant.parse(startsAt) }.getOrNull()?.toLocalDateTime(zone)
@@ -116,7 +116,10 @@ object ThreadsPost {
         return listOfNotNull(
             listOfNotNull(
                 title, listOfNotNull(date, place.takeIf { it.isNotBlank() }).joinToString(" · "),
-                price?.let { "Вхід — " + EventRules.formatPrice(it) + " ₴" + if (payOnline) ", оплата онлайн" else "" }
+                price?.let {
+                    "Вхід — " + EventRules.formatPrice(it) + " ₴, " +
+                        if (payOnline) "оплата онлайн" else if (prepay) "передоплата" else "оплата на зустрічі"
+                }
             ).joinToString("\n"),
             about.takeIf { it.isNotEmpty() },
             "Запис: " + EventLinks.url(id).removePrefix("https://")

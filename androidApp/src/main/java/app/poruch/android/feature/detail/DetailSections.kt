@@ -669,11 +669,14 @@ internal fun Facts(event: Event) {
         event.gathering?.let { room ->
             add(Triple(stringResource(R.string.organizer_short), room.organizerName.ifBlank { stringResource(R.string.organizer_short) }, null))
             add(Triple(stringResource(R.string.capacity_label), stringResource(R.string.attendees_short, room.attendeeCount, room.capacity), null))
-            // Ціна й як платять — на місці чи онлайн організатору, не через нас.
-            // Онлайн — ще й правила повернення: людина бачить їх до заявки. Як платити — за ⓘ біля ціни (власник 05.11).
-            payInfo = if (room.payOnline) listOfNotNull(stringResource(R.string.price_pay_online_hint), refundText(room.refundPolicy)).joinToString(" ")
-                else stringResource(R.string.price_pay_hint)
-            peoplePrice(event)?.let { add(Triple(stringResource(R.string.price_fact), it, null)) }
+            // Ціна й коли платять — під нею, одразу; решта — за ⓘ (власник 05.11). Онлайн — ще й правила повернення.
+            payInfo = when {
+                room.payOnline -> listOfNotNull(stringResource(R.string.price_pay_online_hint), refundText(room.refundPolicy)).joinToString(" ")
+                room.prepay -> stringResource(R.string.price_prepay_hint)
+                else -> stringResource(R.string.price_pay_hint)
+            }
+            val payWhen = payWhenText(room)
+            peoplePrice(event)?.let { add(Triple(stringResource(R.string.price_fact), it, payWhen)) }
         }
     }
     Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.xl), verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {

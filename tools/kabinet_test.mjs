@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   instant, local, repeatTimes, endAfter, durationLabel, DURATIONS, mediaProblem, videoTooLong, fit, MEDIA,
   threadsPost, threadsIntent, firstLine, cleanText, rosterText, errorText, publishPlan, writeDraft, forgetDraft, recolorStub,
-  priceProblem, priceParam, PRICE_TEXT, eventDraft, repeatDraft, passwordProblem, passwordMode, providersText, editorDefaults, sinceText,
+  priceProblem, priceParam, PRICE_TEXT, eventDraft, params, repeatDraft, passwordProblem, passwordMode, providersText, editorDefaults, sinceText,
   weakPasswordText, redirectErrorText, payPlan, payProblems, payLimitsText, TALK_PAYMENT_DETAILS, TALK_PAY_OFF, talkStatus, talkFacts, payWords, declineQuestion, nameProblem, contactOk,
 } from "../site/js/kabinet.js";
 import { readFileSync } from "node:fs";
@@ -128,8 +128,9 @@ assert.equal(priceParam(eventDraft(pricedEvent).price), 450, "правка шл�
 assert.equal(priceParam(repeatDraft(pricedEvent).price), 450, "«Повторити» теж");
 assert.equal(eventDraft({ ...pricedEvent, price_min: null }).price, "");
 assert.equal(errorText({ status: 400, code: "INVALID_PRICE" }), PRICE_TEXT);
-assert.equal(threadsPost(pricedEvent), "Настолки «Каркасон»\nпн, 2 листопада, 19:00 · Хрещатик, 22\nВхід — 450 ₴\n\nГраємо в Каркасон і Колонізаторів. Правила пояснимо.\n\nЗапис: poriad.app/e/e1");
+assert.equal(threadsPost(pricedEvent), "Настолки «Каркасон»\nпн, 2 листопада, 19:00 · Хрещатик, 22\nВхід — 450 ₴, оплата на зустрічі\n\nГраємо в Каркасон і Колонізаторів. Правила пояснимо.\n\nЗапис: poriad.app/e/e1");
 assert.ok(threadsPost({ ...pricedEvent, pay_online: true }).includes("Вхід — 450 ₴, оплата онлайн\n"), "пост не каже «на місці» про оплату онлайн");
+assert.ok(threadsPost({ ...pricedEvent, prepay: true }).includes("Вхід — 450 ₴, передоплата\n"), "коли платять — одразу в пості");
 assert.ok(!threadsPost({ ...pricedEvent, origin: "import" }).includes("Вхід"), "ціна продавця в афіші — «від», не пишемо");
 
 // Вхід і акаунт організатора.
@@ -165,10 +166,15 @@ assert.match(errorText({ code: "otp_expired" }), /Код не підійшов/)
 // Як платять (docs/organizer-events.md): лише з ціною; онлайн — завжди за підтвердженням.
 assert.deepEqual(payPlan("", true), { paid: false, online: false, hint: "" }, "без ціни — нема про що");
 assert.equal(payPlan("300", false).online, false);
-assert.match(payPlan("300", false).hint, /на місці чи напряму.*лише в чаті учасників/, "без «без передоплати»: реквізити — у чаті учасників (05.11)");
+assert.match(payPlan("300", false).hint, /біля ціни.*лише в чаті учасників/, "реквізити — у чаті учасників (05.11)");
 assert.equal(payPlan("300", true).online, true);
 assert.match(payPlan("300", true).hint, /не приймає оплату й не відповідає/);
 assert.equal(eventDraft({ ...pricedEvent, pay_online: true }).payOnline, true, "правка несе спосіб оплати");
+// Коли платять (20261125190000): правка несе передоплату, а збереження шле її завжди — false повертає «на зустрічі».
+assert.equal(eventDraft({ ...pricedEvent, prepay: true }).prepay, true);
+assert.equal(params(eventDraft({ ...pricedEvent, prepay: true }), "e1").p_prepay, true);
+assert.equal(params(eventDraft(pricedEvent), "e1").p_prepay, false);
+assert.equal(params({ ...eventDraft(pricedEvent), prepay: true, payOnline: true }, "e1").p_prepay, false, "онлайн — своє");
 assert.equal(eventDraft(pricedEvent).payOnline, false);
 assert.equal(repeatDraft({ ...pricedEvent, pay_online: true, starts_at: "2026-10-01T16:00:00Z", ends_at: "2026-10-01T19:00:00Z" }).payOnline, true, "«Повторити» — з тим самим способом");
 assert.match(errorText({ status: 400, code: "PAYMENT_DETAILS" }), /у чаті учасників \(Telegram\)/, "реквізити — у чаті учасників (05.11)");

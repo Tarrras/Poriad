@@ -1352,14 +1352,24 @@
   <!-- Ціна події від людей і як платять: на місці чи онлайн організатору. -->
   <string name="price_label">Ціна, ₴ (необовʼязково)</string>
   <string name="price_placeholder">Безкоштовно</string>
-  <string name="price_hint">Учасники платять вам на місці чи напряму — як домовитесь. Реквізити — лише в чаті учасників, який ви додали: в описі й розмовах «Поряд» їх не надсилають.</string>
+  <string name="price_hint">Реквізити — лише в чаті учасників, який ви додали: в описі й розмовах «Поряд» їх не надсилають.</string>
+  <!-- Коли платять (20261125190000): організатор позначає, людина бачить під ціною й на панелі. Як і куди — пише організатор. -->
+  <string name="pay_when_label">Коли платять</string>
+  <string name="pay_when_meeting">На зустрічі</string>
+  <string name="pay_when_prepay">Передоплата</string>
+  <string name="pay_when_meeting_hint">Учасники платять вам на місці.</string>
+  <string name="pay_when_prepay_hint">Як і коли платити, ви пишете учасникам самі — у чаті учасників чи особисто.</string>
+  <string name="price_at_meeting">Оплата на зустрічі</string>
+  <string name="price_prepay">Передоплата</string>
+  <string name="price_online">Оплата онлайн</string>
   <!-- Правка події з оплатою онлайн: спосіб оплати застосунок не міняє, лише кабінет. -->
   <string name="price_hint_online">Оплата онлайн: людина подає заявку, а реквізити ви надсилаєте їй у розмові. Спосіб оплати змінюють у кабінеті на сайті.</string>
   <string name="price_value">%1$s ₴</string>
   <string name="price_fact">Вхід</string>
   <!-- Ⓘ біля ціни: як платити — у спливному вікні, а не текстом під сумою (власник 05.11). -->
   <string name="pay_info_a11y">Як платити</string>
-  <string name="price_pay_hint">Оплата на місці або напряму організатору. «Поряд» не приймає оплату й не відповідає за неї.</string>
+  <string name="price_pay_hint">Платите організатору на зустрічі. «Поряд» не приймає оплату й не відповідає за неї.</string>
+  <string name="price_prepay_hint">Організатор попросить заплатити заздалегідь і сам напише, як і коли. «Поряд» не приймає оплату й не відповідає за неї.</string>
   <string name="price_pay_online_hint">Оплата онлайн організатору. «Поряд» не приймає оплату й не відповідає за неї.</string>
   <string name="err_price">Ціна — від 1 до 100 000 ₴</string>
 </resources>
