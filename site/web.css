@@ -950,7 +950,23 @@ a.row:hover { background: var(--surface-muted); }
 .kab-when { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .kab-chips { flex-wrap: wrap; overflow: visible; align-items: center; }
 .kab-check { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
-.kab-check input { width: 22px; height: 22px; margin: 1px 0 0; flex: none; accent-color: var(--ink); }
+/* Свої radio й прапорець: нативні браузер малює різного розміру (прапорець здавався зсунутим), а глобальний
+   :focus-visible давав radio квадратну рамку. Обидва — 22 px у рядок із заголовком; рамка фокусу йде за формою. */
+.kab-check input { appearance: none; width: 22px; height: 22px; margin: 0; flex: none; display: grid; place-content: center;
+  border: 2px solid var(--ink-tertiary); border-radius: 6px; background: none; cursor: pointer; }
+.kab-check input[type=radio] { border-radius: 50%; }
+.kab-check input:checked { border-color: var(--ink); }
+.kab-check input[type=checkbox]:checked { background: var(--ink); }
+.kab-check input::before { content: ""; width: 10px; height: 10px; transform: scale(0); transition: transform .12s; }
+.kab-check input[type=radio]::before { border-radius: 50%; background: var(--ink); }
+.kab-check input[type=checkbox]::before { width: 12px; height: 12px; background: var(--on-brand);
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%); }
+.kab-check input:checked::before { transform: scale(1); }
+/* Фокус у кабінеті — тінню (.kab input:focus), а не outline: на нативному radio вона й була квадратом. Тут — кільце
+   з відступом за формою, лише з клавіатури: клік мишею кільця не лишає. */
+.kab .kab-check input:focus { box-shadow: none; }
+.kab .kab-check input:focus-visible { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.kab-check input:disabled { opacity: .5; cursor: default; }
 .kab-check span { display: flex; flex-direction: column; font: 400 16px/22px var(--font); }
 .kab-check small { font: 400 14px/20px var(--font); color: var(--ink-secondary); }
 /* Перемикач-пігулка, як SegmentedPill у застосунку: «Вхід — безкоштовно чи платно». */
