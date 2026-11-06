@@ -481,10 +481,22 @@ async function cityRoute(request, env, ctx) {
   if (!Object.hasOwn(CITY_PAGES, slug ?? "") || !Object.hasOwn(FACETS, facet)) return html(notFoundPage("Такої сторінки афіші нема."), 404, CSP.city());
   const cacheKey = new Request(url.origin + path);
   const cached = await caches.default.match(cacheKey);
-  if (cached) return cached;
-  const response = await cityResponse(slug, facet, env);
-  if (response.status === 200) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
-  return response;
+  const response = cached ?? await cityResponse(slug, facet, env);
+  if (!cached && response.status === 200) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+  return withLabel(response, url.searchParams.get("from"));
+}
+
+/**
+ * Мітка реклами з адреси (`/afisha/lviv/vykhidni?from=mlvmapa`) — у кнопки стору, як `/app?from=` (site/js/app.js).
+ * У кеші одна сторінка на шлях із ct=city: випадкові мітки не обходять кеш і не ходять у базу.
+ */
+async function withLabel(response, label) {
+  if (response.status !== 200 || !/^[a-z]{1,12}$/.test(label ?? "") || label === "city") return response;
+  const body = (await response.text()).replaceAll("ct=city&", `ct=${label}&`)
+    .replaceAll('utm_campaign%3Dcity"', `utm_campaign%3D${label}"`).replaceAll('/app?from=city"', `/app?from=${label}"`);
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  return new Response(body, { status: 200, headers });
 }
 
 export async function cityResponse(slug, key, env, now = new Date()) {
@@ -540,6 +552,7 @@ export function cityPage(slug, key, cards, total, now) {
     description: `${h1}: ${intro}. ${cards.slice(0, 3).map((c) => displayTitle(c.title)).join(", ")}`.slice(0, 200),
     image: "https://poriad.app/img/og.png",
     url,
+    from: "city",
     head: `<meta name="robots" content="${cards.length >= MIN_INDEXED ? "index, follow" : "noindex, follow"}">
 <link rel="canonical" href="${url}">
 <meta name="apple-itunes-app" content="app-id=6813543772, affiliate-data=ct=city&amp;pt=129478154">
@@ -592,7 +605,7 @@ function storeButtons(ct = "event") {
 
 const icon = (name, cls = "ico") => `<svg class="${cls}" aria-hidden="true"><use href="/img/icons.svg#i-${name}"/></svg>`;
 
-function layout({ title, description, image, url, head, body }) {
+function layout({ title, description, image, url, head, body, from = "event" }) {
   return `<!doctype html>
 <html lang="uk">
 <head>
@@ -617,7 +630,7 @@ ${head}
 </head>
 <body class="event-page">
 <header class="nav scrolled"><div class="wrap"><a class="brand" href="/"><img src="/icon.png" alt="">Поряд</a>
-  <nav class="links" aria-label="Розділи"><a href="/afisha.html">Афіша</a><a href="/kabinet">Організаторам</a><a class="btn primary small" href="/app?from=event">Завантажити</a></nav></div></header>
+  <nav class="links" aria-label="Розділи"><a href="/afisha.html">Афіша</a><a href="/kabinet">Організаторам</a><a class="btn primary small" href="/app?from=${from}">Завантажити</a></nav></div></header>
 <main class="event-shell">${body}</main>
 <footer class="site"><div class="wrap"><span>Питання й скарги: <a href="mailto:hello@poriad.app">hello@poriad.app</a></span>
   <nav aria-label="Афіша міст">${Object.entries(CITY_PAGES).map(([s, [n]]) => `<a href="/afisha/${s}">${n}</a>`).join("")}</nav>
