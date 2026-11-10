@@ -64,6 +64,8 @@ class Source:
     # Кінотеатри (`cinema:*`): місто -> {сегмент URL кінотеатру: назва майданчика}. Назва — ключ у aliases.json
     # (`_кіно`): без псевдоніма кінотеатр іде в чергу перегляду, а не на збіг назви мережі в OSM.
     venues: dict | None = None
+    # Жанр усього джерела, коли воно вузьке (винна крамниця, квіз): сильніший за словник, як каталог продавця.
+    category: str | None = None
 
 
 SOURCES: list[Source] = [
@@ -216,6 +218,45 @@ SOURCES: list[Source] = [
         tz_policy="source",
         note="270 подій за один запит у Києві; endDate/offers/image/streetAddress по 100%. "
              "244 із 270 відсутні в karabas і concert.ua. Головне джерело стендапу.",
+    ),
+    # Нішеві джерела (docs/catalog-taste.md, «Нішеві джерела»): жанри, яких квиткові агрегатори не продають.
+    # Перевірено 09.11.2026: robots.txt дозволяє картки, в умовах немає заборони автоматичного збору.
+    Source(
+        slug="goodwine", name="Goodwine", base_url="https://goodwine.ua",
+        listing_urls={"Київ": "https://goodwine.ua/events/"},
+        # Шлях — шаблон: у списку є сам список і /events/feed/ («Feeds disabled»).
+        weight=0.75, crawl_delay=2.0, detail_path=r"^/events/(?!feed/)[^/]+/$", max_details=40,
+        category="food",
+        note="2026-11-09: дегустації, винна школа, вечері; Event JSON-LD з часом, вулицею й ціною, без міста.",
+    ),
+    Source(
+        slug="pubquiz", name="PubQuiz", base_url="https://pubquiz.me",
+        listing_urls={"Київ": "https://pubquiz.me/kyiv"},
+        weight=0.75, crawl_delay=2.0, detail_path=r"^/kyiv/game/\d+$", max_details=30,
+        category="games",
+        note="2026-11-09: Event JSON-LD з часом, адресою, geo й ціною, без url (беремо адресу картки). Онлайн-гра "
+             "позначена Offline з адресою «Київ» — без точки йде в review. Гра в кількох барах — перший бар.",
+    ),
+    Source(
+        slug="vsiprobihy", name="Всі пробіги", base_url="https://vsiprobihy.org",
+        listing_urls={"Київ": "https://vsiprobihy.org/calendar/kyiv",
+                      "Львів": "https://vsiprobihy.org/calendar/lvivska",
+                      "Одеса": "https://vsiprobihy.org/calendar/odeska",
+                      "Дніпро": "https://vsiprobihy.org/calendar/dnipropetrovska"},
+        weight=0.75, crawl_delay=2.0, detail_path="/races/", max_details=40,
+        note="2026-11-09: календар забігів за областями; SportsEvent JSON-LD, час старту не завжди — забіги з самою "
+             "датою відкидаються. Інші міста області — CITY_MISMATCH. Харкова нема: там лише забіги без часу, і порожній "
+             "результат щодня йшов би помилкою NO_USABLE_EVENTS.",
+    ),
+    Source(
+        slug="america_house", name="America House", base_url="https://www.americahousekyiv.org",
+        # Львів і Одеса (americahouselviv.org, americahouseodesa.org) мають порожній location у JSON-LD і частину
+        # подій онлайн: без адреси все пішло б у review. Додавати, коли з'явиться адреса.
+        listing_urls={"Київ": "https://www.americahousekyiv.org/events"},
+        # У списку й минулі події (~30) та їхні `?format=ical`; картки йдуть без кешу, бо їх небагато.
+        weight=0.75, crawl_delay=2.0, detail_path=r"^/events/\d{4}/\d{1,2}/\d{1,2}/[^/?]+$", max_details=40,
+        note="2026-11-09: розмовні, книжкові й кіноклуби, лекції; Event JSON-LD без url, у назві хвіст "
+             "«— America House Kyiv» і «CANCELLED» для скасованих. Умов на сайті немає.",
     ),
     # Кіно (docs/cinema-import.md). Вимкнено, доки на prod немає категорії `cinema` (CHECK на events.category) і
     # клієнта, що її знає: розклад обходу пише в prod, а сеанс з невідомою категорією зламав би весь дамп міста.

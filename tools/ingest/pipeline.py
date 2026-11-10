@@ -20,7 +20,7 @@ import uuid
 from . import artists, cinema, community, culture, extract, normalize
 from .fetch import get
 from .sources import Source
-from .geocode import Geocoder
+from .geocode import Geocoder, looks_like_street
 from .geocode import CITY_BBOX
 from .venues import CACHE_DIR, VenueIndex
 
@@ -254,6 +254,8 @@ def _read_details(source: Source, city: str, body: str, status_links: list[str],
             events = extract.events_from_html(detail.body)
             if not events:
                 raise ValueError("NO_EVENTS")
+            if len(events) == 1 and not (events[0].get("url") or events[0].get("@id")):
+                events[0]["url"] = link             # картка й є подією (PubQuiz, America House не дають url)
             raw_events.extend(events)
             if entry and events != entry["events"]:
                 counters["audit_stale"].append(link)          # lastmod каже «не мінялась», а вона так
@@ -392,12 +394,18 @@ def _rescheduled_details(notices: list[dict], source: Source, city: str, raw_eve
             counters["status_detail_errors"].append(f"{detail_url}: {exc}")
 
 
+# «CANCELLED Yoga…» (America House, кирилична «С» трапляється), «СКАСОВАНО: …». Лише великими: шоу «Cancelled» — не скасування.
+_CANCELLED_TITLE = re.compile(r"\s*([CС]ANCELL?ED|СКАСОВАНО)\b")
+
+
 def _build_items(raw_events: list[dict], source: Source, city: str, index: VenueIndex, now: dt.datetime,
                  geocoder: Geocoder | None, counters: dict) -> list[Item]:
     """Сирі події -> Item. Скасовані й відкладені йдуть у зняття, решта відсіву — у лічильники."""
     items: list[Item] = []
     for raw in raw_events:
         status = str(raw.get("eventStatus") or "EventScheduled").rsplit("/", 1)[-1]
+        if _CANCELLED_TITLE.match(str(raw.get("name") or "")):
+            status = "EventCancelled"                  # America House пише скасування лише в назві
         if status in {"EventCancelled", "EventPostponed"}:
             canonical = normalize.clean_url(raw.get("url") or raw.get("@id"))
             if canonical.startswith("https://"):
@@ -800,12 +808,17 @@ def _build(raw: dict, source: Source, city: str, index: VenueIndex,
 
     place = extract.place_of(raw)
     venue_name = normalize.clean_text(place.get("name"))
+    # Squarespace дописує до назви сайт: «Wednesday English — America House Kyiv».
+    if venue_name and title.endswith(f" — {venue_name}"):
+        title = title[:-len(venue_name) - 3].rstrip()
     address, addr_city, street = normalize.address_of(raw)
+    if not street and looks_like_street(venue_name):
+        street = venue_name                            # vsiprobihy кладе адресу в назву місця
     # Місто з розмітки, а не зі сторінки, де знайшли подію.
     event_city = (normalize.canonical_city(addr_city) if source.trust_locality else "") or city
 
     # Верхній щабель — жанр з каталогу продавця: сильніший за тип schema.org і словник.
-    stamped = raw.get("_poruch_category")
+    stamped = raw.get("_poruch_category") or getattr(source, "category", None)
     if stamped in normalize.CATEGORIES:
         category, category_how = stamped, "catalog"
     else:

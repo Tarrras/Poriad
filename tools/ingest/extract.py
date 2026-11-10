@@ -92,7 +92,7 @@ def offers_of(event: dict) -> list[dict]:
 
 
 def detail_links(html: str, listing_url: str, path_prefix: str) -> list[str]:
-    """Шукає картки подій лише на хості налаштованого міста."""
+    """Шукає картки подій лише на хості налаштованого міста; `path_prefix` — префікс шляху або шаблон `^…`."""
     links: dict[str, None] = {}
     host = urlsplit(listing_url).netloc
 
@@ -105,7 +105,11 @@ def detail_links(html: str, listing_url: str, path_prefix: str) -> list[str]:
                 return
             url = urldefrag(urljoin(listing_url, href))[0]
             parts = urlsplit(url)
-            if parts.scheme == "https" and parts.netloc == host and parts.path.startswith(path_prefix):
+            # `^…` — шаблон шляху, коли префікса мало (goodwine: /events/feed/ поруч із картками).
+            # Шаблон бачить і запит: `$` відсікає `?format=ical` (America House), заборонений robots.txt.
+            path_ok = (re.match(path_prefix, parts.path + (f"?{parts.query}" if parts.query else ""))
+                       if path_prefix.startswith("^") else parts.path.startswith(path_prefix))
+            if parts.scheme == "https" and parts.netloc == host and path_ok:
                 links[url] = None
 
     Links().feed(html)

@@ -133,6 +133,13 @@ def canonical_street(address: str) -> str:
     return out
 
 
+def looks_like_street(text: str) -> bool:
+    """Назва місця, що є вуличною адресою («проспект Свободи, 28» у vsiprobihy): тип вулиці на початку й номер.
+    Лише тоді її можна геокодувати; «Pub 154» чи «Арена 7» — назви закладів, не адреси."""
+    text = (text or "").strip()
+    return bool(_HAS_NUMBER.search(text)) and any(p.match(text) for p, _ in _STREET_RE)
+
+
 class Geocoder:
     """Кешований клієнт Photon. Кеш на диску: та сама адреса не питається двічі ніколи."""
 

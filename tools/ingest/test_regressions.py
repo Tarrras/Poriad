@@ -894,6 +894,49 @@ class SitemapSourceIgnoresListing(unittest.TestCase):
         self.assertNotIn("error", counters)
 
 
+class NicheSources(unittest.TestCase):
+    """09.11.2026: America House, PubQuiz, goodwine, vsiprobihy (docs/catalog-taste.md)."""
+
+    def test_america_house_page_is_the_event(self):
+        # Squarespace: картка без url, у назві хвіст сайту, скасування — словом у назві, `?format=ical` заборонено robots.
+        source = by_slug("america_house")
+        base = "https://www.americahousekyiv.org"
+        listing = ('<a href="/events/2090/6/1/talk">a</a><a href="/events/2090/6/1/talk?format=ical">i</a>'
+                   '<a href="/events/2090/6/2/yoga">b</a><a href="/events?view=calendar">c</a>')
+        place = {"name": "America House Kyiv", "address": "6 Mykoly Pymonenka Street\nKyiv, 02000\nUkraine"}
+        pages = {f"{base}/events/2090/6/1/talk": {"@type": "Event", "name": "Wednesday English — America House Kyiv",
+                                                   "startDate": "2090-06-01T19:00:00+0300", "location": place},
+                 f"{base}/events/2090/6/2/yoga": {"@type": "Event", "name": "СANCELLED Yoga — America House Kyiv",
+                                                  "startDate": "2090-06-02T12:00:00+0300", "location": place}}
+        asked = []
+
+        def fake_get(url, **kwargs):
+            asked.append(url)
+            return Response(url, 200, listing if url == source.listing_urls["Київ"] else html([pages[url]]))
+
+        index = VenueIndex([], "Київ", {"America House Kyiv": {"lat": 50.47, "lon": 30.5}})
+        with patch("tools.ingest.pipeline.get", side_effect=fake_get):
+            items, counters = pipeline.harvest(source, "Київ", index)
+        self.assertEqual(sorted(asked[1:]), sorted(pages))
+        self.assertEqual([(i.title, i.canonical_url) for i in items],
+                         [("Wednesday English", f"{base}/events/2090/6/1/talk")])
+        self.assertEqual(counters["reasons"], {"EventCancelled": 1})
+        self.assertEqual(counters["withdrawals"][0]["url"], f"{base}/events/2090/6/2/yoga")
+
+    def test_narrow_source_stamps_its_genre(self):
+        source = dataclasses.replace(by_slug("concert_ua"), category="games")
+        item = pipeline._build(raw_event(name="Класичний PubQuiz"), source, "Київ",
+                               VenueIndex([], "Київ", {"Зал": {"lat": 50.45, "lon": 30.53}}), NOW)
+        self.assertEqual((item.category, item.category_how), ("games", "catalog"))
+
+    def test_only_street_like_place_names_are_geocoded(self):
+        from .geocode import looks_like_street
+        self.assertTrue(looks_like_street("проспект Свободи, 28"))
+        self.assertTrue(looks_like_street("вул. Маразліївська, 1/20"))
+        for name in ("Pub 154", "Стадіон «Чорноморець»", "Дніпро (місце повідомляють напередодні)", "Арена 7"):
+            self.assertFalse(looks_like_street(name), name)
+
+
 class RunStats(unittest.TestCase):
     """Зведення для аналітика: лише SELECT, і порожня база — повідомлення, а не падіння."""
 
