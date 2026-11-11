@@ -1340,6 +1340,8 @@
   <string name="published_link_copied">Посилання скопійовано</string>
   <string name="published_calendar">Додати в календар</string>
   <string name="published_done">Готово</string>
+  <!-- Рядок про кабінет на сайті — лише тому, хто публікує вже не першу власну подію (PublishedEvent.cabinet). -->
+  <string name="published_cabinet">Ведете події регулярно? Є кабінет на сайті</string>
   <!-- 1.5 M1-ios -->
   <!-- Картка віку в профілі: галочка «Мені вже є 18» замість дати. -->
   <string name="confirm_age_adult_action">Підтвердити</string>

@@ -30,6 +30,7 @@ import app.poruch.android.mvi.MviViewModel
 import app.poruch.android.ui.*
 import app.poruch.domain.Event
 import app.poruch.domain.EventMedia
+import app.poruch.domain.LegalLinks
 import app.poruch.domain.MediaKind
 import app.poruch.domain.ShareMode
 import app.poruch.domain.TitleRules
@@ -58,6 +59,8 @@ sealed interface PublishedIntent {
     data object Share : PublishedIntent
     data object Copy : PublishedIntent
     data object Calendar : PublishedIntent
+    /** Рядок про кабінет на сайті (лише з [PublishedEvent.cabinet]). */
+    data object Cabinet : PublishedIntent
     /** «Готово» чи системне «назад». */
     data object Done : PublishedIntent
 }
@@ -69,6 +72,8 @@ sealed interface PublishedEffect {
     data class Friend(val link: String) : PublishedEffect
     data class Copy(val link: String) : PublishedEffect
     data class Calendar(val event: PublishedEvent) : PublishedEffect
+    /** Кабінет організатора — у браузері. */
+    data class Browse(val url: String) : PublishedEffect
     data class OpenDetail(val id: String) : PublishedEffect
     /** Стану нема (процес відновився з цим екраном): назад. */
     data object Close : PublishedEffect
@@ -107,6 +112,7 @@ class PublishedViewModel(private val app: PoruchApp) : MviViewModel<PublishedSta
             }
             PublishedIntent.Copy -> { app.publishDone(PublishAction.COPY); send(PublishedEffect.Copy(published.link)) }
             PublishedIntent.Calendar -> { app.publishDone(PublishAction.CALENDAR); send(PublishedEffect.Calendar(published)) }
+            PublishedIntent.Cabinet -> { app.publishDone(PublishAction.CABINET); send(PublishedEffect.Browse(LegalLinks.CABINET)) }
             PublishedIntent.Done -> {
                 closed = true
                 app.publishDone(PublishAction.DONE)
@@ -163,6 +169,11 @@ fun PublishedScreen(state: PublishedState, onIntent: (PublishedIntent) -> Unit) 
                 stringResource(R.string.published_calendar), { onIntent(PublishedIntent.Calendar) },
                 tone = colors.inkSecondary, icon = PoruchIcons.calendar
             )
+            // Тому, хто веде події не вперше: кабінет на сайті. Тихо, останнім рядком — це не дія цього екрана.
+            if (published.cabinet) GhostButton(
+                stringResource(R.string.published_cabinet), { onIntent(PublishedIntent.Cabinet) },
+                tone = colors.inkSecondary, icon = PoruchIcons.globe
+            )
         }
         GhostButton(
             stringResource(R.string.published_done), { onIntent(PublishedIntent.Done) },
@@ -192,7 +203,7 @@ private fun PrintedTicket(event: Event, onOpen: () -> Unit) {
 @Preview(heightDp = 760)
 @Composable
 private fun PublishedPreview() = PoruchTheme(dark = false) {
-    PublishedScreen(PublishedState(PREVIEW_PUBLISHED, PREVIEW_EVENT)) {}
+    PublishedScreen(PublishedState(PREVIEW_PUBLISHED.copy(cabinet = true), PREVIEW_EVENT)) {}
 }
 
 @Preview(heightDp = 760)

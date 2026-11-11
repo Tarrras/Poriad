@@ -366,6 +366,7 @@ fun PublishedRoute(navigator: Navigator) {
             is PublishedEffect.Calendar -> with(effect.event) {
                 if (!context.addToCalendar(title, null, location, timeZone, startMillis, endMillis)) context.toast(R.string.calendar_unavailable)
             }
+            is PublishedEffect.Browse -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
             is PublishedEffect.OpenDetail -> { navigator.back(); navigator.openDetail(effect.id) }
             PublishedEffect.Close -> navigator.back()
         }

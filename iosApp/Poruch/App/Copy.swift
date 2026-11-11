@@ -1053,6 +1053,7 @@ enum Copy {
     static let published_link_copied = "Посилання скопійовано"
     static let published_calendar = "Додати в календар"
     static let published_done = "Готово"
+    static let published_cabinet = "Ведете події регулярно? Є кабінет на сайті"
     static let confirm_age_adult_action = "Підтвердити"
     static let media_make_cover_a11y = "Зробити обкладинкою"
     static let auth_or_password = "або поштою й паролем"

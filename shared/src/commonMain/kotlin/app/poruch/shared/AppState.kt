@@ -182,7 +182,9 @@ data class AppState(
 /**
  * Що потрібно екрану «Подію створено»: [link] — `https://poriad.app/e/{id}` для «Скопіювати посилання», [post] — текст
  * «Поширити анонс» (той самий, що [PoruchApp.threadsPost]), а для «Додати в календар» — назва, початок і кінець в
- * epoch-мілісекундах (так їх беруть EventKit і `CalendarContract`), пояс події й місце одним рядком.
+ * epoch-мілісекундах (так їх беруть EventKit і `CalendarContract`), пояс події й місце одним рядком. [cabinet] — це вже
+ * не перша власна подія: показуємо рядок про кабінет на сайті ([LegalLinks.CABINET],
+ * docs/creation-platform-plan-2026-11.md). Першій події його не показуємо: похід у кіно кабінету не потребує.
  */
 data class PublishedEvent(
     val id: String,
@@ -193,11 +195,12 @@ data class PublishedEvent(
     val startMillis: Long,
     val endMillis: Long,
     val timeZone: String,
-    val location: String
+    val location: String,
+    val cabinet: Boolean = false
 )
 
-/** Дія на «Подію створено» для `publish_done {action}`: [DONE] ще й закриває екран. */
-enum class PublishAction(val key: String) { SHARE("share"), COPY("copy"), CALENDAR("calendar"), DONE("done") }
+/** Дія на «Подію створено» для `publish_done {action}`: [DONE] ще й закриває екран; [CABINET] — тап по рядку про кабінет. */
+enum class PublishAction(val key: String) { SHARE("share"), COPY("copy"), CALENDAR("calendar"), CABINET("cabinet"), DONE("done") }
 
 /** Котрий файл зараз іде ([current], від 1) з [total] нових у чернетці. */
 data class MediaUpload(val current: Int, val total: Int)

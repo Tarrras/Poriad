@@ -12,6 +12,7 @@ struct PublishedView: View {
     let done: () -> Void
     @EnvironmentObject var model: AppModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openURL) private var openURL
     @State private var notice: Notice?
     @State private var share: ShareItems?
     /// Тимчасова тека файлів «Поширити анонс»: прибираємо, щойно меню закрили.
@@ -59,6 +60,18 @@ struct PublishedView: View {
                         .frame(maxWidth: .infinity).tapTarget()
                     }
                     .buttonStyle(.plain)
+                    // Тому, хто веде події не вперше: кабінет на сайті. Тихо, останнім рядком — це не дія цього екрана.
+                    if published.cabinet {
+                        Button { openCabinet() } label: {
+                            HStack(spacing: Space.sm) {
+                                PoruchIcon(glyph: PoruchIcons.globe, size: 18)
+                                Text(Copy.published_cabinet).multilineTextAlignment(.center)
+                            }
+                            .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
+                            .frame(maxWidth: .infinity).tapTarget()
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
             .padding(.horizontal, Space.page).padding(.bottom, Space.page)
@@ -141,6 +154,11 @@ struct PublishedView: View {
         model.app.publishDone(action: .theCopy)
         UIPasteboard.general.string = published.link
         notice = Notice(text: Copy.published_link_copied, isError: false)
+    }
+
+    private func openCabinet() {
+        model.app.publishDone(action: .cabinet)
+        if let url = URL(string: LegalLinks.shared.CABINET) { openURL(url) }
     }
 
     /// Системний редактор календаря: людина сама обирає календар і зберігає, доступу до календаря не питаємо.

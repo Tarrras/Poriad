@@ -10,6 +10,8 @@ object LegalLinks {
     const val PRIVACY = "$SITE/privacy.html"
     const val DELETE_ACCOUNT = "$SITE/delete-account.html"
     const val SUPPORT_EMAIL = "hello@poriad.app"
+    /** Кабінет організатора на сайті; `from=app` — мітка для його аналітики (`kab_open`, docs/analytics.md). */
+    const val CABINET = "$SITE/kabinet?from=app"
 }
 
 /** Сторінки застосунку в сторах. Ділимось сайтом: на ньому обидві кнопки, а друг може бути з іншою ОС. */

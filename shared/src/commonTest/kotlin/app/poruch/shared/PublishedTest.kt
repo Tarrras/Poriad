@@ -41,6 +41,30 @@ class PublishedTest {
         } finally { PoruchAnalytics.sink=null }
     }
 
+    /** Рядок про кабінет — лише коли це вже не перша власна звичайна подія; чужа подія й супутник не рахуються. */
+    @Test fun theCabinetLineIsForThoseWhoAlreadyRanAnEvent()=runTest {
+        fun event(id:String,organizer:String,companion:Boolean=false)=Event(id,"Клуб","Опис",EventCategory.SOCIAL,"Київ","Поділ","2090-01-05T17:00:00Z",
+            "2090-01-05T19:00:00Z","Europe/Kyiv",EventStatus.PUBLISHED,50.45,30.52,null,
+            Gathering(organizer,"Я",10,0,organizer!="user",companionOf=if(companion) CompanionParent("a1","Концерт") else null))
+        suspend fun TestScope.publishedWith(mine:List<Event>):PublishedEvent {
+            val events=Events().apply { detailsOfCreated=true; this.mine=mine }; val app=testApp(events,backgroundScope)
+            runCurrent(); advanceTimeBy(1000); runCurrent(); app.createEvent(walk); runCurrent()
+            return app.state.value.published!! // без close(): він гасить спільний backgroundScope, а застосунків тут кілька
+        }
+        assertFalse(publishedWith(emptyList()).cabinet,"перша подія")
+        assertFalse(publishedWith(listOf(event("e1","other"),event("e2","user",companion=true))).cabinet,"чужа й супутник")
+        assertTrue(publishedWith(listOf(event("e1","user"))).cabinet,"друга власна")
+        val tracked=mutableListOf<String?>()
+        PoruchAnalytics.sink={ name,params -> if(name=="publish_done") tracked+=params["action"] }
+        try {
+            val app=testApp(Events(),backgroundScope); runCurrent(); app.createEvent(walk); runCurrent()
+            app.publishDone(PublishAction.CABINET)
+            assertNotNull(app.state.value.published,"тап по рядку екран не закриває")
+            assertEquals(listOf<String?>("cabinet"),tracked)
+        } finally { PoruchAnalytics.sink=null }
+        assertEquals("https://poriad.app/kabinet?from=app",LegalLinks.CABINET)
+    }
+
     /** Гість: екран — після входу, коли подія сама опублікувалась; вихід з акаунта його закриває. */
     @Test fun aGuestSeesItAfterSigningIn()=runTest {
         val events=Events(); val auth=Auth(); auth.session.value=null

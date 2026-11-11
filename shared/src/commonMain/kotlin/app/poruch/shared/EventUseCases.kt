@@ -245,7 +245,10 @@ internal class EventUseCases(
             it.copy(
                 notice = if (failed == 0) AppNotice.Told(AppMessage.EVENT_PUBLISHED) else AppNotice.MediaFailed(failed),
                 completedEventId = created,
-                published = published(created, draft),
+                // Інша власна звичайна подія вже є (і «Повторити» теж сюди) — людина веде події, а не збирає раз.
+                published = published(created, draft).copy(
+                    cabinet = it.library.myEvents.any { e -> e.id != created && it.organizes(e) && e.gathering?.companionOf == null }
+                ),
                 publishAfterSignIn = false
             )
         }
