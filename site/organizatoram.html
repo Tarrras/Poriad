@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Організаторам — Поряд</title>
+<meta name="description" content="Кабінет організатора «Поряд»: створіть подію з готового анонсу, дайте одне посилання для запису без застосунку й ведіть список учасників. Для клубів, закладів і артистів.">
+<meta property="og:title" content="Поряд для організаторів: одне посилання, один список">
+<meta property="og:description" content="Створіть подію з готового анонсу. Люди записуються за посиланням без застосунку, а ви бачите список і заявки.">
+<meta property="og:image" content="https://poriad.app/img/og.png">
+<meta property="og:url" content="https://poriad.app/organizatoram">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#F2F2F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://poriad.app/organizatoram">
+<link rel="preload" href="fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="tokens.css?v=19">
+<link rel="stylesheet" href="web.css?v=19">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<script src="js/boot.js?v=19"></script>
+<script type="module" src="js/org.js?v=19"></script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="icon.png" alt="">Поряд</a>
+    <nav class="links" aria-label="Розділи">
+      <a href="./#people">Від людей</a>
+      <a href="afisha.html">Афіша</a>
+      <a href="organizatoram" aria-current="page">Організаторам</a>
+      <a href="kabinet?from=org">Увійти</a>
+      <a class="btn primary small" href="kabinet?from=org#/new">Створити подію</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<!-- Героїня — той самий квиток сторінки, що на головній. На корінці — для кого кабінет. -->
+<section class="hero">
+  <div class="wrap">
+    <div class="ticket page-ticket">
+      <div class="face">
+        <h1><span>Одне посилання.</span> <span>Один список.</span></h1>
+        <div>
+        <p class="lead">Створіть подію з готового анонсу й дайте людям посилання. Вони записуються без застосунку, а&nbsp;ви бачите, хто йде, і&nbsp;не збираєте «+» по діректах.</p>
+        <div class="actions-row">
+          <a class="btn primary" href="kabinet?from=org#/new"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-edit"/></svg>Створити подію</a>
+          <a class="btn" href="kabinet?from=org">Увійти в кабінет</a>
+          <span class="cities">З комп’ютера чи телефона, без встановлення</span>
+        </div>
+        </div>
+      </div>
+      <div class="stub tonight">
+        <h2>Для кого</h2>
+        <div class="tn-list">
+          <a class="tn" href="#roles"><i class="org-ico cat-games"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-games"/></svg></i><div><b>Клуби й спільноти</b><span>Настолки, мафія, біг</span></div></a>
+          <a class="tn" href="#roles"><i class="org-ico cat-food"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-food"/></svg></i><div><b>Заклади</b><span>Кафе, бари, простори</span></div></a>
+          <a class="tn" href="#roles"><i class="org-ico cat-music"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-music"/></svg></i><div><b>Артисти</b><span>Концерти, квартирники</span></div></a>
+        </div>
+        <a class="go" href="mailto:hello@poriad.app?subject=%D0%9F%D0%BE%D0%B4%D1%96%D1%97%20%D0%B2%20%C2%AB%D0%9F%D0%BE%D1%80%D1%8F%D0%B4%C2%BB">Написати нам<svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-arrow"/></svg></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Від анонсу до списку: квитанція кроків ліворуч, готовий квиток події праворуч. -->
+<section class="section" id="how">
+  <div class="wrap people">
+    <div>
+      <h2 class="h2 reveal">Від анонсу до списку</h2>
+      <p class="copy reveal d08">Анонс у вас уже є. Вставте його текст, і&nbsp;кабінет сам заповнить назву, опис, дату й місце. Лишається перевірити й поставити точку на мапі.</p>
+      <div class="slip reveal d16">
+        <div class="group"><h3>Ви</h3>
+          <div class="ln"><span>Текст анонсу</span><span>вставити</span></div>
+          <div class="ln"><span>Фото й відео</span><span>до 5</span></div>
+          <div class="ln"><span>Точка на мапі</span><span>один клік</span></div></div>
+        <div class="group"><h3>Далі робить Поряд</h3>
+          <div class="ln"><span>Сторінка події</span><span>poriad.app/e/…</span></div>
+          <div class="ln"><span>Запис без застосунку</span><span>Google чи пошта</span></div>
+          <div class="ln"><span>Місце звільнилось</span><span>першому в черзі</span></div>
+          <div class="ln"><span>Перенос чи скасування</span><span>лист і пуш</span></div></div>
+        <div class="total"><span>Список учасників</span><b>у кабінеті</b></div>
+      </div>
+    </div>
+
+    <div class="printer reveal d10">
+      <div class="ticket v blank org-sample cat-games">
+        <div class="face">
+          <span class="stamp">Від людей</span>
+          <h3>Настолки щочетверга</h3>
+          <div class="descr"><span class="dot cat"></span><span>Ігри</span><span class="muted">Київ · Поділ</span></div>
+        </div>
+        <div class="stub">
+          <div><b class="t">19:00</b><small>Четвер</small></div>
+          <div class="org-go"><span>12/20</span><b>Йду</b></div>
+        </div>
+      </div>
+      <p class="hint">Так подію бачить гість за вашим посиланням: у&nbsp;біо, сторіз чи пості. Натискає «Йду», входить через Google або кодом з пошти — і&nbsp;він у списку.</p>
+      <a class="btn primary" href="kabinet?from=org#/new"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-edit"/></svg>Створити подію</a>
+    </div>
+  </div>
+</section>
+
+<!-- Кому зручно: три квитки ролей. Обіцяємо лише те, що кабінет уже вміє. -->
+<section class="section" id="roles">
+  <div class="wrap">
+    <h2 class="h2 reveal">Кому це зручно</h2>
+    <div class="org-roles">
+      <article class="ticket v org-role cat-games reveal">
+        <div class="face">
+          <span class="stamp">Клуб</span>
+          <h3>Збираєтесь щотижня</h3>
+          <ul>
+            <li>«Повторити» копіює подію на наступний тиждень разом з фото</li>
+            <li>Місця закінчились — люди стають у чергу самі</li>
+            <li>«За підтвердженням», якщо хочете знати, хто йде</li>
+          </ul>
+        </div>
+        <div class="stub"><b class="t">+7 днів</b><small>Повторити</small></div>
+      </article>
+      <article class="ticket v org-role cat-food reveal d08">
+        <div class="face">
+          <span class="stamp">Заклад</span>
+          <h3>Вечори у вас</h3>
+          <ul>
+            <li>Подія з’являється на мапі міста поруч з афішею</li>
+            <li>Ціна входу видно на картці, оплата — у вас на місці</li>
+            <li>Гості, що стежать за вами, дізнаються про нову подію</li>
+          </ul>
+        </div>
+        <div class="stub"><b class="t">На мапі</b><small>Поруч з афішею</small></div>
+      </article>
+      <article class="ticket v org-role cat-music reveal d16">
+        <div class="face">
+          <span class="stamp">Артист</span>
+          <h3>Концерт чи квартирник</h3>
+          <ul>
+            <li>До 5 фото й відео з минулих виступів на сторінці події</li>
+            <li>Готовий текст поста для Threads з посиланням на запис</li>
+            <li>Учасники самі дізнаються про перенос чи скасування</li>
+          </ul>
+        </div>
+        <div class="stub"><b class="t">Фото й відео</b><small>До 5</small></div>
+      </article>
+    </div>
+    <p class="org-mail reveal">Маєте заклад чи гурт і&nbsp;проводите події регулярно? Напишіть на <a href="mailto:hello@poriad.app?subject=%D0%9F%D0%BE%D0%B4%D1%96%D1%97%20%D0%B2%20%C2%AB%D0%9F%D0%BE%D1%80%D1%8F%D0%B4%C2%BB">hello@poriad.app</a>&nbsp;— допоможемо завести перші події й розкажемо, що готуємо для закладів і&nbsp;артистів.</p>
+  </div>
+</section>
+
+<!-- Що вміє кабінет — прейскурант на нічному полі, як «Безпека» на головній. -->
+<section class="night" id="features">
+  <div class="wrap">
+    <div>
+      <h2 class="h2 reveal">Що вміє кабінет</h2>
+      <p class="copy reveal d06">Запис, список і сповіщення. Чат вашої спільноти лишається там, де він є: посилання на нього бачать лише ті, кого ви записали.</p>
+      <p class="note reveal d12">Події в застосунку й кабінеті — ті самі: створили на сайті, заявки схвалюєте з телефона.</p>
+    </div>
+    <div class="menu reveal d10">
+      <div class="group"><h3>Створення</h3>
+        <div class="item"><div class="ln"><span>Готовий анонс</span><span>вставити текст</span></div><p>Назву, опис, дату й місце заповнимо з вашого поста.</p></div>
+        <div class="item"><div class="ln"><span>Фото й відео</span><span>до 5</span></div><p>Перше стане обкладинкою.</p></div>
+        <div class="item"><div class="ln"><span>Ціна входу</span><span>якщо є</span></div><p>Про оплату гості домовляються з вами напряму.</p></div></div>
+      <div class="group"><h3>Запис</h3>
+        <div class="item"><div class="ln"><span>Без застосунку</span><span>Google чи пошта</span></div><p>Гість записується просто на сторінці події.</p></div>
+        <div class="item"><div class="ln"><span>За підтвердженням</span><span>якщо хочете</span></div><p>Заявки схвалюєте ви.</p></div>
+        <div class="item"><div class="ln"><span>Черга</span><span>сама</span></div><p>Звільнене місце отримує перший у черзі.</p></div></div>
+      <div class="group"><h3>Після публікації</h3>
+        <div class="item"><div class="ln"><span>Список учасників</span><span>скопіювати</span></div></div>
+        <div class="item"><div class="ln"><span>Повторити</span><span>+7 днів</span></div><p>Копія події на наступний тиждень.</p></div>
+        <div class="item"><div class="ln"><span>Пост для Threads</span><span>готовий текст</span></div></div>
+        <div class="item"><div class="ln"><span>Зміни й скасування</span><span>лист і пуш</span></div><p>Учасникам повідомляємо ми.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Фінал: один крок. -->
+<section class="section org-final">
+  <div class="wrap">
+    <h2 class="h2 reveal">Перша подія — за кілька хвилин</h2>
+    <p class="copy reveal d06">Вхід потрібен лише на «Опублікувати»: спершу заповніть і подивіться, як виглядатиме квиток.</p>
+    <div class="actions-row reveal d12">
+      <a class="btn primary" href="kabinet?from=org#/new"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-edit"/></svg>Створити подію</a>
+      <a class="btn" href="kabinet?from=org">Увійти в кабінет</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<!-- Підвал — корінець сторінки. -->
+<footer class="tear" id="support">
+  <div class="wrap">
+    <div class="top">
+      <p>Поряд&nbsp;— афіша міста й зустрічі від людей. Питання про події, заклади й співпрацю пишіть на пошту, відповідаємо протягом 24 годин.</p>
+      <a href="#">Нагору ↑</a>
+    </div>
+    <a class="mail" href="mailto:hello@poriad.app">hello@poriad.app</a>
+    <div class="meta">
+      <nav aria-label="Документи"><a href="afisha.html">Афіша</a><a href="privacy.html">Конфіденційність</a><a href="terms.html">Умови</a><a href="delete-account.html">Видалити акаунт</a><a href="privacy-en.html">English</a></nav>
+      <span>Є куди. Буде з ким.</span>
+      <span><a href="afisha/kyiv">Київ</a> · <a href="afisha/lviv">Львів</a> · <a href="afisha/odesa">Одеса</a> · <a href="afisha/dnipro">Дніпро</a> · <a href="afisha/kharkiv">Харків</a></span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

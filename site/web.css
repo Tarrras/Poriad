@@ -1132,3 +1132,35 @@ a.row:hover { background: var(--surface-muted); }
 @keyframes thud { 40% { transform: translateY(2px) scale(.985); } }
 /* Квиток стартує повністю над прорізом (обгортка .kab-done-ticket обрізає), видно лише те, що вже «вийшло». */
 @keyframes feed { from { transform: translateY(calc(-100% - 6px)); } }
+
+/* ================= «Організаторам» (site/organizatoram.html) ================= */
+/* Ті самі квитки, що на головній: героїня з чорнильним корінцем, квитанція, прейскурант. Свого — лише ролі й зразок. */
+.org-ico { display: grid; place-items: center; width: 60px; height: 60px; flex: none; border-radius: var(--r-sm); background: var(--stub); color: #fff; }
+.org-ico .ico { width: 28px; height: 28px; }
+.org-sample { min-height: 360px; }
+.org-sample > .face { outline: 0; }
+.org-sample h3 { margin-top: 18px; font: 800 clamp(40px, 4vw, 56px)/.98 var(--cond); letter-spacing: -.02em; text-wrap: balance; }
+.org-go { display: flex; align-items: center; gap: 14px; font: 800 32px/1 var(--xcond); font-variant-numeric: tabular-nums; }
+.org-go b { display: grid; place-items: center; height: 48px; padding: 0 22px; border-radius: var(--r-md); background: #fff; color: var(--stub); font: 700 20px/1 var(--cond); }
+.org-roles { margin-top: 48px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.org-role { --stub-h: 84px; --hole: 9px; --r: var(--r-lg); }
+.org-role > .face { padding: 24px 24px 28px; gap: 16px; }
+.org-role .stamp { align-self: flex-start; color: var(--hue); }
+.org-role h3 { font: 800 32px/1 var(--cond); letter-spacing: -.01em; text-wrap: balance; }
+.org-role ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; font: 400 16px/23px var(--font); color: var(--ink-secondary); }
+.org-role li { padding-left: 18px; position: relative; }
+.org-role li::before { content: ""; position: absolute; left: 0; top: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--hue); }
+.ticket.org-role > .stub { padding: 0 24px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; }
+.ticket.org-role > .stub .t { font-size: 30px; line-height: 32px; }
+.org-mail { margin-top: 40px; max-width: 44em; font: 400 18px/27px var(--font); color: var(--ink-secondary); }
+.org-mail a { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.org-final .copy { margin-top: 24px; }
+.org-final .actions-row { margin-top: 32px; display: flex; flex-wrap: wrap; gap: 12px; }
+@media (max-width: 900px) {
+  .org-roles { grid-template-columns: minmax(0, 1fr); max-width: 560px; }
+}
+@media (max-width: 640px) {
+  .org-roles { margin-top: 32px; }
+  .org-sample { min-height: 320px; }
+  .org-final .actions-row { flex-direction: column; align-items: stretch; }
+}

@@ -5,7 +5,7 @@
 // всім суворий CSP. Verifier PKCE для Google і намір («записатися на…») чекають повернення в sessionStorage вкладки, а
 // verifier-и листів (реєстрація, відновлення) — у localStorage: посилання з листа відкривається в новій вкладці.
 // Перевірка — `node tools/auth_test.mjs`.
-import { SUPABASE } from "./poriad.js?v=18";
+import { SUPABASE } from "./poriad.js?v=19";
 
 const SESSION = "poriad.session";
 const PKCE = "poriad.pkce";

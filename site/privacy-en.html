@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy Policy — Poriad</title>
 <meta name="description" content="What data the Poriad app collects, why, where it is stored and how to delete it.">
-<link rel="stylesheet" href="tokens.css?v=18">
-<link rel="stylesheet" href="style.css?v=18">
+<link rel="stylesheet" href="tokens.css?v=19">
+<link rel="stylesheet" href="style.css?v=19">
 <link rel="icon" href="icon.png">
 </head>
 <body>
@@ -19,7 +19,7 @@
     <a href="delete-account.html">Delete account</a>
     <a href="privacy.html">Українською</a>
   </nav>
-  <p class="meta page-top">Effective 5 November 2026</p>
+  <p class="meta page-top">Effective 11 November 2026</p>
   <h1>Privacy Policy</h1>
   <p class="lead">In short: we keep only what is needed for you to find events, host your own and talk to attendees. We do not sell data and show no ads.</p>
 </div></header>
@@ -57,9 +57,10 @@
 <tr><td>Usage statistics and crash reports</td><td>Automatically while the app runs</td><td>Which steps people take (viewing, joining, creating an event) and where the app crashes, so we can fix bugs. Via Firebase Analytics, Crashlytics and Amplitude, without the advertising identifier. Amplitude also records how you use the screens (session replay): taps, scrolling and navigation; all on-screen text and people's photos are hidden in the recording. The data is pseudonymous: tied to a random app-instance identifier, not to your account, name or email. You can turn collection off with the <b>Profile → Analytics</b> switch.</td></tr>
 <tr><td>Technical data</td><td>Automatically with each request</td><td>IP address and app version in server logs for security and diagnostics, kept for a limited time by our hosting provider.</td></tr>
 <tr><td>Website visit statistics</td><td>Automatically when you open poriad.app</td><td>Page views, the referring site, country, device and browser type, page load speed. Via Cloudflare Web Analytics: no cookies, no identifiers and no cross-site tracking; we see only aggregate numbers.</td></tr>
+<tr><td>Organizer dashboard statistics</td><td>Automatically when you open poriad.app/kabinet</td><td>Which steps people take: opened the dashboard, started an event, pressed “Publish”, the event was published or an error occurred. Via Amplitude: no cookies, no session replay, no text, names or email. The steps are tied to a random identifier in the browser, not to your account; Amplitude does not receive your IP address. If your browser sends “Do not track” (Global Privacy Control or Do Not Track), we collect nothing.</td></tr>
 </table>
 </div>
-<p>We do not collect contacts, movement history, background location, advertising identifiers or data from other apps. The app contains no advertising or advertising SDKs; the only analytics is Firebase and Amplitude in the app and Cloudflare Web Analytics on the website, both described above.</p>
+<p>We do not collect contacts, movement history, background location, advertising identifiers or data from other apps. The app contains no advertising or advertising SDKs; the only analytics is Firebase and Amplitude in the app, and Cloudflare Web Analytics plus Amplitude in the organizer dashboard on the website, all described above.</p>
 
 <h2>3. Legal bases</h2>
 <ul>
@@ -77,7 +78,7 @@
 <tr><td>Supabase, Inc. (database, auth, file storage, functions)</td><td>All account data, events, messages, photos. Hosted in Ireland (AWS eu-west-1, European Union).</td></tr>
 <tr><td>Google LLC, Firebase Cloud Messaging (Android)</td><td>Device token and notification content for delivery.</td></tr>
 <tr><td>Google LLC, Firebase Analytics and Crashlytics (Android, iOS)</td><td>Pseudonymous usage statistics (with an app-instance identifier), crash reports, device model and OS version. Collection is turned off by the "Analytics" switch in your profile.</td></tr>
-<tr><td>Amplitude, Inc., analytics and session replay (Android, iOS)</td><td>Pseudonymous usage statistics and session recordings (taps, scrolling, screen transitions; text and people's photos hidden), device identifier, device model and OS version. Servers in the United States. Collection is turned off by the "Analytics" switch in your profile.</td></tr>
+<tr><td>Amplitude, Inc., analytics and session replay (Android, iOS), steps in the organizer dashboard on the website</td><td>Pseudonymous usage statistics and session recordings (taps, scrolling, screen transitions; text and people's photos hidden), device identifier, device model and OS version. From the organizer dashboard: only event-creation steps with a random browser identifier, no session replay. Servers in the United States. In the app, collection is turned off by the "Analytics" switch in your profile.</td></tr>
 <tr><td>Apple Inc., Apple Push Notification service (iOS)</td><td>Device token and notification content for delivery.</td></tr>
 <tr><td>OpenFreeMap (map tiles)</td><td>Device IP address and the map area you view while tiles load.</td></tr>
 <tr><td>unpkg (CDN for the website map library)</td><td>Device IP address when the event map opens on the website: the MapLibre library loads from there.</td></tr>

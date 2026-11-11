@@ -109,6 +109,26 @@ create_step(about) → create_step(place) → create_step(schedule) → create_s
 - Session Replay: 100% сесій, маска `conservative` — увесь текст прихований; `Avatar` заблокований (`amp_setBlocked` / `ampBlock`), тож обличчя людей теж. Зберігання — 30 днів. Розкрито в `site/privacy*.html` і `store/listing.md`.
 - Словник вище з 2026-10-24 іде і сюди, з тими самими назвами й параметрами (ланцюжок `PoruchAnalytics.sink` після Firebase). Воронки й ретеншн тут будуються мишкою, без реєстрації вимірів, а записи сесій фільтруються за подією. Тестова `Viewed Home Page` майстра вже прибрана з коду.
 
+### Кабінет на сайті
+
+З 1.5 (11.11) кабінет `poriad.app/kabinet` шле кроки своєї воронки в той самий проєкт Amplitude. Сторінка надсилає їх
+на свою адресу `/api/t`, а воркер пересилає в Amplitude HTTP API (`worker/track.mjs`; словник закритий — тест
+`worker/track.test.mjs` звіряє його з `kabinet.js`). Чужих скриптів у кабінеті нема, записів сеансів теж. Лише prod:
+у dev ключа нема. Пристрій — випадковий ідентифікатор у `localStorage` (`poriad.device`), з акаунтом і з пристроєм
+застосунку не зв'язаний; `platform` — `Web`. Браузер із «не стежити» (GPC, DNT) не шле нічого.
+
+| Подія | Коли | Параметри |
+|---|---|---|
+| `kab_open` | кабінет відкрито (раз на завантаження сторінки) | `guest`; `from`: `org` (сторінка «Організаторам»), `app` (рядок на «Подію створено» в застосунку), `direct` |
+| `kab_editor` | відкрито редактор | `mode`: `new`, `repeat` («Повторити»), `edit`; `draft` — форма з незакінченої чернетки |
+| `kab_submit` | тап «Опублікувати» чи «Зберегти зміни» | `mode`; `guest`; `blocked` — скільки полів не пройшло перевірку (0 — пішло далі) |
+| `kab_publish` | подію створено чи збережено | `mode`; `media` — скільки фото й відео |
+| `kab_failed` | сервер чи мережа відхилили публікацію | `mode`; `code` — код помилки сервера (`AGE_REQUIRED`, `session_expired`…) |
+
+У кожної — `mobile`: ширина вікна до 767 px. Воронка: `kab_open` → `kab_editor (mode ≠ edit)` → `kab_submit` →
+`kab_publish`; розрив між `kab_submit (blocked = 0)` і `kab_publish` у гостя — це вхід. Перегляди сторінки
+«Організаторам» рахує Cloudflare Web Analytics, а перехід з неї — `kab_open` з `from = org`.
+
 ## Воронка у Firebase
 
 Console → Analytics → **Explore** → Funnel exploration, кроки:

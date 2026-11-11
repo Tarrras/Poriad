@@ -14,6 +14,9 @@ routes = [
 [vars]
 SUPABASE_URL = "https://tzdogzdvctlumsqlqskr.supabase.co"
 SUPABASE_KEY = "sb_publishable_RoY0wFzTOcXlmOIYC0UE-w_fOt5rXPq"
+# Amplitude: ключ інжесту, публічний за задумом; той самий, що poriad.prod.amplitudeKey у gradle.properties.
+# Лише prod: у dev ключа нема, тож /api/t (worker/track.mjs) подій не шле — як dev-збірки застосунків.
+AMPLITUDE_KEY = "2783f40823e30dad1fb9ffc4807cdc04"
 
 # Підказки адрес кабінету (/api/geocode, worker/kabinet.mjs): повз кеш — 30 запитів за хвилину з однієї адреси (IPv6 —
 # з мережі /64) і 120 на всіх разом. Ліміти — у межах локації Cloudflare й приблизні; namespace_id — свій лічильник
@@ -30,6 +33,14 @@ name = "GEOCODE_GLOBAL"
 namespace_id = "1503"
   [ratelimits.simple]
   limit = 120
+  period = 60
+
+# Аналітика кабінету (/api/t, worker/track.mjs): 60 подій за хвилину з однієї адреси.
+[[ratelimits]]
+name = "TRACK_LIMIT"
+namespace_id = "1505"
+  [ratelimits.simple]
+  limit = 60
   period = 60
 
 # Локальна перевірка: `npx wrangler dev --env dev` → http://localhost:8787. Сайт — тека site/ замість Pages, дані — dev.
@@ -50,6 +61,13 @@ name = "GEOCODE_GLOBAL"
 namespace_id = "1504"
   [env.dev.ratelimits.simple]
   limit = 120
+  period = 60
+
+[[env.dev.ratelimits]]
+name = "TRACK_LIMIT"
+namespace_id = "1506"
+  [env.dev.ratelimits.simple]
+  limit = 60
   period = 60
 
 [env.dev.vars]

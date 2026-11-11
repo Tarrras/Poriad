@@ -7,6 +7,7 @@
 // wrangler збирає цей імпорт у воркер; той самий файл сайт віддає браузеру.
 import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS, icsFile, payNote, payWhen, payWay, PAY_ONLINE_FINE, refundText } from "../site/js/poriad.js";
 import { kabinetPage, geocode } from "./kabinet.mjs";
+import { track } from "./track.mjs";
 export { esc };
 
 // Мітка ct: завантаження зі сторінок подій (event) і з запрошень (invite) окремо від сайту (site/js/poriad.js).
@@ -81,6 +82,7 @@ const ROUTES = [
   [/^\/e\/([^/]+)\/?$/, readOnly(eventRoute)],
   [/^\/kabinet(?:\.html)?$/, readOnly(async (request, env) => kabinetPage(await pages(request, env, CSP.kabinet(env))))],
   [/^\/api\/geocode$/, readOnly(geocode)],
+  [/^\/api\/t$/, track],
 ];
 
 export default {
@@ -288,7 +290,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>
 ${imported ? "" : `${joinSheet(e, ct, now)}
-<script type="module" src="/js/join.js?v=18"></script>`}`,
+<script type="module" src="/js/join.js?v=19"></script>`}`,
   });
 }
 
@@ -624,13 +626,13 @@ function layout({ title, description, image, url, head, body, from = "event" }) 
 <meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=18">
-<link rel="stylesheet" href="/web.css?v=18">
+<link rel="stylesheet" href="/tokens.css?v=19">
+<link rel="stylesheet" href="/web.css?v=19">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">
 <header class="nav scrolled"><div class="wrap"><a class="brand" href="/"><img src="/icon.png" alt="">Поряд</a>
-  <nav class="links" aria-label="Розділи"><a href="/afisha.html">Афіша</a><a href="/kabinet">Організаторам</a><a class="btn primary small" href="/app?from=${from}">Завантажити</a></nav></div></header>
+  <nav class="links" aria-label="Розділи"><a href="/afisha.html">Афіша</a><a href="/organizatoram">Організаторам</a><a class="btn primary small" href="/app?from=${from}">Завантажити</a></nav></div></header>
 <main class="event-shell">${body}</main>
 <footer class="site"><div class="wrap"><span>Питання й скарги: <a href="mailto:hello@poriad.app">hello@poriad.app</a></span>
   <nav aria-label="Афіша міст">${Object.entries(CITY_PAGES).map(([s, [n]]) => `<a href="/afisha/${s}">${n}</a>`).join("")}</nav>

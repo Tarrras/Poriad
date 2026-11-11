@@ -3,10 +3,10 @@
 // організатора. Вхід (Google або пошта з паролем, docs/web-auth.md) — auth.js, дані —
 // ті самі функції бази, що в застосунку; сторінка перевіряє лише очевидне, решту каже сервер. Чисті правила вгорі (дати,
 // тривалість, медіа, текст для Threads) перевіряє `node tools/kabinet_test.mjs`; DOM — нижче, лише в браузері.
-import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText, plural, EVENTS, POST_MONTHS, payWay } from "./poriad.js?v=18";
-import { threadFeed, openProof, forgetProofs, fit, jpeg, jpegFile, PHOTO, payStage } from "./chat.js?v=18";
+import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText, plural, EVENTS, POST_MONTHS, payWay } from "./poriad.js?v=19";
+import { threadFeed, openProof, forgetProofs, fit, jpeg, jpegFile, PHOTO, payStage } from "./chat.js?v=19";
 import { session, verifyCode, google, completeRedirect, rpc, upload, signOut, inAppBrowser, browserLinks, signInWithPassword, signUp, resendSignup,
-  requestRecovery, updatePassword, reauthenticate, verifyPassword, currentUser, updateMetadata, signInMethods, isEmail, MIN_PASSWORD, MAX_PASSWORD } from "./auth.js?v=18";
+  requestRecovery, updatePassword, reauthenticate, verifyPassword, currentUser, updateMetadata, signInMethods, isEmail, MIN_PASSWORD, MAX_PASSWORD } from "./auth.js?v=19";
 
 // ---- Дати. Усі п'ять міст в одному поясі; подія з іншим поясом (з застосунку) редагується у своєму.
 export const TZ = "Europe/Kyiv";
@@ -88,7 +88,7 @@ export function priceProblem(price) {
 export const priceParam = (price) => String(price ?? "").trim() ? Math.round(Number(price)) : 0;
 
 // ---- «Пост для Threads» (1.5) — у poriad.js: той самий текст ділить і сторінка події (1.6).
-export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=18";
+export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=19";
 
 // ---- Анімації публікації (1.6, design/lottie/LICENSES.md): корінець запечений кольором музики — фарбуємо в жанр.
 const MUSIC_STUB = [0x60, 0x41, 0xb1].map((v) => v / 255);
@@ -323,6 +323,21 @@ let me = null; // рядок Auth: id, email, identities, user_metadata
 let ready = null; // id, для якого імʼя й вік уже є
 let card = null; // свій profile_card: імʼя, фото, «про вас», з якого часу, скільки подій
 const busy = new Set();
+
+// ---- Аналітика кабінету (docs/analytics.md, «Кабінет на сайті»): кроки воронки — на свою адресу `/api/t`, далі їх шле
+// воркер (worker/track.mjs, там і словник). Без id, імен і текстів; браузер із «не стежити» (GPC, DNT) не шле нічого.
+const DEVICE = "poriad.device";
+function track(name, props = {}) {
+  try {
+    if (navigator.globalPrivacyControl || navigator.doNotTrack === "1") return;
+    const device = localStorage.getItem(DEVICE) ?? crypto.randomUUID();
+    localStorage.setItem(DEVICE, device);
+    fetch("/api/t", { method: "POST", keepalive: true, headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name, device, props: { ...props, mobile: matchMedia("(max-width: 767px)").matches } }) }).catch(() => {});
+  } catch { /* приватне вікно без сховища — без аналітики */ }
+}
+let repeated = false; // чернетка нової події — копія «Повторити»
+const mode = () => editing ? "edit" : repeated ? "repeat" : "new";
 
 /** Помилка, яку показуємо як є (перевірка поля), а не словами `errorText`. */
 class Problem extends Error {}
@@ -1110,6 +1125,7 @@ function setupEvent() {
     const unsaved = Boolean(old?.title?.trim() || old?.description?.trim() || (await mediaStore())?.length);
     if (unsaved && !confirm("Є незбережена чернетка нової події. Замінити її копією цієї події?")) return;
     startDraft(repeatDraft(current), repeatMedia(current));
+    repeated = true;
     location.hash = "#/new";
   });
   $("[data-cancel]").addEventListener("click", async () => {
@@ -1264,12 +1280,16 @@ async function showEditor(id) {
     if (!(await signedIn()) && !(await signIn({ lead: "Увійдіть тією поштою чи Google, з якими створювали подію." }))) return void (location.hash = "#/");
     editing = await ownEvent(id);
     if (!editing) { location.hash = `#/e/${id}`; return; }
+    track("kab_editor", { mode: "edit", draft: false });
     fill(eventDraft(editing));
     media = (editing.media?.length ? editing.media : editing.image_url ? [{ kind: "photo", url: editing.image_url }] : [])
       .map((m) => ({ key: m.url, kind: m.kind, url: m.url, poster: m.poster ?? null }));
     original = media.map((m) => m.url).join(" ");
   } else {
-    fill(readDraft() ?? blank());
+    const saved = readDraft();
+    if (!saved) repeated = false;
+    track("kab_editor", { mode: mode(), draft: Boolean(saved) });
+    fill(saved ?? blank());
     original = "";
     media = repeatFiles ?? (await mediaStore()) ?? [];
     repeatFiles = null;
@@ -1759,6 +1779,7 @@ async function publish() {
   if (busy.has("publish")) return;
   const wrong = problems(d);
   error.textContent = wrong.join(". ");
+  track("kab_submit", { mode: mode(), guest: !me, blocked: wrong.length });
   if (wrong.length) return;
   if (!editing) writeDraft(d); // вхід через Google перезавантажить сторінку
   if (!(await account({ lead: "Подія майже готова. Увійдіть, щоб опублікувати її: тією самою поштою чи Google, що й у застосунку.", intent: { publish: true } }))) return;
@@ -1792,13 +1813,15 @@ async function publish() {
     progress.textContent = "Зберігаємо…";
     if (plan.update) await rpc("update_event", { ...args, p_media: list });
     if (editing && list) removeFiles(editing.media ?? [], list);
-    if (!editing) { writeDraft(null); media = []; mediaStore([]); }
+    track("kab_publish", { mode: mode(), media: list?.length ?? media.length });
+    if (!editing) { writeDraft(null); media = []; mediaStore([]); repeated = false; }
     published = { id, failed, edited: Boolean(editing) };
     location.hash = editing ? `#/e/${id}` : `#/e/${id}/done`;
   } catch (e) {
     overlay.close();
     if (e.code === "AGE_REQUIRED" && await signIn({ at: "profile" })) { busy.delete("publish"); button.disabled = false; return publish(); }
     if (e.code === "session_expired") { me = null; ready = null; }
+    track("kab_failed", { mode: mode(), code: String(e.code ?? "unknown") });
     error.textContent = errorText(e);
     saveMedia(); // вже вивантажене — з адресою: повтор його не вантажить
   } finally {
@@ -1852,7 +1875,7 @@ function setupEditor() {
 }
 
 async function start() {
-  ui = await import("./ui.js?v=18");
+  ui = await import("./ui.js?v=19");
   window.poriadReady = true;
   setupAuth();
   setupAccount();
@@ -1875,6 +1898,8 @@ async function start() {
     if (e.code !== "access_denied") setTimeout(() => ui.toast(redirectErrorText(e)), 300);
   }
   addEventListener("hashchange", route);
+  // Звідки прийшли: `?from=` ставлять сторінка «Організаторам» і застосунок; без нього — пряме відкриття.
+  track("kab_open", { guest: !(await signedIn()), from: new URLSearchParams(location.search).get("from") ?? "direct" });
   if (recovering && await signedIn()) {
     auth.email = me.email ?? "";
     $("[data-auth-form]").recoveryEmail.value = auth.email;
