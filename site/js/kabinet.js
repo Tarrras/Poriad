@@ -84,6 +84,38 @@ export const TICKET_URL = /^https:\/\/[^\s<>"]{4,490}$/;
 export const isOwn = (e, id) => Boolean(e && id) && e.organizer_id === id && (e.origin === "community" || e.origin === "partner");
 /** Як потрапити на подію, з того, що віддає сервер. */
 export const howOf = (e) => (e?.origin === "partner" ? (e.canonical_url ? "tickets" : "open") : "signup");
+/** Склад події (20261130120000): до восьми імен. */
+export const LINEUP_MAX = 8;
+/**
+ * Склад → запит `set_event_lineup`: вибрані з каталогу — id, вписані руками — іменами (сервер знайде за назвою або
+ * додасть). Свого артиста (власник) сервер ставить сам, тож його не шлемо.
+ */
+export function lineupParams(list) {
+  const picked = (list ?? []).filter((a) => !a.own);
+  return { p_artists: picked.filter((a) => a.id).map((a) => a.id), p_new: picked.filter((a) => !a.id).map((a) => ({ name: a.name })) };
+}
+/** Підказки складу: знайдені без уже доданих; останнім — «додати», якщо такого імені ще нема ні серед знайдених, ні в складі. */
+export function lineupChoices(found, text, chosen = []) {
+  const q = text.trim(), same = (name) => String(name ?? "").trim().toLowerCase() === q.toLowerCase();
+  const list = (found ?? []).filter((a) => !chosen.some((c) => c.id === a.id))
+    .map((a) => ({ id: a.id, name: a.name, label: a.name, detail: a.kind === "group" ? "Гурт" : "Артист" }));
+  if (q.length >= 2 && !(found ?? []).some((a) => same(a.name)) && !chosen.some((c) => same(c.name))) list.push({ add: true, name: q, label: `Немає в списку — додати «${q}»`, detail: "" });
+  return list;
+}
+/** Що сказати на «Подію створено» про серію: усі дати чи скільки встигли. */
+export function seriesNote(series) {
+  if (!series) return "";
+  if (series.made === series.count) return `Серія: ${plural(series.count, EVENTS)}, по одній на тиждень. Усі — в «Моїх подіях».`;
+  return `Серія: створено ${series.made} з ${series.count}. ${series.error ? `${series.error}. ` : ""}Решту дат додайте через «Повторити».`;
+}
+/** Серія (20261130120000): «щотижня» — окремі події, до дванадцяти разом з першою. */
+export const SERIES_MAX = 12;
+/** Дати подій 2…count: той самий день тижня й година. Перша подія — сама чернетка. */
+export function seriesDates(d, count) {
+  const shift = (date, days) => { const [y, m, day] = String(date).split("-").map(Number); return new Date(Date.UTC(y, m - 1, day + days)).toISOString().slice(0, 10); };
+  const total = Math.min(Math.max(Math.round(+count) || 1, 1), SERIES_MAX);
+  return Array.from({ length: total - 1 }, (_, i) => ({ startDate: shift(d.startDate, 7 * (i + 1)), endDate: shift(d.endDate, 7 * (i + 1)) }));
+}
 export function priceProblem(price) {
   const text = String(price ?? "").trim();
   if (!text) return null;
@@ -179,6 +211,9 @@ const ERRORS = {
   ARTIST_NOT_FOUND: "Артиста не знайдено. Спробуйте ще раз",
   INVALID_PLACE_NAME: "Назва закладу — від 2 до 120 символів",
   INVALID_PLACE: "Оберіть адресу з підказок",
+  TOO_MANY_ARTISTS: "У складі — до 8 імен, нових артистів — до 10 на добу",
+  INVALID_LINEUP: "Склад не зберігся. Спробуйте ще раз",
+  INVALID_SERIES: "Серію не вдалося продовжити. Додайте решту дат через «Повторити»",
   INVALID_TICKET_URL: "Посилання на квитки — адреса сторінки продажу, що починається з https://",
   ENTRY_LOCKED: "Спосіб входу вже не змінити: на подію записались або шукають компанію",
   INVALID_SLUG: "Адреса — від 3 до 32 символів: латинські літери, цифри й дефіс усередині",
@@ -1401,8 +1436,10 @@ async function showDone(id) {
   if (!event) return void (location.hash = `#/e/${id}`);
   current = event;
   $("[data-done-ticket]").innerHTML = doneTicket(event);
-  $("[data-done-note]").textContent = fresh.failed
-    ? `Не вдалося додати ${fresh.failed} ${fresh.failed === 1 ? "файл" : fresh.failed < 5 ? "файли" : "файлів"}. Спробуйте ще раз у редагуванні.` : "";
+  $("[data-done-note]").textContent = [
+    fresh.failed ? `Не вдалося додати ${fresh.failed} ${fresh.failed === 1 ? "файл" : fresh.failed < 5 ? "файли" : "файлів"}. Спробуйте ще раз у редагуванні.` : "",
+    seriesNote(fresh.series),
+  ].filter(Boolean).join(" ");
   $("[data-done-ics]").href = `/e/${event.id}.ics`;
   $("[data-done-ready]").href = `#/e/${event.id}`;
   animate($("[data-done-anim]"), "published", event.category);
@@ -1435,15 +1472,35 @@ let original = ""; // адреси медіа події до правки: не
 let repeatFiles = null; // медіа «Повторити» — одразу в редактор, не чекаючи IndexedDB
 let mine = []; // свої заклади (`ownPlaces`) для чипів «Ваш заклад» у секції «Місце»
 let map, marker, mapLoading;
+let lineup = []; // склад події в редакторі: [{ id?, name, own? }]; own — свій артист, його ставить сервер
+const NO_LINEUP = JSON.stringify(lineupParams([]));
+let lineupWas = NO_LINEUP; // склад, з яким подію відкрили: незмінений не шлемо
+
+function paintLineup() {
+  $("[data-lineup]").innerHTML = lineup.map((a, i) => `<li class="chip">${esc(a.name)}${a.own ? "<small>ваш артист</small>"
+    : `<button type="button" data-lineup-remove="${i}" aria-label="Прибрати ${esc(a.name)}">×</button>`}</li>`).join("");
+  $("[data-lineup-input]").disabled = lineup.length >= LINEUP_MAX;
+}
+/** «Повторювати щотижня» — лише для нової події; під перемикачем — скільки подій і на які дати. */
+function repeatView() {
+  const f = form(), on = f.repeat.checked && !editing;
+  $("[data-repeat-box]").hidden = Boolean(editing);
+  $("[data-repeat-count]").hidden = !on;
+  const dates = on && f.startDate.value ? seriesDates({ startDate: f.startDate.value, endDate: f.endDate.value || f.startDate.value }, f.repeatCount.value) : [];
+  const hint = $("[data-repeat-dates]");
+  hint.hidden = !dates.length;
+  hint.textContent = dates.length ? `Ще дати: ${dates.map((x) => `${x.startDate.slice(8)}.${x.startDate.slice(5, 7)}`).join(", ")}` : "";
+}
 
 const form = () => $("[data-form]");
-const FIELDS = ["title", "description", "address", "startDate", "startTime", "endDate", "endTime", "capacity", "minAge", "maxAge", "contact", "price", "ticket"];
+const FIELDS = ["title", "description", "address", "startDate", "startTime", "endDate", "endTime", "capacity", "minAge", "maxAge", "contact", "price", "ticket", "repeatCount"];
 /** Порожня нова подія — з налаштувань «Нові події» в акаунті, якщо вони є. */
 const blank = () => {
   const d = editorDefaults(me?.user_metadata);
   return { title: "", description: "", category: null, city: d.city ?? (ui?.savedCity.get() || CITIES[0].name), address: "", lat: null, lon: null, placed: false,
     startDate: "", startTime: "", endDate: "", endTime: "", capacity: 10, minAge: 18, maxAge: "", approval: d.approval ?? false, contact: d.contact ?? "", price: "",
-    payOnline: false, prepay: false, paid: false, refund: "", payTerms: false, id: null, how: "signup", ticket: "" };
+    payOnline: false, prepay: false, paid: false, refund: "", payTerms: false, id: null, how: "signup", ticket: "",
+    lineup: [], repeat: false, repeatCount: 4 };
 };
 
 function readDraft() { try { return JSON.parse(localStorage.getItem(DRAFT)); } catch { return null; } }
@@ -1512,7 +1569,19 @@ async function showEditor(id) {
   preview();
   await showMap();
   // Свої заклади: чипи над адресою; єдиний заклад у новій події без чернетки — одразу на місці.
-  mine = (await signedIn()) ? ownPlaces(await rpc("my_claims").catch(() => null)) : [];
+  const claimsNow = (await signedIn()) ? await rpc("my_claims").catch(() => null) : null;
+  mine = ownPlaces(claimsNow);
+  // Склад: у правці — з картки події. Свій артист (власник) стоїть у ньому сам і не знімається.
+  const own = claimsNow?.artists ?? [];
+  if (editing) {
+    const [cardNow] = (await rpc("event_cards_by_ids", { p_ids: [editing.id] }).catch(() => null)) ?? [];
+    lineup = (cardNow?.artists ?? []).map((a) => ({ id: a.id, name: a.name }));
+  }
+  lineup = [...own.filter((a) => !lineup.some((x) => x.id === a.id)).map((a) => ({ id: a.id, name: a.name })), ...lineup]
+    .map((a) => ({ ...a, own: own.some((o) => o.id === a.id) })).slice(0, LINEUP_MAX);
+  lineupWas = editing ? JSON.stringify(lineupParams(lineup)) : NO_LINEUP;
+  paintLineup();
+  repeatView();
   const auto = autoPlace(mine, { editing: Boolean(editing), draft: hadDraft, repeat: repeated });
   if (auto) usePlace(auto);
   paintOwnPlaces();
@@ -1542,6 +1611,11 @@ function fill(d) {
   for (const radio of $$("[name=entry]", f)) radio.checked = radio.value === ((d.paid ?? Boolean(String(d.price ?? "").trim())) ? "paid" : "free");
   for (const radio of $$("[name=pay]", f)) radio.checked = radio.value === (d.payOnline ? "online" : d.prepay ? "prepay" : "onsite");
   for (const radio of $$("[name=how]", f)) radio.checked = radio.value === (d.how ?? "signup");
+  lineup = (Array.isArray(d.lineup) ? d.lineup : []).filter((a) => a?.name).slice(0, LINEUP_MAX);
+  paintLineup();
+  f.repeat.checked = Boolean(d.repeat);
+  if (!f.repeatCount.value) f.repeatCount.value = 4;
+  repeatView();
   for (const radio of $$("[name=refund]", f)) radio.checked = radio.value === d.refund;
   f.payterms.checked = Boolean(d.payTerms);
   payView();
@@ -1559,7 +1633,8 @@ function fill(d) {
 function draft() {
   const f = form();
   const d = { id: f.dataset.id || null, tz: f.dataset.tz || TZ, category: f.dataset.category || null, approval: f.approval.checked, city: f.city.value, ...place,
-    payOnline: f.pay.value === "online", prepay: f.pay.value === "prepay", paid: f.entry.value === "paid", refund: f.refund.value, payTerms: f.payterms.checked, how: f.how.value };
+    payOnline: f.pay.value === "online", prepay: f.pay.value === "prepay", paid: f.entry.value === "paid", refund: f.refund.value, payTerms: f.payterms.checked, how: f.how.value,
+    lineup: lineup.map((a) => ({ id: a.id ?? null, name: a.name, own: Boolean(a.own) })), repeat: f.repeat.checked };
   for (const name of FIELDS) d[name] = f[name].value;
   return d;
 }
@@ -1927,6 +2002,7 @@ function problems(d) {
   const room = (d.how ?? "signup") === "signup";
   if (room && !(+d.capacity >= 1)) out.push("Кількість місць — від 1 до 10000");
   if (d.how === "tickets" && !TICKET_URL.test(String(d.ticket ?? "").trim())) out.push(ERRORS.INVALID_TICKET_URL);
+  if (d.repeat && !editing && !(Number.isInteger(+d.repeatCount) && +d.repeatCount >= 2 && +d.repeatCount <= SERIES_MAX)) out.push(`У серії — від 2 до ${SERIES_MAX} подій`);
   const price = d.paid && !String(d.price ?? "").trim() ? "Вкажіть ціну входу" : priceProblem(d.price);
   if (price) out.push(price);
   if (room && payOnlineOn && payPlan(d.price, d.payOnline).online) out.push(...payProblems(d, payLimits, editing));
@@ -2064,9 +2140,36 @@ async function publish() {
     progress.textContent = "Зберігаємо…";
     if (plan.update) await rpc("update_event", { ...args, p_media: list });
     if (editing && list) removeFiles(editing.media ?? [], list);
-    track("kab_publish", { mode: mode(), media: list?.length ?? media.length });
+    // Склад — окремим запитом: незмінений не шлемо. Збій тут — помилка публікації: повтор подію не дублює.
+    const lineupArgs = lineupParams(d.lineup), lineupKey = JSON.stringify(lineupArgs);
+    if (lineupKey !== lineupWas) { await rpc("set_event_lineup", { p_event: id, ...lineupArgs }); lineupWas = lineupKey; }
+    // Серія: решта дат — окремі події з копіями фото й тим самим складом. Збій посеред серії першої події не скасовує.
+    let series = null;
+    if (!editing && d.repeat) {
+      const dates = seriesDates(d, d.repeatCount);
+      series = { made: 1, count: dates.length + 1 };
+      try {
+        for (const when of dates) {
+          progress.textContent = `Створюємо подію ${series.made + 1} з ${series.count}`;
+          const next = crypto.randomUUID(), nextArgs = params({ ...d, ...when }, next), folder = `${me.id}/${next}`;
+          await rpc("create_event", { ...nextArgs, p_media: null, p_via: "web", p_series: id });
+          if (list?.length) {
+            const copies = [];
+            for (const m of list) copies.push(m.kind === "video" ? { kind: "video", url: await copyFile(m.url, folder), poster: await copyFile(m.poster, folder) }
+              : { kind: "photo", url: await copyFile(m.url, folder) });
+            await rpc("update_event", { ...nextArgs, p_media: copies });
+          }
+          if (lineupKey !== NO_LINEUP) await rpc("set_event_lineup", { p_event: next, ...lineupArgs });
+          series.made++;
+        }
+      } catch (e) {
+        console.warn("series", e.status, e.code);
+        series.error = errorText(e);
+      }
+    }
+    track("kab_publish", { mode: mode(), media: list?.length ?? media.length, series: series?.made ?? 1, lineup: d.lineup.filter((a) => !a.own).length });
     if (!editing) { writeDraft(null); media = []; mediaStore([]); repeated = false; }
-    published = { id, failed, edited: Boolean(editing) };
+    published = { id, failed, edited: Boolean(editing), series };
     location.hash = editing ? `#/e/${id}` : `#/e/${id}/done`;
   } catch (e) {
     overlay.close();
@@ -2109,6 +2212,50 @@ function setupEditor() {
   f.addEventListener("input", changed);
   f.price.addEventListener("input", payView);
   for (const radio of $$("[name=pay], [name=how]", f)) radio.addEventListener("change", payView);
+  // Серія: дати під перемикачем рахуються з початку події.
+  for (const name of ["repeat", "repeatCount", "startDate", "endDate"]) f[name].addEventListener("change", repeatView);
+  f.repeatCount.addEventListener("input", repeatView);
+  // Склад: підказки з каталогу (для того, хто ввійшов) і «додати» — те, що вписано. Enter додає, а не публікує подію.
+  const lineupInput = $("[data-lineup-input]"), lineupList = $("[data-lineup-options]");
+  let lineupOptions = [], lineupTimer, lineupTurn = 0;
+  const closeLineup = () => { lineupList.hidden = true; lineupList.innerHTML = ""; lineupInput.setAttribute("aria-expanded", "false"); };
+  const pickLineup = (o) => {
+    const same = (a) => (o.id && a.id === o.id) || a.name.trim().toLowerCase() === o.name.trim().toLowerCase();
+    if (lineup.length < LINEUP_MAX && !lineup.some(same)) { lineup.push({ id: o.id ?? null, name: o.name.trim(), own: false }); paintLineup(); changed(); }
+    lineupInput.value = "";
+    closeLineup();
+  };
+  lineupInput.addEventListener("input", () => {
+    clearTimeout(lineupTimer);
+    lineupTimer = setTimeout(async () => {
+      const text = lineupInput.value.trim(), turn = ++lineupTurn;
+      if (text.length < 2) return closeLineup();
+      let found = [];
+      if (me) try { found = await rpc("find_artists", { p_text: text }); } catch { /* без підказок лишається «додати» */ }
+      if (turn !== lineupTurn || lineupInput.value.trim() !== text) return;
+      lineupOptions = lineupChoices(found, text, lineup);
+      lineupList.innerHTML = lineupOptions.map((o, i) => `<li role="option" data-lineup-option="${i}"${o.add ? ' class="add"' : ""}><b>${esc(o.label)}</b><small>${esc(o.detail)}</small></li>`).join("");
+      lineupList.hidden = !lineupOptions.length;
+      lineupInput.setAttribute("aria-expanded", String(!lineupList.hidden));
+    }, 250);
+  });
+  lineupInput.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (lineupInput.value.trim().length >= 2) pickLineup({ name: lineupInput.value });
+  });
+  lineupList.addEventListener("click", (event) => {
+    const o = lineupOptions[Number(event.target.closest("[data-lineup-option]")?.dataset.lineupOption)];
+    if (o) pickLineup(o);
+  });
+  $("[data-lineup]").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-lineup-remove]");
+    if (!button) return;
+    lineup.splice(Number(button.dataset.lineupRemove), 1);
+    paintLineup();
+    changed();
+  });
+  document.addEventListener("click", (event) => { if (!event.target.closest("[data-lineup-options], [data-lineup-input]")) closeLineup(); });
   // Безкоштовно прибирає ціну й спосіб оплати: інакше вони тихо поїхали б на сервер.
   for (const radio of $$("[name=entry]", f)) radio.addEventListener("change", () => {
     if (f.entry.value === "free") {

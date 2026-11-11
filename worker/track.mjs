@@ -13,7 +13,7 @@ export const TRACKED = {
   kab_open: ["guest", "from", "mobile"],
   kab_editor: ["mode", "draft", "mobile"],
   kab_submit: ["mode", "guest", "blocked", "mobile"],
-  kab_publish: ["mode", "media", "mobile"],
+  kab_publish: ["mode", "media", "series", "lineup", "mobile"],
   kab_failed: ["mode", "code", "mobile"],
   kab_claim: ["kind", "fresh", "mobile"],
 };

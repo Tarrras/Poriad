@@ -109,6 +109,13 @@
             <p class="kab-note" data-media-note role="status"></p>
           </div>
           <div class="kab-field" role="group" aria-labelledby="kab-genre"><span id="kab-genre">Жанр</span><div class="chips kab-chips" data-genres></div></div>
+          <div class="kab-field kab-suggest">
+            <label for="kab-lineup">Хто виступає <small>(необовʼязково)</small></label>
+            <ul class="chips kab-chips kab-lineup" data-lineup></ul>
+            <input id="kab-lineup" data-lineup-input maxlength="120" autocomplete="off" placeholder="Імʼя артиста чи назва гурту" role="combobox" aria-expanded="false" aria-controls="kab-lineup-options">
+            <ul class="kab-places" id="kab-lineup-options" role="listbox" data-lineup-options hidden></ul>
+            <p class="kab-hint">До 8 імен. Подія зʼявиться на сторінці кожного артиста, а імена — в картці події.</p>
+          </div>
         </fieldset>
 
         <fieldset class="kab-card">
@@ -137,6 +144,11 @@
           </div>
           <div class="kab-field" role="group" aria-labelledby="kab-duration"><span id="kab-duration">Тривалість</span>
             <div class="chips kab-chips" data-durations><span class="kab-hint" data-duration-label></span></div></div>
+          <div class="kab-repeat" data-repeat-box>
+            <label class="kab-check"><input type="checkbox" name="repeat"><span><b>Повторювати щотижня</b><small>Створимо окрему подію на кожну дату: у той самий день тижня й час</small></span></label>
+            <label class="kab-field kab-price" data-repeat-count hidden><span>Усього подій</span><input type="number" name="repeatCount" min="2" max="12" step="1" inputmode="numeric"></label>
+            <p class="kab-hint" data-repeat-dates hidden></p>
+          </div>
         </fieldset>
 
         <fieldset class="kab-card">

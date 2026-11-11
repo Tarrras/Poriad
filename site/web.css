@@ -1176,6 +1176,14 @@ a.row:hover { background: var(--surface-muted); }
 .kab-slug { display: flex; align-items: center; gap: 8px; }
 .kab-slug > span { font: 400 15px/20px var(--font); color: var(--ink-secondary); white-space: nowrap; }
 .kab-slug input { flex: 1; min-width: 0; }
+/* Склад події: чипи з хрестиком; свій артист — без нього. */
+.kab-lineup { list-style: none; margin: 0; }
+.kab-lineup:empty { display: none; }
+.kab-lineup .chip { cursor: default; padding-right: 8px; }
+.kab-lineup .chip small { color: var(--ink-tertiary); padding-right: 8px; }
+.kab-lineup .chip button { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font: 400 18px/1 var(--font); color: var(--ink-secondary); }
+.kab-lineup .chip button:hover { background: var(--surface-muted); color: var(--ink); }
+.kab-repeat { display: flex; flex-direction: column; gap: 12px; }
 .kab-claim-find { display: grid; grid-template-columns: minmax(0, 132px) minmax(0, 1fr); gap: 8px; }
 .kab-claim-new { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: var(--r-md); background: var(--surface-muted); }
 .kab-places li[aria-disabled="true"] { opacity: .55; cursor: default; }

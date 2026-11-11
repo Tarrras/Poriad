@@ -179,6 +179,27 @@ assert.equal(eventDraft({ ...pricedEvent, pay_online: true }).payOnline, true, "
 assert.equal(eventDraft({ ...pricedEvent, prepay: true }).prepay, true);
 assert.equal(params(eventDraft({ ...pricedEvent, prepay: true }), "e1").p_prepay, true);
 assert.equal(params(eventDraft(pricedEvent), "e1").p_prepay, false);
+// Склад і серія.
+{
+  const { lineupParams, lineupChoices, seriesDates, seriesNote, LINEUP_MAX, SERIES_MAX } = await import("../site/js/kabinet.js");
+  assert.deepEqual(lineupParams([{ id: "own", name: "Свій", own: true }, { id: "a1", name: "З каталогу" }, { id: null, name: "Новий" }]),
+    { p_artists: ["a1"], p_new: [{ name: "Новий" }] }, "свого артиста ставить сервер; вписаний руками йде іменем");
+  assert.deepEqual(lineupParams(null), { p_artists: [], p_new: [] });
+  const found = [{ id: "a1", name: "Джаз Бенд", kind: "group" }, { id: "a2", name: "Джаз Соло" }];
+  assert.deepEqual(lineupChoices(found, "джаз", [{ id: "a1", name: "Джаз Бенд" }]).map((o) => o.label), ["Джаз Соло", "Немає в списку — додати «джаз»"], "доданого вдруге не пропонуємо");
+  assert.deepEqual(lineupChoices(found, " джаз соло ", []).map((o) => [o.label, o.detail]), [["Джаз Бенд", "Гурт"], ["Джаз Соло", "Артист"]], "точний збіг — без «додати»");
+  assert.deepEqual(lineupChoices([], "Новий", [{ id: null, name: "новий" }]), [], "вписаного вдруге не додаємо");
+  assert.deepEqual(lineupChoices([], "я", []), [], "одна літера — не імʼя");
+  assert.ok(LINEUP_MAX === 8 && SERIES_MAX === 12, "ті самі межі, що на сервері");
+  assert.deepEqual(seriesDates({ startDate: "2026-12-26", endDate: "2026-12-27" }, 3),
+    [{ startDate: "2027-01-02", endDate: "2027-01-03" }, { startDate: "2027-01-09", endDate: "2027-01-10" }], "щотижня, через Новий рік, кінець зсувається разом з початком");
+  assert.equal(seriesDates({ startDate: "2026-11-14", endDate: "2026-11-14" }, 1).length, 0, "одна подія — не серія");
+  assert.equal(seriesDates({ startDate: "2026-11-14", endDate: "2026-11-14" }, 99).length, 11, "не більше дванадцяти разом з першою");
+  assert.equal(seriesDates({ startDate: "2026-11-14", endDate: "2026-11-14" }, "x").length, 0);
+  assert.equal(seriesNote(null), "");
+  assert.ok(seriesNote({ made: 4, count: 4 }).startsWith("Серія: 4 події"));
+  assert.equal(seriesNote({ made: 2, count: 5, error: "Забагато подій за добу" }), "Серія: створено 2 з 5. Забагато подій за добу. Решту дат додайте через «Повторити».");
+}
 // Як потрапити на подію: запис (як було), квитки за посиланням, вільний вхід.
 {
   const { howOf, isOwn, TICKET_URL } = await import("../site/js/kabinet.js");
