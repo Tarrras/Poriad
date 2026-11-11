@@ -490,7 +490,9 @@ internal fun stickyHint(state: DetailState): String {
             listing.state == ListingState.POSTPONED -> stringResource(R.string.state_postponed_summary)
             listing.isWithdrawn -> stringResource(R.string.state_unknown)
             state.screen.sessionStarted -> stringResource(R.string.session_started_hint)
-            listing.hasSource -> listingPrice(listing)
+            listing.isOpenEntry -> stringResource(R.string.listing_open_entry)
+            // Без посилання, але з ціною — вхід платять на місці: ціна каже більше, ніж «ми лише показуємо».
+            listing.hasSource || listing.priceMin != null -> listingPrice(listing)
             else -> stringResource(R.string.listing_hint_no_link)
         }
     }

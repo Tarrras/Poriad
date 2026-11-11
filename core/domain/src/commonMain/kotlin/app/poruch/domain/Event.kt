@@ -315,6 +315,12 @@ data class Listing(
     /** Є посилання на джерело — можна показувати кнопку. */
     val hasSource get() = !canonicalUrl.isNullOrBlank()
 
+    /**
+     * Подія організатора «Вільний вхід, без запису» (`events.entry = 'open'`, 20261129120000): посилання на квитки нема,
+     * а сервер каже «безкоштовно». Панель дії пише це замість «ми лише показуємо».
+     */
+    val isOpenEntry get() = !hasSource && isFree == true
+
     /** Хто продає, основний першим. Без даних фази 4 — лише основний. Лише ті, куди є посилання. */
     val sellers: List<Offer>
         get() = offers.ifEmpty { listOf(Offer(sourceName, canonicalUrl, priceMin, isFree, live = !isWithdrawn)) }

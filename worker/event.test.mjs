@@ -113,4 +113,16 @@ const moved = await eventResponse("c3000000-0000-4000-8000-000000000001", env);
 assert.equal(moved.status, 301);
 assert.equal(moved.headers.get("location"), `https://poriad.app/e/${base.id}`);
 assert.equal((await eventResponse(base.id, env)).status, 200, "живий id — сторінка");
+
+// Подія організатора без запису (origin = 'partner'): оголошення з «Квитками» чи «Вхід без запису», без «Йду» й місць.
+const venue = { ...base, title: "Джаз у кафе", origin: "partner", capacity: null, attendee_count: 0, approval_required: false, organizer_name: "Кафе Тест",
+  canonical_url: "https://tickets.example/jazz", price_min: 300 };
+const ticketed = eventPage(venue, now);
+assert.ok(ticketed.includes('href="https://tickets.example/jazz') && ticketed.includes(">Квитки</a>"), "кнопка «Квитки» веде на сторінку продажу");
+assert.ok(!ticketed.includes("data-join") && !ticketed.includes("/js/join.js") && !ticketed.includes("data-spots"), "ні «Йду», ні місць");
+assert.ok(ticketed.includes('<span class="overline">Організовує</span><b>Кафе Тест</b>') && ticketed.includes("від 300 ₴"), "організатор і ціна «від»");
+assert.ok(!ticketed.includes('rel="canonical"') && !ticketed.includes("Джерело"), "не афіша з кас: без продавців і canonical на них");
+const walkIn = eventPage({ ...venue, canonical_url: null, price_min: null, is_free: true }, now);
+assert.ok(walkIn.includes('<p class="closed">Вхід без запису</p>') && walkIn.includes("Безкоштовно") && !walkIn.includes("data-join"), "вільний вхід");
+assert.ok(eventPage({ ...venue, canonical_url: null, status: "cancelled" }, now).includes("Подію скасовано."), "скасована — словами організатора");
 console.log("event ok");

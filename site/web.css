@@ -1164,3 +1164,20 @@ a.row:hover { background: var(--surface-muted); }
   .org-sample { min-height: 320px; }
   .org-final .actions-row { flex-direction: column; align-items: stretch; }
 }
+
+/* ---- Кабінет, «Заклад і артист»: рядки свого й пошук з підказками (ті самі .kab-places, що в адреси редактора). */
+.kab-claims { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.kab-claims:empty { display: none; }
+.kab-claims li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 10px 16px; border-radius: var(--r-md); background: var(--surface-muted); }
+.kab-claims li > span { display: flex; flex-direction: column; min-width: 0; flex: 1 1 160px; }
+.kab-claims b { font: 700 18px/22px var(--cond); }
+.kab-claims small { font: 400 14px/20px var(--font); color: var(--ink-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kab-claims li { flex-wrap: wrap; }
+.kab-slug { display: flex; align-items: center; gap: 8px; }
+.kab-slug > span { font: 400 15px/20px var(--font); color: var(--ink-secondary); white-space: nowrap; }
+.kab-slug input { flex: 1; min-width: 0; }
+.kab-claim-find { display: grid; grid-template-columns: minmax(0, 132px) minmax(0, 1fr); gap: 8px; }
+.kab-claim-new { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: var(--r-md); background: var(--surface-muted); }
+.kab-places li[aria-disabled="true"] { opacity: .55; cursor: default; }
+.kab-places li.add b { font-weight: 600; }
+@media (max-width: 480px) { .kab-claim-find { grid-template-columns: minmax(0, 1fr); } .kab-claims li { justify-content: flex-start; } .kab-claims li > span { flex-basis: 100%; } }

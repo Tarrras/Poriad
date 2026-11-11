@@ -113,6 +113,10 @@
 
         <fieldset class="kab-card">
           <legend>Місце</legend>
+          <div class="kab-field" role="group" aria-labelledby="kab-own-places" data-own-places hidden>
+            <span id="kab-own-places">Ваш заклад</span>
+            <div class="chips kab-chips" data-own-place-chips></div>
+          </div>
           <label class="kab-field"><span>Місто</span><select name="city" data-city></select></label>
           <div class="kab-field kab-suggest">
             <label for="kab-address">Адреса</label>
@@ -137,8 +141,16 @@
 
         <fieldset class="kab-card">
           <legend>Хто</legend>
+          <div class="kab-field" role="radiogroup" aria-labelledby="kab-how">
+            <span id="kab-how">Як потрапити</span>
+            <label class="kab-check"><input type="radio" name="how" value="signup" checked><span><b>Запис у «Поряд»</b><small>Місця, список учасників, заявки й чат</small></span></label>
+            <label class="kab-check"><input type="radio" name="how" value="tickets"><span><b>Квитки за посиланням</b><small>Кнопка «Квитки» веде на вашу сторінку продажу</small></span></label>
+            <label class="kab-check"><input type="radio" name="how" value="open"><span><b>Вільний вхід, без запису</b><small>Люди просто приходять: місць і списку учасників нема</small></span></label>
+          </div>
+          <label class="kab-field" data-ticket-box hidden><span>Посилання на квитки</span><input type="url" name="ticket" maxlength="500" placeholder="https://…" autocomplete="off"></label>
+          <p class="kab-hint" data-how-note hidden>Подію показуємо як афішу: її можна зберегти, отримати нагадування й знайти компанію в застосунку.</p>
           <div class="kab-when">
-            <label class="kab-field"><span>Місць</span><input type="number" name="capacity" min="1" max="10000" inputmode="numeric" required></label>
+            <label class="kab-field" data-room><span>Місць</span><input type="number" name="capacity" min="1" max="10000" inputmode="numeric" required></label>
             <label class="kab-field"><span>Вік від</span><input type="number" name="minAge" min="18" max="100" inputmode="numeric" required></label>
             <label class="kab-field"><span>до <small>(необовʼязково)</small></span><input type="number" name="maxAge" min="18" max="120" inputmode="numeric"></label>
           </div>
@@ -164,9 +176,9 @@
             <label class="kab-check" data-pay-terms-box><input type="checkbox" name="payterms"><span><b>Погоджуюсь з <a href="/terms.html#online" target="_blank" rel="noopener">Правилами оплати онлайн</a></b><small>Реквізити — мої. Податки й чеки — на мені. Скасую подію — поверну гроші всім, хто оплатив.</small></span></label>
           </div>
           <p class="kab-hint" data-price-hint hidden></p>
-          <label class="kab-check"><input type="checkbox" name="approval"><span><b>За підтвердженням</b><small data-approval-note>Ви вирішуєте, кого взяти: людина надсилає заявку, а не записується одразу</small></span></label>
-          <label class="kab-field"><span>Чат учасників <small>(необовʼязково)</small></span><input type="url" name="contact" maxlength="500" placeholder="https://t.me/…" autocomplete="off"></label>
-          <p class="kab-hint">Посилання бачать лише підтверджені учасники.</p>
+          <label class="kab-check" data-room><input type="checkbox" name="approval"><span><b>За підтвердженням</b><small data-approval-note>Ви вирішуєте, кого взяти: людина надсилає заявку, а не записується одразу</small></span></label>
+          <label class="kab-field" data-room><span>Чат учасників <small>(необовʼязково)</small></span><input type="url" name="contact" maxlength="500" placeholder="https://t.me/…" autocomplete="off"></label>
+          <p class="kab-hint" data-room>Посилання бачать лише підтверджені учасники.</p>
         </fieldset>
 
         <p class="kab-error" data-form-error role="alert"></p>
@@ -203,6 +215,51 @@
         <p class="kab-error" data-profile-error role="alert"></p>
         <div class="kab-row"><button class="btn primary" type="submit">Зберегти профіль</button><p class="kab-note" data-profile-note role="status"></p></div>
       </form>
+
+      <section class="kab-card" data-claims aria-labelledby="kab-claims-title">
+        <h2 class="kab-card-title" id="kab-claims-title">Заклад і артист</h2>
+        <p class="kab-hint">Ведете заклад або виступаєте? Позначте це — і ваші події зʼявляться на закладі на мапі, а ті, хто стежить за закладом чи артистом, дізнаються про них.</p>
+        <ul class="kab-claims" data-claim-list></ul>
+        <form class="kab-claim-new" data-slug-form novalidate hidden>
+          <div class="kab-field">
+            <label for="kab-slug">Адреса сторінки: <span data-slug-name></span></label>
+            <div class="kab-slug"><span data-slug-prefix>poriad.app/p/</span><input id="kab-slug" name="slug" maxlength="32" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="kab-slug-hint"></div>
+          </div>
+          <p class="kab-hint" id="kab-slug-hint">Латинські літери, цифри й дефіс, від 3 до 32 символів. Порожнє поле повертає довгу адресу.</p>
+          <div class="kab-row"><button class="btn primary small" type="submit">Зберегти</button><button class="btn small" type="button" data-slug-cancel>Скасувати</button></div>
+        </form>
+        <div class="kab-field kab-suggest">
+          <label for="kab-claim-place">Ваш заклад</label>
+          <div class="kab-claim-find">
+            <select data-claim-city aria-label="Місто закладу"></select>
+            <input id="kab-claim-place" data-claim-input="place" maxlength="120" autocomplete="off" placeholder="Назва закладу" role="combobox" aria-expanded="false" aria-controls="kab-claim-places">
+          </div>
+          <ul class="kab-places" id="kab-claim-places" role="listbox" data-claim-options="place" hidden></ul>
+        </div>
+        <form class="kab-claim-new" data-new-place novalidate hidden>
+          <p class="kab-hint">Новий заклад: вкажіть адресу — так ми поставимо його на мапу.</p>
+          <label class="kab-field"><span>Назва</span><input name="name" maxlength="120" required></label>
+          <div class="kab-field kab-suggest">
+            <label for="kab-claim-address">Адреса</label>
+            <input id="kab-claim-address" name="address" maxlength="200" autocomplete="off" placeholder="Вулиця, будинок" role="combobox" aria-expanded="false" aria-controls="kab-claim-addresses">
+            <ul class="kab-places" id="kab-claim-addresses" role="listbox" data-claim-options="address" hidden></ul>
+          </div>
+          <div class="kab-row"><button class="btn" type="button" data-new-place-cancel>Скасувати</button></div>
+        </form>
+        <div class="kab-field kab-suggest">
+          <label for="kab-claim-artist">Ви артист чи гурт</label>
+          <input id="kab-claim-artist" data-claim-input="artist" maxlength="120" autocomplete="off" placeholder="Імʼя чи назва гурту" role="combobox" aria-expanded="false" aria-controls="kab-claim-artists">
+          <ul class="kab-places" id="kab-claim-artists" role="listbox" data-claim-options="artist" hidden></ul>
+        </div>
+        <div class="kab-row" data-new-artist hidden>
+          <span class="kab-hint" data-new-artist-name></span>
+          <button class="btn small" type="button" data-artist-kind="person">Сольний артист</button>
+          <button class="btn small" type="button" data-artist-kind="group">Гурт</button>
+          <button class="btn small" type="button" data-artist-kind="">Скасувати</button>
+        </div>
+        <p class="kab-error" data-claim-error role="alert"></p>
+        <p class="kab-note" data-claim-note role="status"></p>
+      </section>
 
       <form class="kab-card" data-defaults-form novalidate>
         <h2 class="kab-card-title">Нові події</h2>
@@ -270,7 +327,7 @@
       <a class="btn" data-done-ics><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-calendar"/></svg>Додати в календар</a>
       <a class="btn" data-done-ready>Готово</a>
     </div>
-    <p class="kab-hint">«Поширити анонс» відкриває Threads з готовим текстом і посиланням для запису; фото додайте в пості самі.</p>
+    <p class="kab-hint">«Поширити анонс» відкриває Threads з готовим текстом і посиланням на подію; фото додайте в пості самі.</p>
   </section>
 </main>
 

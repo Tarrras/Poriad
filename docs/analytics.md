@@ -123,6 +123,7 @@ create_step(about) → create_step(place) → create_step(schedule) → create_s
 | `kab_editor` | відкрито редактор | `mode`: `new`, `repeat` («Повторити»), `edit`; `draft` — форма з незакінченої чернетки |
 | `kab_submit` | тап «Опублікувати» чи «Зберегти зміни» | `mode`; `guest`; `blocked` — скільки полів не пройшло перевірку (0 — пішло далі) |
 | `kab_publish` | подію створено чи збережено | `mode`; `media` — скільки фото й відео |
+| `kab_claim` | в «Акаунті» додано свій заклад чи артиста (картка «Заклад і артист») | `kind`: `place`, `artist`; `fresh` — додано новий, якого не було в списку |
 | `kab_failed` | сервер чи мережа відхилили публікацію | `mode`; `code` — код помилки сервера (`AGE_REQUIRED`, `session_expired`…) |
 
 У кожної — `mobile`: ширина вікна до 767 px. Воронка: `kab_open` → `kab_editor (mode ≠ edit)` → `kab_submit` →

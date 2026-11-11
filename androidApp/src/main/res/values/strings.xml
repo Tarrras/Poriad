@@ -920,6 +920,7 @@
   <string name="listing_free">Безкоштовно</string>
   <string name="listing_price_unknown">Ціну вкаже джерело</string>
   <string name="listing_hint_no_link">Подія з афіші. Ми лише показуємо її.</string>
+  <string name="listing_open_entry">Вільний вхід, без запису</string>
   <!-- Стан афіші з усіх продавців (docs/event-offers.md R8). «Скасовано» — cancelled_short. -->
   <string name="state_postponed">Відкладено</string>
   <string name="state_moved">Перенесено</string>

@@ -746,6 +746,7 @@ enum Copy {
     static let listing_free = "Безкоштовно"
     static let listing_price_unknown = "Ціну вкаже джерело"
     static let listing_hint_no_link = "Подія з афіші. Ми лише показуємо її."
+    static let listing_open_entry = "Вільний вхід, без запису"
     static let state_postponed = "Відкладено"
     static let state_moved = "Перенесено"
     static let state_unknown = "Не знайшли в продажу"

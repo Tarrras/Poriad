@@ -132,6 +132,11 @@ assert.equal(threadsPost(pricedEvent), "Настолки «Каркасон»\n�
 assert.ok(threadsPost({ ...pricedEvent, pay_online: true }).includes("Вхід — 450 ₴, оплата онлайн\n"), "пост не каже «на місці» про оплату онлайн");
 assert.ok(threadsPost({ ...pricedEvent, prepay: true }).includes("Вхід — 450 ₴, передоплата\n"), "коли платять — одразу в пості");
 assert.ok(!threadsPost({ ...pricedEvent, origin: "import" }).includes("Вхід"), "ціна продавця в афіші — «від», не пишемо");
+{
+  const venue = { ...pricedEvent, origin: "partner", canonical_url: "https://tickets.example/jazz" };
+  assert.ok(threadsPost(venue).includes("Квитки — від 450 ₴\n") && threadsPost(venue).includes("Деталі: poriad.app/e/") && !threadsPost(venue).includes("Запис"), "без запису — «Деталі», а не «Запис»");
+  assert.ok(threadsPost({ ...venue, canonical_url: null, price_min: null, is_free: true }).includes("Вхід вільний\n"));
+}
 
 // Вхід і акаунт організатора.
 assert.equal(passwordProblem("1234567"), "Пароль — щонайменше 8 символів");
@@ -174,6 +179,24 @@ assert.equal(eventDraft({ ...pricedEvent, pay_online: true }).payOnline, true, "
 assert.equal(eventDraft({ ...pricedEvent, prepay: true }).prepay, true);
 assert.equal(params(eventDraft({ ...pricedEvent, prepay: true }), "e1").p_prepay, true);
 assert.equal(params(eventDraft(pricedEvent), "e1").p_prepay, false);
+// Як потрапити на подію: запис (як було), квитки за посиланням, вільний вхід.
+{
+  const { howOf, isOwn, TICKET_URL } = await import("../site/js/kabinet.js");
+  const room = params(eventDraft(pricedEvent), "e1");
+  assert.ok(!("p_entry" in room) && !("p_ticket_url" in room) && room.p_capacity > 0, "звичайна подія шле те саме, що й до способу входу");
+  const venue = { ...pricedEvent, origin: "partner", capacity: null, canonical_url: "https://tickets.example/jazz", approval_required: false, contact_url: null };
+  assert.deepEqual([howOf(pricedEvent), howOf(venue), howOf({ ...venue, canonical_url: null })], ["signup", "tickets", "open"]);
+  const d = eventDraft(venue);
+  assert.deepEqual([d.how, d.ticket], ["tickets", "https://tickets.example/jazz"], "правка відкривається з тим самим способом і посиланням");
+  const sent = params({ ...d, approval: true, contact: "https://t.me/x", prepay: true }, "e1");
+  assert.deepEqual([sent.p_entry, sent.p_ticket_url, sent.p_capacity, sent.p_approval_required, sent.p_contact_url, sent.p_prepay, sent.p_price],
+    ["tickets", "https://tickets.example/jazz", null, false, null, false, 450], "без запису — без місць, заявок, чату й передоплати; ціна лишається");
+  const open = params({ ...d, how: "open", ticket: "https://tickets.example/jazz" }, "e1");
+  assert.deepEqual([open.p_entry, open.p_ticket_url], ["open", null], "вільний вхід посилання не несе");
+  for (const ok of ["https://tickets.example/jazz", "https://concert.ua/uk/event/x?utm=1"]) assert.ok(TICKET_URL.test(ok), ok);
+  for (const bad of ["", "http://tickets.example", "tickets.example", "https://a b", "https://x", 'https://a"b.example']) assert.ok(!TICKET_URL.test(bad), bad);
+  assert.ok(isOwn(venue, pricedEvent.organizer_id ?? "me") === Boolean(pricedEvent.organizer_id) && isOwn({ origin: "partner", organizer_id: "me" }, "me") && !isOwn({ origin: "import", organizer_id: "me" }, "me") && !isOwn({ origin: "partner", organizer_id: "x" }, "me"));
+}
 assert.equal(params({ ...eventDraft(pricedEvent), prepay: true, payOnline: true }, "e1").p_prepay, false, "онлайн — своє");
 assert.equal(eventDraft(pricedEvent).payOnline, false);
 assert.equal(repeatDraft({ ...pricedEvent, pay_online: true, starts_at: "2026-10-01T16:00:00Z", ends_at: "2026-10-01T19:00:00Z" }).payOnline, true, "«Повторити» — з тим самим способом");
@@ -214,3 +237,60 @@ assert.equal(talkFacts(null, talkStatus("x", people)).joined, "Ще не зап�
 assert.equal(talkFacts(null, talkStatus("x", people)).profile, "");
 
 console.log("kabinet ok");
+
+// «Заклад і артист»: рядки свого й підказки пошуку.
+{
+  const { claimRows, claimChoices, slugOf, SLUG } = await import("../site/js/kabinet.js");
+  assert.equal(slugOf("Кав'ярня «Малевич»"), "kaviarnia-malevych");
+  assert.equal(slugOf("  The Naked Room / Київ "), "the-naked-room-kyiv");
+  assert.equal(slugOf("Щ"), "shch");
+  assert.equal(slugOf("Я"), "", "з короткої назви адреси не скласти");
+  assert.equal(slugOf("!!!"), "");
+  assert.ok(SLUG.test(slugOf("Дуже довга назва закладу, яка не влазить у тридцять два символи")) && slugOf("а".repeat(40)).length === 32);
+  assert.deepEqual(claimRows({ places: [{ id: "p", name: "Кафе", city: "Київ", slug: "kafe" }], artists: [{ id: "a", name: "Гурт", kind: "group", slug: "hurt" }] }).map((r) => [r.slug, r.page]),
+    [["kafe", "/p/kafe"], ["hurt", "/a/hurt"]], "з короткою адресою сторінка — за нею");
+  assert.deepEqual(claimRows({ places: [{ id: "p", name: "Кафе", city: "Київ", address: "Хрещатик, 1" }], artists: [{ id: "a", name: "Гурт", kind: "group" }, { id: "s", name: "Соло" }] }), [
+    { kind: "place", id: "p", name: "Кафе", detail: "Хрещатик, 1", slug: "", page: "/p/p" },
+    { kind: "artist", id: "a", name: "Гурт", detail: "Гурт", slug: "", page: "/a/a" },
+    { kind: "artist", id: "s", name: "Соло", detail: "Артист", slug: "", page: "/a/s" },
+  ]);
+  assert.deepEqual(claimRows(null), []);
+  assert.equal(claimRows({ places: [{ id: "p", name: "Сквер", city: "Львів" }] })[0].detail, "Львів", "без адреси — місто");
+  // Знайдене першим, зайняте позначено, наприкінці — «додати»; точний збіг назви «додати» не показує.
+  const found = [{ id: "1", name: "Кафе Атлас", city: "Київ", address: "Січових, 37" }, { id: "2", name: "Атлас Бар", city: "Київ", taken: true }];
+  const choices = claimChoices("place", found, " атлас ");
+  assert.deepEqual(choices.map((c) => [c.label, c.detail, c.taken, Boolean(c.add)]), [
+    ["Кафе Атлас", "Січових, 37", false, false],
+    ["Атлас Бар", "уже веде інший акаунт", true, false],
+    ["Немає в списку — додати «атлас»", "", undefined, true],
+  ]);
+  assert.equal(claimChoices("place", found, "кафе атлас").some((c) => c.add), false, "така назва вже є");
+  assert.equal(claimChoices("artist", [], "я").length, 0, "одна літера — не назва");
+  assert.deepEqual(claimChoices("artist", [{ id: "9", name: "Жадан і Собаки", kind: "group" }], "жад").map((c) => c.detail), ["Гурт", ""]);
+}
+
+// Свій заклад у редакторі події: лише міста сайту, адреса чи назва, автопідстановка єдиного в новій події.
+{
+  const { ownPlaces, autoPlace, onPlace } = await import("../site/js/kabinet.js");
+  const mine = ownPlaces({ places: [
+    { id: "1", name: "Кафе", city: "Київ", address: "Хрещатик, 22", latitude: 50.45, longitude: 30.52 },
+    { id: "2", name: "Сквер", city: "Львів", latitude: 49.84, longitude: 24.03 },
+    { id: "3", name: "Деінде", city: "Ocean", latitude: 1, longitude: 1 },
+    { id: "4", name: "Без точки", city: "Київ" },
+  ] });
+  assert.deepEqual(mine, [
+    { id: "1", name: "Кафе", city: "Київ", address: "Хрещатик, 22", lat: 50.45, lon: 30.52 },
+    { id: "2", name: "Сквер", city: "Львів", address: "Сквер", lat: 49.84, lon: 24.03 },
+  ]);
+  assert.deepEqual(ownPlaces(null), []);
+  const one = mine.slice(0, 1), blankNew = { editing: false, draft: false, repeat: false };
+  assert.equal(autoPlace(one, blankNew), one[0], "єдиний заклад — одразу");
+  assert.equal(autoPlace(mine, blankNew), null, "кілька — обирає людина");
+  assert.equal(autoPlace(one, { ...blankNew, draft: true }), null, "чернетку не чіпаємо");
+  assert.equal(autoPlace(one, { ...blankNew, repeat: true }), null, "«Повторити» лишає місце копії");
+  assert.equal(autoPlace(one, { ...blankNew, editing: true }), null, "правка лишає місце події");
+  assert.equal(onPlace({ lat: 50.45, lon: 30.52, placed: true }, one[0]), true);
+  assert.equal(onPlace({ lat: 50.4501, lon: 30.52, placed: true }, one[0]), false, "точку посунули");
+  assert.equal(onPlace({ lat: 50.45, lon: 30.52, placed: false }, one[0]), false);
+}
+console.log("claims ok");

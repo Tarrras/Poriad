@@ -80,6 +80,7 @@ const ROUTES = [
   [/^\/afisha\//, readOnly(cityRoute)],
   [/^\/e\/([^/]+)\.ics$/, readOnly(icsRoute)],
   [/^\/e\/([^/]+)\/?$/, readOnly(eventRoute)],
+  [/^\/(p|a)\/([^/]+)\/?$/, readOnly(profileRoute)],
   [/^\/kabinet(?:\.html)?$/, readOnly(async (request, env) => kabinetPage(await pages(request, env, CSP.kabinet(env))))],
   [/^\/api\/geocode$/, readOnly(geocode)],
   [/^\/api\/t$/, track],
@@ -194,6 +195,9 @@ export function eventPage(e, now, shelters = [], invite = null) {
   // Імпорт часто вже пише місто в адресі: «Київ, …, м. Київ» читається як помилка.
   const place = e.address && e.city && e.address.includes(e.city) ? e.address : [e.city, e.address].filter(Boolean).join(", ");
   const imported = e.origin === "import";
+  // Оголошення: афіша з кас і подія організатора без запису (`origin = 'partner'`, 20261129120000) — «Квитки за
+  // посиланням» чи «Вільний вхід». Ні місць, ні «Йду»; продавців і стану з кас у неї нема.
+  const listed = e.origin !== "community";
   // Стан афіші з усіх продавців (docs/event-offers.md R4, R11). База без фази 4 його не віддає — тоді, як і
   // застосунок, читаємо import_status: знята — «не знайшли в продажу».
   const state = imported ? (STATES[e.state] ? e.state : e.import_status === "withdrawn" ? "unknown" : "scheduled") : null;
@@ -203,13 +207,13 @@ export function eventPage(e, now, shelters = [], invite = null) {
   const moved = state === "scheduled" && e.previous_starts_at ? longDate(e.previous_starts_at, e.time_zone) : null;
   const past = new Date(e.ends_at || e.starts_at) < now;
   // Запис з вебу — на спільнотну подію, що ще не почалась; база каже те саме (EVENT_STARTED, EVENT_CANCELLED).
-  const open = !imported && !cancelled && !past && new Date(e.starts_at) > now;
+  const open = !listed && !cancelled && !past && new Date(e.starts_at) > now;
   const image = httpsOrNull(e.image_url);
   // Фото й відео організатора (docs/organizers-1.5.md, 1.3) замість обкладинки; лише https, як і обкладинка.
   const media = (Array.isArray(e.media) ? e.media : [])
     .map((m) => ({ kind: m?.kind, url: httpsOrNull(m?.url), poster: httpsOrNull(m?.poster) }))
     .filter((m) => m.url && (m.kind === "photo" || m.kind === "video")).slice(0, 5);
-  const ticketUrl = imported ? httpsOrNull(e.canonical_url) : null;
+  const ticketUrl = listed ? httpsOrNull(e.canonical_url) : null;
   const category = CATEGORIES[e.category] ? e.category : "social";
   const when = overline(e, now);
   const [stubTime, stubDay] = stubParts(e, now);
@@ -237,7 +241,7 @@ export function eventPage(e, now, shelters = [], invite = null) {
     ["Де", place.split(", ")[0] || e.city, place],
     ...(spots ? [["Учасники", spots.replace("Учасників: ", ""), null]] : []),
     // Ціна від людей (1.7) — поруч з учасниками. Коли платять — під ціною, одразу; решта — за ⓘ біля неї (власник 05.11).
-    ...(!spots || (!imported && cost) ? [["Ціна", cost || "Уточнюйте", !imported && cost ? payWhen(e) : null, !imported && cost ? payNote(e) : null]] : []),
+    ...(!spots || (!listed && cost) ? [["Ціна", cost || "Уточнюйте", !listed && cost ? payWhen(e) : null, !listed && cost ? payNote(e) : null]] : []),
     [imported ? "Джерело" : "Організовує", imported ? sellers || "Афіша" : e.organizer_name || "Організатор", null],
   ];
 
@@ -250,7 +254,7 @@ export function eventPage(e, now, shelters = [], invite = null) {
     // Поки в політиці не сказано, що події індексуються пошуковиками, сторінки — лише за посиланням.
     head: `<meta name="robots" content="noindex">
 <meta name="apple-itunes-app" content="app-id=6813543772, affiliate-data=ct=${ct}&amp;pt=129478154, app-argument=${link}${by}">
-${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
+${ticketUrl && imported ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     // Обкладинка — сам квиток (design-wow-1.5): фото, назва display, надруковані поля й корінець жанру за перфорацією
     // з вирізами. Жанр, «Від людей» / «Афіша» і вік друкуються на корінці; продавці — у «Джерело». Дата — на корінці панелі дії.
     body: `<article class="sheet-box">
@@ -259,7 +263,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     <div class="facts">${facts.map(([label, value, sub, info]) => `<div><span class="overline">${label}</span><b${label === "Учасники" ? " data-spots" : ""}>${esc(value)}${info
       ? ` <button class="info" type="button" popovertarget="fact-info" aria-label="Як платити">${icon("info")}</button>` : ""}</b>${sub && sub !== value ? `<small>${esc(sub)}</small>` : ""}${info
       ? `<div class="info-pop" id="fact-info" popover>${esc(info)}</div>` : ""}</div>`).join("")}</div>
-    <p class="stub"><span class="kind">${icon(category)}${esc(CATEGORIES[category])}</span><small>${imported ? "Афіша" : "Від людей"}${e.min_age ? ` · ${Number(e.min_age)}+` : ""}</small></p>
+    <p class="stub"><span class="kind">${icon(category)}${esc(CATEGORIES[category])}</span><small>${listed ? "Афіша" : "Від людей"}${e.min_age ? ` · ${Number(e.min_age)}+` : ""}</small></p>
   </header>
   <div class="detail">
     ${notice ? `<p class="notice${calm ? " calm" : ""}">${notice}</p>` : ""}
@@ -267,29 +271,30 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     <div class="actions">
       <a href="${maps}" rel="noopener"><i>${icon("pin")}</i>Маршрут</a>
       <button type="button" data-share><i>${icon("share")}</i>Поділитися з другом</button>
-      ${imported ? "" : `<button type="button" data-copy-link hidden><i>${icon("link")}</i>Скопіювати посилання</button>`}
+      ${listed ? "" : `<button type="button" data-copy-link hidden><i>${icon("link")}</i>Скопіювати посилання</button>`}
       <a href="poriad://event/${e.id}${by}"><i>${icon("bookmark")}</i>У «Поряд»</a>
       <a href="/afisha.html${e.city && e.city !== "Київ" ? `?city=${encodeURIComponent(e.city)}` : ""}" data-afisha><i>${icon("map")}</i>Афіша</a>
     </div>
     ${!imported && e.pay_online ? `<p class="fine">${esc(PAY_ONLINE_FINE)}${e.refund_policy ? ` ${esc(refundText(e.refund_policy))}` : ""}</p>`
       : !imported && e.approval_required ? `<p class="fine">Участь за підтвердженням організатора.</p>` : ""}
-    ${!imported && (live || (cancelled && e.pay_online && !past)) && UUID.test(e.organizer_id ?? "") ? `<button class="btn secondary ask" type="button" data-ask>${icon("chat")}Написати організатору</button>` : ""}
+    ${!listed && (live || (cancelled && e.pay_online && !past)) && UUID.test(e.organizer_id ?? "") ? `<button class="btn secondary ask" type="button" data-ask>${icon("chat")}Написати організатору</button>` : ""}
     ${imported && !past ? sellersSection(live ? liveOffers : offers, !live, e.checked_at, e.time_zone) : ""}
     ${e.description ? `<div class="block"><h2>Опис</h2><p class="description">${esc(e.description)}</p></div>` : ""}
     ${live ? sheltersSection(shelters) : ""}
-    <div class="app-only"><b>${imported ? "Підете? Не забудьте" : "У застосунку ще зручніше"}</b>
+    <div class="app-only"><b>${listed ? "Підете? Не забудьте" : "У застосунку ще зручніше"}</b>
       <ul><li>${icon("bell")}Нагадування за годину до початку</li><li>${icon("people")}«Шукаю компанію» — знайдіть, з ким піти</li><li>${icon("map")}Що ще відбувається поряд — на мапі</li></ul>
       <div class="stores">${storeButtons(ct)}</div></div>
   </div>
-  <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${imported ? "" : `<b class="stamp" data-going hidden></b>`}${spots && !cost ? `<small>Учасники</small><span data-spots>${esc(spots.replace("Учасників: ", ""))}</span>`
-      : `${cost || !spots ? `<small>${!imported && cost ? `Ціна · ${payWay(e)}` : "Ціна"}</small>` : ""}<span>${esc(cost || spots || "Вхід уточнюйте")}</span>`}</div>
+  <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${listed ? "" : `<b class="stamp" data-going hidden></b>`}${spots && !cost ? `<small>Учасники</small><span data-spots>${esc(spots.replace("Учасників: ", ""))}</span>`
+      : `${cost || !spots ? `<small>${!listed && cost ? `Ціна · ${payWay(e)}` : "Ціна"}</small>` : ""}<span>${esc(cost || spots || "Вхід уточнюйте")}</span>`}</div>
     ${ticketUrl && live ? `<a class="btn primary" href="${esc(ticketHref(ticketUrl))}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
-      : imported ? `<a class="btn primary" href="/app?from=${ct}">Завантажити «Поряд»</a>`
+      : listed && !imported && live ? `<p class="closed">Вхід без запису</p>`
+      : listed ? `<a class="btn primary" href="/app?from=${ct}">Завантажити «Поряд»</a>`
       : open ? `<button class="btn primary" type="button" data-join>Йду</button>` : `<p class="closed">Запис на цю подію закрито</p>`}</div>
     ${open ? `<a class="open-app" href="poriad://event/${e.id}${by}">Уже є застосунок? Відкрити</a>` : ""}</div>
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>
-${imported ? "" : `${joinSheet(e, ct, now)}
+${listed ? "" : `${joinSheet(e, ct, now)}
 <script type="module" src="/js/join.js?v=19"></script>`}`,
   });
 }
@@ -574,10 +579,10 @@ export function cityPage(slug, key, cards, total, now) {
   });
 }
 
-function cityRow(card, now) {
+function cityRow(card, now, where = true) {
   const category = CATEGORIES[card.category] ? card.category : "social";
   const [stubTime, stubDay] = stubParts(card, now, true);
-  const meta = [timeOf(new Date(card.starts_at), card.time_zone || "Europe/Kyiv"), CATEGORIES[category], card.place_name || card.address, price(card)].filter(Boolean).join(" · ");
+  const meta = [timeOf(new Date(card.starts_at), card.time_zone || "Europe/Kyiv"), CATEGORIES[category], where && (card.place_name || card.address), price(card)].filter(Boolean).join(" · ");
   return `<a class="row" href="/e/${card.id}"><div class="ticket v stub-tile cat-${category}" aria-hidden="true"><div class="face"><b class="t">${esc(stubTime)}</b></div><div class="stub"><small>${esc(stubDay)}</small></div></div>
     <div class="txt"><small>${esc(meta)}</small><b>${esc(displayTitle(card.title))}</b></div></a>`;
 }
@@ -597,6 +602,84 @@ function eventLd(card) {
       address: { "@type": "PostalAddress", ...(card.address ? { streetAddress: card.address } : {}), addressLocality: card.city, addressCountry: "UA" } },
     ...(ticket && cost !== null ? { offers: { "@type": "Offer", url: ticket, price: cost, priceCurrency: "UAH" } } : {}),
   };
+}
+
+// ---- Сторінка закладу `/p/{id}` й артиста `/a/{id}` — посилання для біо в Instagram і Threads
+// (docs/creation-platform-plan-2026-11.md, етап 1). Рядок — з таблиці, яку гість читає і в застосунку; події —
+// `place_events` / `artist_events`: афіша й події власника одним списком. Лише за посиланням (noindex), як сторінки подій.
+// Замість id в адресі може стояти коротка адреса власника (`slug`, міграція 20261128120000): UUID у її межі не влазить.
+const SLUG = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/;
+const PROFILES = {
+  p: { table: "places", select: "id,name,city,address,latitude,longitude,slug", rpc: "place_events", arg: "p_place_id", ct: "place", lost: "Заклад не знайдено: посилання неповне або його прибрали." },
+  a: { table: "artists", select: "id,name,kind,slug", rpc: "artist_events", arg: "p_artist_id", ct: "artist", lost: "Артиста не знайдено: посилання неповне або його прибрали." },
+};
+const ARTIST_KINDS = { group: "Гурт", company: "Колектив", show: "Шоу" };
+
+async function profileRoute(request, env, ctx, match) {
+  const url = new URL(request.url);
+  const cacheKey = new Request(url.origin + url.pathname.toLowerCase().replace(/\/$/, ""));
+  const cached = await caches.default.match(cacheKey);
+  if (cached) return cached;
+  const response = await profileResponse(match[1], match[2], env);
+  if (response.status === 200 || response.status === 404) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+  return response;
+}
+
+export async function profileResponse(kind, key, env, now = new Date()) {
+  const spec = PROFILES[kind], policy = CSP.city();
+  const name = String(key).toLowerCase();
+  const by = UUID.test(name) ? "id" : SLUG.test(name) ? "slug" : null;
+  if (!by) return html(notFoundPage(spec.lost), 404, policy);
+  const headers = { apikey: env.SUPABASE_KEY, "content-type": "application/json" };
+  try {
+    const row = await fetch(`${env.SUPABASE_URL}/rest/v1/${spec.table}?${by}=eq.${name}&select=${spec.select}`, { headers });
+    if (!row.ok) throw new Error("db");
+    const [who] = await row.json();
+    if (!who) return html(notFoundPage(spec.lost), 404, policy);
+    const events = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${spec.rpc}`, { method: "POST", headers, body: JSON.stringify({ [spec.arg]: who.id }) });
+    if (!events.ok) throw new Error("db");
+    return html(profilePage(kind, who, (await events.json()).filter(isLive), now), 200, policy);
+  } catch {
+    // Збій бази не кешуємо й не видаємо за «не знайдено».
+    return html(notFoundPage("Не вдалося завантажити сторінку. Спробуйте ще раз за хвилину."), 503, policy);
+  }
+}
+
+export function profilePage(kind, who, cards, now) {
+  const { ct } = PROFILES[kind];
+  const place = kind === "p";
+  const name = String(who.name ?? "");
+  const where = !place ? "" : who.address && who.city && who.address.includes(who.city) ? who.address : [who.city, who.address].filter(Boolean).join(", ");
+  const count = cards.length ? `${plural(cards.length, EVENTS)} попереду` : "Найближчих подій поки нема";
+  const lead = [where, count].filter(Boolean).join(". ");
+  // Пошук у застосунку знаходить лише тих, у кого є майбутні події: без подій «знайдіть у пошуку» не радимо.
+  const citySlug = place ? Object.keys(CITY_PAGES).find((s) => CITY_PAGES[s][0] === who.city) : null;
+  // Те, що вже йде (виставка, прокат), — під «Сьогодні», а не під днем відкриття.
+  const days = groupBy(cards, (c) => dayLabel(new Date(Math.max(Date.parse(c.starts_at), +now)), c.time_zone || "Europe/Kyiv", now, true));
+  return layout({
+    title: place ? `${name}: афіша` : `${name}: найближчі події`,
+    description: lead,
+    image: "https://poriad.app/img/og.png",
+    url: `https://poriad.app/${kind}/${SLUG.test(who.slug ?? "") ? who.slug : who.id}`,
+    from: ct,
+    head: `<meta name="robots" content="noindex, follow">
+<meta name="apple-itunes-app" content="app-id=6813543772, affiliate-data=ct=${ct}&amp;pt=129478154">`,
+    body: `<article class="sheet-box"><div class="detail">
+  <div class="block"><p class="overline">${esc(place ? ["Заклад", who.city].filter(Boolean).join(" · ") : ARTIST_KINDS[who.kind] ?? "Артист")}</p><h1>${esc(name)}</h1>
+    <p class="lead">${esc(lead)}.</p></div>
+  <div class="actions">
+    ${place ? `<a href="https://www.google.com/maps/dir/?api=1&destination=${Number(who.latitude)},${Number(who.longitude)}" rel="noopener"><i>${icon("pin")}</i>Маршрут</a>` : ""}
+    <button type="button" data-share><i>${icon("share")}</i>Поділитися</button>
+    <a href="${citySlug ? `/afisha/${citySlug}` : "/afisha.html"}"><i>${icon("map")}</i>Афіша${citySlug ? ` ${esc(cityOf(who.city).of)}` : ""}</a>
+  </div>
+  ${cards.length ? [...days].map(([day, list]) => `<section class="block"><h2>${esc(day)}</h2><div class="rows">${list.map((c) => cityRow(c, now, !place)).join("")}</div></section>`).join("")
+    : `<div class="empty"><b>Поки без подій</b><span>Щойно з’явиться нова, вона буде тут і в застосунку.</span></div>`}
+  <div class="app-only"><b>Стежте в застосунку</b>
+    <ul><li>${icon("bell")}${cards.length ? `Знайдіть «${esc(name)}» у пошуку й натисніть «Стежити»: про нову подію прийде сповіщення`
+      : "«Стежити» за закладами й артистами: про нову подію прийде сповіщення"}</li><li>${icon("people")}«Шукаю компанію», якщо нема з ким піти</li><li>${icon("map")}Що ще відбувається поряд — на мапі</li></ul>
+    <div class="stores">${storeButtons(ct)}</div></div>
+</div></article>`,
+  });
 }
 
 function storeButtons(ct = "event") {

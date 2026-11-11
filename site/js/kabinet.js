@@ -78,6 +78,12 @@ export { fit }; // chat.js: спільне з розмовою (скріншот
 
 // ---- Ціна (1.7): лише ціна, гроші — з організатором напряму. Порожньо — безкоштовно.
 export const PRICE_TEXT = "Ціна — від 1 до 100 000 ₴";
+/** Подія без запису: квитки за посиланням або вільний вхід. Клієнтам сервер віддає її як оголошення (`origin = 'partner'`). */
+export const TICKET_URL = /^https:\/\/[^\s<>"]{4,490}$/;
+/** Своя подія в кабінеті: з записом чи без. */
+export const isOwn = (e, id) => Boolean(e && id) && e.organizer_id === id && (e.origin === "community" || e.origin === "partner");
+/** Як потрапити на подію, з того, що віддає сервер. */
+export const howOf = (e) => (e?.origin === "partner" ? (e.canonical_url ? "tickets" : "open") : "signup");
 export function priceProblem(price) {
   const text = String(price ?? "").trim();
   if (!text) return null;
@@ -166,6 +172,18 @@ const ERRORS = {
   CAPACITY_BELOW_ATTENDANCE: "Не можна зменшити кількість місць нижче за тих, хто вже йде",
   EVENT_CANCELLED: "Подію скасовано",
   EVENT_NOT_FOUND: "Подія недоступна",
+  PLACE_TAKEN: "Цей заклад уже веде інший акаунт. Якщо він ваш — напишіть на hello@poriad.app",
+  ARTIST_TAKEN: "Цього артиста вже веде інший акаунт. Якщо це ви — напишіть на hello@poriad.app",
+  TOO_MANY_CLAIMS: "Можна вести до трьох закладів і трьох артистів. Більше — напишіть на hello@poriad.app",
+  PLACE_NOT_FOUND: "Заклад не знайдено. Спробуйте ще раз",
+  ARTIST_NOT_FOUND: "Артиста не знайдено. Спробуйте ще раз",
+  INVALID_PLACE_NAME: "Назва закладу — від 2 до 120 символів",
+  INVALID_PLACE: "Оберіть адресу з підказок",
+  INVALID_TICKET_URL: "Посилання на квитки — адреса сторінки продажу, що починається з https://",
+  ENTRY_LOCKED: "Спосіб входу вже не змінити: на подію записались або шукають компанію",
+  INVALID_SLUG: "Адреса — від 3 до 32 символів: латинські літери, цифри й дефіс усередині",
+  SLUG_TAKEN: "Ця адреса вже зайнята. Спробуйте іншу",
+  INVALID_ARTIST_NAME: "Імʼя артиста — від 2 до 120 символів",
   NOT_ORGANIZER: "Ця дія доступна лише організатору",
   EVENT_FULL: "Вільних місць уже немає",
   TOO_MANY_MOVES: "Забагато спроб. Спробуйте трохи пізніше",
@@ -337,6 +355,7 @@ function track(name, props = {}) {
   } catch { /* приватне вікно без сховища — без аналітики */ }
 }
 let repeated = false; // чернетка нової події — копія «Повторити»
+let hadDraft = false; // редактор нової події відкрито з незакінченої чернетки
 const mode = () => editing ? "edit" : repeated ? "repeat" : "new";
 
 /** Помилка, яку показуємо як є (перевірка поля), а не словами `errorText`. */
@@ -659,7 +678,7 @@ async function route() {
 /** Подія організатора або null (чужа, прихована, мережа). */
 async function ownEvent(id) {
   const [event] = await rpc("event_details", { p_event_id: id }) ?? [];
-  return event && event.organizer_id === me?.id && event.origin === "community" ? event : null;
+  return isOwn(event, me?.id) ? event : null;
 }
 
 // ---- Акаунт організатора: профіль, який бачать учасники, налаштування нових подій, пароль і вхід.
@@ -679,6 +698,7 @@ async function showAccount() {
   settings.hidden = false;
   paintAccount();
   passwordView(passwordMode(signInMethods(current)), signInMethods(current));
+  loadClaims();
 }
 
 function paintAccount() {
@@ -701,6 +721,179 @@ function paintAccount() {
 
   $("[data-me-email]").textContent = me.email ?? "—";
   $("[data-me-methods]").textContent = providersText(me);
+}
+
+// ---- «Заклад і артист» (docs/creation-platform-plan-2026-11.md, етап 1): організатор сам називає заклад чи артиста
+// своїм — одразу, без підтвердження. Сервер не дає перехопити зайняте й тримає стелю; тут — лише пошук і рядки.
+let claims = { places: [], artists: [] };
+let claimOptions = []; // підказки відкритого списку: {kind, id?, label, detail, taken?, add?, lat?, lon?}
+let claimSearch = 0; // номер запиту: запізніла відповідь не перетирає свіжішу
+
+/** Де заклад: адреса, а без неї місто. Адреса з афіші часто вже містить місто, тож разом не пишемо. */
+const placeLine = (p) => p.address || p.city || "";
+/** Коротка адреса сторінки: ті самі межі, що на сервері (міграція 20261128120000) і у воркері. */
+export const SLUG = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/;
+const LATIN = { а: "a", б: "b", в: "v", г: "h", ґ: "g", д: "d", е: "e", є: "ie", ж: "zh", з: "z", и: "y", і: "i", ї: "i", й: "i", к: "k", л: "l", м: "m", н: "n",
+  о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "kh", ц: "ts", ч: "ch", ш: "sh", щ: "shch", ь: "", ю: "iu", я: "ia", "ʼ": "", "’": "", "'": "" };
+/** Назва → пропозиція адреси: «Кав'ярня „Малевич"» → `kaviarnia-malevych`. Порожньо, якщо з назви адреси не скласти. */
+export function slugOf(name) {
+  const slug = [...String(name ?? "").toLowerCase()].map((ch) => LATIN[ch] ?? ch).join("").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32).replace(/-+$/, "");
+  return SLUG.test(slug) ? slug : "";
+}
+/** Рядки «свого»: назва, де це чи хто це, публічна сторінка (worker: /p/{адреса чи id}, /a/…), «Прибрати». */
+export function claimRows(c) {
+  return [
+    ...(c?.places ?? []).map((p) => ({ kind: "place", id: p.id, name: p.name, detail: placeLine(p), slug: p.slug ?? "", page: `/p/${p.slug || p.id}` })),
+    ...(c?.artists ?? []).map((a) => ({ kind: "artist", id: a.id, name: a.name, detail: a.kind === "group" ? "Гурт" : "Артист", slug: a.slug ?? "", page: `/a/${a.slug || a.id}` })),
+  ];
+}
+/** Знайдене → підказки; останнім — «немає в списку», якщо назви ще нема серед знайдених. */
+export function claimChoices(kind, found, text) {
+  const q = text.trim(), same = (name) => name.trim().toLowerCase() === q.toLowerCase();
+  const list = (found ?? []).map((x) => ({ kind, id: x.id, label: x.name, taken: Boolean(x.taken),
+    detail: x.taken ? "уже веде інший акаунт" : kind === "place" ? placeLine(x) : x.kind === "group" ? "Гурт" : "Артист" }));
+  if (q.length >= 2 && !list.some((x) => same(x.label))) list.push({ kind, add: true, label: `Немає в списку — додати «${q}»`, detail: "" });
+  return list;
+}
+
+/** Свої заклади для редактора події: лише в містах сайту; адреса події — адреса закладу, а без неї його назва. */
+export function ownPlaces(c) {
+  return (c?.places ?? []).filter((p) => CITIES.some((x) => x.name === p.city) && Number.isFinite(p.latitude) && Number.isFinite(p.longitude))
+    .map((p) => ({ id: p.id, name: p.name, city: p.city, address: (p.address || p.name).slice(0, 200), lat: p.latitude, lon: p.longitude }));
+}
+/** Нова подія без чернетки й не «Повторити», а заклад один — ставимо його одразу: подія закладу має стояти на закладі. */
+export const autoPlace = (places, { editing, draft, repeat }) => (!editing && !draft && !repeat && places.length === 1 ? places[0] : null);
+/** Точка події збігається з точкою закладу (сервер бере 150 м; тут — чи саме цей заклад обрано). */
+export const onPlace = (place, p) => Boolean(place?.placed) && Math.abs(place.lat - p.lat) < 1e-6 && Math.abs(place.lon - p.lon) < 1e-6;
+
+async function loadClaims() {
+  try { claims = await rpc("my_claims"); } catch { claims = { places: [], artists: [] }; }
+  paintClaims();
+}
+function paintClaims() {
+  $("[data-claim-list]").innerHTML = claimRows(claims).map((r) =>
+    `<li><span><b>${esc(r.name)}</b><small>${esc(r.detail)}</small></span><a class="btn small" href="${r.page}" target="_blank" rel="noopener">Сторінка</a><button class="btn small" type="button" data-slug="${r.kind}" data-id="${r.id}" aria-label="Адреса сторінки: ${esc(r.name)}">Адреса</button><button class="btn small" type="button" data-release="${r.kind}" data-id="${r.id}" aria-label="Прибрати ${esc(r.name)}">Прибрати</button></li>`).join("");
+}
+function closeClaimOptions() {
+  for (const list of $$("[data-claim-options]")) { list.hidden = true; list.innerHTML = ""; }
+  for (const input of $$("[data-claim-input], #kab-claim-address")) input.setAttribute("aria-expanded", "false");
+}
+function showClaimOptions(kind, options, input) {
+  claimOptions = options;
+  const list = $(`[data-claim-options="${kind}"]`);
+  list.innerHTML = options.map((o, i) =>
+    `<li role="option" data-claim-option="${i}"${o.taken ? ' aria-disabled="true"' : ""}${o.add ? ' class="add"' : ""}><b>${esc(o.label)}</b><small>${esc(o.detail)}</small></li>`).join("");
+  list.hidden = !options.length;
+  input.setAttribute("aria-expanded", String(!list.hidden));
+}
+/** Дія над «своїм»: сервер повертає оновлений список; помилка — у рядку картки. */
+async function claimAct(kind, isNew, fn, done) {
+  const error = $("[data-claim-error]"), note = $("[data-claim-note]");
+  error.textContent = note.textContent = "";
+  try {
+    claims = await fn();
+    paintClaims();
+    note.textContent = done;
+    if (isNew !== null) track("kab_claim", { kind, fresh: isNew });
+  } catch (e) { error.textContent = errorText(e); }
+}
+function setupClaims() {
+  const root = $("[data-claims]"), city = $("[data-claim-city]"), newPlace = $("[data-new-place]"), newArtist = $("[data-new-artist]");
+  city.innerHTML = CITIES.map((c) => `<option>${esc(c.name)}</option>`).join("");
+  let timer = null, pendingArtist = "";
+  const later = (fn) => { clearTimeout(timer); timer = setTimeout(fn, 250); };
+  const resetNew = () => { newPlace.hidden = true; newPlace.reset(); newArtist.hidden = true; pendingArtist = ""; };
+
+  for (const input of $$("[data-claim-input]", root)) {
+    const kind = input.dataset.claimInput;
+    input.addEventListener("input", () => later(async () => {
+      const text = input.value.trim(), turn = ++claimSearch;
+      if (text.length < 2) return closeClaimOptions();
+      let found = [];
+      try { found = await rpc(kind === "place" ? "find_places" : "find_artists", kind === "place" ? { p_text: text, p_city: city.value } : { p_text: text }); } catch { /* без підказок лишається «додати» */ }
+      if (turn !== claimSearch || input.value.trim() !== text) return;
+      showClaimOptions(kind, claimChoices(kind, found, text), input);
+    }));
+  }
+  // Адреса нового закладу — ті самі підказки, що в редакторі події.
+  newPlace.address.addEventListener("input", () => later(async () => {
+    const text = newPlace.address.value.trim(), turn = ++claimSearch;
+    if (text.length < 3) return closeClaimOptions();
+    let found = [];
+    try { const r = await fetch(`/api/geocode?${new URLSearchParams({ q: text, city: city.value })}`); found = r.ok ? await r.json() : []; } catch { /* без мережі — без підказок */ }
+    if (turn !== claimSearch || newPlace.address.value.trim() !== text) return;
+    showClaimOptions("address", found.map((p) => ({ kind: "address", label: p.label, detail: p.detail, lat: p.lat, lon: p.lon })), newPlace.address);
+  }));
+  newPlace.addEventListener("submit", (event) => event.preventDefault());
+  // Коротка адреса сторінки: форма одна, відкривається для рядка, з якого натиснули «Адреса».
+  const slugForm = $("[data-slug-form]");
+  let slugRow = null;
+  const closeSlug = () => { slugForm.hidden = true; slugRow = null; };
+  $("[data-slug-cancel]").addEventListener("click", closeSlug);
+  slugForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const row = slugRow, slug = slugForm.slug.value.trim().toLowerCase();
+    if (!row) return;
+    if (slug && !SLUG.test(slug)) return void ($("[data-claim-error]").textContent = ERRORS.INVALID_SLUG);
+    const place = row.kind === "place";
+    closeSlug();
+    claimAct(row.kind, null, () => rpc(place ? "set_place_slug" : "set_artist_slug", place ? { p_place: row.id, p_slug: slug } : { p_artist: row.id, p_slug: slug }),
+      slug ? `Готово: poriad.app/${place ? "p" : "a"}/${slug}` : "Коротку адресу прибрано.");
+  });
+  $("[data-new-place-cancel]").addEventListener("click", resetNew);
+
+  root.addEventListener("click", (event) => {
+    const option = event.target.closest("[data-claim-option]"), release = event.target.closest("[data-release]"), kindButton = event.target.closest("[data-artist-kind]");
+    const address = event.target.closest("[data-slug]");
+    if (address) {
+      slugRow = claimRows(claims).find((r) => r.kind === address.dataset.slug && r.id === address.dataset.id) ?? null;
+      if (!slugRow) return;
+      $("[data-claim-error]").textContent = $("[data-claim-note]").textContent = "";
+      $("[data-slug-name]").textContent = slugRow.name;
+      $("[data-slug-prefix]").textContent = `poriad.app/${slugRow.kind === "place" ? "p" : "a"}/`;
+      slugForm.slug.value = slugRow.slug || slugOf(slugRow.name);
+      slugForm.hidden = false;
+      slugForm.slug.focus();
+      return;
+    }
+    if (release) {
+      closeSlug();
+      const place = release.dataset.release === "place";
+      return void claimAct(release.dataset.release, null, () => rpc(place ? "release_place" : "release_artist", place ? { p_place: release.dataset.id } : { p_artist: release.dataset.id }), "Прибрано.");
+    }
+    if (kindButton) {
+      const name = pendingArtist, kind = kindButton.dataset.artistKind;
+      resetNew();
+      if (!kind || !name) return;
+      $('[data-claim-input="artist"]').value = "";
+      return void claimAct("artist", true, () => rpc("add_my_artist", { p_name: name, p_kind: kind }), "Додано. Ваші події тепер з цим артистом.");
+    }
+    if (!option) return;
+    const o = claimOptions[Number(option.dataset.claimOption)];
+    if (!o || o.taken) return;
+    closeClaimOptions();
+    if (o.kind === "address") {
+      const name = newPlace.name.value.trim();
+      if (name.length < 2) return void ($("[data-claim-error]").textContent = ERRORS.INVALID_PLACE_NAME);
+      const args = { p_name: name, p_city: city.value, p_address: o.label, p_latitude: o.lat, p_longitude: o.lon };
+      resetNew();
+      $('[data-claim-input="place"]').value = "";
+      return void claimAct("place", true, () => rpc("add_my_place", args), "Заклад додано. Ваші події за цією адресою тепер на ньому.");
+    }
+    const input = $(`[data-claim-input="${o.kind}"]`), text = input.value.trim();
+    if (o.add) {
+      resetNew();
+      if (o.kind === "place") { newPlace.hidden = false; newPlace.name.value = text; newPlace.address.focus(); }
+      else { pendingArtist = text; $("[data-new-artist-name]").textContent = `«${text}» — це`; newArtist.hidden = false; }
+      return;
+    }
+    input.value = "";
+    const place = o.kind === "place";
+    claimAct(o.kind, false, () => rpc(place ? "claim_place" : "claim_artist", place ? { p_place: o.id } : { p_artist: o.id }),
+      place ? "Готово. Ваші події за цією адресою тепер на закладі." : "Готово. Ваші події тепер з цим артистом.");
+  });
+  // Клік повз список закриває його.
+  document.addEventListener("click", (event) => { if (!event.target.closest("[data-claims] .kab-field")) closeClaimOptions(); });
 }
 
 function bioCount() {
@@ -867,7 +1060,7 @@ async function showList() {
   const [events, requests] = await Promise.all([rpc("my_events"), rpc("my_join_requests", { p_limit: 200 }).catch(() => [])]);
   const waiting = new Map();
   for (const r of requests ?? []) waiting.set(r.event_id, (waiting.get(r.event_id) ?? 0) + 1);
-  const mine = (events ?? []).filter((e) => e.organizer_id === me.id && e.origin === "community");
+  const mine = (events ?? []).filter((e) => isOwn(e, me.id));
   const upcoming = mine.filter((e) => !ended(e));
   const past = mine.filter(ended).reverse();
   note.textContent = mine.length ? "" : "Тут будуть ваші події. Створіть першу — з готового анонсу це хвилина.";
@@ -879,7 +1072,8 @@ async function showList() {
 function row(e, waiting) {
   const stats = [
     e.status === "cancelled" ? `<span class="stamp danger">Скасовано</span>` : "",
-    `<span>Записалось ${e.attendee_count ?? 0}${e.capacity ? ` з ${e.capacity}` : ""}</span>`,
+    e.origin === "partner" ? `<span>${e.canonical_url ? "Квитки за посиланням" : "Вільний вхід, без запису"}</span>`
+      : `<span>Записалось ${e.attendee_count ?? 0}${e.capacity ? ` з ${e.capacity}` : ""}</span>`,
     waiting ? `<span class="kab-waiting">Чекають підтвердження: ${waiting}</span>` : "",
   ].join("");
   // Пачка корінців (DESIGN.md, My events): квиток із часом на корінці жанру; минула пробита, скасована — сірий корінець.
@@ -934,7 +1128,21 @@ let current = null; // подія на екрані «Подія»
 let roster = [];
 let requests = []; // заявки події на екрані: стан людини в розмові
 
+let noPeople = null; // текст «поки ніхто не записався» з розмітки
 async function loadPeople(event) {
+  // Без запису списку нема: кажемо це замість «поки ніхто не записався».
+  const listed = event.origin === "partner", empty = $("[data-people-empty]");
+  noPeople ??= empty.textContent;
+  empty.textContent = listed ? "На цю подію не записуються: люди приходять за квитком або просто так. Хто шукає компанію — видно в застосунку." : noPeople;
+  if (listed) {
+    roster = []; requests = [];
+    $("[data-people]").innerHTML = "";
+    $("[data-people-title]").textContent = event.canonical_url ? "Квитки за посиланням" : "Вільний вхід, без запису";
+    empty.hidden = false;
+    $(".kab-table-wrap").hidden = true;
+    $("[data-copy]").hidden = true;
+    return;
+  }
   const [approved, requested, talks] = await Promise.all([
     rpc("event_attendees", { p_event_id: event.id, p_limit: 100 }),
     event.approval_required ? rpc("event_requests", { p_event_id: event.id, p_limit: 100 }) : [],
@@ -1225,16 +1433,17 @@ let place = { lat: null, lon: null, placed: false };
 let minutes = 120; // тривалість, яку тримають чипи й зсув початку
 let original = ""; // адреси медіа події до правки: незмінний список шлемо як p_media null
 let repeatFiles = null; // медіа «Повторити» — одразу в редактор, не чекаючи IndexedDB
+let mine = []; // свої заклади (`ownPlaces`) для чипів «Ваш заклад» у секції «Місце»
 let map, marker, mapLoading;
 
 const form = () => $("[data-form]");
-const FIELDS = ["title", "description", "address", "startDate", "startTime", "endDate", "endTime", "capacity", "minAge", "maxAge", "contact", "price"];
+const FIELDS = ["title", "description", "address", "startDate", "startTime", "endDate", "endTime", "capacity", "minAge", "maxAge", "contact", "price", "ticket"];
 /** Порожня нова подія — з налаштувань «Нові події» в акаунті, якщо вони є. */
 const blank = () => {
   const d = editorDefaults(me?.user_metadata);
   return { title: "", description: "", category: null, city: d.city ?? (ui?.savedCity.get() || CITIES[0].name), address: "", lat: null, lon: null, placed: false,
     startDate: "", startTime: "", endDate: "", endTime: "", capacity: 10, minAge: 18, maxAge: "", approval: d.approval ?? false, contact: d.contact ?? "", price: "",
-    payOnline: false, prepay: false, paid: false, refund: "", payTerms: false, id: null };
+    payOnline: false, prepay: false, paid: false, refund: "", payTerms: false, id: null, how: "signup", ticket: "" };
 };
 
 function readDraft() { try { return JSON.parse(localStorage.getItem(DRAFT)); } catch { return null; } }
@@ -1287,6 +1496,7 @@ async function showEditor(id) {
     original = media.map((m) => m.url).join(" ");
   } else {
     const saved = readDraft();
+    hadDraft = Boolean(saved);
     if (!saved) repeated = false;
     track("kab_editor", { mode: mode(), draft: Boolean(saved) });
     fill(saved ?? blank());
@@ -1301,6 +1511,11 @@ async function showEditor(id) {
   renderMedia();
   preview();
   await showMap();
+  // Свої заклади: чипи над адресою; єдиний заклад у новій події без чернетки — одразу на місці.
+  mine = (await signedIn()) ? ownPlaces(await rpc("my_claims").catch(() => null)) : [];
+  const auto = autoPlace(mine, { editing: Boolean(editing), draft: hadDraft, repeat: repeated });
+  if (auto) usePlace(auto);
+  paintOwnPlaces();
   if (pendingPublish) { pendingPublish = false; publish(); }
 }
 
@@ -1313,7 +1528,8 @@ export function eventDraft(e) {
     lat: e.latitude, lon: e.longitude, placed: true, startDate: start.date, startTime: start.time, endDate: end.date, endTime: end.time,
     capacity: e.capacity ?? 10, minAge: e.min_age ?? 18, maxAge: e.max_age ?? "", approval: Boolean(e.approval_required), contact: e.contact_url ?? "", tz,
     payOnline: Boolean(e.pay_online), prepay: Boolean(e.prepay), paid: Number(e.price_min) > 0, refund: e.refund_policy ?? "",
-    price: Number(e.price_min) > 0 ? String(Math.round(Number(e.price_min))) : "" };
+    price: Number(e.price_min) > 0 ? String(Math.round(Number(e.price_min))) : "",
+    how: howOf(e), ticket: e.origin === "partner" ? e.canonical_url ?? "" : "" };
 }
 
 /** Чернетка → форма. */
@@ -1325,6 +1541,7 @@ function fill(d) {
   // Стара чернетка без прапорця — платна, якщо є ціна.
   for (const radio of $$("[name=entry]", f)) radio.checked = radio.value === ((d.paid ?? Boolean(String(d.price ?? "").trim())) ? "paid" : "free");
   for (const radio of $$("[name=pay]", f)) radio.checked = radio.value === (d.payOnline ? "online" : d.prepay ? "prepay" : "onsite");
+  for (const radio of $$("[name=how]", f)) radio.checked = radio.value === (d.how ?? "signup");
   for (const radio of $$("[name=refund]", f)) radio.checked = radio.value === d.refund;
   f.payterms.checked = Boolean(d.payTerms);
   payView();
@@ -1342,7 +1559,7 @@ function fill(d) {
 function draft() {
   const f = form();
   const d = { id: f.dataset.id || null, tz: f.dataset.tz || TZ, category: f.dataset.category || null, approval: f.approval.checked, city: f.city.value, ...place,
-    payOnline: f.pay.value === "online", prepay: f.pay.value === "prepay", paid: f.entry.value === "paid", refund: f.refund.value, payTerms: f.payterms.checked };
+    payOnline: f.pay.value === "online", prepay: f.pay.value === "prepay", paid: f.entry.value === "paid", refund: f.refund.value, payTerms: f.payterms.checked, how: f.how.value };
   for (const name of FIELDS) d[name] = f[name].value;
   return d;
 }
@@ -1371,10 +1588,14 @@ export const payPlan = (price, payOnline) => {
 };
 function payView() {
   // Платно — ціна й коли платять одразу, ще до суми (підказка та сама, що з сумою).
-  const f = form(), paid = f.entry.value === "paid";
-  const plan = payPlan(paid ? f.price.value || "1" : "", payOnlineOn && f.pay.value === "online");
+  // Без запису — ні місць, ні заявок, ні чату, ні «коли платять»: лише ціна й, для квитків, посилання.
+  const f = form(), paid = f.entry.value === "paid", room = f.how.value === "signup";
+  const plan = payPlan(paid ? f.price.value || "1" : "", room && payOnlineOn && f.pay.value === "online");
+  for (const el of $$("[data-room]", f)) el.hidden = !room;
+  $("[data-ticket-box]").hidden = f.how.value !== "tickets";
+  $("[data-how-note]").hidden = room;
   $("[data-price-box]").hidden = !paid;
-  $("[data-pay-box]").hidden = !plan.paid;
+  $("[data-pay-box]").hidden = !plan.paid || !room;
   $("[data-pay-online-option]").hidden = !payOnlineOn;
   const hint = $("[data-price-hint]");
   hint.textContent = plan.hint;
@@ -1411,14 +1632,16 @@ function moveEnd() {
 
 /** Квиток-чернетка справа, як `DraftTicket` у застосунку. */
 function preview() {
-  const d = draft();
+  const d = draft(), room = (d.how ?? "signup") === "signup";
   const startsAt = instant(d.startDate, d.startTime, d.tz) ?? new Date(Date.now() + 24 * HOUR).toISOString();
   // Обкладинка — лише те, що вже у сховищі: ui.poster приймає https, а не blob: щойно вибраного файлу.
   const first = media[0];
   const cover = first && !first.blob ? (first.kind === "photo" ? first.url : first.poster) : null;
   const card = { id: "draft", title: d.title.trim() || "Назва події", category: d.category || "social", starts_at: startsAt, ends_at: instant(d.endDate, d.endTime, d.tz),
-    time_zone: d.tz, address: d.address.trim() || d.city, city: d.city, origin: "community", capacity: +d.capacity || null, attendee_count: 0, image_url: cover,
-    price_min: priceProblem(d.price) ? null : priceParam(d.price) || null };
+    time_zone: d.tz, address: d.address.trim() || d.city, city: d.city, image_url: cover,
+    // Без запису — оголошення, як його віддасть сервер: без місць, з назвою організатора замість «Від людей».
+    ...(room ? { origin: "community", capacity: +d.capacity || null, attendee_count: 0 } : { origin: "partner" }),
+    price_min: priceProblem(d.price) ? null : priceParam(d.price) || null, is_free: !room && d.how === "open" && !priceParam(d.price) ? true : undefined };
   $("[data-preview]").innerHTML = ui.poster(card);
 }
 
@@ -1540,7 +1763,26 @@ function setPlace(lat, lon) {
   place = { lat, lon, placed: true };
   placeMarker(false);
   $("[data-map-hint]").textContent = "Точку поставлено. Її можна перетягнути.";
+  paintOwnPlaces();
   changed();
+}
+
+/** Чипи «Ваш заклад»: натиснутий — той, на чиїй точці стоїть подія. */
+function paintOwnPlaces() {
+  const box = $("[data-own-places]");
+  box.hidden = !mine.length;
+  $("[data-own-place-chips]").innerHTML = mine.map((p, i) =>
+    `<button type="button" class="chip" data-own-place="${i}" aria-pressed="${onPlace(place, p)}">${esc(p.name)}</button>`).join("");
+}
+/** Подія — у своєму закладі: місто, адреса й точка закладу. */
+function usePlace(p) {
+  const f = form();
+  f.city.value = p.city;
+  f.address.value = p.address;
+  lastQuery = p.address;
+  closePlaces();
+  setPlace(p.lat, p.lon);
+  map?.jumpTo({ center: [p.lon, p.lat], zoom: 16 });
 }
 
 function placeMarker(fly = true) {
@@ -1586,6 +1828,10 @@ async function showMap() {
 
 function setupPlace() {
   const f = form(), list = $("[data-places]");
+  $("[data-own-place-chips]").addEventListener("click", (event) => {
+    const p = mine[Number(event.target.closest("[data-own-place]")?.dataset.ownPlace)];
+    if (p) usePlace(p);
+  });
   f.city.innerHTML = CITIES.map((c) => `<option>${esc(c.name)}</option>`).join("");
   f.city.addEventListener("change", () => {
     lastQuery = "";
@@ -1678,10 +1924,12 @@ function problems(d) {
   const start = instant(d.startDate, d.startTime, d.tz), end = instant(d.endDate, d.endTime, d.tz);
   if (!start) out.push("Початок — дата й час у майбутньому");
   else if (!end || end <= start) out.push("Кінець — пізніше за початок");
-  if (!(+d.capacity >= 1)) out.push("Кількість місць — від 1 до 10000");
+  const room = (d.how ?? "signup") === "signup";
+  if (room && !(+d.capacity >= 1)) out.push("Кількість місць — від 1 до 10000");
+  if (d.how === "tickets" && !TICKET_URL.test(String(d.ticket ?? "").trim())) out.push(ERRORS.INVALID_TICKET_URL);
   const price = d.paid && !String(d.price ?? "").trim() ? "Вкажіть ціну входу" : priceProblem(d.price);
   if (price) out.push(price);
-  if (payOnlineOn && payPlan(d.price, d.payOnline).online) out.push(...payProblems(d, payLimits, editing));
+  if (room && payOnlineOn && payPlan(d.price, d.payOnline).online) out.push(...payProblems(d, payLimits, editing));
   return out;
 }
 
@@ -1718,17 +1966,20 @@ export function payLimitsText(l) {
 }
 
 export function params(d, id) {
-  const online = payPlan(d.price, payOnlineOn && d.payOnline).online; // онлайн — завжди за підтвердженням
+  const how = d.how ?? "signup", room = how === "signup";
+  const online = room && payPlan(d.price, payOnlineOn && d.payOnline).online; // онлайн — завжди за підтвердженням
   return {
     p_id: id, p_title: d.title.trim(), p_description: d.description.trim(), p_category: d.category, p_city: d.city, p_address: d.address.trim(),
     p_latitude: d.lat, p_longitude: d.lon, p_starts_at: instant(d.startDate, d.startTime, d.tz), p_ends_at: instant(d.endDate, d.endTime, d.tz),
-    p_time_zone: d.tz, p_capacity: Math.round(+d.capacity), p_image_url: editing?.image_url ?? null, p_min_age: Math.round(+d.minAge || 18),
-    p_max_age: d.maxAge === "" ? null : Math.round(+d.maxAge), p_approval_required: d.approval || online,
+    p_time_zone: d.tz, p_capacity: room ? Math.round(+d.capacity) : null, p_image_url: editing?.image_url ?? null, p_min_age: Math.round(+d.minAge || 18),
+    p_max_age: d.maxAge === "" ? null : Math.round(+d.maxAge), p_approval_required: room && (d.approval || online),
     // Вимкнено — спосіб оплати не чіпаємо (null): увімкнуть знову — подія, що була онлайн, знову онлайн.
-    p_contact_url: d.contact.trim() || null, p_price: priceParam(d.price), p_pay_online: payOnlineOn ? online : null,
+    p_contact_url: room ? d.contact.trim() || null : null, p_price: priceParam(d.price), p_pay_online: payOnlineOn ? online : null,
     p_refund_policy: payOnlineOn && online ? d.refund : null,
     // Завжди явно: false повертає «на зустрічі»; без ціни сервер передоплату не зберігає.
-    p_prepay: !online && Boolean(d.prepay),
+    p_prepay: room && !online && Boolean(d.prepay),
+    // Спосіб входу шлемо, лише коли він не «запис» (чи був не «запис»): звичайна подія публікується й на базі без 20261129120000.
+    ...(room && editing?.origin !== "partner" ? {} : { p_entry: how, p_ticket_url: how === "tickets" ? String(d.ticket ?? "").trim() : null }),
   };
 }
 
@@ -1857,7 +2108,7 @@ function setupEditor() {
   });
   f.addEventListener("input", changed);
   f.price.addEventListener("input", payView);
-  for (const radio of $$("[name=pay]", f)) radio.addEventListener("change", payView);
+  for (const radio of $$("[name=pay], [name=how]", f)) radio.addEventListener("change", payView);
   // Безкоштовно прибирає ціну й спосіб оплати: інакше вони тихо поїхали б на сервер.
   for (const radio of $$("[name=entry]", f)) radio.addEventListener("change", () => {
     if (f.entry.value === "free") {
@@ -1879,6 +2130,7 @@ async function start() {
   window.poriadReady = true;
   setupAuth();
   setupAccount();
+  setupClaims();
   setupEvent();
   setupTalk();
   setupEditor();

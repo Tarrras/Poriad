@@ -257,7 +257,11 @@ export const price = (card) => card.is_free ? "Безкоштовно"
 export const priceText = (value) => `${new Intl.NumberFormat("uk-UA").format(Math.round(Number(value)))} ₴`;
 
 /** «Афіша · Concert.ua» або «Від людей». */
-export const sourceNote = (card) => card.origin === "import" ? `Афіша${card.source_name ? ` · ${card.source_name}` : ""}` : "Від людей";
+// Подія без запису (`origin = 'partner'`, 20261129120000) — теж афіша; джерелом у неї організатор.
+export const sourceNote = (card) => {
+  const by = card.origin === "import" ? card.source_name : card.organizer_name;
+  return card.origin === "community" ? "Від людей" : `Афіша${by ? ` · ${by}` : ""}`;
+};
 
 // ---- Календар. Як «Додати в календар» у застосунку: кінець невідомий — година від початку; на сайті ще й нагадування за годину.
 
@@ -312,8 +316,11 @@ export function threadsPost(event) {
   const about = event.blurb?.trim() || (description.length <= ABOUT_MAX ? description : description.slice(0, ABOUT_MAX).trimEnd() + "…");
   // Подія від людей з ціною (1.7) — рядок під датою; в афіші price_min — ціна продавця «від», її не пишемо.
   // Пост пише організатор: ціна й коли платять — як на сторінці події (передоплата, на зустрічі чи онлайн).
-  const cost = event.origin !== "import" && Number(event.price_min) > 0 ? `Вхід — ${priceText(event.price_min)}, ${payWay(event)}` : null;
-  return [[displayTitle(event.title), [when, place].filter(Boolean).join(" · "), cost].filter(Boolean).join("\n"), about, `Запис: poriad.app/e/${event.id}`]
+  // Подія без запису (`partner`): квитки за посиланням чи вільний вхід — без «коли платять» і без слова «Запис».
+  const partner = event.origin === "partner", priced = Number(event.price_min) > 0;
+  const cost = partner ? (priced ? `${event.canonical_url ? "Квитки" : "Вхід"} — від ${priceText(event.price_min)}` : event.is_free ? "Вхід вільний" : null)
+    : event.origin !== "import" && priced ? `Вхід — ${priceText(event.price_min)}, ${payWay(event)}` : null;
+  return [[displayTitle(event.title), [when, place].filter(Boolean).join(" · "), cost].filter(Boolean).join("\n"), about, `${partner ? "Деталі" : "Запис"}: poriad.app/e/${event.id}`]
     .filter(Boolean).join("\n\n");
 }
 /**

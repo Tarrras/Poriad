@@ -86,6 +86,13 @@ class EventFacetsTest {
         assertFalse(afisha.copy(state = ListingState.POSTPONED, previousStartsAt = "2030-09-05T16:00:00Z").isMoved)
     }
 
+    @Test fun openEntryIsAFreeListingWithNoTicketLink() {
+        assertTrue(Listing("Кафе", isFree = true).isOpenEntry)
+        assertFalse(afisha.copy(isFree = true).isOpenEntry, "з посиланням — квитки, хай і безкоштовні")
+        assertFalse(Listing("Кафе", priceMin = 200.0).isOpenEntry, "вхід з ціною на місці")
+        assertFalse(Listing("Афіша").isOpenEntry, "ціни не знаємо — про вільний вхід не кажемо")
+    }
+
     @Test fun sellersPutThePrimaryFirstAndNameEveryLiveOne() {
         // Сервер без фази 4: продавець — лише основний з полів події.
         assertEquals(listOf(Offer("Karabas", afisha.canonicalUrl, afisha.priceMin, afisha.isFree, true)), afisha.sellers)

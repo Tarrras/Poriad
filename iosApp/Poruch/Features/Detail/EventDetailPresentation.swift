@@ -79,7 +79,9 @@ extension DetailScreenState {
             if listing.state == .postponed { return Copy.state_postponed_summary }
             if listing.isWithdrawn { return Copy.state_unknown }
             if sessionStarted { return Copy.session_started_hint }
-            return listing.hasSource ? listingPrice(listing) : Copy.listing_hint_no_link
+            if listing.isOpenEntry { return Copy.listing_open_entry }
+            // Без посилання, але з ціною — вхід платять на місці: ціна каже більше, ніж «ми лише показуємо».
+            return listing.hasSource || listing.priceMin != nil ? listingPrice(listing) : Copy.listing_hint_no_link
         }
         guard let room else { return "" }
         if ended { return Copy.event_ended }

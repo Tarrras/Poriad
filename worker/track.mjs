@@ -15,6 +15,7 @@ export const TRACKED = {
   kab_submit: ["mode", "guest", "blocked", "mobile"],
   kab_publish: ["mode", "media", "mobile"],
   kab_failed: ["mode", "code", "mobile"],
+  kab_claim: ["kind", "fresh", "mobile"],
 };
 
 /** Тіло запиту сторінки → подія Amplitude або null, якщо це не наша подія. */

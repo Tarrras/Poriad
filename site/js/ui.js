@@ -163,13 +163,14 @@ function closeEvent() {
 function renderEvent(card, entry) {
   const title = displayTitle(card.title);
   document.title = `${title} — Поряд`;
-  const imported = card.origin === "import";
-  const ticket = imported ? httpsOrNull(card.canonical_url) : null;
+  // Оголошення — афіша з кас і подія організатора без запису (`partner`): квитки за посиланням або вільний вхід.
+  const imported = card.origin === "import", listed = card.origin !== "community";
+  const ticket = listed ? httpsOrNull(card.canonical_url) : null;
   const where = [card.place_name, card.address].filter(Boolean);
   const maps = `https://www.google.com/maps/dir/?api=1&destination=${Number(card.latitude)},${Number(card.longitude)}`;
   const sessions = entry?.sessions?.length > 1 ? entry.sessions : null;
   const cost = price(card);
-  const spots = !imported && card.capacity ? `${card.attendee_count ?? 0} з ${card.capacity}` : null;
+  const spots = !listed && card.capacity ? `${card.attendee_count ?? 0} з ${card.capacity}` : null;
   const artists = card.artists ?? [];
 
   eventDialog.innerHTML = `<div class="sheet-box">
@@ -215,8 +216,9 @@ function renderEvent(card, entry) {
   <div class="bar"><div class="ticket cat-${esc(card.category)}" data-ui>
     <div class="face"><div class="top"><div class="meta"><small>${spots ? "Учасників" : "Ціна"}</small><span>${esc(spots || cost || "Уточнюйте")}</span></div>
       ${ticket ? `<a class="btn primary" href="${esc(ticketHref(ticket))}" target="_blank" rel="noopener nofollow">Купити квиток</a>`
+        : card.origin === "partner" ? `<p class="closed">Вхід без запису</p>`
         : `<button class="btn primary" type="button" data-lock="join">${card.approval_required ? "Подати заявку" : "Приєднатися"}</button>`}</div>
-      ${imported ? `<button class="btn secondary" type="button" data-lock="company">${icon("people")}Шукаю компанію</button>` : ""}</div>
+      ${listed ? `<button class="btn secondary" type="button" data-lock="company">${icon("people")}Шукаю компанію</button>` : ""}</div>
     ${stubPrint(card)}
   </div></div>
 </div>`;
