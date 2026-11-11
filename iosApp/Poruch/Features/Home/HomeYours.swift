@@ -74,7 +74,8 @@ struct HomePersonalSection: View {
     /// «Ваш тиждень» (docs/return-hooks.md): раз на тиждень, поки стос цього тижня не відкривали.
     private var deckRow: some View {
         YourRow(overline: nil, title: Copy.deck_title, subtitle: Copy.deck_row_subtitle, open: openDeck) {
-            YourGlyphTile(glyph: PoruchIcons.sparkle)
+            // Стос — три картки віялом, а не сіра плитка з іскрою: рядок і є запрошенням погортати квитки.
+            MiniTickets(kind: .deck, genres: [.food, .art, .music], side: yourTile)
         } trailing: { chevron }
     }
 

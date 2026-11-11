@@ -1,5 +1,9 @@
 package app.poruch.android.ui
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,6 +17,13 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import app.poruch.domain.EventCategory
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -166,7 +177,7 @@ fun EmptyState(
         verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         if (animation != null) BrandAnimation(animation, Modifier.size(240.dp, 140.dp).clearAndSetSemantics {}, still = Poruch.reducedMotion)
-        else BlankTicket(icon, Modifier.padding(bottom = Spacing.sm))
+        else TicketFan(icon, Modifier.padding(bottom = Spacing.sm))
         // Довгі рядки переносяться: по центру, як і значок над ними.
         Text(
             title,
@@ -259,23 +270,53 @@ fun BannerCard(
     }
 }
 
-/** Порожній квиток над порожнім станом: ненадруковані рядки пунктиром і гліф на сірому корінці. Лише прикраса. */
+/**
+ * Порожній стан — віяло з трьох квитків із корінцями різних жанрів замість сірого пунктирного контуру (10.11, «Папір»):
+ * тут будуть ваші квитки. Передній несе гліф екрана на корінці, задні — лише колір. Віяло розкривається раз пружиною;
+ * з вимкненими анімаціями стоїть розкрите. Квитки лежать один на одному, тож мають тінь. Лише прикраса.
+ */
 @Composable
-private fun BlankTicket(icon: ImageVector, modifier: Modifier = Modifier) {
+fun TicketFan(
+    icon: ImageVector, modifier: Modifier = Modifier,
+    /** Задній, середній і передній квиток. Шапка профілю гостя бере жанри зустрічей від людей. */
+    genres: Triple<EventCategory, EventCategory, EventCategory> = Triple(EventCategory.FOOD, EventCategory.SPORT, EventCategory.MUSIC)
+) {
     val colors = Poruch.colors
-    Ticket(
-        colors.surfaceMuted,
-        stub = { Icon(icon, null, Modifier.size(22.dp), tint = colors.inkSecondary) },
-        modifier = modifier.width(184.dp).decorative(),
-        stubLength = 56.dp, radius = Corner.sm, outline = colors.inkTertiary.copy(alpha = 0.6f)
-    ) {
-        Column(
-            Modifier.heightIn(min = 72.dp).padding(horizontal = Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)
+    val reducedMotion = Poruch.reducedMotion
+    var open by remember { mutableStateOf(reducedMotion) }
+    LaunchedEffect(Unit) { open = true }
+    val spread by animateFloatAsState(
+        if (open) 1f else 0f,
+        if (reducedMotion) snap() else spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow),
+        label = "fan"
+    )
+    @Composable
+    fun ticket(category: EventCategory, turn: Float, x: Dp, y: Dp, glyph: ImageVector? = null) {
+        Ticket(
+            categoryStub(category),
+            stub = { if (glyph != null) Icon(glyph, null, Modifier.size(22.dp), tint = Color.White) },
+            modifier = Modifier
+                .graphicsLayer {
+                    rotationZ = turn * spread
+                    translationX = x.toPx() * spread
+                    translationY = y.toPx() * spread
+                }
+                .width(184.dp),
+            stubLength = 56.dp, radius = Corner.sm, elevation = Elevation.raised
         ) {
-            Box(Modifier.size(72.dp, 6.dp).background(colors.hairline, Radius.pill))
-            Box(Modifier.size(44.dp, 6.dp).background(colors.hairline, Radius.pill))
+            Column(
+                Modifier.heightIn(min = 72.dp).padding(horizontal = Spacing.md),
+                verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)
+            ) {
+                Box(Modifier.size(72.dp, 6.dp).background(colors.hairline, Radius.pill))
+                Box(Modifier.size(44.dp, 6.dp).background(colors.hairline, Radius.pill))
+            }
         }
+    }
+    Box(modifier.padding(top = 32.dp, bottom = 12.dp).decorative(), contentAlignment = Alignment.Center) {
+        ticket(genres.first, -11f, 8.dp, (-26).dp)
+        ticket(genres.second, 7f, 34.dp, (-4).dp)
+        ticket(genres.third, -2f, (-14).dp, 14.dp, icon)
     }
 }
 

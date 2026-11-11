@@ -116,7 +116,7 @@ struct EmptyState: View {
             if let animation {
                 BrandAnimation(name: animation, still: reduceMotion).frame(width: 240, height: 140).decorative()
             } else {
-                BlankTicket(glyph: glyph, compact: compact).padding(.bottom, compact ? 0 : Space.sm)
+                TicketFan(glyph: glyph, compact: compact).padding(.bottom, compact ? 0 : Space.sm)
             }
             Text(title).font(compact ? PoruchFont.brandTitle3 : PoruchFont.brandTitle2).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
             Text(message).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
@@ -152,14 +152,20 @@ struct OfflineNote: View {
 }
 
 /// Порожній квиток над порожнім станом: пунктирний контур, два незадруковані рядки й гліф на сірому корінці.
-private struct BlankTicket: View {
+/// Порожній стан — віяло з трьох квитків із корінцями різних жанрів замість сірого пунктирного контуру (10.11,
+/// «Папір»): тут будуть ваші квитки. Передній несе гліф екрана на корінці, задні — лише колір. Віяло розкривається
+/// раз пружиною застосунку; зі «зменшити рух» стоїть розкрите. Квитки лежать один на одному, тож мають тінь.
+struct TicketFan: View {
     let glyph: PoruchGlyph
     var compact = false
-    var body: some View {
-        Ticket(
-            stubColor: Palette.surfaceMuted, stubLength: compact ? 44 : 56, radius: Corner.sm,
-            outline: (Palette.inkTertiary.opacity(0.6), StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
-        ) {
+    /// Задній, середній і передній квиток. Шапка профілю гостя бере жанри зустрічей від людей.
+    var genres: (EventCategory, EventCategory, EventCategory) = (.food, .sport, .music)
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var open = false
+    private var scale: CGFloat { compact ? 0.7 : 1 }
+
+    private func ticket(_ category: EventCategory, glyph: PoruchGlyph? = nil, turn: Double, x: CGFloat, y: CGFloat) -> some View {
+        Ticket(stubColor: categoryStub(category), stubLength: compact ? 44 : 56, radius: Corner.sm) {
             VStack(alignment: .leading, spacing: 6) {
                 Capsule().fill(Palette.hairline).frame(width: compact ? 48 : 72, height: 6)
                 Capsule().fill(Palette.hairline).frame(width: compact ? 32 : 44, height: 6)
@@ -167,10 +173,27 @@ private struct BlankTicket: View {
             .padding(.horizontal, Space.md)
             .frame(maxWidth: .infinity, minHeight: compact ? 52 : 72, alignment: .leading)
         } stub: {
-            PoruchIcon(glyph: glyph, size: compact ? 18 : 22).foregroundStyle(Palette.inkSecondary)
+            // Порожній корінець теж має тіло: без нього рамка не малює заливки.
+            if let glyph { PoruchIcon(glyph: glyph, size: compact ? 18 : 22).foregroundStyle(.white) } else { Color.clear }
         }
         .frame(width: compact ? 132 : 184)
+        .shadow(color: Palette.shadowSpot, radius: 5, y: 2)
+        .rotationEffect(.degrees(open ? turn : 0))
+        .offset(x: open ? x * scale : 0, y: open ? y * scale : 0)
+    }
+
+    var body: some View {
+        ZStack {
+            ticket(genres.0, turn: -11, x: 8, y: -26)
+            ticket(genres.1, turn: 7, x: 34, y: -4)
+            ticket(genres.2, glyph: glyph, turn: -2, x: -14, y: 14)
+        }
+        .padding(.top, 32 * scale).padding(.bottom, 12 * scale)
         .decorative()
+        .onAppear {
+            guard !open else { return }
+            if reduceMotion { open = true } else { withAnimation(Motion.spring.delay(0.12)) { open = true } }
+        }
     }
 }
 

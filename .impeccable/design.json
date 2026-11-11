@@ -7,7 +7,7 @@
       "ink": {
         "role": "primary",
         "displayName": "Чорнило",
-        "canonical": "#141417",
+        "canonical": "#1B1712",
         "tonalRamp": [
           "#0B0B0E",
           "#262629",
@@ -22,7 +22,7 @@
       "ink-pressed": {
         "role": "primary",
         "displayName": "Ink pressed",
-        "canonical": "#2E2E33",
+        "canonical": "#35302A",
         "tonalRamp": [
           "#0B0B0F",
           "#26262B",
@@ -37,7 +37,7 @@
       "ink-secondary": {
         "role": "neutral",
         "displayName": "Ink secondary",
-        "canonical": "#5E5E66",
+        "canonical": "#625B50",
         "tonalRamp": [
           "#0B0A10",
           "#26262D",
@@ -52,7 +52,7 @@
       "ink-tertiary": {
         "role": "neutral",
         "displayName": "Ink tertiary",
-        "canonical": "#6A6A73",
+        "canonical": "#6B6458",
         "tonalRamp": [
           "#0B0A11",
           "#26262D",
@@ -82,7 +82,7 @@
       "brand-container": {
         "role": "primary",
         "displayName": "Тонова плашка",
-        "canonical": "#E6E6EA",
+        "canonical": "#E8E1D4",
         "tonalRamp": [
           "#0B0B0D",
           "#262629",
@@ -112,7 +112,7 @@
       "accent-text": {
         "role": "secondary",
         "displayName": "Штампова фарба для тексту",
-        "canonical": "#C2431F",
+        "canonical": "#B93F1C",
         "tonalRamp": [
           "#1C0300",
           "#4A0E00",
@@ -157,7 +157,7 @@
       "success": {
         "role": "semantic",
         "displayName": "Success",
-        "canonical": "#2E7D4F",
+        "canonical": "#2C794C",
         "tonalRamp": [
           "#000F05",
           "#012F17",
@@ -232,7 +232,7 @@
       "canvas": {
         "role": "neutral",
         "displayName": "Полотно",
-        "canonical": "#F2F2F4",
+        "canonical": "#F3EEE4",
         "tonalRamp": [
           "#0B0B0C",
           "#262628",
@@ -247,7 +247,7 @@
       "canvas-tint": {
         "role": "neutral",
         "displayName": "Canvas tint",
-        "canonical": "#E8E8EC",
+        "canonical": "#E9E3D6",
         "tonalRamp": [
           "#0B0B0D",
           "#262629",
@@ -277,7 +277,7 @@
       "surface-muted": {
         "role": "neutral",
         "displayName": "Surface muted",
-        "canonical": "#EDEDF0",
+        "canonical": "#EEE8DC",
         "tonalRamp": [
           "#0B0B0D",
           "#262628",
@@ -292,7 +292,7 @@
       "hairline": {
         "role": "neutral",
         "displayName": "Волосина",
-        "canonical": "#E0E0E5",
+        "canonical": "#E2DACB",
         "tonalRamp": [
           "#0B0B0E",
           "#26262A",
@@ -307,7 +307,7 @@
       "void-stub": {
         "role": "neutral",
         "displayName": "Погашений корінець",
-        "canonical": "#5E5E66",
+        "canonical": "#625B50",
         "tonalRamp": [
           "#0B0A10",
           "#24242B",
@@ -322,7 +322,7 @@
       "night-ink": {
         "role": "primary",
         "displayName": "Папір",
-        "canonical": "#F3F3F0",
+        "canonical": "#F6F0E4",
         "tonalRamp": [
           "#0B0B09",
           "#272724",
@@ -337,7 +337,7 @@
       "night-ink-pressed": {
         "role": "primary",
         "displayName": "Night ink pressed",
-        "canonical": "#D6D6D2",
+        "canonical": "#DAD3C6",
         "tonalRamp": [
           "#0B0B09",
           "#272724",
@@ -352,10 +352,10 @@
       "night-ink-secondary": {
         "role": "neutral",
         "displayName": "Night ink secondary",
-        "canonical": "#A6A5AD",
+        "canonical": "#AEA698",
         "tonalRamp": [
           "#0B0A10",
-          "#26252C",
+          "#2C2721",
           "#45444B",
           "#66656C",
           "#898890",
@@ -367,7 +367,7 @@
       "night-ink-tertiary": {
         "role": "neutral",
         "displayName": "Night ink tertiary",
-        "canonical": "#96959E",
+        "canonical": "#9E9688",
         "tonalRamp": [
           "#0B0A10",
           "#26252D",
@@ -382,7 +382,7 @@
       "night-on-brand": {
         "role": "primary",
         "displayName": "Night on brand",
-        "canonical": "#141417",
+        "canonical": "#1B1712",
         "tonalRamp": [
           "#0B0B0E",
           "#262629",
@@ -397,10 +397,10 @@
       "night-brand-container": {
         "role": "primary",
         "displayName": "Night brand container",
-        "canonical": "#2A2930",
+        "canonical": "#302B24",
         "tonalRamp": [
           "#0B0A10",
-          "#26252C",
+          "#2C2721",
           "#45444B",
           "#66656D",
           "#898890",
@@ -532,7 +532,7 @@
       "night-canvas": {
         "role": "neutral",
         "displayName": "Графітове полотно",
-        "canonical": "#0F0F13",
+        "canonical": "#14110D",
         "tonalRamp": [
           "#0B0B0F",
           "#26262A",
@@ -547,7 +547,7 @@
       "night-canvas-tint": {
         "role": "neutral",
         "displayName": "Night canvas tint",
-        "canonical": "#16161B",
+        "canonical": "#1B1712",
         "tonalRamp": [
           "#0B0B0F",
           "#26262B",
@@ -562,10 +562,10 @@
       "night-surface": {
         "role": "neutral",
         "displayName": "Квиток (ніч)",
-        "canonical": "#1C1B21",
+        "canonical": "#221E19",
         "tonalRamp": [
           "#0B0A10",
-          "#26252C",
+          "#2C2721",
           "#45444B",
           "#66656C",
           "#898890",
@@ -577,10 +577,10 @@
       "night-surface-raised": {
         "role": "neutral",
         "displayName": "Night surface raised",
-        "canonical": "#26252C",
+        "canonical": "#2C2721",
         "tonalRamp": [
           "#0B0A10",
-          "#26252C",
+          "#2C2721",
           "#45444C",
           "#66656D",
           "#898891",
@@ -592,10 +592,10 @@
       "night-surface-muted": {
         "role": "neutral",
         "displayName": "Night surface muted",
-        "canonical": "#2A2930",
+        "canonical": "#302B24",
         "tonalRamp": [
           "#0B0A10",
-          "#26252C",
+          "#2C2721",
           "#45444B",
           "#66656D",
           "#898890",
@@ -607,7 +607,7 @@
       "night-hairline": {
         "role": "neutral",
         "displayName": "Волосина (ніч)",
-        "canonical": "#2E2D35",
+        "canonical": "#363029",
         "tonalRamp": [
           "#0B0A11",
           "#26252D",
@@ -622,7 +622,7 @@
       "night-void-stub": {
         "role": "neutral",
         "displayName": "Погашений корінець (ніч)",
-        "canonical": "#4A4950",
+        "canonical": "#4F4A42",
         "tonalRamp": [
           "#0B0A10",
           "#25242A",
@@ -1354,7 +1354,7 @@
       "refersTo": "button-primary",
       "description": "Чорнильний прямокутник 52 з кутом квитка 14 — одна головна дія.",
       "html": "<button class=\"ds-btn-primary\">Шукаю компанію</button>",
-      "css": ".ds-btn-primary{background:#141417;color:#FFFFFF;height:52px;padding:0 24px;min-width:260px;border:none;border-radius:14px;font:600 16px/20px -apple-system, 'SF Pro Text', Roboto, sans-serif;cursor:pointer;transition: transform .28s cubic-bezier(.34,1.56,.64,1);} .ds-btn-primary:hover{background:#2E2E33} .ds-btn-primary:active{background:#2E2E33;transform:scale(.98)} .ds-btn-primary:focus-visible{outline:2px solid #141417;outline-offset:3px}"
+      "css": ".ds-btn-primary{background:#1B1712;color:#FFFFFF;height:52px;padding:0 24px;min-width:260px;border:none;border-radius:14px;font:600 16px/20px -apple-system, 'SF Pro Text', Roboto, sans-serif;cursor:pointer;transition: transform .28s cubic-bezier(.34,1.56,.64,1);} .ds-btn-primary:hover{background:#35302A} .ds-btn-primary:active{background:#35302A;transform:scale(.98)} .ds-btn-primary:focus-visible{outline:2px solid #1B1712;outline-offset:3px}"
     },
     {
       "name": "Secondary Button",
@@ -1362,7 +1362,7 @@
       "refersTo": "button-secondary",
       "description": "Тонова плашка brand-container з тим самим кутом квитка.",
       "html": "<button class=\"ds-btn-secondary\">Купити квиток</button>",
-      "css": ".ds-btn-secondary{background:#E6E6EA;color:#141417;height:52px;padding:0 24px;min-width:260px;border:none;border-radius:14px;font:600 16px/20px -apple-system, 'SF Pro Text', Roboto, sans-serif;cursor:pointer;transition: transform .28s cubic-bezier(.34,1.56,.64,1);} .ds-btn-secondary:hover{background:#DCDCE1} .ds-btn-secondary:active{transform:scale(.98)} .ds-btn-secondary:focus-visible{outline:2px solid #141417;outline-offset:3px}"
+      "css": ".ds-btn-secondary{background:#E8E1D4;color:#1B1712;height:52px;padding:0 24px;min-width:260px;border:none;border-radius:14px;font:600 16px/20px -apple-system, 'SF Pro Text', Roboto, sans-serif;cursor:pointer;transition: transform .28s cubic-bezier(.34,1.56,.64,1);} .ds-btn-secondary:hover{background:#DCDCE1} .ds-btn-secondary:active{transform:scale(.98)} .ds-btn-secondary:focus-visible{outline:2px solid #1B1712;outline-offset:3px}"
     },
     {
       "name": "Filter Chips",
@@ -1370,7 +1370,7 @@
       "refersTo": "chip",
       "description": "Пігулки 38: невибрана біла, вибрана залита чорнилом; крапка категорії опційна.",
       "html": "<div class=\"ds-chips\"><button class=\"ds-chip ds-chip-on\">Сьогодні</button><button class=\"ds-chip\">Безкоштовно</button><button class=\"ds-chip\"><span class=\"ds-dot\"></span>Стендап</button></div>",
-      "css": ".ds-chips{display:flex;gap:8px;padding:16px;background:#F2F2F4} .ds-chip{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;background:#FFFFFF;color:#141417;border:none;border-radius:9999px;font:500 15px/20px -apple-system, 'SF Pro Text', Roboto, sans-serif;cursor:pointer;transition: transform .28s cubic-bezier(.34,1.56,.64,1);} .ds-chip:active{transform:scale(.98)} .ds-chip:focus-visible{outline:2px solid #141417;outline-offset:2px} .ds-chip-on{background:#141417;color:#FFFFFF} .ds-dot{width:8px;height:8px;border-radius:50%;background:#A07813}"
+      "css": ".ds-chips{display:flex;gap:8px;padding:16px;background:#F3EEE4} .ds-chip{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;background:#FFFFFF;color:#1B1712;border:none;border-radius:9999px;font:500 15px/20px -apple-system, 'SF Pro Text', Roboto, sans-serif;cursor:pointer;transition: transform .28s cubic-bezier(.34,1.56,.64,1);} .ds-chip:active{transform:scale(.98)} .ds-chip:focus-visible{outline:2px solid #1B1712;outline-offset:2px} .ds-chip-on{background:#1B1712;color:#FFFFFF} .ds-dot{width:8px;height:8px;border-radius:50%;background:#A07813}"
     },
     {
       "name": "Search Field",
@@ -1378,7 +1378,7 @@
       "refersTo": "search-field",
       "description": "Пігулка пошуку 50; кругла кнопка фільтрів із лічильником на accent-text.",
       "html": "<div class=\"ds-search-wrap\"><label class=\"ds-search\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 20 20\"/></svg><input placeholder=\"Подія, місце, артист\"></label><button class=\"ds-filters\" aria-label=\"Фільтри\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"><path d=\"M4 7h16M4 12h16M4 17h16\"/></svg><span>2</span></button></div>",
-      "css": ".ds-search-wrap{display:flex;gap:8px;padding:16px;background:#F2F2F4} .ds-search{flex:1;display:flex;align-items:center;gap:12px;height:50px;padding:0 16px;background:#FFFFFF;color:#5E5E66;border-radius:9999px} .ds-search input{flex:1;border:none;outline:none;background:transparent;color:#141417;caret-color:#141417;font:400 16px/22px -apple-system, 'SF Pro Text', Roboto, sans-serif} .ds-search:focus-within{box-shadow:0 0 0 2px #141417} .ds-filters{position:relative;width:48px;height:48px;border:none;border-radius:50%;background:#FFFFFF;color:#141417;cursor:pointer} .ds-filters:focus-visible{outline:2px solid #141417;outline-offset:2px} .ds-filters span{position:absolute;top:-2px;right:-2px;width:18px;height:18px;border-radius:50%;background:#C2431F;color:#FFFFFF;font:600 11px/18px -apple-system, 'SF Pro Text', Roboto, sans-serif}"
+      "css": ".ds-search-wrap{display:flex;gap:8px;padding:16px;background:#F3EEE4} .ds-search{flex:1;display:flex;align-items:center;gap:12px;height:50px;padding:0 16px;background:#FFFFFF;color:#625B50;border-radius:9999px} .ds-search input{flex:1;border:none;outline:none;background:transparent;color:#1B1712;caret-color:#1B1712;font:400 16px/22px -apple-system, 'SF Pro Text', Roboto, sans-serif} .ds-search:focus-within{box-shadow:0 0 0 2px #1B1712} .ds-filters{position:relative;width:48px;height:48px;border:none;border-radius:50%;background:#FFFFFF;color:#1B1712;cursor:pointer} .ds-filters:focus-visible{outline:2px solid #1B1712;outline-offset:2px} .ds-filters span{position:absolute;top:-2px;right:-2px;width:18px;height:18px;border-radius:50%;background:#B93F1C;color:#FFFFFF;font:600 11px/18px -apple-system, 'SF Pro Text', Roboto, sans-serif}"
     },
     {
       "name": "Labelled Field",
@@ -1386,7 +1386,7 @@
       "refersTo": "input-field",
       "description": "Підпис overline над білим полем радіуса 12 без рамки.",
       "html": "<div class=\"ds-field-wrap\"><label class=\"ds-field\"><span class=\"ds-field-label\">Назва події</span><input value=\"Настолки в суботу\"></label><span class=\"ds-field-hint\">Видно всім на мапі</span></div>",
-      "css": ".ds-field-wrap{padding:16px;background:#F2F2F4;display:grid;gap:6px} .ds-field{display:grid;gap:8px} .ds-field-label{color:#6A6A73;font:600 11px/14px -apple-system, 'SF Pro Text', Roboto, sans-serif;letter-spacing:1px;text-transform:uppercase} .ds-field input{height:56px;padding:0 16px;border:none;border-radius:12px;background:#FFFFFF;color:#141417;caret-color:#141417;font:400 16px/22px -apple-system, 'SF Pro Text', Roboto, sans-serif;outline:none} .ds-field input:focus-visible{box-shadow:0 0 0 2px #141417} .ds-field-hint{color:#6A6A73;font:400 13px/18px -apple-system, 'SF Pro Text', Roboto, sans-serif}"
+      "css": ".ds-field-wrap{padding:16px;background:#F3EEE4;display:grid;gap:6px} .ds-field{display:grid;gap:8px} .ds-field-label{color:#6B6458;font:600 11px/14px -apple-system, 'SF Pro Text', Roboto, sans-serif;letter-spacing:1px;text-transform:uppercase} .ds-field input{height:56px;padding:0 16px;border:none;border-radius:12px;background:#FFFFFF;color:#1B1712;caret-color:#1B1712;font:400 16px/22px -apple-system, 'SF Pro Text', Roboto, sans-serif;outline:none} .ds-field input:focus-visible{box-shadow:0 0 0 2px #1B1712} .ds-field-hint{color:#6B6458;font:400 13px/18px -apple-system, 'SF Pro Text', Roboto, sans-serif}"
     },
     {
       "name": "Event Ticket",
@@ -1394,7 +1394,7 @@
       "refersTo": "ticket",
       "description": "Квиток: поверхня з назвою, «Збирає …» і тихою причиною показу; перфорація з вирізами; корінець кольору жанру з жанром, часом і місцями; штамп лише для стану.",
       "html": "<div class=\"ds-wrap\"><a class=\"ds-ticket\" href=\"#\"><div class=\"ds-main\"><span class=\"ds-stamp\">Лишилось 3</span><h3 class=\"ds-title\">Йдемо разом: Великий Стендап на Подолі</h3><p class=\"ds-host\"><b>Т</b>Збирає Тарас</p><p class=\"ds-place\"><i></i>F-Bar, Київ</p><p class=\"ds-reason\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"><circle cx=\"9\" cy=\"8\" r=\"3.5\"/><path d=\"M2.5 19c.8-3.2 3.3-5 6.5-5s5.7 1.8 6.5 5\"/><circle cx=\"17\" cy=\"9\" r=\"2.5\"/><path d=\"M17.5 14c2.2.3 3.6 1.9 4 5\"/></svg>Від людей</p></div><div class=\"ds-stub\"><span class=\"ds-genre\">СТЕНДАП</span><span class=\"ds-time\">19:00</span><span class=\"ds-day\">СЬОГОДНІ</span><span class=\"ds-day\">0/3</span></div></a><a class=\"ds-ticket ds-void\" href=\"#\"><div class=\"ds-main\"><span class=\"ds-stamp ds-stamp-no\">Скасовано</span><h3 class=\"ds-title\">Настолки в суботу</h3><p class=\"ds-place\"><i></i>Antresoli, Київ</p></div><div class=\"ds-stub\"><span class=\"ds-genre\">ІГРИ</span><span class=\"ds-time\">18:00</span><span class=\"ds-day\">СБ</span></div></a></div>",
-      "css": ".ds-wrap{padding:16px;background:#F2F2F4;display:flex;gap:12px;align-items:stretch} .ds-ticket{display:flex;width:340px;border-radius:14px;overflow:hidden;background:#FFFFFF;color:#141417;text-decoration:none;transition: transform .28s cubic-bezier(.34,1.56,.64,1);position:relative} .ds-ticket:active{transform:scale(.98)} .ds-ticket:focus-visible{outline:2px solid #141417;outline-offset:3px} .ds-main{flex:1;padding:16px;display:grid;gap:8px} .ds-title{margin:0;font:700 20px/23px 'Sofia Sans Condensed', 'Arial Narrow', sans-serif} .ds-place{display:flex;align-items:center;gap:8px;color:#5E5E66;font:400 13px/18px -apple-system, 'SF Pro Text', Roboto, sans-serif} .ds-place i{width:8px;height:8px;border-radius:50%;background:#A07813} .ds-stub{width:84px;flex:none;background:#8D6A11;color:#fff;display:grid;place-content:center;justify-items:center;gap:2px;border-left:2.5px dotted #F2F2F4;position:relative} .ds-stub::before,.ds-stub::after{content:'';position:absolute;left:-8.5px;width:14px;height:14px;border-radius:50%;background:#F2F2F4} .ds-stub::before{top:-7px} .ds-stub::after{bottom:-7px} .ds-time{font:800 34px/36px 'Sofia Sans Extra Condensed', 'Arial Narrow', sans-serif;font-variant-numeric:tabular-nums} .ds-day{font:600 11px/14px -apple-system, 'SF Pro Text', Roboto, sans-serif;letter-spacing:.6px} .ds-stamp{justify-self:start;padding:3px 7px;border:1.5px solid #C2431F;border-radius:5px;color:#C2431F;font:800 13px/15px 'Sofia Sans Condensed', 'Arial Narrow', sans-serif;letter-spacing:.8px;text-transform:uppercase;transform:rotate(-4deg)} .ds-wrap{flex-wrap:wrap} .ds-genre{font:800 13px/15px 'Sofia Sans Condensed', 'Arial Narrow', sans-serif;letter-spacing:.6px;margin-bottom:4px} .ds-host{display:flex;align-items:center;gap:6px;margin:0;color:#5E5E66;font:400 13px/18px -apple-system, 'SF Pro Text', Roboto, sans-serif} .ds-host b{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:#E6E6EA;color:#141417;font:700 11px/1 -apple-system, 'SF Pro Text', Roboto, sans-serif} .ds-reason{display:flex;align-items:center;gap:4px;margin:0;color:#6A6A73;font:400 13px/18px -apple-system, 'SF Pro Text', Roboto, sans-serif} .ds-void .ds-stub{background:#5E5E66} .ds-stamp-no{border-color:#C0392B;color:#C0392B}"
+      "css": ".ds-wrap{padding:16px;background:#F3EEE4;display:flex;gap:12px;align-items:stretch} .ds-ticket{display:flex;width:340px;border-radius:14px;overflow:hidden;background:#FFFFFF;color:#1B1712;text-decoration:none;transition: transform .28s cubic-bezier(.34,1.56,.64,1);position:relative} .ds-ticket:active{transform:scale(.98)} .ds-ticket:focus-visible{outline:2px solid #1B1712;outline-offset:3px} .ds-main{flex:1;padding:16px;display:grid;gap:8px} .ds-title{margin:0;font:700 20px/23px 'Sofia Sans Condensed', 'Arial Narrow', sans-serif} .ds-place{display:flex;align-items:center;gap:8px;color:#625B50;font:400 13px/18px -apple-system, 'SF Pro Text', Roboto, sans-serif} .ds-place i{width:8px;height:8px;border-radius:50%;background:#A07813} .ds-stub{width:84px;flex:none;background:#8D6A11;color:#fff;display:grid;place-content:center;justify-items:center;gap:2px;border-left:2.5px dotted #F3EEE4;position:relative} .ds-stub::before,.ds-stub::after{content:'';position:absolute;left:-8.5px;width:14px;height:14px;border-radius:50%;background:#F3EEE4} .ds-stub::before{top:-7px} .ds-stub::after{bottom:-7px} .ds-time{font:800 34px/36px 'Sofia Sans Extra Condensed', 'Arial Narrow', sans-serif;font-variant-numeric:tabular-nums} .ds-day{font:600 11px/14px -apple-system, 'SF Pro Text', Roboto, sans-serif;letter-spacing:.6px} .ds-stamp{justify-self:start;padding:3px 7px;border:1.5px solid #B93F1C;border-radius:5px;color:#B93F1C;font:800 13px/15px 'Sofia Sans Condensed', 'Arial Narrow', sans-serif;letter-spacing:.8px;text-transform:uppercase;transform:rotate(-4deg)} .ds-wrap{flex-wrap:wrap} .ds-genre{font:800 13px/15px 'Sofia Sans Condensed', 'Arial Narrow', sans-serif;letter-spacing:.6px;margin-bottom:4px} .ds-host{display:flex;align-items:center;gap:6px;margin:0;color:#625B50;font:400 13px/18px -apple-system, 'SF Pro Text', Roboto, sans-serif} .ds-host b{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:#E8E1D4;color:#1B1712;font:700 11px/1 -apple-system, 'SF Pro Text', Roboto, sans-serif} .ds-reason{display:flex;align-items:center;gap:4px;margin:0;color:#6B6458;font:400 13px/18px -apple-system, 'SF Pro Text', Roboto, sans-serif} .ds-void .ds-stub{background:#625B50} .ds-stamp-no{border-color:#C0392B;color:#C0392B}"
     },
     {
       "name": "Create Event Ticket",
@@ -1402,7 +1402,7 @@
       "refersTo": "create-event-ticket",
       "description": "Порожній квиток пунктиром із чорнильним корінцем і олівцем — свою зустріч друкуєш сам.",
       "html": "<div class=\"ds-cw\"><a class=\"ds-ce\" href=\"#\"><span class=\"ds-ce-main\"><b>Організувати подію</b><small>Зберіть людей на настолки, пробіжку чи кіно</small></span><span class=\"ds-ce-stub\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 20h4L19 9l-4-4L4 16z\"/><path d=\"M13 7l4 4\"/></svg></span></a></div>",
-      "css": ".ds-cw{padding:16px;background:#F2F2F4} .ds-ce{display:flex;min-height:72px;border:1.5px dashed rgba(106,106,115,.7);border-radius:14px;overflow:hidden;background:#FFFFFF;color:#141417;text-decoration:none;transition: transform .28s cubic-bezier(.34,1.56,.64,1);} .ds-ce:active{transform:scale(.98)} .ds-ce:focus-visible{outline:2px solid #141417;outline-offset:3px} .ds-ce-main{flex:1;display:grid;align-content:center;gap:2px;padding:12px 16px} .ds-ce-main b{font:700 20px/23px 'Sofia Sans Condensed', 'Arial Narrow', sans-serif} .ds-ce-main small{color:#5E5E66;font:400 13px/18px -apple-system, 'SF Pro Text', Roboto, sans-serif} .ds-ce-stub{width:64px;flex:none;display:grid;place-items:center;background:#141417;color:#FFFFFF;border-left:2.5px dotted #F2F2F4}"
+      "css": ".ds-cw{padding:16px;background:#F3EEE4} .ds-ce{display:flex;min-height:72px;border:1.5px dashed rgba(106,106,115,.7);border-radius:14px;overflow:hidden;background:#FFFFFF;color:#1B1712;text-decoration:none;transition: transform .28s cubic-bezier(.34,1.56,.64,1);} .ds-ce:active{transform:scale(.98)} .ds-ce:focus-visible{outline:2px solid #1B1712;outline-offset:3px} .ds-ce-main{flex:1;display:grid;align-content:center;gap:2px;padding:12px 16px} .ds-ce-main b{font:700 20px/23px 'Sofia Sans Condensed', 'Arial Narrow', sans-serif} .ds-ce-main small{color:#625B50;font:400 13px/18px -apple-system, 'SF Pro Text', Roboto, sans-serif} .ds-ce-stub{width:64px;flex:none;display:grid;place-items:center;background:#1B1712;color:#FFFFFF;border-left:2.5px dotted #F3EEE4}"
     },
     {
       "name": "Ticket Stamps",
@@ -1410,7 +1410,7 @@
       "refersTo": "ticket-stamp",
       "description": "Гумові штампи-контури з нахилом −4°: участь, терміновість, скасування, нейтральний.",
       "html": "<div class=\"ds-stamps\"><span class=\"ds-st ds-ok\">Ви йдете</span><span class=\"ds-st ds-hot\">Лишилось 2</span><span class=\"ds-st ds-no\">Скасовано</span><span class=\"ds-st\">Знято</span></div>",
-      "css": ".ds-stamps{display:flex;gap:14px;flex-wrap:wrap;padding:20px 16px;background:#FFFFFF} .ds-st{padding:3px 7px;border:1.5px solid #5E5E66;border-radius:5px;color:#5E5E66;font:800 13px/15px 'Sofia Sans Condensed', 'Arial Narrow', sans-serif;letter-spacing:.8px;text-transform:uppercase;transform:rotate(-4deg)} .ds-ok{border-color:#2E7D4F;color:#2E7D4F} .ds-hot{border-color:#C2431F;color:#C2431F} .ds-no{border-color:#C0392B;color:#C0392B}"
+      "css": ".ds-stamps{display:flex;gap:14px;flex-wrap:wrap;padding:20px 16px;background:#FFFFFF} .ds-st{padding:3px 7px;border:1.5px solid #625B50;border-radius:5px;color:#625B50;font:800 13px/15px 'Sofia Sans Condensed', 'Arial Narrow', sans-serif;letter-spacing:.8px;text-transform:uppercase;transform:rotate(-4deg)} .ds-ok{border-color:#2C794C;color:#2C794C} .ds-hot{border-color:#B93F1C;color:#B93F1C} .ds-no{border-color:#C0392B;color:#C0392B}"
     },
     {
       "name": "Tab Bar",
@@ -1418,7 +1418,7 @@
       "refersTo": "tab-bar",
       "description": "Плаваюча скляна пігулка з тоновою підкладкою активного пункту й круглою кнопкою створення поруч.",
       "html": "<div class=\"ds-nav-wrap\"><nav class=\"ds-tabbar\"><a class=\"ds-tab ds-tab-on\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linejoin=\"round\"><path d=\"M4 10.5 12 4l8 6.5V20h-5v-6h-6v6H4z\"/></svg>Головна</a><a class=\"ds-tab\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linejoin=\"round\"><path d=\"M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z\"/><path d=\"M9 4v14M15 6v14\"/></svg>Мапа</a><a class=\"ds-tab\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linejoin=\"round\"><rect x=\"4\" y=\"5\" width=\"16\" height=\"15\" rx=\"3\"/><path d=\"M8 3v4M16 3v4M4 10h16\"/></svg>Мої події<i></i></a><a class=\"ds-tab\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"8.5\" r=\"4\"/><path d=\"M4.5 20c1.2-3.6 4-5.5 7.5-5.5s6.3 1.9 7.5 5.5\"/></svg>Профіль</a></nav><button class=\"ds-create\" aria-label=\"Створити\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg></button></div>",
-      "css": ".ds-nav-wrap{display:flex;gap:8px;align-items:center;padding:24px 16px;background:#F2F2F4} .ds-tabbar{flex:1;display:flex;padding:8px 4px;border-radius:32px;background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.6);backdrop-filter:blur(20px) saturate(1.6);-webkit-backdrop-filter:blur(20px) saturate(1.6);box-shadow:0 8px 24px rgba(0,0,0,.10)} .ds-tab{position:relative;flex:1;height:42px;display:grid;justify-items:center;align-content:center;gap:3px;border-radius:9999px;color:#6A6A73;text-decoration:none;font:600 11px/14px -apple-system, 'SF Pro Text', Roboto, sans-serif;transition:background .2s ease-in-out,color .2s ease-in-out} .ds-tab:hover{color:#141417} .ds-tab:focus-visible{outline:2px solid #141417;outline-offset:1px} .ds-tab-on{color:#141417;background:rgba(20,20,23,.10)} .ds-tab i{position:absolute;top:2px;left:calc(50% + 8px);width:8px;height:8px;border-radius:50%;background:#E0582F} .ds-create{width:56px;height:56px;flex:none;border:none;border-radius:50%;background:#141417;color:#FFFFFF;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.10);transition: transform .28s cubic-bezier(.34,1.56,.64,1);} .ds-create:active{transform:scale(.94)} .ds-create:focus-visible{outline:2px solid #141417;outline-offset:3px}"
+      "css": ".ds-nav-wrap{display:flex;gap:8px;align-items:center;padding:24px 16px;background:#F3EEE4} .ds-tabbar{flex:1;display:flex;padding:8px 4px;border-radius:32px;background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.6);backdrop-filter:blur(20px) saturate(1.6);-webkit-backdrop-filter:blur(20px) saturate(1.6);box-shadow:0 8px 24px rgba(0,0,0,.10)} .ds-tab{position:relative;flex:1;height:42px;display:grid;justify-items:center;align-content:center;gap:3px;border-radius:9999px;color:#6B6458;text-decoration:none;font:600 11px/14px -apple-system, 'SF Pro Text', Roboto, sans-serif;transition:background .2s ease-in-out,color .2s ease-in-out} .ds-tab:hover{color:#1B1712} .ds-tab:focus-visible{outline:2px solid #1B1712;outline-offset:1px} .ds-tab-on{color:#1B1712;background:rgba(20,20,23,.10)} .ds-tab i{position:absolute;top:2px;left:calc(50% + 8px);width:8px;height:8px;border-radius:50%;background:#E0582F} .ds-create{width:56px;height:56px;flex:none;border:none;border-radius:50%;background:#1B1712;color:#FFFFFF;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.10);transition: transform .28s cubic-bezier(.34,1.56,.64,1);} .ds-create:active{transform:scale(.94)} .ds-create:focus-visible{outline:2px solid #1B1712;outline-offset:3px}"
     },
     {
       "name": "Map Cluster",
@@ -1426,7 +1426,7 @@
       "refersTo": "map-cluster",
       "description": "Кластер на мапі — квиток 46×28 із вирізами з боків, чорнилом із краєм surface; більший кластер — більший квиток.",
       "html": "<div class=\"ds-map\"><button class=\"ds-cl\" aria-label=\"4 події\">4</button><button class=\"ds-cl ds-cl-big\" aria-label=\"37 подій\">37</button></div>",
-      "css": ".ds-map{display:flex;gap:28px;align-items:center;padding:28px;background:#E8E8EC} .ds-cl{width:46px;height:28px;border:none;border-radius:7px;background:#141417;color:#FFFFFF;font:700 13px/1 'Noto Sans', sans-serif;cursor:pointer;outline:2px solid #FFFFFF;outline-offset:-2px;filter:drop-shadow(0 2px 2.5px rgba(0,0,0,.25));-webkit-mask:radial-gradient(circle 4.5px at 0 50%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle 4.5px at 100% 50%,#0000 98%,#000) right/51% 100% no-repeat;mask:radial-gradient(circle 4.5px at 0 50%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle 4.5px at 100% 50%,#0000 98%,#000) right/51% 100% no-repeat;transition:transform .28s cubic-bezier(.34,1.56,.64,1)} .ds-cl-big{transform:scale(1.2);font-size:15px} .ds-cl:active{transform:scale(.94)} .ds-cl-big:active{transform:scale(1.13)} .ds-cl:focus-visible{outline-color:#E0582F}"
+      "css": ".ds-map{display:flex;gap:28px;align-items:center;padding:28px;background:#E9E3D6} .ds-cl{width:46px;height:28px;border:none;border-radius:7px;background:#1B1712;color:#FFFFFF;font:700 13px/1 'Noto Sans', sans-serif;cursor:pointer;outline:2px solid #FFFFFF;outline-offset:-2px;filter:drop-shadow(0 2px 2.5px rgba(0,0,0,.25));-webkit-mask:radial-gradient(circle 4.5px at 0 50%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle 4.5px at 100% 50%,#0000 98%,#000) right/51% 100% no-repeat;mask:radial-gradient(circle 4.5px at 0 50%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle 4.5px at 100% 50%,#0000 98%,#000) right/51% 100% no-repeat;transition:transform .28s cubic-bezier(.34,1.56,.64,1)} .ds-cl-big{transform:scale(1.2);font-size:15px} .ds-cl:active{transform:scale(.94)} .ds-cl-big:active{transform:scale(1.13)} .ds-cl:focus-visible{outline-color:#E0582F}"
     }
   ],
   "narrative": {

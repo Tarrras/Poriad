@@ -34,41 +34,41 @@ private func blend(_ a: UInt32, _ b: UInt32, _ t: CGFloat) -> UIColor {
     )
 }
 
-/// Оболонка «Корінця» — одна нейтральна шкала з холодним відтінком: денне полотно й білі квитки, нічне графітове
+/// Оболонка «Корінця» — одна нейтральна шкала з теплим відтінком паперу («Папір», 10.11): денне полотно й паперові квитки, нічне графітове
 /// полотно й трохи світліші квитки з волосиною по краю. Колір на екрані мають лише корінці квитків і стани.
 /// Головна дія — чорнило вдень, папір уночі.
 enum Palette {
-    static let brand = Color(light: 0x141417, dark: 0xF3F3F0)
-    static let brandPressed = Color(light: 0x2E2E33, dark: 0xD6D6D2)
-    static let brandContainer = Color(light: 0xE6E6EA, dark: 0x2A2930)
-    static let onBrandContainer = Color(light: 0x141417, dark: 0xF3F3F0)
-    static let onBrand = Color(light: 0xFFFFFF, dark: 0x141417)
+    static let brand = Color(light: 0x1B1712, dark: 0xF6F0E4)
+    static let brandPressed = Color(light: 0x35302A, dark: 0xDAD3C6)
+    static let brandContainer = Color(light: 0xE8E1D4, dark: 0x302B24)
+    static let onBrandContainer = Color(light: 0x1B1712, dark: 0xF6F0E4)
+    static let onBrand = Color(light: 0xFFFFFF, dark: 0x1B1712)
 
     /// Штампова фарба: терміновість, лічильник, «залишилось мало місць».
     static let accent = Color(light: 0xE0582F, dark: 0xFF8A5B)
-    /// `accent` як колір дрібного тексту на білому: сам `accent` там дає 3,75:1, цей — 5,1:1. Заливкам і крапкам лишається `accent`.
-    static let accentText = Color(light: 0xC2431F, dark: 0xFF8A5B)
+    /// `accent` як колір дрібного тексту: сам `accent` на квитку дає 3,7:1, цей — 5,45:1 на квитку й 4,79:1 на полотні. Заливкам і крапкам лишається `accent`.
+    static let accentText = Color(light: 0xB93F1C, dark: 0xFF8A5B)
     static let accentContainer = Color(light: 0xFDE7DF, dark: 0x3F2419)
     static let onAccentContainer = Color(light: 0x7A2E14, dark: 0xFFD9C8)
 
-    static let success = Color(light: 0x2E7D4F, dark: 0x5DC389)
+    static let success = Color(light: 0x2C794C, dark: 0x5DC389)
     static let successContainer = Color(light: 0xDFF3E6, dark: 0x16311F)
     static let onSuccessContainer = Color(light: 0x1B4C2F, dark: 0xBFEBD0)
 
     static let danger = Color(light: 0xC0392B, dark: 0xFF6B5B)
     static let dangerContainer = Color(light: 0xFBE3E0, dark: 0x3C1A16)
 
-    static let ink = Color(light: 0x141417, dark: 0xF3F3F0)
-    static let inkSecondary = Color(light: 0x5E5E66, dark: 0xA6A5AD)
+    static let ink = Color(light: 0x1B1712, dark: 0xF6F0E4)
+    static let inkSecondary = Color(light: 0x625B50, dark: 0xAEA698)
     /// Контраст ≥ 4.5:1 на полотні, картці й `surfaceMuted` в обох темах: цим кольором пишуть підписи, не лише гліфи.
-    static let inkTertiary = Color(light: 0x6A6A73, dark: 0x96959E)
+    static let inkTertiary = Color(light: 0x6B6458, dark: 0x9E9688)
 
-    static let surface = Color(light: 0xFFFFFF, dark: 0x1C1B21)
+    static let surface = Color(light: 0xFFFDF8, dark: 0x221E19)
     /// Те, що плаває над темним полотном, світліше за квиток у потоці.
-    static let surfaceRaised = Color(light: 0xFFFFFF, dark: 0x26252C)
-    static let surfaceMuted = Color(light: 0xEDEDF0, dark: 0x2A2930)
-    static let canvas = Color(light: 0xF2F2F4, dark: 0x0F0F13)
-    static let canvasTint = Color(light: 0xE8E8EC, dark: 0x16161B)
+    static let surfaceRaised = Color(light: 0xFFFDF8, dark: 0x2C2721)
+    static let surfaceMuted = Color(light: 0xEEE8DC, dark: 0x302B24)
+    static let canvas = Color(light: 0xF3EEE4, dark: 0x14110D)
+    static let canvasTint = Color(light: 0xE9E3D6, dark: 0x1B1712)
 
     static let heroTop = canvas
     static let heroBottom = canvas
@@ -79,10 +79,10 @@ enum Palette {
 
     /// Корінець скасованої події — погашений, сірий в обох темах: білий друк на ньому тримає ≥ 5:1, а сама подія
     /// не блідне прозорістю (та опускала текст нижче 3:1).
-    static let voidStub = Color(light: 0x5E5E66, dark: 0x4A4950)
+    static let voidStub = Color(light: 0x625B50, dark: 0x4F4A42)
 
     /// Розділювачі у світлій темі; у темній — ще й край квитка.
-    static let hairline = Color(light: 0xE0E0E5, dark: 0x2E2D35)
+    static let hairline = Color(light: 0xE2DACB, dark: 0x363029)
 }
 
 /// Глибокий відтінок категорії для гліфів і тексту; пастель для плиток і пінів робиться з нього.
@@ -149,12 +149,12 @@ func categoryStub(_ category: EventCategory) -> Color {
     Color(blend(categoryHues[category.key] ?? 0x6B675E, 0x000000, 0.12))
 }
 
-/// Відтінок категорії для тексту й гліфів. Удень — на 16 % темніший за сирий: той давав їжі, стендапу й дитячому на білому
-/// лише 3,8–4,2:1, а з 16 % найслабша (їжа) тримає 4,55:1 навіть на полотні. Уночі освітлюється до 4.5:1.
+/// Відтінок категорії для тексту й гліфів. Удень — на 20 % темніший за сирий: той давав їжі, стендапу й дитячому на білому
+/// лише 3,8–4,2:1, а з 20 % найслабша (їжа) тримає 4,76:1 на паперовому полотні й 4,51:1 на тихій поверхні. Уночі освітлюється до 4.5:1.
 /// `categoryColor` лишається сирим відтінком для пінів і заливок.
 func categoryInk(_ category: EventCategory) -> Color {
     guard let hue = categoryHues[category.key] else { return Palette.inkSecondary }
-    return Color(UIColor { $0.userInterfaceStyle == .dark ? blend(hue, 0xFFFFFF, 0.45) : blend(hue, 0x000000, 0.16) })
+    return Color(UIColor { $0.userInterfaceStyle == .dark ? blend(hue, 0xFFFFFF, 0.45) : blend(hue, 0x000000, 0.20) })
 }
 
 /// Корінець квитка: колір жанру, а в скасованої події — погашений сірий.

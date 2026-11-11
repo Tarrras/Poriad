@@ -88,8 +88,13 @@ struct ProfileView: View {
 
     private var genericHeader: some View {
         VStack(spacing: Space.md) {
-            PoruchIcon(glyph: PoruchIcons.person, size: 36).foregroundStyle(Palette.onBrandContainer)
-                .frame(width: 88, height: 88).background(Palette.brandContainer, in: Circle())
+            if signedIn {
+                PoruchIcon(glyph: PoruchIcons.person, size: 36).foregroundStyle(Palette.onBrandContainer)
+                    .frame(width: 88, height: 88).background(Palette.brandContainer, in: Circle())
+            } else {
+                // Гість ще без обличчя: замість сірого кола — квитки зустрічей від людей, як у порожніх станах.
+                TicketFan(glyph: PoruchIcons.social, genres: (.games, .outdoors, .social))
+            }
             Text(signedIn ? Copy.account_title : Copy.guest_title).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 .multilineTextAlignment(.center)
             Text(signedIn

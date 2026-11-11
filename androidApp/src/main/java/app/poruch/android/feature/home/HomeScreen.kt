@@ -521,7 +521,8 @@ private fun PersonalSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     opened = screen.deckWeek
                     deckOpen = true
                 },
-                tile = { YourTileIcon(PoruchIcons.sparkle) }
+                // Стос — три картки віялом, а не сіра плитка з іскрою: рядок і є запрошенням погортати квитки.
+                tile = { MiniTickets(MiniTicketsKind.Deck, listOf(EventCategory.FOOD, EventCategory.ART, EventCategory.MUSIC), side = YourTile) }
             ) { Chevron() }
         }
         screen.radarDates.take(slots.dates).forEach { date -> add { DateRow(date, onIntent) } }

@@ -1063,7 +1063,7 @@ internal fun CompanySection(
         ) {
             if (teaser != null && teaser.count > 0) CompanyTeaserLine(teaser)
             // Нікого — стан словами, а не самий дисклеймер: дія поруч, у панелі внизу.
-            else if (!mine) CompanyLine(stringResource(R.string.company_none), stringResource(R.string.company_none_note))
+            else if (!mine) CompanyLine(stringResource(R.string.company_none), stringResource(R.string.company_none_note), lonely = screen.event?.category)
             if (mine) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1112,11 +1112,16 @@ private fun CompanyTeaserLine(teaser: CompanyTeaser) =
     CompanyLine(pluralStringResource(R.plurals.company_count, teaser.count, teaser.count), sharedLine(teaser.shared))
 
 @Composable
-private fun CompanyLine(title: String, detail: String?) {
+private fun CompanyLine(
+    title: String, detail: String?,
+    /** Жанр події, коли компанії ще ніхто не шукає: замість гліфа квиток цієї події й порожнє місце поруч. */
+    lonely: EventCategory? = null
+) {
     val colors = Poruch.colors
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.semantics(mergeDescendants = true) {}) {
-        Box(Modifier.size(40.dp).background(colors.surfaceMuted, RoundedCornerShape(Corner.xs)), contentAlignment = Alignment.Center) {
+        if (lonely != null) MiniTickets(MiniTicketsKind.Pair, listOf(lonely), side = 40.dp)
+        else Box(Modifier.size(40.dp).background(colors.surfaceMuted, RoundedCornerShape(Corner.xs)), contentAlignment = Alignment.Center) {
             Icon(PoruchIcons.social, null, Modifier.size(20.dp), tint = colors.ink)
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

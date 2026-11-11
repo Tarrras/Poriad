@@ -73,6 +73,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
 import app.poruch.domain.Attendee
+import app.poruch.domain.EventCategory
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.drawscope.clipPath
 import app.poruch.domain.Event
 import com.amplitude.android.sessionreplay.compose.ampBlock
 import coil3.compose.AsyncImage
@@ -103,6 +106,62 @@ data class TicketShape(
         }
         val body = Path().apply { addRoundRect(RoundRect(size.toRect(), CornerRadius(radius.toPx()))) }
         Outline.Generic(Path.combine(PathOperation.Difference, body, cuts))
+    }
+}
+
+enum class MiniTicketsKind { Deck, Pair }
+
+/**
+ * Маленька ілюстрація з квитків замість сірої плитки з гліфом (10.11, «Папір»): там, де екран кличе до дії, а показати
+ * ще нічого. Крихітні квитки тієї ж форми, корінці — кольорами жанрів; лише прикраса. `Deck` — три вертикальні картки
+ * віялом, як стос «Ваш тиждень»; `Pair` — квиток і порожнє місце поруч: на подію ще ніхто не шукає компанію.
+ */
+@Composable
+fun MiniTickets(kind: MiniTicketsKind, genres: List<EventCategory>, modifier: Modifier = Modifier, side: Dp = 52.dp) {
+    val colors = Poruch.colors
+
+    /** Квиток-крихітка; без жанру — порожнє місце пунктиром. */
+    @Composable
+    fun Card(category: EventCategory?, width: Dp, height: Dp, vertical: Boolean, turn: Float, x: Dp, y: Dp) {
+        val stub = (if (vertical) height else width) * 0.34f
+        val shape = TicketShape(stub, vertical, radius = 3.dp, notch = 1.5.dp)
+        val print = category?.let { categoryStub(it) }
+        Canvas(
+            Modifier.offset(x, y).rotate(turn).size(width, height)
+                .then(if (print != null) Modifier.shadow(1.dp, shape) else Modifier)
+        ) {
+            val outline = shape.createOutline(size, layoutDirection, this)
+            if (print == null) {
+                drawOutline(
+                    outline, colors.inkTertiary.copy(alpha = 0.7f),
+                    style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.5.dp.toPx(), 2.dp.toPx())))
+                )
+            } else {
+                drawOutline(outline, colors.surface)
+                clipPath((outline as Outline.Generic).path) {
+                    val length = stub.toPx()
+                    if (vertical) drawRect(print, Offset(0f, size.height - length), Size(size.width, length))
+                    else drawRect(print, Offset(size.width - length, 0f), Size(length, size.height))
+                }
+            }
+        }
+    }
+    Box(
+        modifier.size(side).background(colors.surfaceMuted, if (side > 44.dp) Radius.sm else RoundedCornerShape(Corner.xs)).decorative(),
+        contentAlignment = Alignment.Center
+    ) {
+        when (kind) {
+            MiniTicketsKind.Deck -> {
+                val fan = listOf(Triple(-14f, -0.17f, 0.03f), Triple(14f, 0.17f, 0.03f), Triple(0f, 0f, -0.02f))
+                genres.zip(fan).forEach { (category, place) ->
+                    Card(category, side * 0.40f, side * 0.56f, vertical = true, place.first, side * place.second, side * place.third)
+                }
+            }
+            MiniTicketsKind.Pair -> {
+                Card(null, side * 0.60f, side * 0.36f, vertical = false, 7f, side * 0.08f, side * 0.15f)
+                Card(genres.firstOrNull(), side * 0.60f, side * 0.36f, vertical = false, -8f, side * -0.07f, side * -0.11f)
+            }
+        }
     }
 }
 

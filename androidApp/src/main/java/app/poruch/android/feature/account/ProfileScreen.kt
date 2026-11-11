@@ -30,6 +30,7 @@ import app.poruch.android.ui.*
 import app.poruch.android.feature.detail.rememberImagePicker
 import app.poruch.domain.AccountRules
 import app.poruch.domain.CompanyRules
+import app.poruch.domain.EventCategory
 import app.poruch.domain.Profile
 import app.poruch.domain.ProfileRules
 import com.amplitude.android.sessionreplay.compose.ampBlock
@@ -178,8 +179,13 @@ private fun ProfileHeader(state: ProfileState, onIntent: (ProfileIntent) -> Unit
                 Modifier.fillMaxWidth(), icon = PoruchIcons.edit
             )
         } else {
-            Box(Modifier.size(88.dp).background(colors.brandContainer, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(PoruchIcons.person, null, Modifier.size(36.dp), tint = colors.onBrandContainer)
+            if (state.signedIn) {
+                Box(Modifier.size(88.dp).background(colors.brandContainer, CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(PoruchIcons.person, null, Modifier.size(36.dp), tint = colors.onBrandContainer)
+                }
+            } else {
+                // Гість ще без обличчя: замість сірого кола — квитки зустрічей від людей, як у порожніх станах.
+                TicketFan(PoruchIcons.social, genres = Triple(EventCategory.GAMES, EventCategory.OUTDOORS, EventCategory.SOCIAL))
             }
             Text(
                 stringResource(if (state.signedIn) R.string.account_title else R.string.guest_title),

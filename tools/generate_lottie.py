@@ -22,11 +22,12 @@ FPS = 60
 ORANGE = "#D9603A"
 # Відтінки категорій з DesignSystem.swift / Tokens.kt; у темній темі — categoryInk (+45 % білого).
 CATEGORIES = {"music": "#6D4AC9", "art": "#C43B6B", "sport": "#0F7F73", "food": "#C96A1E", "games": "#2F63C4"}
+# «Папір» (10.11): шпилька — чорнило / нічний папір, диск мапи — `canvasTint`, дороги й піни — `surface`.
 THEMES = {
-    "light": {"pin": "#1D1D1F", "surface": "#FFFFFF", "disc": "#EBEBF0", "road": "#FFFFFF",
-              "ring": "#C7C7CC", "shadow": 14},
-    "dark": {"pin": "#F5F3EE", "surface": "#202027", "disc": "#141419", "road": "#24242C",
-             "ring": "#3A3A42", "shadow": 0},
+    "light": {"pin": "#1B1712", "surface": "#FFFDF8", "disc": "#E9E3D6", "road": "#FFFDF8",
+              "ring": "#CEC6B6", "shadow": 14},
+    "dark": {"pin": "#F6F0E4", "surface": "#221E19", "disc": "#1B1712", "road": "#2C2721",
+             "ring": "#3E382F", "shadow": 0},
 }
 
 EASE_IN = ({"x": 0.55, "y": 0}, {"x": 0.9, "y": 0.6})  # падіння з прискоренням
@@ -248,8 +249,8 @@ def empty(theme):
 
 # «Корінець» (DESIGN.md): порожній квиток, як `BlankTicket`, — тема з Tokens.kt / DesignSystem.swift.
 KORINETS = {
-    "light": {"surface": "#FFFFFF", "muted": "#EDEDF0", "hairline": "#E0E0E5", "outline": "#6A6A73", "accent": "#E0582F"},
-    "dark": {"surface": "#1C1B21", "muted": "#2A2930", "hairline": "#2E2D35", "outline": "#96959E", "accent": "#FF8A5B"},
+    "light": {"surface": "#FFFDF8", "muted": "#EEE8DC", "hairline": "#E2DACB", "outline": "#6B6458", "accent": "#E0582F"},
+    "dark": {"surface": "#221E19", "muted": "#302B24", "hairline": "#363029", "outline": "#9E9688", "accent": "#FF8A5B"},
 }
 
 

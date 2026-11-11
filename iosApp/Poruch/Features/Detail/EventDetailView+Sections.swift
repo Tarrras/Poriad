@@ -1057,7 +1057,7 @@ extension EventDetailView {
             VStack(alignment: .leading, spacing: Space.md) {
                 if let teaser, teaser.count > 0 { companyTeaserLine(teaser) }
                 // Нікого — стан словами, а не самий дисклеймер: дія поруч, у панелі внизу.
-                else if !mine { companyLine(Copy.company_none, Copy.company_none_note) }
+                else if !mine { companyLine(Copy.company_none, Copy.company_none_note, lonely: view.event?.category) }
                 if mine {
                     HStack(alignment: .center, spacing: Space.md) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -1115,10 +1115,15 @@ extension EventDetailView {
                     teaser.shared.isEmpty ? nil : Copy.company_shared(teaser.shared.map { categoryName($0).lowercased() }.joined(separator: ", ")))
     }
 
-    private func companyLine(_ title: String, _ detail: String?) -> some View {
+    /// `lonely` — жанр події, коли компанії ще ніхто не шукає: замість гліфа квиток цієї події й порожнє місце поруч.
+    private func companyLine(_ title: String, _ detail: String?, lonely: EventCategory? = nil) -> some View {
         HStack(alignment: .center, spacing: Space.md) {
-            PoruchIcon(glyph: PoruchIcons.social, size: 20).foregroundStyle(Palette.ink)
-                .frame(width: 40, height: 40).background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
+            if let lonely {
+                MiniTickets(kind: .pair, genres: [lonely], side: 40)
+            } else {
+                PoruchIcon(glyph: PoruchIcons.social, size: 20).foregroundStyle(Palette.ink)
+                    .frame(width: 40, height: 40).background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
                     .fixedSize(horizontal: false, vertical: true)

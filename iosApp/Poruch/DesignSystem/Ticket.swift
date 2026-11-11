@@ -191,6 +191,57 @@ struct StubTile: View {
     }
 }
 
+/// Маленька ілюстрація з квитків замість сірої плитки з гліфом (10.11, «Папір»): там, де екран кличе до дії, а показати
+/// ще нічого. Крихітні квитки тієї ж форми, корінці — кольорами жанрів; лише прикраса. `deck` — три вертикальні картки
+/// віялом, як стос «Ваш тиждень»; `pair` — квиток і порожнє місце поруч: на подію ще ніхто не шукає компанію.
+struct MiniTickets: View {
+    enum Kind { case deck, pair }
+    let kind: Kind
+    let genres: [EventCategory]
+    var side: CGFloat = 52
+
+    /// Квиток-крихітка; без жанру — порожнє місце пунктиром.
+    private func card(_ category: EventCategory?, width: CGFloat, height: CGFloat, vertical: Bool) -> some View {
+        let stub = (vertical ? height : width) * 0.34
+        let shape = TicketShape(vertical: vertical, stub: stub, radius: 3, notch: 1.5)
+        return ZStack(alignment: vertical ? .bottom : .trailing) {
+            if let category {
+                Palette.surface
+                categoryStub(category).frame(width: vertical ? nil : stub, height: vertical ? stub : nil)
+            }
+        }
+        .frame(width: width, height: height)
+        .clipShape(shape)
+        .overlay {
+            if category == nil { shape.stroke(Palette.inkTertiary.opacity(0.7), style: StrokeStyle(lineWidth: 1, dash: [2.5, 2])) }
+        }
+        .shadow(color: category == nil ? .clear : Palette.shadowSpot, radius: 1.5, y: 0.5)
+    }
+
+    var body: some View {
+        ZStack {
+            switch kind {
+            case .deck:
+                let (width, height) = (side * 0.40, side * 0.56)
+                let fan: [(Double, CGFloat, CGFloat)] = [(-14, -0.17, 0.03), (14, 0.17, 0.03), (0, 0, -0.02)]
+                ForEach(Array(zip(genres, fan).enumerated()), id: \.offset) { _, item in
+                    card(item.0, width: width, height: height, vertical: true)
+                        .rotationEffect(.degrees(item.1.0)).offset(x: side * item.1.1, y: side * item.1.2)
+                }
+            case .pair:
+                let (width, height) = (side * 0.60, side * 0.36)
+                card(nil, width: width, height: height, vertical: false)
+                    .rotationEffect(.degrees(7)).offset(x: side * 0.08, y: side * 0.15)
+                card(genres.first, width: width, height: height, vertical: false)
+                    .rotationEffect(.degrees(-8)).offset(x: -side * 0.07, y: -side * 0.11)
+            }
+        }
+        .frame(width: side, height: side)
+        .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: side > 44 ? Corner.sm : Corner.xs, style: .continuous))
+        .decorative()
+    }
+}
+
 /// Штамп стану на квитку: контур тоном і легкий нахил, як гумовий штамп на касі. На фото й корінці — білий по затемненню.
 struct TicketStamp: View {
     let text: String

@@ -77,47 +77,47 @@ data class PoruchColors(
 )
 
 /**
- * Оболонка «Корінця» — одна нейтральна шкала з холодним відтінком: денне полотно й білі квитки, нічне графітове полотно
+ * Оболонка «Корінця» — одна нейтральна шкала з теплим відтінком паперу («Папір», 10.11): денне полотно й паперові квитки, нічне графітове полотно
  * й трохи світліші квитки з волосиною по краю. Колір на екрані мають лише корінці квитків і стани. Головна дія — чорнило
  * вдень, папір уночі.
  */
 val LightPoruchColors = PoruchColors(
-    brand = Color(0xFF141417),
-    brandPressed = Color(0xFF2E2E33),
-    brandContainer = Color(0xFFE6E6EA),
-    onBrandContainer = Color(0xFF141417),
+    brand = Color(0xFF1B1712),
+    brandPressed = Color(0xFF35302A),
+    brandContainer = Color(0xFFE8E1D4),
+    onBrandContainer = Color(0xFF1B1712),
     accent = Color(0xFFE0582F),
-    accentText = Color(0xFFC2431F),
+    accentText = Color(0xFFB93F1C),
     accentContainer = Color(0xFFFDE7DF),
     onAccentContainer = Color(0xFF7A2E14),
-    success = Color(0xFF2E7D4F),
+    success = Color(0xFF2C794C),
     successContainer = Color(0xFFDFF3E6),
     onSuccessContainer = Color(0xFF1B4C2F),
     danger = Color(0xFFC0392B),
     dangerContainer = Color(0xFFFBE3E0),
-    ink = Color(0xFF141417),
-    inkSecondary = Color(0xFF5E5E66),
-    inkTertiary = Color(0xFF6A6A73),
-    surface = Color(0xFFFFFFFF),
-    surfaceRaised = Color(0xFFFFFFFF),
-    surfaceMuted = Color(0xFFEDEDF0),
-    canvas = Color(0xFFF2F2F4),
-    canvasTint = Color(0xFFE8E8EC),
-    heroTop = Color(0xFFF2F2F4),
-    heroBottom = Color(0xFFF2F2F4),
+    ink = Color(0xFF1B1712),
+    inkSecondary = Color(0xFF625B50),
+    inkTertiary = Color(0xFF6B6458),
+    surface = Color(0xFFFFFDF8),
+    surfaceRaised = Color(0xFFFFFDF8),
+    surfaceMuted = Color(0xFFEEE8DC),
+    canvas = Color(0xFFF3EEE4),
+    canvasTint = Color(0xFFE9E3D6),
+    heroTop = Color(0xFFF3EEE4),
+    heroBottom = Color(0xFFF3EEE4),
     shadowAmbient = Color(0x0F000000),
     shadowSpot = Color(0x1A000000),
-    hairline = Color(0xFFE0E0E5),
-    voidStub = Color(0xFF5E5E66),
+    hairline = Color(0xFFE2DACB),
+    voidStub = Color(0xFF625B50),
     onBrand = Color(0xFFFFFFFF),
     dark = false
 )
 
 val DarkPoruchColors = PoruchColors(
-    brand = Color(0xFFF3F3F0),
-    brandPressed = Color(0xFFD6D6D2),
-    brandContainer = Color(0xFF2A2930),
-    onBrandContainer = Color(0xFFF3F3F0),
+    brand = Color(0xFFF6F0E4),
+    brandPressed = Color(0xFFDAD3C6),
+    brandContainer = Color(0xFF302B24),
+    onBrandContainer = Color(0xFFF6F0E4),
     accent = Color(0xFFFF8A5B),
     accentText = Color(0xFFFF8A5B),
     accentContainer = Color(0xFF3F2419),
@@ -127,21 +127,21 @@ val DarkPoruchColors = PoruchColors(
     onSuccessContainer = Color(0xFFBFEBD0),
     danger = Color(0xFFFF6B5B),
     dangerContainer = Color(0xFF3C1A16),
-    ink = Color(0xFFF3F3F0),
-    inkSecondary = Color(0xFFA6A5AD),
-    inkTertiary = Color(0xFF96959E),
-    surface = Color(0xFF1C1B21),
-    surfaceRaised = Color(0xFF26252C),
-    surfaceMuted = Color(0xFF2A2930),
-    canvas = Color(0xFF0F0F13),
-    canvasTint = Color(0xFF16161B),
-    heroTop = Color(0xFF0F0F13),
-    heroBottom = Color(0xFF0F0F13),
+    ink = Color(0xFFF6F0E4),
+    inkSecondary = Color(0xFFAEA698),
+    inkTertiary = Color(0xFF9E9688),
+    surface = Color(0xFF221E19),
+    surfaceRaised = Color(0xFF2C2721),
+    surfaceMuted = Color(0xFF302B24),
+    canvas = Color(0xFF14110D),
+    canvasTint = Color(0xFF1B1712),
+    heroTop = Color(0xFF14110D),
+    heroBottom = Color(0xFF14110D),
     shadowAmbient = Color(0x4D000000),
     shadowSpot = Color(0x66000000),
-    hairline = Color(0xFF2E2D35),
-    voidStub = Color(0xFF4A4950),
-    onBrand = Color(0xFF141417),
+    hairline = Color(0xFF363029),
+    voidStub = Color(0xFF4F4A42),
+    onBrand = Color(0xFF1B1712),
     dark = true
 )
 
@@ -186,10 +186,10 @@ fun categoryStub(category: EventCategory): Color =
  */
 @Composable
 fun categoryInk(category: EventCategory): Color =
-    // Удень — на 16 % темніший за сирий: той давав їжі, стендапу й дитячому на білому 3,8–4,2:1, а з 16 % найслабша
-    // (їжа) тримає 4,55:1 навіть на полотні.
+    // Удень — на 20 % темніший за сирий: той давав їжі, стендапу й дитячому на білому 3,8–4,2:1, а з 20 % найслабша
+    // (їжа) тримає 4,76:1 на паперовому полотні й 4,51:1 на тихій поверхні.
     if (Poruch.colors.dark) lerp(categoryColor(category), Color.White, 0.45f)
-    else palette(category).hue.let { Color(it.red * 0.84f, it.green * 0.84f, it.blue * 0.84f) }
+    else palette(category).hue.let { Color(it.red * 0.80f, it.green * 0.80f, it.blue * 0.80f) }
 
 /** Корінець квитка: колір жанру, а в скасованої події — погашений сірий. */
 @Composable
