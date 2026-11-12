@@ -315,9 +315,9 @@ ${ticketUrl && imported ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""
     ${open ? `<a class="open-app" href="poriad://event/${e.id}${by}">Уже є застосунок? Відкрити</a>` : ""}</div>
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>
-${listed ? (live ? `<script type="module" src="/js/event.js?v=21"></script>` : "") : `${joinSheet(e, ct, now)}
-<script type="module" src="/js/join.js?v=21"></script>`}${promo ? `
-<script type="module" src="/js/promo.js?v=21"></script>` : ""}`,
+${listed ? (live ? `<script type="module" src="/js/event.js?v=22"></script>` : "") : `${joinSheet(e, ct, now)}
+<script type="module" src="/js/join.js?v=22"></script>`}${promo ? `
+<script type="module" src="/js/promo.js?v=22"></script>` : ""}`,
   });
 }
 
@@ -776,8 +776,8 @@ function layout({ title, description, image, url, head, body, from = "event" }) 
 <meta name="theme-color" content="#14110D" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=21">
-<link rel="stylesheet" href="/web.css?v=21">
+<link rel="stylesheet" href="/tokens.css?v=22">
+<link rel="stylesheet" href="/web.css?v=22">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">

@@ -313,7 +313,7 @@ footer.site a:hover { color: var(--ink); }
 .found h3 { font: 700 24px/28px var(--cond); margin-bottom: 16px; }
 
 /* «Шукаю компанію»: квадратна пластина — справжня подія з афіші квитком, праворуч вкладки. */
-.plate-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 5vw, 80px); min-height: 88svh; align-items: center; }
+.plate-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 5vw, 80px); align-items: center; }
 .plate { --stub-w: 96px; --hole: 12px; --r: var(--r-lg); aspect-ratio: 1.12; cursor: pointer; }
 .plate .cover { position: relative; flex: 1; overflow: hidden; background: var(--surface-muted); }
 .plate .cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1.6s ease; }
