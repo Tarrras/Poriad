@@ -94,6 +94,20 @@ assert.equal(down.headers.get("cache-control"), "no-store", "збій не ке�
 assert.equal([...store.keys()].filter((k) => k.includes("geocode")).length, 1);
 assert.equal(places([], "Київ").length, 0);
 
+// Пошук закладу (`kind=venue`): рамка міста, без вулиць і зупинок; назва — підказка, адреса — деталь; свій ключ кешу.
+calls = [];
+globalThis.fetch = async (url) => { calls.push(String(url)); return new Response(JSON.stringify({ features: photon })); };
+const venues = await (await go("q=%D0%BF%D1%80%D0%BE%D1%82%D1%96%D1%81%D1%82%D0%BE&city=%D0%9A%D0%B8%D1%97%D0%B2&kind=venue")).json();
+const venueAsk = new URL(calls[0]);
+assert.equal(venueAsk.searchParams.get("bbox"), "30.0734,50.1501,30.9734,50.7501");
+assert.deepEqual(venueAsk.searchParams.getAll("osm_tag"), ["!highway", "!railway", "!public_transport", "!place", "!boundary", "!landuse"]);
+assert.deepEqual(venues.map((p) => [p.label, p.detail]), [
+  ["Ощадбанк", "вулиця Хрещатик, 22"], ["Пекарня Протісто", ""], ["Академмістечко", "вулиця Академіка Єфремова"],
+], "без назви — не заклад");
+await go("q=%D0%BF%D1%80%D0%BE%D1%82%D1%96%D1%81%D1%82%D0%BE&city=%D0%9A%D0%B8%D1%97%D0%B2");
+assert.equal(calls.length, 2, "адреса й заклад з тим самим запитом — різні відповіді в кеші");
+assert.equal(places([{ properties: { name: "Я".repeat(150), countrycode: "UA" }, geometry: { coordinates: [30, 50] } }], "Київ", true)[0].label.length, 120, "назва в межах add_my_place");
+
 // Ліміт на адресу (GEOCODE_LIMIT): лише запити повз кеш, ключ — cf-connecting-ip; понад ліміт — 429 без Photon.
 const keys = [];
 const limited = (success) => ({ ...env, GEOCODE_LIMIT: { limit: async ({ key }) => { keys.push(key); return { success }; } } });

@@ -155,12 +155,14 @@ class Dictionary:
         self._by_key: dict[str, tuple[str, str | None]] = {}
         self._multi: dict[str, list[tuple[list[str], str]]] = collections.defaultdict(list)
         self.merges: list[tuple[str, str]] = []      # (ключ псевдоніма, ключ канонічного) з ручної вивірки
+        self.aliases: dict[str, list[str]] = {}       # ключ канонічного -> інші написання, для `artists.aliases`
         for canonical, entry in (entries or {}).items():
             if canonical == "_" or not isinstance(entry, dict):
                 continue
             kind = entry.get("kind")
             if kind is not None and kind not in KINDS:
                 raise ValueError(f"artists.json: невідомий kind {kind!r} у {canonical!r}")
+            self.aliases[key(canonical)] = [a for a in dict.fromkeys(entry.get("aliases", [])) if key(a) != key(canonical)]
             for name in [canonical, *entry.get("aliases", [])]:
                 self._by_key[key(name)] = (canonical, kind)
                 self._index(name, canonical)

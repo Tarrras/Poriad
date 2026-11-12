@@ -794,7 +794,7 @@ function paintAccount() {
 // ---- «Заклад і артист» (docs/creation-platform-plan-2026-11.md, етап 1): організатор сам називає заклад чи артиста
 // своїм — одразу, без підтвердження. Сервер не дає перехопити зайняте й тримає стелю; тут — лише пошук і рядки.
 let claims = { places: [], artists: [] };
-let claimOptions = []; // підказки відкритого списку: {kind, id?, label, detail, taken?, add?, lat?, lon?}
+let claimOptions = []; // підказки відкритого списку: {kind, id?, label, detail, taken?, add?, map?, lat?, lon?}
 let claimSearch = 0; // номер запиту: запізніла відповідь не перетирає свіжішу
 
 /** Де заклад: адреса, а без неї місто. Адреса з афіші часто вже містить місто, тож разом не пишемо. */
@@ -815,13 +815,22 @@ export function claimRows(c) {
     ...(c?.artists ?? []).map((a) => ({ kind: "artist", id: a.id, name: a.name, detail: a.kind === "group" ? "Гурт" : "Артист", slug: a.slug ?? "", page: `/a/${a.slug || a.id}` })),
   ];
 }
-/** Знайдене → підказки; останнім — «немає в списку», якщо назви ще нема серед знайдених. */
-export function claimChoices(kind, found, text) {
-  const q = text.trim(), same = (name) => name.trim().toLowerCase() === q.toLowerCase();
+/** Назва для порівняння: «Кафе „Атлас"» і «кафе атлас» — одна. */
+const nameKey = (name) => name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+/**
+ * Знайдене → підказки. Наш каталог (лише місця, де вже були події) першим, далі заклади з мапи (`/api/geocode?kind=venue`),
+ * яких у каталозі нема; останнім — «немає в списку», якщо такої назви нема ніде.
+ */
+export function claimChoices(kind, found, text, map = []) {
+  const q = text.trim(), same = (name) => nameKey(name) === nameKey(q);
   const list = (found ?? []).map((x) => ({ kind, id: x.id, label: x.name, taken: Boolean(x.taken),
     detail: x.taken ? "уже веде інший акаунт" : kind === "place" ? placeLine(x) : x.kind === "group" ? "Гурт" : "Артист" }));
-  if (q.length >= 2 && !list.some((x) => same(x.label))) list.push({ kind, add: true, label: `Немає в списку — додати «${q}»`, detail: "" });
-  return list;
+  const known = new Set(list.map((x) => nameKey(x.label)));
+  const fresh = (map ?? []).filter((v) => !known.has(nameKey(v.label)))
+    .map((v) => ({ kind, map: true, label: v.label, detail: v.detail, lat: v.lat, lon: v.lon }));
+  const all = [...list.slice(0, fresh.length ? 5 : 8), ...fresh].slice(0, 8);
+  if (q.length >= 2 && !all.some((x) => same(x.label))) all.push({ kind, add: true, label: `Немає в списку — додати «${q}»`, detail: "" });
+  return all;
 }
 
 /** Свої заклади для редактора події: лише в містах сайту; адреса події — адреса закладу, а без неї його назва. */
@@ -877,10 +886,15 @@ function setupClaims() {
     input.addEventListener("input", () => later(async () => {
       const text = input.value.trim(), turn = ++claimSearch;
       if (text.length < 2) return closeClaimOptions();
-      let found = [];
-      try { found = await rpc(kind === "place" ? "find_places" : "find_artists", kind === "place" ? { p_text: text, p_city: city.value } : { p_text: text }); } catch { /* без підказок лишається «додати» */ }
+      // Без підказок лишається «додати»: збій каталогу чи мапи не ховає іншого.
+      const [found, map] = await Promise.all([
+        rpc(kind === "place" ? "find_places" : "find_artists", kind === "place" ? { p_text: text, p_city: city.value } : { p_text: text }).catch(() => []),
+        kind === "place" && text.length >= 3
+          ? fetch(`/api/geocode?${new URLSearchParams({ q: text, city: city.value, kind: "venue" })}`).then((r) => (r.ok ? r.json() : [])).catch(() => [])
+          : [],
+      ]);
       if (turn !== claimSearch || input.value.trim() !== text) return;
-      showClaimOptions(kind, claimChoices(kind, found, text), input);
+      showClaimOptions(kind, claimChoices(kind, found, text, map), input);
     }));
   }
   // Адреса нового закладу — ті самі підказки, що в редакторі події.
@@ -956,12 +970,19 @@ function setupClaims() {
       return;
     }
     input.value = "";
+    // Заклад з мапи: у каталог з назвою й точкою OSM (на тих самих координатах уже є — сервер візьме його).
+    if (o.map) {
+      const args = { p_name: o.label, p_city: city.value, p_address: o.detail || null, p_latitude: o.lat, p_longitude: o.lon };
+      return void claimAct("place", true, () => rpc("add_my_place", args), "Заклад додано. Ваші події за цією адресою тепер на ньому.");
+    }
     const place = o.kind === "place";
     claimAct(o.kind, false, () => rpc(place ? "claim_place" : "claim_artist", place ? { p_place: o.id } : { p_artist: o.id }),
       place ? "Готово. Ваші події за цією адресою тепер на закладі." : "Готово. Ваші події тепер з цим артистом.");
   });
-  // Клік повз список закриває його.
-  document.addEventListener("click", (event) => { if (!event.target.closest("[data-claims] .kab-field")) closeClaimOptions(); });
+  // Клік повз відкритий список закриває його — і в сусідньому полі картки теж.
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("[data-claims] .kab-field")?.querySelector("[data-claim-options]:not([hidden])")) closeClaimOptions();
+  });
 }
 
 function bioCount() {

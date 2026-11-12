@@ -1,5 +1,8 @@
 -- Запускати адміністратором бази. Усе відкочується. «Мій заклад» і «Я артист» (20261127120000): організатор сам
 -- називає заклад чи артиста своїм; зайняте не перехопити, стеля — три, відмова знімає події. Чужих рядків не чіпає.
+-- 20261202120000: заклад на чужій точці з іншою назвою — новий, поруч, а не той, що вже там.
+-- 20261202130000: пошук за нашими псевдонімами майданчиків (рядки 'manual' у venues у точці місця).
+-- 20261202140000: псевдоніми артистів (artists.aliases з artists.json) — пошук і «додати» беруть канонічного.
 begin;
 
 select set_config('test.u1',gen_random_uuid()::text,true),set_config('test.u2',gen_random_uuid()::text,true);
@@ -7,7 +10,10 @@ insert into auth.users(id,email,raw_user_meta_data)
 select id::uuid,'poruch-claim-'||id||'@example.invalid',jsonb_build_object('display_name','C','birth_date','1990-01-01')
 from unnest(array[current_setting('test.u1'),current_setting('test.u2')]) id;
 insert into public.places(name,city,address,latitude,longitude,source) values ('Кафе Claim','Ocean','Buoy, 3',-43.1,-33.1,'osm');
-insert into public.artists(name,key,kind) values ('Claim Solo','claim solo','person');
+insert into public.artists(name,key,kind,aliases) values ('Claim Solo','claim solo','person',array['Клейм-Соло Сольний']);
+insert into public.venues(norm_name,norm_address,display_name,latitude,longitude,city,source) values
+ ('мцкм claim жовтневий','','Кафе Claim',-43.1,-33.1,'Ocean','manual'),
+ ('photon claim fotonne','','Кафе Claim',-43.1,-33.1,'Ocean','photon');
 select set_config('test.place',(select id::text from public.places where name='Кафе Claim'),true),
  set_config('test.artist',(select id::text from public.artists where key='claim solo'),true),
  set_config('test.ev',gen_random_uuid()::text,true);
@@ -38,6 +44,11 @@ begin
  assert jsonb_array_length(v) = 1 and v->0->>'name' = 'Кафе Claim' and not (v->0 ? 'taken'),'found by a part of the name, free';
  assert public.find_places('c','Ocean') = '[]'::jsonb,'one letter is not a search';
  assert public.find_places('claim','Nowhere') = '[]'::jsonb,'another city';
+ assert public.find_places('«МЦКМ» Claim','Ocean')->0->>'name' = 'Кафе Claim','found by our alias, punctuation aside';
+ assert public.find_places('Жовтневий','Ocean')->0->>'name' = 'Кафе Claim','by a part of the alias';
+ assert public.find_places('Жовтневий','Nowhere') = '[]'::jsonb,'alias in another city';
+ assert public.find_places('fotonne','Ocean') = '[]'::jsonb,'only our aliases, not every name from the posters';
+ assert public.find_places('--','Ocean') = '[]'::jsonb,'punctuation alone matches nothing';
  v := public.claim_place(current_setting('test.place')::uuid);
  assert jsonb_array_length(v->'places') = 1 and v->'places'->0->>'id' = current_setting('test.place'),'claimed';
  assert jsonb_array_length(public.claim_place(current_setting('test.place')::uuid)->'places') = 1,'a repeat is a no-op';
@@ -49,20 +60,27 @@ do $$ begin
  assert (select place_id = current_setting('test.place')::uuid from public.events where id = current_setting('test.ev')::uuid),'the upcoming event moved to the place';
 end $$;
 
--- u2: бачить, що зайнято, і перехопити не може — ні вибором, ні «новим» закладом на тих самих координатах.
+-- u2: бачить, що зайнято, і перехопити не може — ні вибором, ні «новим» закладом з тією самою назвою на тих самих
+-- координатах. Інша назва в тій самій точці (ресторан у ТЦ) — свій заклад поруч.
 set local role authenticated;
 select set_config('request.jwt.claim.sub',current_setting('test.u2'),true);
-do $$ begin
+do $$
+declare v jsonb;
+begin
  assert (public.find_places('claim','Ocean')->0->>'taken')::boolean,'taken for another account';
  begin perform public.claim_place(current_setting('test.place')::uuid); raise exception 'took over a place';
  exception when sqlstate 'P0001' then assert sqlerrm='PLACE_TAKEN'; end;
- begin perform public.add_my_place('Моє кафе','Ocean','Buoy, 3',-43.1,-33.1); raise exception 'took over by coordinates';
+ begin perform public.add_my_place('кафе «claim»','Ocean','Buoy, 3',-43.1,-33.1); raise exception 'took over by coordinates';
  exception when sqlstate 'P0001' then assert sqlerrm='PLACE_TAKEN'; end;
  assert public.release_place(current_setting('test.place')::uuid) = '{"places":[],"artists":[]}'::jsonb,'releasing someone else''s is a no-op';
+ v := public.add_my_place('Ресторан Claim','Ocean','Buoy, 3',-43.1,-33.1);
+ assert jsonb_array_length(v->'places') = 1 and v->'places'->0->>'id' <> current_setting('test.place'),'another name: a place of its own';
 end $$;
 reset role;
 do $$ begin
  assert (select owner_id = current_setting('test.u1')::uuid from public.places where id = current_setting('test.place')::uuid),'still the first owner';
+ assert (select owner_id = current_setting('test.u2')::uuid and source = 'manual' and abs(latitude + 43.09999) < 1e-9 and longitude = -33.1
+   from public.places where name = 'Ресторан Claim'),'a metre north of the taken point';
 end $$;
 
 -- u1: нові заклади, перевірки назви й стеля три.
@@ -97,6 +115,7 @@ declare v jsonb;
 begin
  v := public.find_artists('claim so');
  assert jsonb_array_length(v) = 1 and v->0->>'id' = current_setting('test.artist'),'found';
+ assert public.find_artists('клейм соло')->0->>'id' = current_setting('test.artist'),'found by an alias, punctuation aside';
  assert jsonb_array_length(public.claim_artist(current_setting('test.artist')::uuid)->'artists') = 1;
  v := public.add_my_artist('  Гурт  «Claim Band» ','group');
  assert jsonb_array_length(v->'artists') = 2,'a new artist is mine at once';
@@ -115,6 +134,8 @@ do $$ begin
  begin perform public.claim_artist(current_setting('test.artist')::uuid); raise exception 'took over an artist';
  exception when sqlstate 'P0001' then assert sqlerrm='ARTIST_TAKEN'; end;
  begin perform public.add_my_artist('Гурт Claim Band'); raise exception 'took over by name';
+ exception when sqlstate 'P0001' then assert sqlerrm='ARTIST_TAKEN'; end;
+ begin perform public.add_my_artist('«Клейм-Соло» сольний'); raise exception 'took over by an alias';
  exception when sqlstate 'P0001' then assert sqlerrm='ARTIST_TAKEN'; end;
 end $$;
 reset role;
@@ -139,7 +160,7 @@ end $$;
 -- Тепер заклад може взяти інший.
 set local role authenticated;
 select set_config('request.jwt.claim.sub',current_setting('test.u2'),true);
-do $$ begin assert jsonb_array_length(public.claim_place(current_setting('test.place')::uuid)->'places') = 1,'free again'; end $$;
+do $$ begin assert jsonb_array_length(public.claim_place(current_setting('test.place')::uuid)->'places') = 2,'free again'; end $$;
 reset role;
 
 rollback;

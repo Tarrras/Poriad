@@ -422,6 +422,27 @@ class PruneArtists(unittest.TestCase):
         self.assertIn("public.follows f where f.target_kind = 'artist'", sql)  # підписник утримує артиста
 
 
+class ArtistAliases(unittest.TestCase):
+    def test_dictionary_aliases_go_to_the_canonical_key_and_are_guarded(self):
+        from .emit import artist_aliases_sql
+        d = Dictionary({"_": "коментар", "Бродячий Стендап": {"kind": "show", "aliases": ["Бродячого Стендапу", "бродячий стендап", "Бродячого Стендапу"]},
+                        "Comedy Shelter": {"kind": "show"}, "Кайф Продакшн": {"kind": "promoter", "aliases": ["Кайф"]}})
+        self.assertEqual(d.aliases[key("Бродячий Стендап")], ["Бродячого Стендапу"], "без самого імені й повторів")
+        self.assertEqual(d.aliases[key("Comedy Shelter")], [], "без псевдонімів — порожньо: прибраний з файлу зникає й з бази")
+        sql = artist_aliases_sql(d.aliases)
+        self.assertIn("column_name = 'aliases'", sql)                       # база без міграції не падає
+        self.assertIn(f"('{key('Бродячий Стендап')}',array['Бродячого Стендапу']::text[])", sql)
+        self.assertIn(f"('{key('Comedy Shelter')}',array[]::text[])", sql)
+        self.assertIn("a.aliases is distinct from v.aliases", sql)
+        self.assertEqual(artist_aliases_sql({}), "")
+
+    def test_shipped_dictionary_renders(self):
+        from .emit import artist_aliases_sql
+        d = Dictionary.load()
+        self.assertTrue(any(d.aliases.values()))
+        self.assertTrue(artist_aliases_sql(d.aliases).startswith("do $"))
+
+
 class SettleBrands(unittest.TestCase):
     def test_brand_in_description_alone_is_not_an_artist(self):
         """«Бродячий Стендап» стоїть в описах чужих шоу того ж промоутера: згадка не доводить виступу."""

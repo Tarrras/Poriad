@@ -586,6 +586,23 @@ def merge_artist_follows_sql(merges: list[tuple[str, str]]) -> str:
             "  end if;\n", "")
 
 
+def artist_aliases_sql(aliases: dict[str, list[str]]) -> str:
+    """Інші написання з `artists.json` → `artists.aliases` (20261202140000): за ними кабінет знаходить артиста й не
+    заводить дубль. Імпорт зводить написання до канонічного ще до запису, тож іншого шляху в базу в них нема.
+    Записи без псевдонімів теж ідуть (`{}`): прибраний з файлу псевдонім зникає й з бази. Стеля: канонічного, якого
+    з файлу видалили зовсім, ніхто не очистить — його й так прибере `prune_artists_sql`, коли подій не стане.
+    Під перевіркою стовпця: дамп, застосований до бази без міграції, не має впасти."""
+    if not aliases:
+        return ""
+    rows = ",".join(f"({_lit(k)},array[{','.join(_lit(a) for a in names)}]::text[])" for k, names in sorted(aliases.items()))
+    return _do("begin\n"
+            "  if exists (select 1 from information_schema.columns\n"
+            "             where table_schema = 'public' and table_name = 'artists' and column_name = 'aliases') then\n"
+            f"    update public.artists a set aliases = v.aliases from (values {rows}) v(key, aliases)\n"
+            "    where a.key = v.key and a.aliases is distinct from v.aliases;\n"
+            "  end if;\n", "")
+
+
 def prune_artists_sql() -> str:
     """Артисти без жодної події й без підписника (20261002120000): лишаються після злиття дублів («Київський
     Mozart Orchestra» -> «Kyiv Mozart Orchestra») і зміни правил. Підписник утримує артиста навіть без подій:

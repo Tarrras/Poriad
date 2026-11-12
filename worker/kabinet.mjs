@@ -20,15 +20,23 @@ const MIN_QUERY = 3;
 const MAX_QUERY = 100;
 const LIMIT = 6;
 const EXCLUDED = new Set(["RU"]);
+// `kind=venue` — пошук закладу за назвою («Ваш заклад»): лише в межах міста (~33 км від центру) і без вулиць, зупинок і
+// районів, бо Photon за назвою «Gagarin Plaza» інакше віддає вулиці Гагаріна з усього світу.
+const AROUND = 0.3;
+const NOT_VENUE = ["highway", "railway", "public_transport", "place", "boundary", "landuse"];
 
-/** `GET /api/geocode?q=&city=` → `[{label, detail, city, lat, lon}]`; місто форми — першим, як у застосунку. */
+/**
+ * `GET /api/geocode?q=&city=[&kind=venue]` → `[{label, detail, city, lat, lon}]`; місто форми — першим, як у застосунку.
+ * Для закладу `label` — назва, `detail` — адреса.
+ */
 export async function geocode(request, env, ctx) {
   const url = new URL(request.url);
   const q = (url.searchParams.get("q") ?? "").trim().replace(/\s+/g, " ").toLowerCase();
   const name = url.searchParams.get("city") ?? "";
+  const venue = url.searchParams.get("kind") === "venue";
   if (q.length < MIN_QUERY || q.length > MAX_QUERY || !CITIES.some((c) => c.name === name)) return answer({ error: "query" }, 400);
   // Ключ — нормалізований запит: «Хрещатик 22» і « хрещатик  22» — одна відповідь з кешу.
-  const key = new Request(`${url.origin}/api/geocode?${new URLSearchParams({ city: name, q })}`);
+  const key = new Request(`${url.origin}/api/geocode?${new URLSearchParams({ city: name, q, ...(venue && { kind: "venue" }) })}`);
   const cached = await caches.default.match(key);
   if (cached) return cached;
   // Кожен новий запит іде в komoot, а той за зловживання блокує наш User-Agent для всіх. Тож повз кеш — ліміт на
@@ -41,9 +49,14 @@ export async function geocode(request, env, ctx) {
   const city = cityOf(name);
   let found;
   try {
-    const response = await fetch(`${PHOTON}?${new URLSearchParams({ q, lat: city.lat, lon: city.lng, limit: LIMIT * 2 })}`, { headers: { "user-agent": USER_AGENT } });
+    const params = new URLSearchParams({ q, lat: city.lat, lon: city.lng, limit: LIMIT * 2 });
+    if (venue) {
+      params.set("bbox", [city.lng - AROUND * 1.5, city.lat - AROUND, city.lng + AROUND * 1.5, city.lat + AROUND].map((x) => x.toFixed(4)).join(","));
+      for (const tag of NOT_VENUE) params.append("osm_tag", `!${tag}`);
+    }
+    const response = await fetch(`${PHOTON}?${params}`, { headers: { "user-agent": USER_AGENT } });
     if (!response.ok) throw new Error(`photon ${response.status}`);
-    found = places((await response.json()).features ?? [], name);
+    found = places((await response.json()).features ?? [], name, venue);
   } catch (e) {
     // Підказок нема — не біда: крапку ставлять на мапі. Збій не кешуємо.
     console.warn("geocode", e.message);
@@ -68,16 +81,17 @@ export function clientKey(ip) {
   return `${groups.slice(0, 4).map((g) => parseInt(g || "0", 16).toString(16)).join(":")}::/64`;
 }
 
-/** Рядки Photon → підказки: вулиця з будинком, інакше назва; без виключених країн і повторів. */
-export function places(features, city) {
+/** Рядки Photon → підказки: вулиця з будинком, інакше назва; без виключених країн і повторів. Заклад — назва й адреса. */
+export function places(features, city, venue = false) {
   const seen = new Set();
   const out = [];
   for (const { properties: p = {}, geometry } of features) {
     const [lon, lat] = geometry?.coordinates ?? [];
     if (EXCLUDED.has(String(p.countrycode).toUpperCase()) || !Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-    const label = p.street && p.housenumber ? `${p.street}, ${p.housenumber}` : p.street || p.name;
+    const address = p.street && p.housenumber ? `${p.street}, ${p.housenumber}` : p.street;
+    const label = venue ? p.name?.slice(0, 120) : address || p.name;
     if (!label) continue;
-    const detail = [...new Set([p.name, p.district, p.city])].filter((part) => part && part !== label).join(", ");
+    const detail = venue ? address ?? "" : [...new Set([p.name, p.district, p.city])].filter((part) => part && part !== label).join(", ");
     if (seen.has(label + detail)) continue;
     seen.add(label + detail);
     out.push({ label, detail, city: p.city ?? "", lat, lon });

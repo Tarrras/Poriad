@@ -200,6 +200,56 @@ assert.equal(params(eventDraft(pricedEvent), "e1").p_prepay, false);
   assert.ok(seriesNote({ made: 4, count: 4 }).startsWith("Серія: 4 події"));
   assert.equal(seriesNote({ made: 2, count: 5, error: "Забагато подій за добу" }), "Серія: створено 2 з 5. Забагато подій за добу. Решту дат додайте через «Повторити».");
 }
+// Серія після створення: «ця й наступні» (20261201120000).
+{
+  const { seriesAfter, seriesWhen, seriesLine, seriesResult, cancelSeriesQuestion } = await import("../site/js/kabinet.js");
+  const at = Date.parse("2026-11-21T00:00:00Z");
+  const list = [
+    { id: "a", starts_at: "2026-11-20T17:00:00Z", ends_at: "2026-11-20T19:00:00Z", time_zone: "Europe/Kyiv", status: "published" },
+    { id: "b", starts_at: "2026-11-27T17:00:00Z", ends_at: "2026-11-27T19:00:00Z", time_zone: "Europe/Kyiv", status: "published" },
+    { id: "c", starts_at: "2026-12-04T17:00:00Z", ends_at: "2026-12-04T19:00:00Z", time_zone: "Europe/Kyiv", status: "cancelled" },
+    { id: "d", starts_at: "2026-12-11T18:00:00Z", ends_at: "2026-12-11T21:00:00Z", time_zone: "Europe/Kyiv", status: "published" },
+  ];
+  assert.deepEqual(seriesAfter(list, "a", at).map((e) => e.id), ["b", "d"], "пізніші за цю, без скасованих");
+  assert.deepEqual(seriesAfter(list, "b", at).map((e) => e.id), ["d"], "попередні не чіпаємо");
+  assert.deepEqual(seriesAfter(list, "a", Date.parse("2026-11-27T17:30:00Z")).map((e) => e.id), ["d"], "та, що вже почалась, — не наступна");
+  assert.deepEqual(seriesAfter(list, "d", at), [], "остання — без наступних");
+  assert.deepEqual(seriesAfter(list, "x", at), [], "подія не з цього списку");
+  assert.deepEqual(seriesAfter(null, "a", at), []);
+
+  const was = eventDraft({ ...list[0], title: "Квіз", category: "games", city: "Київ" });
+  const same = { startDate: "2026-11-27", startTime: "19:00", endDate: "2026-11-27", endTime: "21:00" };
+  assert.deepEqual(seriesWhen(was, was, list[1]), same, "час не міняли — подія лишається як була");
+  assert.deepEqual(seriesWhen({ ...was, startDate: "2026-11-22", endDate: "2026-11-22" }, was, list[1]), same, "цю перенесли на два дні — наступну не зсуваємо");
+  assert.deepEqual(seriesWhen({ ...was, startTime: "20:30", endTime: "22:30" }, was, list[1]),
+    { startDate: "2026-11-27", startTime: "20:30", endDate: "2026-11-27", endTime: "22:30" }, "нова година — на її ж даті");
+  assert.deepEqual(seriesWhen({ ...was, endDate: "2026-11-21", endTime: "00:30" }, was, list[1]),
+    { startDate: "2026-11-27", startTime: "19:00", endDate: "2026-11-28", endTime: "00:30" }, "нова тривалість, кінець після опівночі");
+  assert.deepEqual(seriesWhen({ ...was, title: "Квіз 2" }, was, list[3]),
+    { startDate: "2026-12-11", startTime: "20:00", endDate: "2026-12-11", endTime: "23:00" }, "годину, виправлену окремо, правка тексту не чіпає");
+  assert.deepEqual(seriesWhen({ ...was, endTime: "20:30" }, was, list[3]),
+    { startDate: "2026-12-11", startTime: "20:00", endDate: "2026-12-11", endTime: "21:30" }, "нова тривалість — від її власної години");
+  // Літній час → зимовий: година на годиннику та сама, UTC інший.
+  const summer = { starts_at: "2026-10-23T16:00:00Z", ends_at: "2026-10-23T18:00:00Z", time_zone: "Europe/Kyiv" };
+  assert.deepEqual(seriesWhen({ ...eventDraft(summer), startTime: "18:00", endTime: "20:00" }, eventDraft(summer), { starts_at: "2026-10-30T17:00:00Z", ends_at: "2026-10-30T19:00:00Z" }),
+    { startDate: "2026-10-30", startTime: "18:00", endDate: "2026-10-30", endTime: "20:00" });
+
+  const line = seriesLine(list, "b");
+  assert.ok(line.startsWith("<b>Серія: 4 події</b>"), line);
+  assert.equal((line.match(/<a /g) ?? []).length, 3, "решта дат — посиланнями");
+  assert.ok(line.includes('<a href="#/e/a">20 лист.</a>') && line.includes('<span aria-current="true">27 лист.</span>'), line);
+  assert.ok(line.includes('<a href="#/e/c" class="void" title="Скасовано">4 груд.</a>'), "скасована — закреслена, але відкривається");
+  assert.ok(seriesLine(list, "c").includes('<span aria-current="true" class="void" title="Скасовано">4 груд.</span>'), "і на власному екрані — закреслена");
+
+  assert.equal(cancelSeriesQuestion(2), "Скасувати цю подію й ще 2 наступні — разом 3 події? Учасники отримають сповіщення, а повернути події не вийде.");
+  assert.ok(cancelSeriesQuestion(1).startsWith("Скасувати цю подію й ще 1 наступну — разом 2 події?"));
+  assert.equal(seriesResult({ made: 3, count: 3 }, true), "Скасовано: 3 події.");
+  assert.equal(seriesResult({ made: 1, count: 3, error: "Немає звʼязку. Перевірте інтернет і спробуйте ще раз" }, true),
+    "Скасовано: 1 з 3. Немає звʼязку. Перевірте інтернет і спробуйте ще раз. Решту скасуйте окремо.");
+  assert.equal(seriesResult({ made: 5, count: 5 }), "Разом з наступними: 5 подій.");
+  assert.equal(seriesResult({ made: 2, count: 4, error: "Текст містить слова, які ми не публікуємо. Перепишіть, будь ласка." }),
+    "Разом з наступними: 2 з 4. Текст містить слова, які ми не публікуємо. Перепишіть, будь ласка. Решту відредагуйте окремо.");
+}
 // Як потрапити на подію: запис (як було), квитки за посиланням, вільний вхід.
 {
   const { howOf, isOwn, TICKET_URL } = await import("../site/js/kabinet.js");
@@ -288,6 +338,19 @@ console.log("kabinet ok");
   assert.equal(claimChoices("place", found, "кафе атлас").some((c) => c.add), false, "така назва вже є");
   assert.equal(claimChoices("artist", [], "я").length, 0, "одна літера — не назва");
   assert.deepEqual(claimChoices("artist", [{ id: "9", name: "Жадан і Собаки", kind: "group" }], "жад").map((c) => c.detail), ["Гурт", ""]);
+  // Заклади з мапи: після каталогу, без тих самих назв; точна назва з мапи прибирає «додати».
+  const map = [{ label: "Gagarinn Plaza", detail: "Генуезька вулиця, 5/2", lat: 46.43, lon: 30.76 }, { label: "Кафе «Атлас»", detail: "", lat: 1, lon: 2 }];
+  const mixed = claimChoices("place", found, "gagarinn plaza", map);
+  assert.deepEqual(mixed.map((c) => [c.label, c.detail, Boolean(c.map), Boolean(c.add)]), [
+    ["Кафе Атлас", "Січових, 37", false, false],
+    ["Атлас Бар", "уже веде інший акаунт", false, false],
+    ["Gagarinn Plaza", "Генуезька вулиця, 5/2", true, false],
+  ], "«Кафе «Атлас»» з мапи — той самий заклад, що в каталозі");
+  assert.deepEqual([mixed[2].lat, mixed[2].lon], [46.43, 30.76]);
+  const many = Array.from({ length: 8 }, (_, i) => ({ id: String(i), name: `Місце ${i}`, city: "Київ" }));
+  assert.equal(claimChoices("place", many, "місце", []).filter((c) => !c.add).length, 8, "без мапи — увесь каталог");
+  assert.deepEqual(claimChoices("place", many, "місце", map).filter((c) => !c.add).map((c) => Boolean(c.map)),
+    [false, false, false, false, false, true, true], "з мапою — місце й для неї");
 }
 
 // Свій заклад у редакторі події: лише міста сайту, адреса чи назва, автопідстановка єдиного в новій події.
