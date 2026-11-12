@@ -24,10 +24,12 @@ data class Taste(
     val isBlank get() = interests.isEmpty() && times.isEmpty() && crowd == Crowd.ANY
 
     /**
-     * Чи йде категорія в добірки («Для вас», «У місті», дайджест). Кіно — лише тим, хто його обрав: у Києві ~300 сеансів
-     * на день проти ~45 інших подій (docs/cinema-import.md). Мапа, фільтр «Кіно» й пошук показують його всім.
+     * Чи йде категорія в добірки («Для вас», «У місті», стос, дайджест). Кіно й дитяче — лише тим, хто їх обрав. Кіно: у Києві
+     * ~300 сеансів на день проти ~45 інших подій (docs/cinema-import.md). Дитяче: у Дніпрі це 45% афіші, а «Дітям» в онбордингу
+     * обирає 18% (08.11.2026). Мапа, фільтр категорії й пошук показують їх усім.
      */
-    fun curates(category: EventCategory) = category != EventCategory.CINEMA || category in interests
+    fun curates(category: EventCategory) =
+        (category != EventCategory.CINEMA && category != EventCategory.KIDS) || category in interests
 }
 
 /**

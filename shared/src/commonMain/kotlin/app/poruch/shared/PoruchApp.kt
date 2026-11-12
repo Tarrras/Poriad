@@ -274,6 +274,8 @@ class PoruchApp internal constructor(
     fun setHomeSearchEverywhere(everywhere: Boolean) = discovery.homeFeed.setSearchEverywhere(everywhere)
     /** «Скасувати» в режимі пошуку: текст і фільтри скидаються. */
     fun cancelHomeSearch() = discovery.homeFeed.cancelSearch()
+    /** Чип часу з шапки головної: довантажити події, що в нього починаються. */
+    internal fun setHomeTime(filter: FeedFilter) = discovery.homeFeed.setTime(filter)
     fun setHomeSearchCategory(category: EventCategory?) = discovery.homeFeed.setSearchCategory(category)
     fun setHomeSearchDate(filter: DateFilter) = discovery.homeFeed.setSearchDate(filter)
     fun setOnlyAvailable(available: Boolean) = discovery.setOnlyAvailable(available)
@@ -622,14 +624,18 @@ class PoruchApp internal constructor(
     // ---- Стос «Ваш тиждень» (docs/return-hooks.md, хвиля 2)
 
     /** Перший стос після онбордингу: до [DeckRules.FIRST] подій «Для вас» на тиждень. Порожньо — стосу не показувати. */
-    fun deckCards(): List<Event> = store.value.home.let { DeckRules.pick(it.suggested.ifEmpty { it.events }, Clock.System.now(), DeckRules.FIRST) }
+    fun deckCards(): List<Event> = store.value.let { state ->
+        val home = state.home.suggested.ifEmpty { state.home.events }.filter { state.taste.curates(it.category) }
+        DeckRules.pick(home, Clock.System.now(), DeckRules.FIRST)
+    }
 
     /** Тиждень, у який стос відкрито: платформа пам'ятає його, щоб рядок на головній не кликав двічі за тиждень. */
     fun deckWeek(): String = DeckRules.week(Clock.System.now(), TimeZone.currentSystemDefault())
 
-    /** Відповідь у стосі: «так» — закладка, і гостя теж; уже збережене не знімаємо. */
+    /** Відповідь у стосі: «так» — закладка, і гостя теж; уже збережене не знімаємо. `category` — «так» і «ні» за жанром. */
     fun deckAnswered(id: String, yes: Boolean, position: Int) {
-        PoruchAnalytics.track("deck_answer", "yes" to yes, "position" to position)
+        val category = store.value.home.let { it.suggested + it.events }.firstOrNull { it.id == id }?.category
+        PoruchAnalytics.track("deck_answer", "yes" to yes, "position" to position, "category" to category?.key)
         if (yes && !store.value.isSaved(id)) toggleSaved(id)
     }
 

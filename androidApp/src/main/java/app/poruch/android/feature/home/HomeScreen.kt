@@ -12,6 +12,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import app.poruch.domain.EventCategory
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.ui.semantics.heading
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -129,6 +131,10 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             contentPadding = tabBarClearancePadding(top = 0.dp)
         ) {
             if (!state.searchMode) item(key = "header") { Header(state, onIntent) }
+            // Під містом — коли: «Сьогодні / Вихідні» на першому екрані й звужують усю афішу міста (вибір власника 07.11).
+            if (!state.searchMode && state.screen.timeChips.isNotEmpty()) item(key = "time") {
+                FeedChips(state.screen.timeChips, state.screen.feedTime, onIntent, Modifier.padding(top = Spacing.sm))
+            }
             // Стрічка й фільтри пошуку ніколи разом: у режимі пошуку — видача або підказка.
             if (state.searchMode) item(key = "search") {
                 Column(
@@ -154,8 +160,11 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     Box(Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center) { PoruchLoader() }
                 } else {
                     // Серце продукту — з ким піти: зустрічі від людей і афіші, на які шукають компанію, однією рейкою, під нею
-                    // порожній квиток «Організувати подію». Активності не вигадуємо: коли зустрічей мало, секцію веде він.
-                    if (!state.screen.withWhomPending) item(key = "people") { PeopleSection(state, onIntent) }
+                    // порожній квиток «Організувати подію». Але першою лише тоді, коли їх досить (`peopleFirst`): інакше перший
+                    // екран нової людини віддавали найтоншому шару (критика 06.11). Тоді першою йде афіша, а «З ким піти» —
+                    // рядками під її великими квитками ([cityFeed]).
+                    val people = !state.screen.withWhomPending
+                    if (people && state.screen.peopleFirst) item(key = "people") { PeopleSection(state, onIntent) }
                     // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею. Усе особисте —
                     // плани, «Ваш тиждень», дати артистів, підписки — одним блоком у чотири рядки (критика довжини 28.10).
                     item(key = "yours") { PersonalSection(state, onIntent) }
@@ -163,7 +172,7 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     // квиток рейки й «+» (підвал «Далі» дублював обидва, рішення власника 02.11).
                     // Лямбдою: прочитане тут стає залежністю вмісту списку, а значення — з його ж виміру, тож у простої
                     // список перемірявся щокадру (~25 кадрів/с, ANR на 360-емуляторі). Читає сам ряд чипів.
-                    cityFeed(state, onIntent, columns) { chipsStuck }
+                    cityFeed(state, onIntent, columns, peopleRows = people && !state.screen.peopleFirst) { chipsStuck }
                 }
             }
         }
@@ -186,16 +195,12 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             .padding(top = Spacing.xl),
         verticalArrangement = Arrangement.spacedBy(Spacing.lg)
     ) {
-        if (!state.searchMode) Row(verticalAlignment = Alignment.Top) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(
-                    stringResource(R.string.home_title),
-                    style = PoruchType.brandDisplay,
-                    color = colors.ink
-                )
-                // Що означає «поруч»: завжди ціле місто. «Шукати тут» на мапі головну не звужує.
-                // Тап міняє місто тут же, без переходу на мапу.
-                // Ціль 48 dp: рядок міста — головний перемикач екрана, а текст у ньому 20 dp заввишки.
+        if (!state.searchMode) Row(verticalAlignment = Alignment.CenterVertically) {
+            // Заголовок — саме місто: «Що поруч» над ним нічого не казав і забирав рядок першого екрана, а єдине корисне в
+            // шапці, місто, було найдрібнішим (критика шапки 07.11). «Поруч» — завжди ціле місто: «Шукати тут» на мапі
+            // головну не звужує. Тап міняє місто тут же, без мапи. Назва в один рядок і дрібнішає до половини: у два рядки
+            // шеврон відставав від останнього слова («…міська громада      ⌄»).
+            Box(Modifier.weight(1f)) {
                 Row(
                     Modifier
                         .coachTarget(CoachTip.CITY)
@@ -205,21 +210,25 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                         ) {
                             onIntent(HomeIntent.ShowCitySheet(true))
                         }
+                        .semantics { heading() }
                         .heightIn(min = 48.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        stringResource(R.string.home_subtitle, state.screen.cityName),
-                        // Темніший за `inkSecondary`: місто — частина заголовка, а не підпис.
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.ink.copy(alpha = 0.7f),
-                        modifier = Modifier.weight(1f, fill = false)
+                    val title = PoruchType.brandDisplay.copy(color = colors.ink)
+                    BasicText(
+                        state.screen.cityName.ifBlank { stringResource(R.string.home_title) },
+                        Modifier.weight(1f, fill = false),
+                        style = title,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1,
+                        autoSize = TextAutoSize.StepBased(title.fontSize * 0.5f, title.fontSize)
                     )
                     Icon(
                         PoruchIcons.chevronDown,
                         null,
-                        Modifier.size(18.dp),
-                        tint = colors.ink.copy(alpha = 0.7f)
+                        Modifier.size(22.dp),
+                        tint = colors.ink.copy(alpha = 0.6f)
                     )
                 }
             }
@@ -474,6 +483,29 @@ private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     }
 }
 
+/**
+ * Порядок за щільністю (`HomeScreenState.peopleFirst`): зустрічей мало — не рейка над афішею, а рядки під великими квитками
+ * «У місті» й порожній квиток. Без заголовка й рядка входу: чому рядок тут, каже його підпис, а вхід і так з'являється на
+ * «Приєднатися».
+ */
+@Composable
+private fun PeopleRows(state: HomeState, onIntent: (HomeIntent) -> Unit, modifier: Modifier = Modifier.padding(top = Spacing.xxl)) {
+    val fromPeople = stringResource(R.string.from_people)
+    val entries = state.screen.people.map { Triple(it.event, "home_people", fromPeople) } +
+        state.screen.company.map { Triple(it.event, "home_company", pluralStringResource(R.plurals.company_reason, it.count, it.count)) }
+    Column(modifier.padding(horizontal = Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        if (entries.isNotEmpty()) GroupedRows {
+            entries.forEachIndexed { position, (event, from, reason) ->
+                if (position > 0) HairLine(Modifier.padding(start = ResultRowInset))
+                UnfoldSource(event.id, from, { onIntent(HomeIntent.OpenEvent(event.id, from)) }, bare = true) { source, open ->
+                    EventResultRow(event, source, waitlisted = event.id in state.screen.waitlistedIds, reason = reason, onClick = open)
+                }
+            }
+        }
+        CreateCard(onIntent, Modifier, vertical = false)
+    }
+}
+
 @Composable
 private fun CreateCard(onIntent: (HomeIntent) -> Unit, modifier: Modifier, vertical: Boolean) = CreateEventCard(
     stringResource(R.string.home_create_title), stringResource(R.string.home_create_subtitle),
@@ -486,7 +518,7 @@ private val YourTile = 52.dp
 /**
  * «Ваше»: усе особисте одним блоком у [HomeRules.YOURS_ROWS] рядки — найближчий план карткою з діями, решта планів,
  * «Ваш тиждень», дати артистів у місті й «Ви стежите». Кожен новий гачок дістає рядок тут, а не секцію над афішею. Гостю —
- * те, що в нього є без входу: стос і артисти на телефоні. Порожньо — блоку нема: створити подію пропонує рейка вище.
+ * те, що в нього є без входу: стос і артисти на телефоні. Порожньо — блоку нема: створити подію пропонує «З ким піти».
  */
 @Composable
 private fun PersonalSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
@@ -943,7 +975,11 @@ private fun lane(source: FeedSource, followName: String?): String? = when (sourc
 /** «У місті»: великі картки, що гортаються (сусідня визирає), чипи, далі сітка постерів у дві колонки. */
 private const val FEED_CHIPS = "feed-chips"
 
-private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> Unit, columns: Int, chipsStuck: () -> Boolean) {
+/** [peopleRows] — «З ким піти» рядками між великими квитками й чипами ([PeopleRows]); стрічки нема — над її станом. */
+private fun LazyListScope.cityFeed(
+    state: HomeState, onIntent: (HomeIntent) -> Unit, columns: Int, peopleRows: Boolean, chipsStuck: () -> Boolean
+) {
+    if (peopleRows && state.screen.feed.isEmpty()) item(key = "people") { PeopleRows(state, onIntent) }
     when {
         state.screen.feed.isNotEmpty() -> {
             val picks = state.screen.feed.take(HomeRules.HERO_COUNT)
@@ -964,10 +1000,11 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                     HeroPager(picks, state.screen.savedIds, onIntent)
                 }
             }
+            if (peopleRows) item(key = "people") { PeopleRows(state, onIntent, Modifier.padding(top = Spacing.xl, bottom = Spacing.sm)) }
             // Чипи «Сьогодні / Вихідні» під рукою, поки гортається сітка: п'ятничний вибір не за два екрани вгору.
             if (state.screen.chips.isNotEmpty()) stickyHeader(key = FEED_CHIPS) {
                 Box(Modifier.fillMaxWidth().background(Poruch.colors.canvas).padding(top = Spacing.md, bottom = Spacing.sm)) {
-                    FeedChips(state, onIntent)
+                    FeedChips(state.screen.chips, state.screen.feedFilter, onIntent)
                     if (chipsStuck()) HairLine(Modifier.align(Alignment.BottomCenter).offset(y = Spacing.sm))
                 }
             }
@@ -1043,20 +1080,23 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
     }
 }
 
-/** Ряд чипів над сіткою: час, безкоштовне й найбільші категорії. Звужує лише сітку, великі картки стоять. */
+/**
+ * Ряд чипів «У місті»: час — під містом у шапці (звужує всю афішу), безкоштовне й найбільші категорії — над сіткою
+ * (лише її).
+ */
 @Composable
-private fun FeedChips(state: HomeState, onIntent: (HomeIntent) -> Unit) {
+private fun FeedChips(chips: List<FeedFilter>, selected: FeedFilter, onIntent: (HomeIntent) -> Unit, modifier: Modifier = Modifier) {
     Row(
-        Modifier
+        modifier
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = Spacing.page),
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        state.screen.chips.forEach { chip ->
+        chips.forEach { chip ->
             PoruchChip(
                 feedChipLabel(chip),
-                chip == state.screen.feedFilter,
+                chip == selected,
                 { onIntent(HomeIntent.SelectFeedFilter(chip)) },
                 dot = chip.category
             )

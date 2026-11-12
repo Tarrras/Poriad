@@ -105,9 +105,6 @@ internal class UserLibrary(
         // Звідки відкрили: ставить лише підсвітка, деталі приходять слідом. Підсвітка без джерела його скидає,
         // щоб «головна» не дісталась перегляду, що почався деінде.
         if (!full) openedFrom = from?.let { id to it }
-        // Перегляд — відкриті деталі, а не крок каруселі: інакше метрика росла б від гортання.
-        if (full && viewedId != id) PoruchAnalytics.track("event_view", "from" to openedFrom?.takeIf { it.first == id }?.second)
-        if (full) viewedId = id
         openEventId = id; openFull = full
         detailJob?.cancel()
         // Показуємо те, що вже знаємо, поки їдуть деталі. `cards` теж: сеанс прокату, обраний
@@ -118,6 +115,13 @@ internal class UserLibrary(
                 ?: sequenceOf(it.home.events, it.home.suggested, it.home.found, it.library.followEvents, it.artist?.events.orEmpty())
                     .flatten().firstOrNull { event -> event.id == id }
         }
+        // Перегляд — відкриті деталі, а не крок каруселі: інакше метрика росла б від гортання. Категорія — які жанри
+        // відкривають; нема, лише коли подію відкрито з посилання й нічого про неї ще не знаємо.
+        if (full && viewedId != id) PoruchAnalytics.track(
+            "event_view", "from" to openedFrom?.takeIf { it.first == id }?.second,
+            "category" to (known?.category ?: store.value.home.index.firstOrNull { it.id == id }?.category)?.key
+        )
+        if (full) viewedId = id
         // Інша дата того ж прокату без картки: лишаємо поточну до відповіді. Порожній екран
         // гірший за секунду старої дати, а при 504 людина лишається з банером, а не спінером.
         val stay = known == null && store.value.let { current ->

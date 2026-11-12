@@ -98,11 +98,15 @@ data class HomeScreenState(
     val deckWeek: String = "",
     /** «Шукають компанію»: афіші, на які хтось хоче піти з компанією ([HomeRules.company]). Порожньо — рейки нема. */
     val company: List<CompanyEntry> = emptyList(),
-    /** «У місті»: [HomeRules.HERO_COUNT] великих карток, далі сітка, вже звужена [feedFilter]. */
+    /** «У місті»: [HomeRules.HERO_COUNT] великих карток, далі сітка. Усе звужене [feedTime], сітка — ще й [feedFilter]. */
     val feed: List<FeedEntry> = emptyList(),
-    /** Чипи над сіткою: що з неї можна відфільтрувати. Порожньо — рядка нема. */
+    /** Чипи часу під містом у шапці («Усе · Сьогодні · Завтра · Вихідні»). Порожньо — рядка нема. */
+    val timeChips: List<FeedFilter> = emptyList(),
+    /** Обраний час; якщо його вже нема в [timeChips] (дані оновились), афіша лишається цілою. */
+    val feedTime: FeedFilter = FeedFilter(),
+    /** Чипи над сіткою: безкоштовне й категорії. Порожньо — рядка нема. */
     val chips: List<FeedFilter> = emptyList(),
-    /** Обраний чип; якщо його вже нема в [chips] (дані оновились), стрічка лишається цілою. */
+    /** Обраний чип сітки; якщо його вже нема в [chips], сітка лишається цілою. */
     val feedFilter: FeedFilter = FeedFilter(),
     /** Скільки подій в області, без фільтрів мапи. */
     val totalFound: Int = 0,
@@ -145,6 +149,13 @@ data class HomeScreenState(
      * рейка (polish 30.10). Чекає лоадер «У місті».
      */
     val withWhomPending: Boolean get() = loading && feed.isEmpty() && people.isEmpty() && company.isEmpty()
+
+    /**
+     * Порядок за щільністю ([HomeRules.PEOPLE_FIRST_MIN]): «З ким піти» рейкою над афішею, коли там є що показати; інакше —
+     * рядками під великими квитками «У місті». За числом з індексу, а не за рейкою: та доростає, поки довантажуються
+     * картки, і головна перестрибувала б з одного порядку в інший.
+     */
+    val peopleFirst: Boolean get() = openRooms >= HomeRules.PEOPLE_FIRST_MIN
     fun isSaved(id: String): Boolean = id in savedIds
 
     /** Розклад «Ваше» ([HomeRules.yours]); [deckDue] — рядок «Ваш тиждень» цього тижня ще не відкривали. */
@@ -182,18 +193,26 @@ class HomePresenter(
     /** Для iOS: Swift не бачить аргументів за замовчуванням, а диспетчери й годинник йому не потрібні. */
     constructor(app: PoruchApp) : this(app, CoroutineScope(SupervisorJob() + Dispatchers.Main))
 
+    private val time = MutableStateFlow(FeedFilter())
     private val filter = MutableStateFlow(FeedFilter())
     private val districtSearch = DistrictSearch()
     private val minutes = flow { while (true) { emit(Unit); delay(MINUTE_MS) } }
 
     val state: StateFlow<HomeScreenState> = combine(
-        app.state.distinctUntilChanged { old, new -> sameInputs(old, new) }, filter, minutes
-    ) { shared, filter, _ -> derive(shared, filter, clock.now(), TimeZone.currentSystemDefault()) }
+        app.state.distinctUntilChanged { old, new -> sameInputs(old, new) }, time, filter, minutes
+    ) { shared, time, filter, _ -> derive(shared, filter, clock.now(), TimeZone.currentSystemDefault(), time) }
         .flowOn(compute)
         .stateIn(scope, SharingStarted.Eagerly, HomeScreenState())
 
-    /** Чип над сіткою. Сітку збирає згортка, тож чип — її вхід, а не локальний стан екрана. */
-    fun selectFeedFilter(filter: FeedFilter) { this.filter.value = filter }
+    /**
+     * Чип «У місті»: час із шапки звужує всю афішу, решта — сітку. Повторний тап знімає вибір. Афішу збирає згортка,
+     * тож чип — її вхід, а не локальний стан екрана.
+     */
+    fun selectFeedFilter(filter: FeedFilter) {
+        val chosen = if (filter.isTime) time else this.filter
+        chosen.value = if (chosen.value == filter) FeedFilter() else filter
+        if (filter.isTime) app.setHomeTime(time.value)
+    }
 
     /** Для iOS: колбек на кожну зміну стану екрана, на головному потоці. */
     fun observe(onChange: (HomeScreenState) -> Unit): Subscription {
@@ -213,7 +232,7 @@ class HomePresenter(
         return RadarRules.dates(shared.radar.filter { it.artistId in following })
     }
 
-    internal fun derive(shared: AppState, feedFilter: FeedFilter, now: Instant, zone: TimeZone): HomeScreenState {
+    internal fun derive(shared: AppState, feedFilter: FeedFilter, now: Instant, zone: TimeZone, feedTime: FeedFilter = FeedFilter()): HomeScreenState {
         val zoneId = zone.id
         val today = now.toLocalDateTime(zone).date
         // Увесь екран в одному порядку — ранжованому.
@@ -261,7 +280,11 @@ class HomePresenter(
         val all = HomeRules.feed(suggested, city, followedHere, mineIds + people.map { it.event.id } + company.map { it.event.id },
             roomsFirst = people.isEmpty())
             .map { if (it.source == FeedSource.FOLLOWING) it.copy(followName = via[it.event.id]) else it }
-        val rest = all.drop(HomeRules.HERO_COUNT)
+        // Час із шапки звужує всю афішу міста, разом із великими квитками: «Сьогодні» над квитком на суботу було б неправдою.
+        val timeChips = HomeRules.timeChips(all, now, zoneId)
+        val time = feedTime.takeIf { it in timeChips } ?: FeedFilter()
+        val timed = HomeRules.apply(all, time, now, zoneId)
+        val rest = timed.drop(HomeRules.HERO_COUNT)
         val chips = HomeRules.chips(rest, now, zoneId)
         val filter = feedFilter.takeIf { it in chips } ?: FeedFilter()
         return HomeScreenState(
@@ -282,7 +305,9 @@ class HomePresenter(
             radarDates = radarDates(shared),
             deck = DeckRules.pick(home.suggested.ifEmpty { home.events }, now),
             deckWeek = DeckRules.week(now, zone),
-            feed = all.take(HomeRules.HERO_COUNT) + HomeRules.apply(rest, filter, now, zoneId),
+            feed = timed.take(HomeRules.HERO_COUNT) + HomeRules.apply(rest, filter, now, zoneId),
+            timeChips = timeChips,
+            feedTime = time,
             chips = chips,
             feedFilter = filter,
             totalFound = home.totalFound,

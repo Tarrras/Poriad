@@ -299,7 +299,6 @@ enum Copy {
     static func attendees_short(_ a0: String, _ a1: String) -> String { "\(a0) з \(a1)" }
     static let home = "Головна"
     static let home_title = "Що поруч"
-    static func home_subtitle(_ a0: String) -> String { "\(a0)" }
     static let home_search_action = "Пошук"
     static let home_yours = "Ваше"
     static let home_create_title = "Організувати подію"

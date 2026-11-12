@@ -55,6 +55,16 @@ class TasteRankingTest {
         assertTrue(TasteRanking.matches(film, evenings.copy(interests = listOf(EventCategory.CINEMA))))
     }
 
+    /** Дитяче — теж лише тим, хто обрав «Дітям»: у Дніпрі це половина афіші, а обирає його кожен п'ятий. */
+    @Test fun kidsAreCuratedOnlyByInterest() {
+        val evenings = Taste(times = listOf(TimeSlot.WEEKDAY_EVENING), answered = true)
+        val show = listing("show", EventCategory.KIDS, fridayEvening)
+        assertFalse(TasteRanking.matches(show, evenings))
+        assertFalse(Taste().curates(EventCategory.KIDS))
+        assertTrue(TasteRanking.matches(show, evenings.copy(interests = listOf(EventCategory.KIDS))))
+        assertTrue(Taste().curates(EventCategory.ART))
+    }
+
     @Test fun wantedCompanyLiftsAmongEqualsButNotOverInterest() {
         fun entry(id: String, category: EventCategory, company: Int) = EventIndexEntry(
             id, 50.45, 30.52, category, fridayEvening, "Europe/Kyiv", id, EventOrigin.IMPORT, companyCount = company

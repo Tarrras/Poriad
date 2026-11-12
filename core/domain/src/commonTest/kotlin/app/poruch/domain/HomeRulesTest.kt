@@ -184,25 +184,43 @@ class HomeRulesTest {
 
     @Test fun smallFeedHasNoChips() {
         assertTrue(HomeRules.chips(entries(event("a"), event("b"), event("c")), now, zone).isEmpty())
+        assertTrue(HomeRules.timeChips(entries(event("a"), event("b"), event("c")), now, zone).isEmpty())
     }
 
     @Test fun chipsOfferOnlyWhatNarrows() {
         val music = (1..5).map { event("m$it", tomorrowAt, tomorrowAt, EventCategory.MUSIC) }
         val art = (1..3).map { event("a$it", todayAt, todayAt, EventCategory.ART) }
-        val chips = HomeRules.chips(entries(*(music + art).toTypedArray()), now, zone)
-        // Усе; сьогодні (3 з 8) і завтра (5 з 8) звужують; вихідні й безкоштовне — нікого; музика (5) — так, мистецтво (3) — замало.
+        val feed = entries(*(music + art).toTypedArray())
+        // Час: усе; сьогодні (3 з 8) і завтра (5 з 8) звужують; вихідні — нікого.
         assertEquals(
-            listOf(
-                FeedFilter(), FeedFilter(FeedFilterKind.TODAY), FeedFilter(FeedFilterKind.TOMORROW),
-                FeedFilter(FeedFilterKind.CATEGORY, EventCategory.MUSIC)
-            ),
-            chips
+            listOf(FeedFilter(), FeedFilter(FeedFilterKind.TODAY), FeedFilter(FeedFilterKind.TOMORROW)),
+            HomeRules.timeChips(feed, now, zone)
         )
+        // Сітка: безкоштовне — нікого; музика (5) — так, мистецтво (3) — замало. Без «Усе»: вибір знімає повторний тап.
+        assertEquals(listOf(FeedFilter(FeedFilterKind.CATEGORY, EventCategory.MUSIC)), HomeRules.chips(feed, now, zone))
     }
 
     @Test fun chipThatKeepsEverythingIsNotShown() {
         val all = (1..7).map { event("t$it", tomorrowAt, tomorrowAt) }
         assertTrue(HomeRules.chips(entries(*all.toTypedArray()), now, zone).isEmpty())
+        assertTrue(HomeRules.timeChips(entries(*all.toTypedArray()), now, zone).isEmpty())
+    }
+
+    @Test fun timeChipLoadsWhatStartsWithinIt() {
+        fun entry(id: String, startsAt: String, sessions: List<String> = emptyList()) = EventIndexEntry(
+            id, 0.0, 0.0, EventCategory.MUSIC, startsAt, zone, id, EventOrigin.IMPORT,
+            sessions = sessions.mapIndexed { i, at -> EventSession("$id$i", at, zone) }
+        )
+        val index = listOf(
+            entry("today", todayAt), entry("tomorrow", tomorrowAt),
+            // Прокат, чий перший сеанс уже минув, а наступний — завтра.
+            entry("run", "2026-09-20T15:00:00Z", listOf("2026-09-20T15:00:00Z", tomorrowAt))
+        )
+        fun ids(kind: FeedFilterKind) = HomeRules.startingWithin(index, FeedFilter(kind), now, zone).map { it.id }
+        assertEquals(listOf("today"), ids(FeedFilterKind.TODAY))
+        assertEquals(listOf("tomorrow", "run"), ids(FeedFilterKind.TOMORROW))
+        assertEquals(emptyList(), ids(FeedFilterKind.ALL))
+        assertEquals(emptyList(), ids(FeedFilterKind.FREE))
     }
 
     @Test fun categoriesAreOrderedByCountAndCapped() {

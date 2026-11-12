@@ -216,7 +216,7 @@ from private.company_intents where created_at > now() - interval '30 days';
   раз на тиждень — рядок «Ваш тиждень» у блоці «Ваше» на головній (і в гостя), якщо цього тижня стос не відкривали і
   він влазить у бюджет «Ваше» (`HomeRules.yours`: після планів, перед датами артистів).
 
-Аналітика: `deck_answer` (`yes`, `position`), `deck_done` (`yes_count`, `shown`, `skipped`); `digest_prompt` з
+Аналітика: `deck_answer` (`yes`, `position`, `category`), `deck_done` (`yes_count`, `shown`, `skipped`); `digest_prompt` з
 `from = deck`. Орієнтир: частка нових, що пішли з першої сесії з ≥ 1 закладкою, — з ~4% до 20%.
 
 **Опис, що чіпляє** (`events.pitch`, міграція `20261111120000`): під реченням «що це» стос показує опис агента

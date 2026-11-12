@@ -82,7 +82,7 @@ struct HomeView: View, Equatable {
     private func header(_ view: HomeScreenState) -> some View {
         HomeHeader(
             view: view, searchActive: searchActive(view), searchEpoch: searchEpoch, focus: $searchFocused,
-            startSearch: startSearch, cancelSearch: cancelSearch, openCitySearch: { citySearch = true }
+            startSearch: startSearch, cancelSearch: cancelSearch, openCitySearch: { citySearch = true }, selectTime: narrow
         )
     }
 
@@ -106,11 +106,14 @@ struct HomeView: View, Equatable {
                         // До першої видачі — один лоадер: секції, що приходили по черзі, штовхали одна одну (`HomeScreenState.ready`).
                         if view.ready {
                             // Серце продукту — з ким піти: зустрічі від людей і афіші, на які шукають компанію, однією рейкою,
-                            // під нею порожній квиток «Організувати подію». Активності не вигадуємо: коли зустрічей мало, секцію
-                            // веде порожній квиток.
-                            if !view.withWhomPending {
-                                HomePeopleSection(view: view, open: open, showPeople: showPeople, createEvent: createEvent, openProfile: openProfile)
-                            }
+                            // під нею порожній квиток «Організувати подію». Але першою лише тоді, коли їх досить
+                            // (`peopleFirst`): інакше перший екран нової людини віддавали найтоншому шару, і вона йшла, не
+                            // відкривши жодної події (критика 06.11). Тоді першою йде афіша, а «З ким піти» — рядками під нею.
+                            let people: HomePeopleSection? = view.withWhomPending ? nil : HomePeopleSection(
+                                view: view, open: open, showPeople: showPeople, createEvent: createEvent, openProfile: openProfile,
+                                compact: !view.peopleFirst
+                            )
+                            if view.peopleFirst, let people { people }
                             // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею. Усе особисте —
                             // плани, «Ваш тиждень», дати артистів, підписки — одним блоком у чотири рядки (критика довжини 28.10).
                             HomePersonalSection(
@@ -122,9 +125,12 @@ struct HomeView: View, Equatable {
                                     deck = DeckCards(events: view.deck)
                                 }
                             )
+                            // Стрічки ще нема (порожнє місто, без мережі) — рядки над її станом, а не між квитками.
+                            if !view.peopleFirst, view.feed.isEmpty, let people { people }
                             HomeCityFeed(
                                 view: view, feedLimit: $feedLimit, open: open, showCity: showCity, openMap: openMap,
-                                chipsPinned: $chipsPinned, selectChip: { selectChip($0, proxy: proxy) }
+                                chipsPinned: $chipsPinned, selectChip: { selectChip($0, proxy: proxy) },
+                                afterHeroes: view.peopleFirst ? nil : people.map { AnyView($0) }
                             )
                         } else {
                             PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
@@ -156,9 +162,14 @@ struct HomeView: View, Equatable {
     /// Чип «У місті»: звузити сітку з першої сторінки; з закріпленого ряду — ще й на початок сітки, бо вона змінилась.
     private func selectChip(_ chip: FeedFilter, proxy: ScrollViewProxy) {
         let pinned = chipsPinned
+        narrow(chip)
+        if pinned { withMotion { proxy.scrollTo(homeFeedChips, anchor: .top) } }
+    }
+
+    /// Чип часу з шапки чи сітки: афіша з першої сторінки.
+    private func narrow(_ chip: FeedFilter) {
         withMotion { model.homeScreen.selectFeedFilter(chip) }
         feedLimit = Int(HomeRules.shared.FEED_PAGE)
-        if pinned { withMotion { proxy.scrollTo(homeFeedChips, anchor: .top) } }
     }
 
     /// Відкрити деталі події; `from` — звідки тап, для аналітики й морфа: квиток з `morphSource("\(from)/\(id)")` розгортається
@@ -181,8 +192,8 @@ struct HomeView: View, Equatable {
     private func showPeople() { model.app.showPeopleOnMap(); openMap() }
 }
 
-/// Шапка головної. Поза пошуком — заголовок, місто й кнопка пошуку (профіль — вкладка таббару, другого входу не треба);
-/// у пошуку — поле, «Скасувати» і фільтри.
+/// Шапка головної. Поза пошуком — місто заголовком і кнопка пошуку (профіль — вкладка таббару, другого входу не треба),
+/// під ними чипи часу; у пошуку — поле, «Скасувати» і фільтри.
 private struct HomeHeader: View {
     let view: HomeScreenState
     let searchActive: Bool
@@ -196,34 +207,45 @@ private struct HomeHeader: View {
     private var model: AppModel { appModel! }
     /// Шторка вибору категорії з пошуку.
     @State private var categoryPicker = false
+    /// Чип часу під містом (`HomeView.narrow`).
+    let selectTime: (FeedFilter) -> Void
+
+    /// Місто заголовком: назва в один рядок і дрібнішає до половини, бо у два рядки шеврон відставав від останнього
+    /// слова («…міська громада      ⌄»): гліф — шлях, а не символ тексту.
+    private var cityButton: some View {
+        Button(action: openCitySearch) {
+            HStack(alignment: .lastTextBaseline, spacing: Space.xs) {
+                Text(view.cityName.isEmpty ? Copy.home_title : view.cityName)
+                    .font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
+                    .lineLimit(1).minimumScaleFactor(0.5)
+                PoruchIcon(glyph: PoruchIcons.chevronDown, size: 20).foregroundStyle(Palette.ink.opacity(0.6))
+            }
+            .frame(minHeight: 48).contentShape(Rectangle())
+        }
+        .buttonStyle(PressableStyle(pressedScale: 1))
+        .accessibilityLabel(Copy.a11y_city("\(view.cityName)"))
+        .accessibilityHint(Copy.a11y_change_city)
+        .accessibilityAddTraits(.isHeader)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             // Під час пошуку великий заголовок ховається: місце — фільтрам і результатам.
             if !searchActive {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: Space.xs) {
-                        Text(Copy.home_title).font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
-                        // Тап міняє місто тут же, без переходу на мапу. Шеврон — частина тексту: довга назва
-                        // переноситься разом із ним. Колір темніший за `inkSecondary`: на сяйві той дає лише ≈4:1.
-                        Button(action: openCitySearch) {
-                            HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
-                                Text(view.cityName).font(PoruchFont.subhead).multilineTextAlignment(.leading)
-                                PoruchIcon(glyph: PoruchIcons.chevronDown, size: 14)
-                            }
-                            .foregroundStyle(Palette.ink.opacity(0.7))
-                            // Ціль 44 без зсуву шапки: зона натиску ширша за рядок, місце в макеті те саме.
-                            .padding(.vertical, Space.md).padding(.trailing, Space.md).contentShape(Rectangle())
-                            .padding(.vertical, -Space.md).padding(.trailing, -Space.md)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(Copy.a11y_city("\(view.cityName)"))
-                        .accessibilityHint(Copy.a11y_change_city)
+                // Заголовок — саме місто: «Що поруч» над ним нічого не казав і забирав рядок першого екрана, а єдине
+                // корисне в шапці, місто, було найдрібнішим (критика шапки 07.11). Тап міняє місто тут же, без мапи.
+                // Під містом — коли: «Сьогодні / Вихідні» на першому екрані, а не на дні його над сіткою (вибір власника 07.11).
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    HStack(alignment: .center) {
+                        cityButton
+                        Spacer(minLength: Space.sm)
+                        IconPill(glyph: PoruchIcons.search, label: Copy.search_scope("\(view.searchScope)"), action: startSearch)
                     }
-                    Spacer(minLength: Space.sm)
-                    IconPill(glyph: PoruchIcons.search, label: Copy.search_scope("\(view.searchScope)"), action: startSearch)
+                    .padding(.horizontal, Space.page)
+                    if !view.timeChips.isEmpty {
+                        FeedChipsRow(chips: view.timeChips, selected: view.feedTime, select: selectTime)
+                    }
                 }
-                .padding(.horizontal, Space.page)
             } else {
                 HStack(spacing: Space.md) {
                     SearchBar(placeholder: Copy.search_scope("\(view.searchScope)"), initial: view.searchText) {

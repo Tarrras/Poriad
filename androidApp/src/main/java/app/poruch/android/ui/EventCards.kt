@@ -338,6 +338,8 @@ fun EventResultRow(
     withCity: Boolean = false,
     /** Відстань від людини («2 км»): першою в підписі, бо за нею впорядковано список. Null — без неї. */
     distance: String? = null,
+    /** Чому рядок тут («Від людей», «2 шукають компанію»): першим словом підпису, як причина на квитку. */
+    reason: String? = null,
     onClick: () -> Unit
 ) {
     val colors = Poruch.colors
@@ -345,6 +347,7 @@ fun EventResultRow(
     val price = event.listing?.takeIf { it.isFree == true || it.priceMin != null }
         ?.let { listingPrice(it).replaceFirstChar { c -> c.lowercase() } } ?: peoplePrice(event)
     val subtitle = listOfNotNull(
+        reason,
         distance,
         stringResource(categoryLabel(event.category)),
         (if (withCity) placeWithCity(event) else event.placeLabel).takeIf { it.isNotBlank() },
@@ -353,7 +356,7 @@ fun EventResultRow(
     Row(
         modifier
             .fillMaxWidth()
-            .ticketSemantics(listOfNotNull(ticketA11yLabel(event, badge?.first), distance).joinToString(", "), onClick)
+            .ticketSemantics(listOfNotNull(ticketA11yLabel(event, badge?.first), reason, distance).joinToString(", "), onClick)
             .pressable(onClick = onClick)
             .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),

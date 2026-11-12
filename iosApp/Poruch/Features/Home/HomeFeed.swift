@@ -16,8 +16,38 @@ struct HomePeopleSection: View {
     /// На accessibility-розмірах рейка стає стовпцем квитків на всю ширину: у 176 pt назви рвались посеред слова, а
     /// причина й день на корінці обрізались (аудит 1.4, P1).
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// Порядок за щільністю (`HomeScreenState.peopleFirst`): зустрічей мало — не рейка над афішею, а рядки під великими
+    /// квитками «У місті» й порожній квиток. Без заголовка й рядка входу: чому рядок тут, каже його підпис, а вхід і так
+    /// з'являється на «Приєднатися».
+    var compact = false
 
     var body: some View {
+        if compact { rows } else { rail }
+    }
+
+    /// Зустрічі й афіші з компанією рядками видачі, під ними порожній квиток.
+    private var rows: some View {
+        let entries: [(event: Event, from: String, reason: String)] =
+            view.people.map { ($0.event, "home_people", Copy.from_people) }
+            + view.company.map { ($0.event, "home_company", Copy.company_reason(Int($0.count))) }
+        return VStack(alignment: .leading, spacing: Space.md) {
+            if !entries.isEmpty {
+                GroupedRows {
+                    ForEach(entries.indices, id: \.self) { position in
+                        let entry = entries[position]
+                        if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, resultRowInset) }
+                        EventResultRow(event: entry.event, waitlisted: view.isWaitlisted(entry.event), reason: entry.reason) {
+                            open(entry.event.id, entry.from)
+                        }
+                        .morphSource("\(entry.from)/\(entry.event.id)")
+                    }
+                }
+            }
+            createCard(vertical: false)
+        }.padding(.horizontal, Space.page)
+    }
+
+    private var rail: some View {
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(
                 title: Copy.home_with_whom, actionLabel: view.openRooms > 0 ? Copy.home_all_count("\(view.openRooms)") : nil,
@@ -114,6 +144,8 @@ struct HomeCityFeed: View {
     @Binding var chipsPinned: Bool
     /// Тап по чипу: звузити сітку (і, коли ряд закріплений, повернутись до її початку).
     let selectChip: (FeedFilter) -> Void
+    /// Між великими квитками й чипами: «З ким піти» рядками, коли зустрічей мало (`HomeScreenState.peopleFirst`).
+    var afterHeroes: AnyView? = nil
     @Environment(\.appModel) private var appModel
     private var model: AppModel { appModel! }
     /// На accessibility-розмірах сітка в одну колонку: у дві назви рвались посеред слова.
@@ -133,6 +165,7 @@ struct HomeCityFeed: View {
                     action: view.totalFound > 0 ? showCity : nil
                 ).padding(.horizontal, Space.page)
                 heroPager(picks)
+                if let afterHeroes { afterHeroes.padding(.top, Space.lg).padding(.bottom, Space.sm) }
                 // Чипи й сітка — один блок: поки він під верхом екрана, ряд чипів закріплений угорі (критика довжини 28.10).
                 VStack(alignment: .leading, spacing: Space.md) {
                     if !view.chips.isEmpty {
@@ -221,8 +254,8 @@ struct HomeCityFeed: View {
 /// Мітка блоку чипів і сітки «У місті»: туди повертає тап по закріпленому чипу.
 let homeFeedChips = "home-feed-chips"
 
-/// Ряд чипів над сіткою «У місті»: час, безкоштовне й найбільші категорії. Звужує лише сітку, великі картки стоять.
-/// Той самий ряд липне вгорі, поки гортається сітка (`HomeView`).
+/// Ряд чипів «У місті»: час — у шапці під містом (звужує всю афішу), безкоштовне й найбільші категорії — над сіткою
+/// (лише її). Ряд сітки липне вгорі, поки вона гортається (`HomeView`).
 struct FeedChipsRow: View {
     let chips: [FeedFilter]
     let selected: FeedFilter

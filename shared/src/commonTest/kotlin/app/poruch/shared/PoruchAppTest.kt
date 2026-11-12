@@ -1563,7 +1563,7 @@ class PoruchAppTest {
         } finally { PoruchAnalytics.sink=null }
     }
 
-    /** `event_view` каже, звідки подію відкрито; підсвітка без джерела його скидає, щоб головна не дісталась чужому перегляду. */
+    /** `event_view` каже, звідки подію відкрито і якого вона жанру; підсвітка без джерела його скидає, щоб головна не дісталась чужому перегляду. */
     @Test fun anEventViewNamesWhereItWasOpenedFrom()=runTest {
         val tracked=mutableListOf<Pair<String,Map<String,String>>>()
         PoruchAnalytics.sink={ name,params -> tracked+=name to params }
@@ -1574,7 +1574,7 @@ class PoruchAppTest {
             app.selectEvent("b"); app.openEvent("b"); runCurrent()
             app.selectEvent("a"); app.openEvent("a"); runCurrent()
             assertEquals(
-                listOf(mapOf("from" to "home_poster"),emptyMap(),emptyMap()),
+                listOf(mapOf("from" to "home_poster","category" to "art"),mapOf("category" to "art"),mapOf("category" to "art")),
                 tracked.filter { it.first=="event_view" }.map { it.second }
             )
             app.close()
@@ -2180,6 +2180,10 @@ class PoruchAppTest {
         assertTrue(filtered.feed.drop(HomeRules.HERO_COUNT).isNotEmpty())
         assertTrue(filtered.feed.drop(HomeRules.HERO_COUNT).all { it.event.category==chip.category })
         assertEquals(chip,filtered.feedFilter)
+        // Повторний тап знімає вибір: на сітці «Усе» нема.
+        presenter.selectFeedFilter(chip); runCurrent()
+        assertEquals(FeedFilter(),presenter.state.value.feedFilter)
+        assertEquals(first.feed,presenter.state.value.feed)
         app.close()
     }
     /** Підписки з усіх міст: «Ви стежите» бачить усі й каже, за ким; «У місті» — лише обране, з іменем на картці. */

@@ -16,11 +16,13 @@ struct EventResultRow: View {
     var withCity = false
     /// Відстань від людини («2 км»): першою в підписі, бо за нею впорядковано список. Nil — без неї.
     var distance: String?
+    /// Чому рядок тут («Від людей», «2 шукають компанію»): першим словом підпису, як причина на квитку.
+    var reason: String?
     /// Nil — рядок без власної кнопки, для `NavigationLink`: вкладена кнопка забрала б тап.
     var action: (() -> Void)?
 
     private var subtitle: String {
-        var parts = [distance, categoryName(event.category)].compactMap { $0 }
+        var parts = [reason, distance, categoryName(event.category)].compactMap { $0 }
         let place = eventPlace(event, withCity: withCity)
         if !place.isEmpty { parts.append(place) }
         // Невідому ціну не пишемо: «ціну вкаже джерело» посеред рядка нічого не каже.
@@ -46,7 +48,7 @@ struct EventResultRow: View {
         return nil
     }
 
-    private var a11yLabel: String { [ticketA11yLabel(event, state: badge?.0), distance].compactMap { $0 }.joined(separator: ", ") }
+    private var a11yLabel: String { [ticketA11yLabel(event, state: badge?.0), reason, distance].compactMap { $0 }.joined(separator: ", ") }
 
     var body: some View {
         if let action {

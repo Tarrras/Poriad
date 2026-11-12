@@ -2,7 +2,9 @@ package app.poruch.shared
 
 import app.poruch.domain.*
 import kotlinx.coroutines.*
+import kotlinx.datetime.TimeZone
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Clock
 
 /**
  * Головна ([HomeFeed]): стрічка цілого міста без фільтрів мапи і свій пошук. Поки мапа без фільтрів, стрічку везе
@@ -25,6 +27,8 @@ internal class HomeDiscovery(
 
     private val feedJob = LatestJob(scope)
     private val cardsJob = LatestJob(scope)
+    /** Окремо від [cardsJob]: вибір часу не скасовує вікно, що ще їде, а нове вікно — картки часу. */
+    private val timeJob = LatestJob(scope)
     private val searchJob = LatestJob(scope)
     private val debounceJob = LatestJob(scope)
     private val placesJob = LatestJob(scope)
@@ -186,9 +190,25 @@ internal class HomeDiscovery(
         }
     }
 
+    /** Чип часу з шапки головної ([HomePresenter.selectFeedFilter]): його картки довантажуються з кожним [materialize]. */
+    private var time = FeedFilter()
+
+    fun setTime(filter: FeedFilter) {
+        if (filter == time) return
+        time = filter
+        load(timed(curated(store.value.home.index)).map { it.id })?.let(timeJob::set)
+    }
+
+    /** Кіносеанси, які «У місті» однаково не покаже (Taste.curates), не з'їдають вікно карток. */
+    private fun curated(index: List<EventIndexEntry>) = index.filter { store.value.taste.curates(it.category) }
+
+    private fun timed(city: List<EventIndexEntry>) =
+        HomeRules.startingWithin(city, time, Clock.System.now(), TimeZone.currentSystemDefault().id).take(DiscoveryRules.FIRST_CARDS)
+
     /**
      * Картки, які головна показує першими: добірка, початок стрічки й пошуку, а ще кілька відкритих кімнат із будь-якого
      * місця індексу ([DiscoveryRules.HOME_ROOM_CARDS]): вони йдуть у «Від людей» і перші великі картки, хоч би коли починались.
+     * З обраним часом — ще й перші події, що в нього починаються: «Сьогодні» показує місто, а не лише вже завантажене.
      */
     fun materialize() {
         val home = store.value.home
@@ -213,14 +233,13 @@ internal class HomeDiscovery(
         index: List<EventIndexEntry>, suggested: List<EventIndexEntry>, results: List<EventIndexEntry>
     ): List<String> {
         val rooms = index.filter { it.isCommunity && it.roomHasSeats }.take(DiscoveryRules.HOME_ROOM_CARDS)
-        // Кіносеанси, які «У місті» однаково не покаже (Taste.curates), не з'їдають вікно карток.
-        val city = index.filter { store.value.taste.curates(it.category) }
-        return (suggested.take(DiscoveryRules.FIRST_CARDS) + city.take(DiscoveryRules.FIRST_CARDS) + rooms +
+        val city = curated(index)
+        return (suggested.take(DiscoveryRules.FIRST_CARDS) + city.take(DiscoveryRules.FIRST_CARDS) + rooms + timed(city) +
                 HomeRules.company(index) + results.take(DiscoveryRules.FIRST_CARDS)).map { it.id }.distinct()
     }
 
     /** Зміна акаунта: картки в дорозі несуть членство попереднього. */
-    fun reset() = cardsJob.cancel()
+    fun reset() { cardsJob.cancel(); timeJob.cancel() }
 
     /** Чекає стрічку й пошук головної. */
     suspend fun await() {

@@ -14,10 +14,13 @@ enum class FeedSource { FOR_YOU, FOLLOWING, CITY }
 /** [followName] — за ким саме подія з підписок ([FollowRules.via]): підпис картки замість безіменного «Ви стежите». */
 data class FeedEntry(val event: Event, val source: FeedSource, val followName: String? = null)
 
-/** Що вибрано в ряду чипів над сіткою «У місті»: усе, час, ціна чи категорія. Одне на раз. */
+/** Чип «У місті»: час (з «Усе») — у шапці під містом, ціна чи категорія — над сіткою. По одному з кожного ряду. */
 enum class FeedFilterKind { ALL, TODAY, TOMORROW, WEEKEND, FREE, CATEGORY }
 
-data class FeedFilter(val kind: FeedFilterKind = FeedFilterKind.ALL, val category: EventCategory? = null)
+data class FeedFilter(val kind: FeedFilterKind = FeedFilterKind.ALL, val category: EventCategory? = null) {
+    /** Час і «Усе» звужують усю афішу міста з шапки; безкоштовне й категорія — лише сітку. */
+    val isTime: Boolean get() = kind != FeedFilterKind.FREE && kind != FeedFilterKind.CATEGORY
+}
 
 /** Що з особистого влізло в «Ваше» ([HomeRules.yours]): скільки планів і дат артистів, чи є рядки стосу й «Ви стежите». */
 data class YoursSlots(val plans: Int, val waiting: Boolean, val deck: Boolean, val dates: Int, val follows: Boolean) {
@@ -71,6 +74,13 @@ object HomeRules {
      * належить їй, а не афіші.
      */
     const val PEOPLE_SECTION_MIN = 1
+
+    /**
+     * З цього числа «З ким піти» по місту (зустрічі з місцем і афіші з наміром, «Усі N») секція стоїть над афішею рейкою.
+     * Менше — першою йде «У місті», а «З ким піти» стає рядками під великими квитками: на prod у Києві рейка з однією
+     * зустріччю, порожній квиток і вхід займали ~45% першого екрана нової людини (критика 06.11, рішення власника 07.11).
+     */
+    const val PEOPLE_FIRST_MIN = 3
 
     /** Скільки постерів у рейці «Від людей»: решта кімнат ідуть у стрічку «У місті» звичайним порядком. */
     const val PEOPLE_SECTION_MAX = 8
@@ -161,19 +171,43 @@ object HomeRules {
     }
 
     /**
-     * Чипи над сіткою: усе, потім те, що щось звужує й щось знаходить (час, безкоштовне, найбільші категорії).
-     * Чип, що лишає все чи нічого, не показуємо. Порожній список — рядка нема.
+     * Чипи часу під містом у шапці: «Усе», далі сьогодні, завтра, вихідні — ті, що щось звужують у всій афіші міста
+     * й щось знаходять. Порожній список — рядка нема.
+     */
+    fun timeChips(entries: List<FeedEntry>, now: Instant, zoneId: String): List<FeedFilter> {
+        val kinds = narrowing(entries, listOf(FeedFilterKind.TODAY, FeedFilterKind.TOMORROW, FeedFilterKind.WEEKEND), now, zoneId)
+        return if (kinds.isEmpty()) emptyList() else listOf(FeedFilter()) + kinds
+    }
+
+    /**
+     * Чипи над сіткою: безкоштовне й найбільші категорії, що щось звужують. Без «Усе»: повторний тап знімає вибір,
+     * як на мапі. Порожній список — рядка нема.
      */
     fun chips(entries: List<FeedEntry>, now: Instant, zoneId: String): List<FeedFilter> {
         if (entries.size < MIN_FILTERABLE) return emptyList()
-        val zone = TimeZone.of(zoneId)
-        fun narrows(filter: FeedFilter) = entries.count { matches(filter, it.event, now, zone) } in 1 until entries.size
-        val kinds = listOf(FeedFilterKind.TODAY, FeedFilterKind.TOMORROW, FeedFilterKind.WEEKEND, FeedFilterKind.FREE)
-            .map { FeedFilter(it) }.filter(::narrows)
         val categories = entries.groupingBy { it.event.category }.eachCount().entries
             .filter { it.key != EventCategory.UNKNOWN && it.value >= MIN_CATEGORY_CHIP && it.value < entries.size }
             .sortedByDescending { it.value }.take(MAX_CATEGORY_CHIPS).map { FeedFilter(FeedFilterKind.CATEGORY, it.key) }
-        return if (kinds.isEmpty() && categories.isEmpty()) emptyList() else listOf(FeedFilter()) + kinds + categories
+        return narrowing(entries, listOf(FeedFilterKind.FREE), now, zoneId) + categories
+    }
+
+    /**
+     * Рядки індексу, що починаються в межах чипа часу (прокат — будь-яким сеансом). Головна тримає лише перші картки
+     * міста, тож без довантаження «Сьогодні» в шапці показувало б кілька подій замість міста (Київ 07.11: 8 із 959).
+     * Прокат, що лише триває, сюди не потрапляє: кінця індекс не знає.
+     */
+    fun startingWithin(index: List<EventIndexEntry>, filter: FeedFilter, now: Instant, zoneId: String): List<EventIndexEntry> {
+        if (!filter.isTime || filter.kind == FeedFilterKind.ALL) return emptyList()
+        val (from, to) = range(filter.kind, now, TimeZone.of(zoneId))
+        fun within(startsAt: String) = runCatching { Instant.parse(startsAt) }.getOrNull()?.let { it >= from && it < to } == true
+        return index.filter { within(it.startsAt) || it.sessions.any { session -> within(session.startsAt) } }
+    }
+
+    /** Чип, що лишає все чи нічого, не показуємо. */
+    private fun narrowing(entries: List<FeedEntry>, kinds: List<FeedFilterKind>, now: Instant, zoneId: String): List<FeedFilter> {
+        if (entries.size < MIN_FILTERABLE) return emptyList()
+        val zone = TimeZone.of(zoneId)
+        return kinds.map { FeedFilter(it) }.filter { filter -> entries.count { matches(filter, it.event, now, zone) } in 1 until entries.size }
     }
 
     fun apply(entries: List<FeedEntry>, filter: FeedFilter, now: Instant, zoneId: String): List<FeedEntry> {
