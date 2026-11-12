@@ -18,7 +18,7 @@ export const TRACKED = {
   kab_claim: ["kind", "fresh", "mobile"],
   kab_promo: ["action", "mode", "mobile"],
   // Сторінка події (site/js/promo.js): «Скопіювати» промокод.
-  promo_copy: ["code", "mobile"],
+  promo_copy: ["event_id", "code", "mobile"],
 };
 
 /** Тіло запиту сторінки → подія Amplitude або null, якщо це не наша подія. */

@@ -7,5 +7,5 @@ button?.addEventListener("click", async () => {
   const code = button.dataset.promo;
   try { await navigator.clipboard.writeText(code); } catch { prompt("Промокод", code); return; }
   button.closest(".promo").querySelector(".done").textContent = "Скопійовано, вставте на сайті квитків";
-  track("promo_copy", { code });
+  track("promo_copy", { event_id: button.dataset.event, code });
 });

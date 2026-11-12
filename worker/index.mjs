@@ -237,7 +237,7 @@ export function eventPage(e, now, shelters = [], invite = null) {
   // Промокод (docs/promo-pins-2026-11.md): база віддає його, лише поки діє. Корінець — кнопка «Скопіювати» (site/js/promo.js).
   const promo = live && e.promo_code ? `<div class="ticket promo cat-${category}"><div class="face"><small>Промокод</small>
       <p><b>${esc(e.promo_code)}</b>${e.promo_note ? ` · ${esc(e.promo_note)}` : ""}</p><span class="done" role="status"></span></div>
-      <button class="stub" type="button" data-promo="${esc(e.promo_code)}">${icon("ticket")}Скопіювати</button></div>` : "";
+      <button class="stub" type="button" data-promo="${esc(e.promo_code)}" data-event="${esc(e.id)}">${icon("ticket")}Скопіювати</button></div>` : "";
   // Групи «Йдемо разом» на цю афішу: спершу приєднатися до наявної (запис за посиланням, без застосунку), свою — у
   // застосунку. UUID перевіряємо — рядок з бази йде в href.
   const groups = listed && live ? (Array.isArray(e.companions) ? e.companions : []).filter((g) => UUID.test(g?.id ?? "") && g.starts_at) : [];

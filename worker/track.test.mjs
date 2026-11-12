@@ -55,6 +55,8 @@ assert.equal((await from("203.0.113.8")).status, 204);
 // Промокод — з дефісом, але не з пробілом.
 assert.deepEqual(tracked({ name: "promo_copy", device, props: { code: "PORIAD-15" } }).event_properties, { code: "PORIAD-15" });
 assert.deepEqual(tracked({ name: "promo_copy", device, props: { code: "PORIAD 15" } }).event_properties, {});
+assert.deepEqual(tracked({ name: "promo_copy", device, props: { event_id: "4d391f01-4906-51c4-ba64-01d0981bad2b", code: "PORIAD15" } }).event_properties,
+  { event_id: "4d391f01-4906-51c4-ba64-01d0981bad2b", code: "PORIAD15" });
 
 // Сайт шле лише події зі словника: назви в kabinet.js, promo.js і тут не розходяться.
 const { readFileSync } = await import("node:fs");

@@ -192,7 +192,7 @@ assert.ok(failed.status === 200 && !(await failed.text()).includes("Уже шу�
 const promoted = eventPage({ ...afisha, category: "music", promo_code: "PORIAD15", promo_note: "−15% на квитки <b>", promo_until: afisha.starts_at }, now);
 assert.ok(promoted.includes('<div class="ticket promo cat-music"><div class="face"><small>Промокод</small>'), "корінець кольору жанру");
 assert.ok(promoted.includes("<b>PORIAD15</b> · −15% на квитки &lt;b&gt;</p>"), "код і що дає, текст екранований");
-assert.ok(promoted.includes('data-promo="PORIAD15">') && promoted.includes("Скопіювати</button>"));
+assert.ok(promoted.includes('data-promo="PORIAD15" data-event=') && promoted.includes("Скопіювати</button>"));
 assert.ok(promoted.indexOf("data-promo=") < promoted.indexOf('class="actions"') && promoted.indexOf("data-promo=") < promoted.indexOf("Квитки на Concert.ua"),
   "над діями й квитками");
 assert.ok(promoted.includes('<script type="module" src="/js/promo.js?v=21"></script>'), "кнопка — файлом з домену, без inline");
