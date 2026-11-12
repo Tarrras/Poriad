@@ -16,7 +16,7 @@ $$;
 revoke all on function private.is_discoverable(text,text,numeric,boolean) from public,anon,authenticated;
 grant execute on function private.is_discoverable(text,text,numeric,boolean) to anon,authenticated;
 
--- Тринадцять функцій кличуть фільтр як is_discoverable(x.origin, x.import_status, x.quality): discover_index (обидві),
+-- Дванадцять функцій кличуть фільтр як is_discoverable(x.origin, x.import_status, x.quality): discover_index,
 -- place_events, search_places, artist_events, search_artists, radar_events, popular_artists, send_winbacks,
 -- notify_saved_companions, company_event_ok, events_in_view, search_events_in_view. Тіла не копіюємо: дописуємо
 -- четвертий аргумент у їхні нинішні визначення. Кожна має змінитись; інакше — помилка, а не тихий витік.
@@ -34,7 +34,7 @@ begin
   execute v_new;
   v_count := v_count + 1;
  end loop;
- if v_count <> 13 then raise exception 'link_only: expected 13 callers of is_discoverable, got %', v_count; end if;
+ if v_count <> 12 then raise exception 'link_only: expected 12 callers of is_discoverable, got %', v_count; end if;
 end $$;
 
 -- «Ви стежите» й пуші підписникам: заклад і артист — через фільтр, гілка організатора — окремою умовою.
