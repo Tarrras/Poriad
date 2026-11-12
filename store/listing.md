@@ -143,33 +143,33 @@ UGC: так. Спілкування між користувачами: так (�
 
 Слова з назви й subtitle у keywords не повторюємо: App Store індексує їх разом, повтор — змарноване місце. Те саме між локалізаціями: вітрина UA індексує українську разом з English (U.K.) і Russian (таблиця MobileAction), тож слово з англійських полів в українських keywords теж змарноване. Заміни 2026-10-26 ([ASO-аудит](../docs/aso-audit-2026-10-26.md)): прибрано «квитки» (у пошуку — квитки на потяги й автобуси, ми поза топ-50) і «meetup» (Meetup і дейтинг, поза топ-50), «концерти» переїхали в subtitle, «пробіжка» й «poriad» — в англійську локалізацію; додано «театр», «виставки», «фестивалі», «розваги». Попередні: name «Поряд», subtitle «Мапа подій і зустрічей міста», keywords «події,афіша,мапа,зустрічі,концерти,настолки,пробіжка,київ,львів,meetup,events,куди піти».
 
-**What's New (1.5.0):** лише коли хвиля 1 уже на prod (міграції, `push`, `parse-announcement` з `ANTHROPIC_API_KEY`, листи з коду): без неї «Вставити анонс», вхід кодом і сповіщення про рішення не працюють. Без кіно й без Telegram.
+**What's New (1.5.0):** лише коли на prod уже все серверне з 1.5: міграції до 20261203120000_link_only і `push` з «лише за посиланням» (застосунки шлють `p_link_only`, без міграції публікація впаде). Без кіно-імпорту й без Telegram. «Кіно» як своя зустріч у текстах не згадуємо, щоб не обіцяти афіші кінотеатрів. Переписано 12.11: «Своя зустріч», «Лише за посиланням», ціна з передоплатою, нова головна, «Папір».
 
-• Створити подію можна без входу. Заповніть усе, а вхід знадобиться лише щоб опублікувати — чернетка нікуди не дінеться, і подія вийде сама.
+• «Своя зустріч» за хвилину: настолки, прогулянка чи кава — один екран, і посилання вже можна надсилати. Увійти треба лише щоб опублікувати, чернетка нікуди не дінеться.
+• «Лише за посиланням»: зустрічі не буде на мапі й у пошуку — прийдуть ті, кому ви надішлете посилання. Зручно, коли збираєтесь удома.
 • Є готовий анонс? Вставте текст з Threads чи Instagram — заповнимо назву, опис, дату й місце. Вам лишиться перевірити.
 • Фото й відео в події: до п'яти, перше стане обкладинкою. На сторінці події їх можна гортати, відео грає без звуку.
-• «Повторити» в «Моїх подіях» створює таку саму подію з усіма полями, фото й відео, на тиждень пізніше — лише перевірте дату.
-• «Пост для Threads»: готовий текст анонсу з посиланням і фото, щоб поділитися одним дотиком.
+• «Повторити» в «Моїх подіях» створює таку саму подію на тиждень пізніше, а «Пост для Threads» дає готовий анонс з посиланням і фото.
+• Ціна входу: організатор вказує, скільки коштує і коли платити — на зустрічі чи наперед. Платите напряму організатору.
+• На головній — ваше місто вгорі й чипи «Сьогодні», «Завтра», «Вихідні»: афіша на потрібний день одним дотиком. Найближчий план — квиток зі штампом.
 • Вхід кодом з пошти — без пароля. Дату народження питаємо лише для подій з віковими межами.
 • Повідомимо, коли організатор схвалив чи відхилив ваш запит або для вас звільнилось місце.
-• Подію створено — одразу посилання, календар і «Поширити».
-• Ціна події: організатор може вказати ціну входу — її видно на картці й сторінці події. Оплата — на місці, без передоплати.
-• На головній ваш найближчий план — квиток зі штампом. Перший запуск коротший: менше питань і одна підказка.
+• Застосунок став теплішим: папір замість сірого, а на порожніх екранах — маленькі ілюстрації з квитків.
 
-**Play → примітки до випуску (1.5.0, ≤500):** Створити подію можна без входу: вхід лише щоб опублікувати, і подія вийде сама. Є готовий анонс? Вставте текст — заповнимо назву, опис, дату й місце. До 5 фото й відео в події. «Повторити» минулу подію й «Пост для Threads» — у «Моїх подіях». Організатор може вказати ціну входу, оплата — на місці. Вхід кодом з пошти, без пароля. Повідомимо, коли запит схвалили чи звільнилось місце. На головній — ваш найближчий план квитком.
+**Play → примітки до випуску (1.5.0, ≤500):** «Своя зустріч» за хвилину: один екран, і посилання вже можна надсилати. «Лише за посиланням» — без мапи й пошуку, лише для своїх. Є анонс? Вставте текст — заповнимо назву, дату й місце. До 5 фото й відео в події, «Повторити» й «Пост для Threads» у «Моїх подіях». Ціна входу й коли платити — на зустрічі чи наперед. На головній — ваше місто й чипи «Сьогодні», «Завтра», «Вихідні». Вхід кодом з пошти. Повідомимо, коли запит схвалили чи звільнилось місце.
 
 **What's New (1.5.0), English (U.K.):**
 
-• Create an event without signing in. Fill everything in; you'll only need to sign in to publish. Your draft stays put, and the event goes live on its own.
+• "Your own meetup" in a minute: board games, a walk or coffee — one screen, and the link is ready to send. You only sign in to publish; your draft stays put.
+• "Link only": the meetup won't appear on the map or in search — only people you send the link to will come. Handy when you're hosting at home.
 • Already have an announcement? Paste the text from Threads or Instagram and we'll fill in the title, description, date and place. You just check it.
 • Photos and videos on events: up to five, and the first becomes the cover. Swipe through them on the event page; videos play muted.
-• "Repeat" in My events creates the same event a week later, with all its fields, photos and videos. Just check the date.
-• "Post for Threads": a ready announcement with the link and photos, shared in one tap.
+• "Repeat" in My events creates the same event a week later, and "Post for Threads" gives you a ready announcement with the link and photos.
+• Entry price: organisers set the price and when to pay — at the meetup or in advance. You pay the organiser directly.
+• Home: your city at the top and "Today", "Tomorrow" and "Weekend" chips — listings for the right day in one tap. Your next plan sits there as a stamped ticket.
 • Sign in with a code from your email, no password needed. We only ask for your date of birth for age-restricted events.
 • We'll let you know when an organiser approves or declines your request, or when a spot opens up for you.
-• Event created: the link, calendar and "Share" are right there.
-• Event price: organisers can set an entry price, shown on the card and the event page. You arrange payment with the organiser directly.
-• Your next plan sits on the home screen as a ticket with a stamp. The first launch is shorter: fewer questions and a single tip.
+• A warmer app: paper instead of grey, and little illustrations from tickets on empty screens.
 
 **What's New (1.4.0):** без кіно — рішення 30.10: на старті прапорець `cinema` вимкнено. Коли ввімкнемо (docs/cinema-import.md, «Вимикач»), пункт про кіно — у наступну версію, лише з тими мережами, що погодились (Multiplex 30.10 відмовив: його назви в текстах сторів бути не може).
 

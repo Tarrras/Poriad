@@ -698,6 +698,33 @@ Android `Navigator.createEvent` → `Auth(AuthReason.CREATE)`), і 70% гост�
    `/kabinet*`, `/api/geocode`) → сайт (`kabinet.html`, посилання «Організаторам» у шапці).
 3. Хвиля 2: збірки 1.5 (iOS і Android). Міграцій і функцій нема, усе вже на prod.
 
+### Реліз 1.5 — команди (стан на 12.11)
+
+Уже на prod: хвиля 1 (02.11), ціна події (03.11), передоплата й «Вхід — безкоштовно чи платно» (05.11, prod на
+`20261125190000`, `push` v21, `delete-account` v8, `parse-announcement` v1). Зверху в `main` (12 комітів поверх
+`origin/main`, перебазовано 12.11): кабінет видно й виміряно (`/organizatoram`, `/api/t`), заклад і артист — власник,
+сторінки `/p/` і `/a/`, коротка адреса, події без запису, склад і серія, пошук закладу з мапи й псевдоніми; у
+застосунках — «Своя зустріч» за хвилину з фіксами аудиту створення, «Лише за посиланням», «Папір», головна з містом і
+чипами часу. Версії: iOS 1.5.0 (23 → `release.sh` дасть 24), Android 1.5.0 vc11 → 12. «Що нового» — `store/listing.md`
+(переписано 12.11). Сайт `?v=18` → `?v=20`.
+
+На prod чекають **10 міграцій** `20261126120000_owned_places_artists` … `20261203120000_link_only` і функція `push`
+(читає `events.link_only`, тож лише після міграцій). `parse-announcement` і `delete-account` не мінялись. Застосунки 1.5
+шлють `p_link_only`, тож у стори — лише після міграцій.
+
+1. **База** (основна копія прив'язана до prod): `supabase db push --dry-run --linked` — мають бути рівно ці 10, потім
+   без `--dry-run`. Контроль до й після: кількість майбутніх опублікованих подій; після — `link_only` у всіх `false`.
+2. **Функція:** `supabase functions deploy push --no-verify-jwt --use-api --project-ref tzdogzdvctlumsqlqskr`.
+3. **Сайт:** `git push origin main` → дочекатись workflow `site` (Pages).
+4. **Воркер** одразу після Pages: `cd worker && npx wrangler deploy` (новий кабінет шле `/api/geocode?kind=venue`,
+   `/p/` і `/a/` читають `slug`; `AMPLITUDE_KEY` уже у `[vars]`).
+5. **Наживо:** `/`, `/afisha`, `/organizatoram`, `/kabinet` (картка «Заклад і артист», «Як потрапити»), `/e/{id}`
+   («Уже шукають компанію», безпека), `/p/{id}` — 200, CSP, консоль чиста.
+6. **Застосунки:** `iosApp/release.sh` (перед тим — вхід у Xcode → Settings → Accounts) → 1.5.0 (24). Android:
+   ключа сервісного акаунта нема, тож номер 12 закомічено окремо, а AAB зібрано `androidApp/release.sh --no-upload`
+   (`androidApp/build/outputs/bundle/prodRelease/androidApp-prod-release.aab`) — перетягнути в Play вручну з
+   примітками зі `store/listing.md`. Потім рев'ю; у Play — поступово.
+
 ### Реліз 1.5 — команди (стан на 02.11)
 
 **02.11 ввечері хвиля 1 на prod** (власник: «роби деплой 1.5 на веб»): 6 міграцій (dry-run, потім push; схема й
