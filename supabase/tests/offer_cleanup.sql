@@ -160,7 +160,7 @@ do $$ declare k uuid := current_setting('test.k')::uuid; x uuid := pg_temp.offer
  assert exists (select 1 from public.saved_events where event_id=k and user_id=a)
     and not exists (select 1 from public.saved_events where event_id=v), 'saves stay on the old event';
  assert (select import_status from public.events where id=v)='withdrawn'
-    and not (select private.is_discoverable(origin,import_status,quality) from public.events where id=v),
+    and not (select private.is_discoverable(origin,import_status,quality,link_only) from public.events where id=v),
   'detached event is invisible';
 
  assert (select resolution from private.offer_detach_queue where offer_id=pg_temp.offer('m-'||current_setting('test.slug'))) is null
