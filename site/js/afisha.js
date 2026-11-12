@@ -1,7 +1,7 @@
 // Веб-афіша — режим перегляду: місто, дати, категорії, пошук, сітка з довантаженням і мапа.
 // Стан — у адресі (?city=&when=&cat=&q=&view=&e=), тож будь-який вигляд можна надіслати посиланням.
-import { discover, fold, soonFirst, inWhen, CITIES, cityOf, CATEGORIES, CATEGORY_COLORS, WHEN, plural, EVENTS, httpsOrNull, mapStyle, displayTitle, cardTitle, timeOf, esc } from "./poriad.js?v=20";
-import { ensureCards, remember, poster, heroCard, skeletons, bindCards, openEvent, reveal, navLine, bindLocks, savedCity, icon, stubTile, isIOS } from "./ui.js?v=20";
+import { discover, fold, soonFirst, pinnedFirst, inWhen, CITIES, cityOf, CATEGORIES, CATEGORY_COLORS, WHEN, plural, EVENTS, httpsOrNull, mapStyle, displayTitle, cardTitle, timeOf, esc } from "./poriad.js?v=21";
+import { ensureCards, remember, poster, heroCard, skeletons, bindCards, openEvent, reveal, navLine, bindLocks, savedCity, icon, stubTile, isIOS } from "./ui.js?v=21";
 
 navLine();
 bindLocks();
@@ -146,14 +146,14 @@ async function render() {
   await Promise.all([renderRail(), renderGrid()]);
 }
 
-/** «Не пропустіть»: найближчі з фото — лише на чистій афіші, без фільтрів і пошуку. */
+/** «Не пропустіть»: найближчі з фото — лише на чистій афіші, без фільтрів і пошуку. Закріплена в місті — першою. */
 async function renderRail() {
   const wrap = $("[data-rail-wrap]");
   if (state.when || state.cat || state.q) { wrap.hidden = true; return; }
   // Вечір і дорослі події першими: сайт продає вечір, дитячі ранки — у категорії «Дітям».
   const rank = (e) => (e.category === "kids" ? 2 : 0) + (Number(timeOf(new Date(e.startsAt), e.tz).slice(0, 2)) >= 17 ? 0 : 1);
-  const soon = state.list.filter((e) => (inWhen(e, "today") || inWhen(e, "tomorrow")) && new Date(e.startsAt) > Date.now())
-    .sort((a, b) => rank(a) - rank(b)).slice(0, 30);
+  const soon = pinnedFirst(state.list.filter((e) => e.pinned || ((inWhen(e, "today") || inWhen(e, "tomorrow")) && new Date(e.startsAt) > Date.now()))
+    .sort((a, b) => rank(a) - rank(b))).slice(0, 30);
   const got = (await ensureCards(soon.map((e) => e.id))).filter((c) => httpsOrNull(c.image_url)).slice(0, 10);
   wrap.hidden = got.length < 3;
   $("[data-rail]").innerHTML = got.map(heroCard).join("");

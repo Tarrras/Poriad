@@ -1,6 +1,6 @@
 // Правила сайту, що мають збігатися із застосунком: node tools/site_test.mjs
 import assert from "node:assert/strict";
-import { displayTitle, overline, inWhen, fold, soonFirst, otherDays, plural, EVENTS, price, qrPath, icsFile, googleCalendarUrl, SUPABASE } from "../site/js/poriad.js";
+import { displayTitle, overline, inWhen, fold, soonFirst, pinnedFirst, otherDays, plural, EVENTS, price, qrPath, icsFile, googleCalendarUrl, SUPABASE } from "../site/js/poriad.js";
 
 // Проєкт Supabase: node-скрипти й poriad.app — prod, локальний сайт, емулятор і LAN — dev (кожен ?host — окремий
 // екземпляр модуля).
@@ -74,6 +74,8 @@ assert.equal(otherDays(folded[0].sessions), 1);
 
 const order = soonFirst([e("2026-08-06T09:00:00Z", { id: "run" }), e("2026-10-08T16:00:00Z", { id: "tonight" }), e("2026-10-09T16:00:00Z", { id: "tomorrow" })], now.getTime());
 assert.deepEqual(order.map((x) => x.id), ["tonight", "run", "tomorrow"], "виставка, що йде, — після вечора, але перед завтра");
+// Пін (docs/promo-pins-2026-11.md): закріплені — першими, решта в тому самому порядку.
+assert.deepEqual(pinnedFirst([{ id: "a" }, { id: "b", pinned: false }, { id: "c", pinned: true }, { id: "d" }]).map((x) => x.id), ["c", "a", "b", "d"]);
 
 assert.equal(plural(1340, EVENTS), "1 340 подій".replace(" ", " "));
 assert.equal(plural(21, EVENTS), "21 подія");

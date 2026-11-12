@@ -78,4 +78,16 @@ const down = await go("/afisha/lviv");
 assert.equal(down.status, 503);
 assert.equal(down.headers.get("cache-control"), "no-store");
 assert.equal(puts.length, 1, "збій бази в кеш не лягає");
+
+// Пін (docs/promo-pins-2026-11.md): база ставить закріплену першою в індексі з 15-ю позицією 1, а картки віддає за часом.
+// На сторінці закріплена — перша у своєму дні; дні й решта — за часом, без позначки.
+const pinIndex = [[...entry(cityIds[4], "art", "2026-10-30T18:00:00Z", "Закріплена вистава"), null, null, null, 1], ...cityIndex.slice(0, 4)];
+const pinCards = { ...cityCards, [cityIds[4]]: { ...cityCards[cityIds[4]], title: "Закріплена вистава", starts_at: "2026-10-30T18:00:00Z" } };
+globalThis.fetch = async (url, init) => new Response(JSON.stringify(url.endsWith("/discover_events") ? { index: pinIndex, cards: [] }
+  : JSON.parse(init.body).p_ids.map((id) => pinCards[id]).sort((a, b) => a.starts_at.localeCompare(b.starts_at))), { status: 200 });
+const pinned = await (await cityResponse("kyiv", "", env, cityNow)).text();
+const body = pinned.slice(pinned.indexOf("<main")), at = (title) => body.indexOf(title);
+assert.ok(at("Закріплена вистава") > 0 && at("Закріплена вистава") < at("Стендап «Вечір»"), "закріплена — перша сьогодні, хоч і пізніша");
+assert.ok(at("Стендап «Вечір»") < at("Концерт &lt;/script&gt;"), "наступний день — після, за часом");
+assert.ok(!pinned.includes("Реклама"), "без позначки");
 console.log("cities ok");

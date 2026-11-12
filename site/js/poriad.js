@@ -62,8 +62,23 @@ export async function discover(city, { text = null, cards = 24, category = null,
   return { index: data.index.map(toEntry), cards: data.cards };
 }
 
-const toEntry = ([id, lat, lng, category, startsAt, tz, title, origin, source, capacity, count]) =>
-  ({ id, lat, lng, category, startsAt, tz: tz || "Europe/Kyiv", title, origin, source, capacity, count });
+// 15-та позиція — 1 у закріпленої (docs/promo-pins-2026-11.md); база до 20261204120000 її не віддає.
+const toEntry = ([id, lat, lng, category, startsAt, tz, title, origin, source, capacity, count, , , , pinned]) =>
+  ({ id, lat, lng, category, startsAt, tz: tz || "Europe/Kyiv", title, origin, source, capacity, count, pinned: pinned === 1 });
+
+/**
+ * Аналітика сайту (docs/analytics.md, «Кабінет на сайті»): подія — на свою адресу `/api/t`, далі її шле воркер
+ * (worker/track.mjs, там і словник). Без id людей, імен і текстів; браузер із «не стежити» (GPC, DNT) не шле нічого.
+ */
+export function track(name, props = {}) {
+  try {
+    if (navigator.globalPrivacyControl || navigator.doNotTrack === "1") return;
+    const device = localStorage.getItem("poriad.device") ?? crypto.randomUUID();
+    localStorage.setItem("poriad.device", device);
+    fetch("/api/t", { method: "POST", keepalive: true, headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name, device, props: { ...props, mobile: matchMedia("(max-width: 767px)").matches } }) }).catch(() => {});
+  } catch { /* приватне вікно без сховища — без аналітики */ }
+}
 
 /** Картки за id, до сотні за раз (стеля RPC). */
 export async function cardsByIds(ids, db = SUPABASE) {
@@ -251,6 +266,9 @@ export function soonFirst(list, now = Date.now()) {
   const key = (e) => { const t = Date.parse(e.startsAt); return t < now ? now + 12 * 36e5 : t; };
   return [...list].sort((a, b) => key(a) - key(b));
 }
+
+/** Закріплені — першими, решта в тому самому порядку (сортування стабільне). Позначки «Реклама» нема: власник 12.11. */
+export const pinnedFirst = (list) => [...list].sort((a, b) => Boolean(b.pinned) - Boolean(a.pinned));
 
 /** Скільки ще днів у прокаті, крім показаного. */
 export function otherDays(sessions) {

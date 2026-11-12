@@ -5,7 +5,7 @@
 
 // Назви, дати й ціна — ті самі правила, що на сайті (site/js/poriad.js, порт TitleRules і формату застосунку).
 // wrangler збирає цей імпорт у воркер; той самий файл сайт віддає браузеру.
-import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS, icsFile, payNote, payWhen, payWay, PAY_ONLINE_FINE, refundText } from "../site/js/poriad.js";
+import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, pinnedFirst, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS, icsFile, payNote, payWhen, payWay, PAY_ONLINE_FINE, refundText } from "../site/js/poriad.js";
 import { kabinetPage, geocode } from "./kabinet.mjs";
 import { track } from "./track.mjs";
 export { esc };
@@ -234,6 +234,10 @@ export function eventPage(e, now, shelters = [], invite = null) {
       : e.pay_online ? "Подію скасовано. Якщо ви вже оплатили, організатор має повернути гроші — напишіть йому в розмові." : "Подію скасовано.")
     : withdrawn ? STATES[state] : moved ? `Перенесено: було ${moved}. Якщо нова дата не підходить, квиток повертають там, де купували.` : null;
   const live = !cancelled && !withdrawn && !past;
+  // Промокод (docs/promo-pins-2026-11.md): база віддає його, лише поки діє. Корінець — кнопка «Скопіювати» (site/js/promo.js).
+  const promo = live && e.promo_code ? `<div class="ticket promo cat-${category}"><div class="face"><small>Промокод</small>
+      <p><b>${esc(e.promo_code)}</b>${e.promo_note ? ` · ${esc(e.promo_note)}` : ""}</p><span class="done" role="status"></span></div>
+      <button class="stub" type="button" data-promo="${esc(e.promo_code)}">${icon("ticket")}Скопіювати</button></div>` : "";
   // Групи «Йдемо разом» на цю афішу: спершу приєднатися до наявної (запис за посиланням, без застосунку), свою — у
   // застосунку. UUID перевіряємо — рядок з бази йде в href.
   const groups = listed && live ? (Array.isArray(e.companions) ? e.companions : []).filter((g) => UUID.test(g?.id ?? "") && g.starts_at) : [];
@@ -280,6 +284,7 @@ ${ticketUrl && imported ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""
   <div class="detail">
     ${notice ? `<p class="notice${calm ? " calm" : ""}">${notice}</p>` : ""}
     ${parent ? `<p class="note">Разом на: <a href="/e/${parent.id}">${esc(parent.title)}</a></p>` : ""}
+    ${promo}
     <div class="actions">
       <a href="${maps}" rel="noopener"><i>${icon("pin")}</i>Маршрут</a>
       <button type="button" data-share><i>${icon("share")}</i>Поділитися з другом</button>
@@ -310,8 +315,9 @@ ${ticketUrl && imported ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""
     ${open ? `<a class="open-app" href="poriad://event/${e.id}${by}">Уже є застосунок? Відкрити</a>` : ""}</div>
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>
-${listed ? (live ? `<script type="module" src="/js/event.js?v=20"></script>` : "") : `${joinSheet(e, ct, now)}
-<script type="module" src="/js/join.js?v=20"></script>`}`,
+${listed ? (live ? `<script type="module" src="/js/event.js?v=21"></script>` : "") : `${joinSheet(e, ct, now)}
+<script type="module" src="/js/join.js?v=21"></script>`}${promo ? `
+<script type="module" src="/js/promo.js?v=21"></script>` : ""}`,
   });
 }
 
@@ -571,7 +577,9 @@ export async function cityResponse(slug, key, env, now = new Date()) {
     const { index } = await discover(CITY_PAGES[slug][0], { cards: 0, category: facet.category ?? null, to: new Date(+now + facet.days * 864e5).toISOString(), db });
     // Те, що ще попереду; сеанси прокату й той самий вечір у двох продавців — один рядок.
     const list = fold(index.filter((e) => e.origin === "import" && Date.parse(e.startsAt) >= +now && (!facet.when || inWhen(e, facet.when, now))));
-    const cards = (await cardsByIds(spread(list, now).map((e) => e.id), db)).filter(isLive);
+    // Картки база віддає за часом: закріплену (docs/promo-pins-2026-11.md) позначаємо з індексу.
+    const pinned = new Set(list.filter((e) => e.pinned).map((e) => e.id));
+    const cards = (await cardsByIds(spread(list, now).map((e) => e.id), db)).filter(isLive).map((c) => (pinned.has(c.id) ? { ...c, pinned: true } : c));
     return html(cityPage(slug, key, cards, list.length, now), 200, CSP.city());
   } catch {
     // Збій бази не кешуємо й не видаємо за порожню афішу.
@@ -604,6 +612,7 @@ export function cityPage(slug, key, cards, total, now) {
   const here = (s, k) => `/afisha/${s}${k ? `/${k}` : ""}`;
   const url = `https://poriad.app${here(slug, key)}`;
   const intro = `${plural(total, EVENTS)} ${facet.lead}`;
+  // Закріплена — першою у своєму дні: дні лишаються за порядком, заголовок дня не бреше.
   const days = groupBy(cards, (c) => dayLabel(new Date(c.starts_at), c.time_zone || "Europe/Kyiv", now, true));
   const chips = Object.entries(FACETS).filter(([k]) => k !== key).map(([k, f]) =>
     `<a class="chip${f.category ? ` cat-${f.category}` : ""}" href="${here(slug, k)}">${f.category ? '<span class="dot"></span>' : ""}${f.chip}</a>`).join("");
@@ -626,7 +635,7 @@ export function cityPage(slug, key, cards, total, now) {
   <div class="block"><p class="overline">${esc(name)} · афіша квиткових сервісів</p><h1>${esc(h1)}</h1>
     <p class="lead">${esc(intro)}. Час, місце й ціна; квитки продають на сайтах продавців. Афіша оновлюється щодня.</p></div>
   <nav class="chips" aria-label="Розділи афіші">${chips}</nav>
-  ${cards.length ? [...days].map(([day, list]) => `<section class="block"><h2>${esc(day)}</h2><div class="rows">${list.map((c) => cityRow(c, now)).join("")}</div></section>`).join("")
+  ${cards.length ? [...days].map(([day, list]) => `<section class="block"><h2>${esc(day)}</h2><div class="rows">${pinnedFirst(list).map((c) => cityRow(c, now)).join("")}</div></section>`).join("")
     : `<div class="empty"><b>Тут поки тихо</b><span>На ці дні в афіші ${esc(city.of)} такого нема.</span><a class="btn secondary" href="${key ? here(slug, "") : afishaHref}">Афіша ${esc(city.of)}</a></div>`}
   ${cards.length && cards.length < total ? `<p class="fine">Тут ${cards.length} з ${total}. Решта — <a href="${afishaHref}">в афіші на сайті</a> і в застосунку.</p>` : ""}
   <div class="app-only"><b>Що поруч з вами, видно на мапі</b>
@@ -767,8 +776,8 @@ function layout({ title, description, image, url, head, body, from = "event" }) 
 <meta name="theme-color" content="#14110D" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=20">
-<link rel="stylesheet" href="/web.css?v=20">
+<link rel="stylesheet" href="/tokens.css?v=21">
+<link rel="stylesheet" href="/web.css?v=21">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">

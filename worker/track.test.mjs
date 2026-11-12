@@ -52,11 +52,16 @@ const from = (ip) => worker.fetch(new Request("https://poriad.app/api/t", {
 assert.equal((await from("203.0.113.7")).status, 429);
 assert.equal((await from("203.0.113.8")).status, 204);
 
-// Кабінет шле лише події зі словника: назви в kabinet.js і тут не розходяться.
+// Промокод — з дефісом, але не з пробілом.
+assert.deepEqual(tracked({ name: "promo_copy", device, props: { code: "PORIAD-15" } }).event_properties, { code: "PORIAD-15" });
+assert.deepEqual(tracked({ name: "promo_copy", device, props: { code: "PORIAD 15" } }).event_properties, {});
+
+// Сайт шле лише події зі словника: назви в kabinet.js, promo.js і тут не розходяться.
 const { readFileSync } = await import("node:fs");
-const used = [...readFileSync(new URL("../site/js/kabinet.js", import.meta.url), "utf8").matchAll(/\btrack\("(\w+)"/g)].map((m) => m[1]);
-assert.ok(used.length > 0, "кабінет нічого не шле");
+const used = ["kabinet.js", "promo.js"].flatMap((file) =>
+  [...readFileSync(new URL(`../site/js/${file}`, import.meta.url), "utf8").matchAll(/\btrack\("(\w+)"/g)].map((m) => m[1]));
+assert.ok(used.length > 0, "сайт нічого не шле");
 for (const name of used) assert.ok(TRACKED[name], `${name} нема в словнику воркера`);
-for (const name of Object.keys(TRACKED)) assert.ok(used.includes(name), `${name} є у словнику, але кабінет її не шле`);
+for (const name of Object.keys(TRACKED)) assert.ok(used.includes(name), `${name} є у словнику, але сайт її не шле`);
 
 console.log("track ok");
