@@ -269,9 +269,10 @@ async function forFollow(db: ReturnType<typeof createClient>, p: Extract<Payload
 
 // ponytail: підписників не більше 1000 — стільки віддає PostgREST за раз; більше — сторінками.
 async function forOrganizer(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "follow"; kind: "organizer" }>) {
-  const { data: e } = await db.from("events").select("id,title,organizer_id,status,origin,companion_of,starts_at,time_zone").eq("id", p.event_id).maybeSingle();
+  const { data: e } = await db.from("events").select("id,title,organizer_id,status,origin,companion_of,link_only,starts_at,time_zone").eq("id", p.event_id).maybeSingle();
   // Супутник — не оголошення організатора, тригер його й не кличе; тут друга перевірка на випадок ручного виклику.
-  if (!e || e.origin !== "community" || e.status !== "published" || !e.organizer_id || e.companion_of) return { push: null, recipients: [] };
+  // «Лише за посиланням» (у т. ч. з нічної черги, якщо подію сховали після тригера) — нікому.
+  if (!e || e.origin !== "community" || e.status !== "published" || e.link_only || !e.organizer_id || e.companion_of) return { push: null, recipients: [] };
   const { data: follows } = await db.from("follows").select("user_id").eq("target_kind", "organizer").eq("target_id", e.organizer_id);
   const people = (follows ?? []).map((r) => r.user_id as string).filter((id) => id !== e.organizer_id);
   const recipients = await withoutBlocked(db, people, e.organizer_id as string);
@@ -285,9 +286,9 @@ async function forPlaces(db: ReturnType<typeof createClient>, p: Extract<Payload
   const { data: rows } = await db.from("places").select("id,name").in("id", p.places.map((x) => x.id));
   const names = new Map((rows ?? []).map((r) => [r.id as string, r.name as string]));
   const places: PlaceLine[] = p.places.filter((x) => names.has(x.id)).map((x) => ({ id: x.id, name: names.get(x.id)!, n: x.n }));
-  const { data: found } = await db.from("events").select("id,title,status,import_status,ends_at,starts_at,time_zone").in("id", p.event_ids);
+  const { data: found } = await db.from("events").select("id,title,status,import_status,link_only,ends_at,starts_at,time_zone").in("id", p.event_ids);
   // Між прогоном бази й доставкою міг минути час: скасовану чи вже минулу подію не рекламуємо.
-  const live = new Map((found ?? []).filter((e) => e.status === "published" && e.import_status !== "withdrawn" && new Date(e.ends_at as string).getTime() > Date.now()).map((e) => [e.id as string, e]));
+  const live = new Map((found ?? []).filter((e) => e.status === "published" && !e.link_only && e.import_status !== "withdrawn" && new Date(e.ends_at as string).getTime() > Date.now()).map((e) => [e.id as string, e]));
   const events: EventLine[] = p.event_ids.filter((id) => live.has(id)).map((id) => {
     const e = live.get(id)!;
     return { id, title: e.title as string, when: when(e.starts_at as string, e.time_zone as string) };
@@ -304,9 +305,9 @@ async function forArtists(db: ReturnType<typeof createClient>, p: Extract<Payloa
   const { data: rows } = await db.from("artists").select("id,name").in("id", p.artists.map((x) => x.id));
   const names = new Map((rows ?? []).map((r) => [r.id as string, r.name as string]));
   const artists: ArtistLine[] = p.artists.filter((x) => names.has(x.id)).map((x) => ({ id: x.id, name: names.get(x.id)!, n: x.n }));
-  const { data: found } = await db.from("events").select("id,title,status,import_status,ends_at,starts_at,time_zone").in("id", p.event_ids);
+  const { data: found } = await db.from("events").select("id,title,status,import_status,link_only,ends_at,starts_at,time_zone").in("id", p.event_ids);
   // Як для закладів: скасовану чи вже минулу подію між прогоном бази й доставкою не рекламуємо.
-  const live = new Map((found ?? []).filter((e) => e.status === "published" && e.import_status !== "withdrawn" && new Date(e.ends_at as string).getTime() > Date.now()).map((e) => [e.id as string, e]));
+  const live = new Map((found ?? []).filter((e) => e.status === "published" && !e.link_only && e.import_status !== "withdrawn" && new Date(e.ends_at as string).getTime() > Date.now()).map((e) => [e.id as string, e]));
   const events: EventLine[] = p.event_ids.filter((id) => live.has(id)).map((id) => {
     const e = live.get(id)!;
     return { id, title: e.title as string, when: when(e.starts_at as string, e.time_zone as string) };
@@ -348,8 +349,8 @@ async function forCompany(db: ReturnType<typeof createClient>, p: Extract<Payloa
 
 // Подія могла згаснути, поки пуш чекав ранку в черзі тихих годин.
 async function forZone(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "zone" }>) {
-  const { data: e } = await db.from("events").select("id,title,organizer_id,status,origin,starts_at,time_zone").eq("id", p.event_id).maybeSingle();
-  if (!e || e.origin !== "community" || e.status !== "published" || new Date(e.starts_at as string).getTime() <= Date.now()) return { push: null };
+  const { data: e } = await db.from("events").select("id,title,organizer_id,status,origin,link_only,starts_at,time_zone").eq("id", p.event_id).maybeSingle();
+  if (!e || e.origin !== "community" || e.status !== "published" || e.link_only || new Date(e.starts_at as string).getTime() <= Date.now()) return { push: null };
   const { data: who } = await db.from("profiles").select("display_name").eq("id", e.organizer_id).maybeSingle();
   const text = zoneText(e.title as string, ((who?.display_name as string | undefined) ?? "").trim(), when(e.starts_at as string, e.time_zone as string), p.total);
   return { push: { kind: "zone" as const, eventId: e.id as string, title: text.title, body: text.body, key: `zone:${e.id}` } };
