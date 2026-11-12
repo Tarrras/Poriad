@@ -33,6 +33,13 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.unit.sp
+import app.poruch.android.platform.copyText
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.alpha
@@ -621,6 +628,55 @@ internal fun YourTickets(tickets: List<WalletTicket>) {
 internal fun HaveTicket(onAdd: () -> Unit) {
     Box(Modifier.cardSurface(Radius.md)) {
         LinkRow(PoruchIcons.ticket, stringResource(R.string.wallet_have), stringResource(R.string.wallet_have_hint), onClick = onAdd)
+    }
+}
+
+/**
+ * Промокод на квитки (docs/promo-pins-2026-11.md): квиток з корінцем «Скопіювати» біля квитків. Після тапу під кодом —
+ * «Скопійовано, вставте на сайті квитків» рядком у квитку, а не тостом: з Android 13 про буфер каже й система, і тост лягав
+ * би поверх її плашки. На картках списку промокоду нема.
+ */
+@Composable
+internal fun PromoRow(event: Event, code: String, onCopied: () -> Unit) {
+    val colors = Poruch.colors
+    val context = LocalContext.current
+    var copied by rememberSaveable(event.id, code) { mutableStateOf(false) }
+    val label = stringResource(R.string.promo_label)
+    val hint = stringResource(R.string.promo_copied)
+    val copyLabel = stringResource(R.string.chat_copy)
+    val copy = { context.copyText(code); copied = true; onCopied() }
+    Ticket(
+        ticketStub(event),
+        stub = {
+            Column(
+                Modifier.padding(horizontal = Spacing.sm),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.xs)
+            ) {
+                Icon(if (copied) PoruchIcons.check else PoruchIcons.copy, null, Modifier.size(22.dp), tint = Color.White)
+                // Довге слово на вузькому корінці стискається, а не обрізається — як день на корінці часу.
+                val style = PoruchType.stamp.copy(color = Color.White, letterSpacing = 0.6.sp)
+                BasicText(
+                    stringResource(if (copied) R.string.chat_copied else R.string.chat_copy).uppercase(), style = style, maxLines = 1,
+                    autoSize = TextAutoSize.StepBased(style.fontSize * 0.6f, style.fontSize)
+                )
+            }
+        },
+        modifier = Modifier.fillMaxWidth().clearAndSetSemantics {
+            contentDescription = listOfNotNull("$label $code", event.promoNote).joinToString(", ")
+            role = Role.Button
+            if (copied) stateDescription = hint
+            onClick(copyLabel) { copy(); true }
+        },
+        onClick = copy
+    ) {
+        Column(Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+            // Код — одним рядком: розірваний «PORIAD / 15» на великому шрифті читався б як два слова.
+            val codeStyle = MaterialTheme.typography.titleLarge.copy(color = colors.ink, letterSpacing = 1.sp)
+            BasicText(code, style = codeStyle, maxLines = 1, autoSize = TextAutoSize.StepBased(codeStyle.fontSize * 0.5f, codeStyle.fontSize))
+            event.promoNote?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary) }
+            if (copied) Text(hint, style = MaterialTheme.typography.bodySmall, color = colors.ink, modifier = Modifier.padding(top = Spacing.xs))
+        }
     }
 }
 
@@ -1246,6 +1302,18 @@ private fun CompanionRows(state: DetailState, onIntent: (DetailIntent) -> Unit) 
 
 /** Скільки учасників видно до «Показати всіх». */
 internal const val ROSTER_COLLAPSED = 3
+
+@Preview(widthDp = 360)
+@Composable
+private fun PromoRowPreview() = PoruchTheme(dark = false) {
+    val event = Event(
+        id = "preview", title = "Музика при свічках", description = "", category = app.poruch.domain.EventCategory.MUSIC,
+        city = "Київ", address = "вул. Хрещатик, 22", startsAt = "2030-11-13T18:00:00Z", endsAt = "2030-11-13T20:00:00Z",
+        timeZone = "Europe/Kyiv", status = app.poruch.domain.EventStatus.PUBLISHED, latitude = 50.44, longitude = 30.52,
+        listing = Listing("Internet-bilet"), promoCode = "PORIAD15", promoNote = "−15% на квитки", promoUntil = "2030-11-13T18:00:00Z"
+    )
+    Column(Modifier.background(Poruch.colors.canvas).padding(Spacing.page)) { PromoRow(event, "PORIAD15") {} }
+}
 
 @Preview(widthDp = 360)
 @Composable

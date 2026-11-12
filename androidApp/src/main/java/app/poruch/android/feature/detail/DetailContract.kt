@@ -100,6 +100,8 @@ sealed interface DetailIntent {
     data object OpenSource : DetailIntent
     /** Рядок продавця в «Квитки» чи «Якщо купили квиток». [from] — для `ticket_open`: `sellers` / `refund`. */
     data class OpenSeller(val offer: Offer, val from: String) : DetailIntent
+    /** Промокод скопійовано (сам буфер — на екрані): лише `promo_copy`. */
+    data object PromoCopied : DetailIntent
     /** Відповідь на «Купили?»: [saved] — «Зберегти», інакше закрили чи час минув. */
     /** [saved] — «так» («Зберегти» чи «Додати квиток»), [ticket] — «Додати квиток». */
     data class BoughtPromptAnswered(val saved: Boolean, val ticket: Boolean = false) : DetailIntent

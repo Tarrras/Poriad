@@ -911,6 +911,9 @@
   <string name="listing_tickets">Купити квиток</string>
   <string name="listing_read_more">Читати повністю на джерелі</string>
   <string name="listing_price_label">Квитки</string>
+  <!-- Промокод на квитки (docs/promo-pins-2026-11.md): квиток біля «Квитків»; «Скопіювати» / «Скопійовано» — chat_copy*. -->
+  <string name="promo_label">Промокод</string>
+  <string name="promo_copied">Скопійовано, вставте на сайті квитків</string>
   <string name="listing_price_from">від %1$s ₴</string>
   <string name="listing_free">Безкоштовно</string>
   <string name="listing_price_unknown">Ціну вкаже джерело</string>
