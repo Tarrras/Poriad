@@ -3,10 +3,10 @@
 // організатора. Вхід (Google або пошта з паролем, docs/web-auth.md) — auth.js, дані —
 // ті самі функції бази, що в застосунку; сторінка перевіряє лише очевидне, решту каже сервер. Чисті правила вгорі (дати,
 // тривалість, медіа, текст для Threads) перевіряє `node tools/kabinet_test.mjs`; DOM — нижче, лише в браузері.
-import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText, plural, EVENTS, POST_MONTHS, payWay } from "./poriad.js?v=20";
-import { threadFeed, openProof, forgetProofs, fit, jpeg, jpegFile, PHOTO, payStage } from "./chat.js?v=20";
+import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText, plural, EVENTS, POST_MONTHS, payWay, track } from "./poriad.js?v=21";
+import { threadFeed, openProof, forgetProofs, fit, jpeg, jpegFile, PHOTO, payStage } from "./chat.js?v=21";
 import { session, verifyCode, google, completeRedirect, rpc, upload, signOut, inAppBrowser, browserLinks, signInWithPassword, signUp, resendSignup,
-  requestRecovery, updatePassword, reauthenticate, verifyPassword, currentUser, updateMetadata, signInMethods, isEmail, MIN_PASSWORD, MAX_PASSWORD } from "./auth.js?v=20";
+  requestRecovery, updatePassword, reauthenticate, verifyPassword, currentUser, updateMetadata, signInMethods, isEmail, MIN_PASSWORD, MAX_PASSWORD } from "./auth.js?v=21";
 
 // ---- Дати. Усі п'ять міст в одному поясі; подія з іншим поясом (з застосунку) редагується у своєму.
 export const TZ = "Europe/Kyiv";
@@ -159,7 +159,7 @@ export function priceProblem(price) {
 export const priceParam = (price) => String(price ?? "").trim() ? Math.round(Number(price)) : 0;
 
 // ---- «Пост для Threads» (1.5) — у poriad.js: той самий текст ділить і сторінка події (1.6).
-export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=20";
+export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=21";
 
 // ---- Анімації публікації (1.6, design/lottie/LICENSES.md): корінець запечений кольором музики — фарбуємо в жанр.
 const MUSIC_STUB = [0x60, 0x41, 0xb1].map((v) => v / 255);
@@ -285,6 +285,11 @@ const ERRORS = {
   PAY_TERMS_REQUIRED: "Погодьтеся з Правилами оплати онлайн",
   REFUND_POLICY_REQUIRED: "Оберіть, як повертаєте гроші",
   PAY_ONLINE_BLOCKED: "Оплату онлайн для вас призупинено після скарг учасників. Оберіть «На місці» чи напишіть на hello@poriad.app",
+  // Промокод (20261204120000_promo_pins).
+  INVALID_PROMO_CODE: "Промокод — від 2 до 30 знаків: латинські літери, цифри, «-» і «_», без пробілів",
+  INVALID_PROMO_NOTE: "«Що дає» — до 60 символів",
+  INVALID_PROMO_UNTIL: "«Діє до» — дата, що ще не минула, і не пізніше за кінець події",
+  EVENT_ENDED: "Подія вже минула чи скасована: промокод до неї не додати",
 };
 /** Реквізити в розмові події «на місці»: інший текст, ніж для опису. */
 export const TALK_PAYMENT_DETAILS = "Реквізити в розмові — лише для подій з оплатою онлайн. Увімкніть її в редагуванні: «Як платять» → «Онлайн».";
@@ -318,6 +323,29 @@ export function redirectErrorText(error) {
 export const nameProblem = (name) => (name.length < 2 || name.length > 60 ? "Вкажіть імʼя від 2 до 60 символів" : "");
 /** Посилання на чат: лише https://, без пробілів (`INVALID_CONTACT_URL`). */
 export const contactOk = (url) => Boolean(httpsOrNull(url)) && !/\s/.test(url);
+
+// ---- Промокод (docs/promo-pins-2026-11.md): лише на своїй події, окремим `set_event_promo`; порожній код прибирає.
+export const PROMO_CODE = /^[A-Za-z0-9_-]{2,30}$/;
+/** Чернетка → аргументи `set_event_promo`. «Діє до» — до кінця цього дня, але не пізніше за кінець події; без дати — до початку (ставить сервер). */
+export function promoArgs(d) {
+  const code = String(d.promoCode ?? "").trim();
+  if (!code) return { p_code: null, p_note: null, p_until: null };
+  const end = instant(d.endDate, d.endTime, d.tz ?? TZ), day = d.promoUntil ? instant(addDays(d.promoUntil, 1), "00:00", d.tz ?? TZ) : null;
+  return { p_code: code, p_note: String(d.promoNote ?? "").trim() || null, p_until: day && end && Date.parse(day) > Date.parse(end) ? end : day };
+}
+/** Незмінений промокод не шлемо. Без дати строк — початок події: зсунули початок — шлемо знову, щоб строк поїхав слідом. */
+export function promoKey(d) {
+  const args = promoArgs(d);
+  return JSON.stringify({ ...args, start: args.p_code && !args.p_until ? instant(d.startDate, d.startTime, d.tz ?? TZ) : null });
+}
+/** Помилка блоку «Промокод» або "". Стоп-слова й реквізити в «Що дає» перевірить сервер. */
+export function promoProblem(d, now = Date.now()) {
+  const { p_code, p_note, p_until } = promoArgs(d);
+  if (!p_code) return String(d.promoNote ?? "").trim() || d.promoUntil ? "Вкажіть промокод або зітріть «Що дає» і «Діє до»" : "";
+  if (!PROMO_CODE.test(p_code)) return ERRORS.INVALID_PROMO_CODE;
+  if ((p_note ?? "").length > 60) return ERRORS.INVALID_PROMO_NOTE;
+  return p_until && Date.parse(p_until) <= now ? ERRORS.INVALID_PROMO_UNTIL : "";
+}
 
 /** Новий пароль і повтор → текст помилки або "" (межі — як `AccountRules` у застосунку). */
 export function passwordProblem(password, repeat = password) {
@@ -410,18 +438,6 @@ let ready = null; // id, для якого імʼя й вік уже є
 let card = null; // свій profile_card: імʼя, фото, «про вас», з якого часу, скільки подій
 const busy = new Set();
 
-// ---- Аналітика кабінету (docs/analytics.md, «Кабінет на сайті»): кроки воронки — на свою адресу `/api/t`, далі їх шле
-// воркер (worker/track.mjs, там і словник). Без id, імен і текстів; браузер із «не стежити» (GPC, DNT) не шле нічого.
-const DEVICE = "poriad.device";
-function track(name, props = {}) {
-  try {
-    if (navigator.globalPrivacyControl || navigator.doNotTrack === "1") return;
-    const device = localStorage.getItem(DEVICE) ?? crypto.randomUUID();
-    localStorage.setItem(DEVICE, device);
-    fetch("/api/t", { method: "POST", keepalive: true, headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, device, props: { ...props, mobile: matchMedia("(max-width: 767px)").matches } }) }).catch(() => {});
-  } catch { /* приватне вікно без сховища — без аналітики */ }
-}
 let repeated = false; // чернетка нової події — копія «Повторити»
 let hadDraft = false; // редактор нової події відкрито з незакінченої чернетки
 const mode = () => editing ? "edit" : repeated ? "repeat" : "new";
@@ -1221,7 +1237,8 @@ async function showEvent(id) {
   $("[data-event-title]").textContent = displayTitle(event.title);
   $("[data-event-when]").textContent = overline(event, new Date(), true);
   $("[data-event-place]").textContent = [[event.address, event.city].filter(Boolean).join(", "),
-    Number(event.price_min) > 0 ? `${priceText(event.price_min)}, ${payWay(event)}` : "", event.link_only ? "лише за посиланням" : ""].filter(Boolean).join(" · ");
+    Number(event.price_min) > 0 ? `${priceText(event.price_min)}, ${payWay(event)}` : "", event.link_only ? "лише за посиланням" : "",
+    event.promo_code ? `промокод ${event.promo_code}` : ""].filter(Boolean).join(" · ");
   $("[data-open]").href = `/e/${event.id}`;
   $("[data-edit]").href = `#/e/${event.id}/edit`;
   const live = event.status === "published" && Date.parse(event.starts_at) > Date.now();
@@ -1585,6 +1602,8 @@ let map, marker, mapLoading;
 let lineup = []; // склад події в редакторі: [{ id?, name, own? }]; own — свій артист, його ставить сервер
 const NO_LINEUP = JSON.stringify(lineupParams([]));
 let lineupWas = NO_LINEUP; // склад, з яким подію відкрили: незмінений не шлемо
+const NO_PROMO = promoKey({});
+let promoWas = NO_PROMO; // промокод, з яким подію відкрили
 
 function paintLineup() {
   $("[data-lineup]").innerHTML = lineup.map((a, i) => `<li class="chip">${esc(a.name)}${a.own ? "<small>ваш артист</small>"
@@ -1603,7 +1622,8 @@ function repeatView() {
 }
 
 const form = () => $("[data-form]");
-const FIELDS = ["title", "description", "address", "startDate", "startTime", "endDate", "endTime", "capacity", "minAge", "maxAge", "contact", "price", "ticket", "repeatCount"];
+const FIELDS = ["title", "description", "address", "startDate", "startTime", "endDate", "endTime", "capacity", "minAge", "maxAge", "contact", "price", "ticket", "repeatCount",
+  "promoCode", "promoNote", "promoUntil"];
 /** Порожня нова подія — з налаштувань «Нові події» в акаунті, якщо вони є. */
 const blank = () => {
   const d = editorDefaults(me?.user_metadata);
@@ -1635,7 +1655,8 @@ const saveMedia = () => { if (!editing) mediaStore(media.map(({ preview, ...item
 export function repeatDraft(e) {
   const d = eventDraft(e);
   const { start, end } = repeatTimes(instant(d.startDate, d.startTime, d.tz), instant(d.endDate, d.endTime, d.tz), d.tz);
-  return { ...d, startDate: start.date, startTime: start.time, endDate: end.date, endTime: end.time };
+  // Промокод той самий, строк — знову до початку нової дати.
+  return { ...d, startDate: start.date, startTime: start.time, endDate: end.date, endTime: end.time, promoUntil: "" };
 }
 /** Медіа повтору копіюються в теку нової події з публікацією; подія до 1.5 — її обкладинка. */
 function repeatMedia(e) {
@@ -1690,6 +1711,7 @@ async function showEditor(id) {
   lineup = [...own.filter((a) => !lineup.some((x) => x.id === a.id)).map((a) => ({ id: a.id, name: a.name })), ...lineup]
     .map((a) => ({ ...a, own: own.some((o) => o.id === a.id) })).slice(0, LINEUP_MAX);
   lineupWas = editing ? JSON.stringify(lineupParams(lineup)) : NO_LINEUP;
+  promoWas = editing ? promoKey(eventDraft(editing)) : NO_PROMO;
   paintLineup();
   repeatView();
   // Подія серії: перед «Зберегти» — вибір «лише цю» чи «цю й наступні»; щоразу з «лише цю».
@@ -1717,7 +1739,10 @@ export function eventDraft(e) {
     payOnline: Boolean(e.pay_online), prepay: Boolean(e.prepay), paid: Number(e.price_min) > 0, refund: e.refund_policy ?? "",
     linkOnly: Boolean(e.link_only),
     price: Number(e.price_min) > 0 ? String(Math.round(Number(e.price_min))) : "",
-    how: howOf(e), ticket: e.origin === "partner" ? e.canonical_url ?? "" : "" };
+    how: howOf(e), ticket: e.origin === "partner" ? e.canonical_url ?? "" : "",
+    // Промокод `event_details` віддає, поки діє. Строк «до початку» — порожнім полем, свій — останнім днем дії.
+    promoCode: e.promo_code ?? "", promoNote: e.promo_note ?? "",
+    promoUntil: e.promo_until && Date.parse(e.promo_until) !== Date.parse(e.starts_at) ? local(new Date(Date.parse(e.promo_until) - 1).toISOString(), tz).date : "" };
 }
 
 /** Чернетка → форма. */
@@ -2131,6 +2156,8 @@ function problems(d) {
   const price = d.paid && !String(d.price ?? "").trim() ? "Вкажіть ціну входу" : priceProblem(d.price);
   if (price) out.push(price);
   if (room && payOnlineOn && payPlan(d.price, d.payOnline).online) out.push(...payProblems(d, payLimits, editing));
+  const promo = promoProblem(d);
+  if (promo) out.push(promo);
   return out;
 }
 
@@ -2271,6 +2298,14 @@ async function publish() {
     const lineupArgs = lineupParams(d.lineup), lineupKey = JSON.stringify(lineupArgs);
     const lineupChanged = lineupKey !== lineupWas;
     if (lineupChanged) { await rpc("set_event_lineup", { p_event: id, ...lineupArgs }); lineupWas = lineupKey; }
+    // Промокод — теж окремим запитом і лише змінений; лише цій події, не серії.
+    const promoNow = promoKey(d);
+    if (promoNow !== promoWas) {
+      const promo = promoArgs(d);
+      await rpc("set_event_promo", { p_event: id, ...promo });
+      promoWas = promoNow;
+      track("kab_promo", { action: promo.p_code ? "set" : "clear", mode: mode() });
+    }
     // Серія: решта дат — окремі події з копіями фото й тим самим складом. Збій посеред серії першої події не скасовує.
     let series = null;
     if (!editing && d.repeat) {
@@ -2348,7 +2383,7 @@ function setupEditor() {
   $("[data-durations]").insertAdjacentHTML("afterbegin", DURATIONS.map((h) => `<button class="chip" type="button" data-hours="${h}" aria-pressed="false">${h} год</button>`).join(""));
   $("[data-genres]").addEventListener("click", (event) => { const chip = event.target.closest("[data-cat]"); if (chip) { setCategory(chip.dataset.cat); changed(); } });
   $("[data-durations]").addEventListener("click", (event) => { const chip = event.target.closest("[data-hours]"); if (chip) { minutes = +chip.dataset.hours * 60; moveEnd(); changed(); } });
-  f.startDate.min = local(new Date().toISOString()).date;
+  f.startDate.min = f.promoUntil.min = local(new Date().toISOString()).date;
   for (const name of ["startDate", "startTime"]) f[name].addEventListener("change", moveEnd);
   for (const name of ["endDate", "endTime"]) f[name].addEventListener("change", () => {
     const start = instant(f.startDate.value, f.startTime.value, f.dataset.tz), end = instant(f.endDate.value, f.endTime.value, f.dataset.tz);
@@ -2419,7 +2454,7 @@ function setupEditor() {
 }
 
 async function start() {
-  ui = await import("./ui.js?v=20");
+  ui = await import("./ui.js?v=21");
   window.poriadReady = true;
   setupAuth();
   setupAccount();

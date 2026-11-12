@@ -4,7 +4,7 @@ import {
   instant, local, repeatTimes, endAfter, durationLabel, DURATIONS, mediaProblem, videoTooLong, fit, MEDIA,
   threadsPost, threadsIntent, firstLine, cleanText, rosterText, errorText, publishPlan, writeDraft, forgetDraft, recolorStub,
   priceProblem, priceParam, PRICE_TEXT, eventDraft, params, repeatDraft, passwordProblem, passwordMode, providersText, editorDefaults, sinceText,
-  weakPasswordText, redirectErrorText, payPlan, payProblems, payLimitsText, TALK_PAYMENT_DETAILS, TALK_PAY_OFF, talkStatus, talkFacts, payWords, declineQuestion, nameProblem, contactOk,
+  weakPasswordText, redirectErrorText, promoArgs, promoKey, promoProblem, payPlan, payProblems, payLimitsText, TALK_PAYMENT_DETAILS, TALK_PAY_OFF, talkStatus, talkFacts, payWords, declineQuestion, nameProblem, contactOk,
 } from "../site/js/kabinet.js";
 import { readFileSync } from "node:fs";
 
@@ -128,6 +128,32 @@ assert.equal(priceParam(eventDraft(pricedEvent).price), 450, "правка шл�
 assert.equal(priceParam(repeatDraft(pricedEvent).price), 450, "«Повторити» теж");
 assert.equal(eventDraft({ ...pricedEvent, price_min: null }).price, "");
 assert.equal(errorText({ status: 400, code: "INVALID_PRICE" }), PRICE_TEXT);
+
+// Промокод (docs/promo-pins-2026-11.md): поля з event_details і назад у set_event_promo; незмінений не шлемо.
+const promoted = { ...pricedEvent, promo_code: "PORIAD15", promo_note: "−15% на квитки", promo_until: "2026-11-02T17:00:00+00:00" };
+const pd = eventDraft(promoted);
+assert.deepEqual([pd.promoCode, pd.promoNote, pd.promoUntil], ["PORIAD15", "−15% на квитки", ""], "строк «до початку» — порожнім полем");
+assert.deepEqual(promoArgs(pd), { p_code: "PORIAD15", p_note: "−15% на квитки", p_until: null }, "без дати строк ставить сервер");
+assert.equal(eventDraft({ ...promoted, promo_until: "2026-11-01T22:00:00Z" }).promoUntil, "2026-11-01", "до кінця 1 листопада за Києвом — дата 1-ше");
+assert.equal(promoArgs({ ...pd, promoUntil: "2026-11-01" }).p_until, "2026-11-01T22:00:00.000Z", "дата — до кінця дня");
+assert.equal(promoArgs({ ...pd, promoUntil: "2026-11-02" }).p_until, "2026-11-02T19:00:00.000Z", "не пізніше за кінець події");
+assert.deepEqual(promoArgs({ ...pd, promoCode: " ", promoNote: "x" }), { p_code: null, p_note: null, p_until: null }, "порожній код прибирає все");
+assert.equal(promoKey(eventDraft(promoted)), promoKey(pd), "незмінений — той самий ключ");
+assert.notEqual(promoKey({ ...pd, startTime: "20:00" }), promoKey(pd), "зсунули початок — строк «до початку» їде слідом");
+assert.equal(promoKey({ ...pd, promoCode: "" }), promoKey({}), "без коду — як нова подія без промокоду");
+assert.equal(repeatDraft(promoted).promoCode, "PORIAD15", "«Повторити» бере код");
+assert.equal(repeatDraft({ ...promoted, promo_until: "2026-11-01T22:00:00Z" }).promoUntil, "", "а строк — знову до початку");
+const promoNow = Date.parse("2026-11-01T12:00:00Z");
+assert.equal(promoProblem(pd, promoNow), "");
+assert.equal(promoProblem({ ...pd, promoCode: "", promoNote: "" }, promoNow), "", "без промокоду — нічого");
+assert.equal(promoProblem({ ...pd, promoCode: "", promoNote: "−10%" }, promoNow), "Вкажіть промокод або зітріть «Що дає» і «Діє до»");
+for (const bad of ["P", "PORIAD 15", "ПОРЯД15", "x".repeat(31)]) assert.equal(promoProblem({ ...pd, promoCode: bad }, promoNow), errorText({ code: "INVALID_PROMO_CODE" }), bad);
+assert.equal(promoProblem({ ...pd, promoCode: "poriad-15_b" }, promoNow), "", "латиниця, цифри, «-» і «_»");
+assert.equal(promoProblem({ ...pd, promoNote: "x".repeat(61) }, promoNow), errorText({ code: "INVALID_PROMO_NOTE" }));
+assert.equal(promoProblem({ ...pd, promoUntil: "2026-10-31" }, promoNow), errorText({ code: "INVALID_PROMO_UNTIL" }), "минула дата");
+for (const code of ["INVALID_PROMO_CODE", "INVALID_PROMO_NOTE", "INVALID_PROMO_UNTIL", "EVENT_ENDED", "NOT_ORGANIZER"]) {
+  assert.ok(!errorText({ status: 400, code }).startsWith("Не вдалося"), `${code} — своїми словами`);
+}
 assert.equal(threadsPost(pricedEvent), "Настолки «Каркасон»\nпн, 2 листопада, 19:00 · Хрещатик, 22\nВхід — 450 ₴, оплата на зустрічі\n\nГраємо в Каркасон і Колонізаторів. Правила пояснимо.\n\nЗапис: poriad.app/e/e1");
 assert.ok(threadsPost({ ...pricedEvent, pay_online: true }).includes("Вхід — 450 ₴, оплата онлайн\n"), "пост не каже «на місці» про оплату онлайн");
 assert.ok(threadsPost({ ...pricedEvent, prepay: true }).includes("Вхід — 450 ₴, передоплата\n"), "коли платять — одразу в пості");

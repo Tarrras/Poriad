@@ -82,7 +82,7 @@ assert.equal(curfewNote({ ...base, ends_at: null }, curfew, now), null, "без 
 assert.equal(curfewNote(base, { starts: "x", ends: "05:00" }, now), null, "зламані години — без рядка");
 // «Шукаю компанію» — друга дія афішної події, шторкою з event.js; на зустрічі людей і минулій — нема.
 const company = eventPage({ ...base, origin: "import", canonical_url: "https://concert.ua/x", source_name: "Concert.ua" }, now);
-assert.ok(company.includes('data-lock="company">') && company.includes('<script type="module" src="/js/event.js?v=20"></script>'));
+assert.ok(company.includes('data-lock="company">') && company.includes('<script type="module" src="/js/event.js?v=21"></script>'));
 assert.ok(company.indexOf("Квитки на Concert.ua") < company.indexOf('data-lock="company"'), "квитки — головна, компанія — під ними");
 assert.ok(!community.includes('data-lock="company"') && !community.includes("/js/event.js"), "зустріч людей — без неї");
 assert.ok(!eventPage({ ...base, origin: "import", canonical_url: "https://concert.ua/x" }, new Date("2026-10-05T00:00:00Z")).includes('data-lock="company"'), "минула — ні");
@@ -186,5 +186,21 @@ assert.ok((await (await eventResponse(base.id, env)).text()).includes("Уже ш
 globalThis.fetch = async (url) => url.endsWith("/companions") ? new Response("boom", { status: 500 }) : new Response(url.endsWith("/event_details") ? JSON.stringify([soon]) : "{}");
 const failed = await eventResponse(base.id, env);
 assert.ok(failed.status === 200 && !(await failed.text()).includes("Уже шукають"), "збій груп — сторінка без блоку");
+
+// Промокод (docs/promo-pins-2026-11.md): рядок-корінець із «Скопіювати» над діями, скрипт — лише з ним; на минулій,
+// скасованій і без коду — нема.
+const promoted = eventPage({ ...afisha, category: "music", promo_code: "PORIAD15", promo_note: "−15% на квитки <b>", promo_until: afisha.starts_at }, now);
+assert.ok(promoted.includes('<div class="ticket promo cat-music"><div class="face"><small>Промокод</small>'), "корінець кольору жанру");
+assert.ok(promoted.includes("<b>PORIAD15</b> · −15% на квитки &lt;b&gt;</p>"), "код і що дає, текст екранований");
+assert.ok(promoted.includes('data-promo="PORIAD15">') && promoted.includes("Скопіювати</button>"));
+assert.ok(promoted.indexOf("data-promo=") < promoted.indexOf('class="actions"') && promoted.indexOf("data-promo=") < promoted.indexOf("Квитки на Concert.ua"),
+  "над діями й квитками");
+assert.ok(promoted.includes('<script type="module" src="/js/promo.js?v=21"></script>'), "кнопка — файлом з домену, без inline");
+assert.ok(eventPage({ ...base, promo_code: "PORIAD15" }, now).includes("<b>PORIAD15</b></p>"), "без «що дає» — лише код, і на події від людей");
+for (const [why, e, at] of [["без коду", afisha, now], ["минула", { ...afisha, promo_code: "X1" }, new Date("2026-10-05T00:00:00Z")],
+  ["скасована", { ...afisha, promo_code: "X1", status: "cancelled" }, now]]) {
+  const page = eventPage(e, at);
+  assert.ok(!page.includes("data-promo") && !page.includes("promo.js"), why);
+}
 
 console.log("event ok");

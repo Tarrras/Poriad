@@ -1,4 +1,4 @@
-// Аналітика кабінету (docs/analytics.md, «Кабінет на сайті»): сторінка шле кроки воронки на свою адресу `/api/t`,
+// Аналітика сайту (docs/analytics.md, «Кабінет на сайті»): сторінка шле кроки воронки на свою адресу `/api/t`,
 // а воркер пересилає їх в Amplitude HTTP API — туди ж, куди пишуть застосунки. У CSP кабінету не з'являється ні чужого
 // скрипта, ні чужої адреси. Словник закритий: довільну подію чи текст цією адресою в наш проєкт не записати.
 import { clientKey } from "./kabinet.mjs";
@@ -6,7 +6,7 @@ import { clientKey } from "./kabinet.mjs";
 const AMPLITUDE = "https://api2.amplitude.com/2/httpapi";
 const MAX_BODY = 2048;
 const DEVICE = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
-const WORD = /^[A-Za-z0-9_]{1,40}$/;
+const WORD = /^[A-Za-z0-9_-]{1,40}$/; // дефіс — для промокоду (`^[A-Za-z0-9_-]{2,30}$` у базі)
 
 /** Подія → її параметри. Значення — слово (`WORD`), число чи прапорець; решту відкидаємо мовчки. */
 export const TRACKED = {
@@ -16,6 +16,9 @@ export const TRACKED = {
   kab_publish: ["mode", "media", "series", "lineup", "mobile"],
   kab_failed: ["mode", "code", "mobile"],
   kab_claim: ["kind", "fresh", "mobile"],
+  kab_promo: ["action", "mode", "mobile"],
+  // Сторінка події (site/js/promo.js): «Скопіювати» промокод.
+  promo_copy: ["code", "mobile"],
 };
 
 /** Тіло запиту сторінки → подія Amplitude або null, якщо це не наша подія. */
