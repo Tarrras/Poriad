@@ -673,10 +673,23 @@ class Robustness(unittest.TestCase):
         emit.venues_sql(items, "Київ").encode("utf-8")      # у кеш майданчиків той зал не йде
 
     def test_parsed_but_nothing_usable_is_a_source_error(self):
-        past = raw_event(startDate="2026-01-01T18:00:00+02:00", endDate="2026-01-01T21:00:00+02:00")
-        items, counters = self.harvest([past])
+        nameless = raw_event(name="", url="https://example.org/nameless")
+        items, counters = self.harvest([nameless])
         self.assertEqual(items, [])
         self.assertTrue(counters["error"].startswith("NO_USABLE_EVENTS"))
+        self.assertEqual(counters["reasons"], {"INCOMPLETE": 1})
+
+    def test_only_past_events_is_a_quiet_listing_not_an_error(self):
+        # yoy 11.2026: у Львові нема майбутніх, список віддає минулі — щоденний NO_USABLE_EVENTS був хибним.
+        past = raw_event(startDate="2026-01-01T18:00:00+02:00", endDate="2026-01-01T21:00:00+02:00")
+        dateless = raw_event(startDate="2026-12-01", url="https://example.org/race")
+        items, counters = self.harvest([past])
+        self.assertEqual(items, [])
+        self.assertNotIn("error", counters)
+        self.assertEqual(counters["reasons"], {"PAST": 1})
+        _, counters = self.harvest([past, dateless])
+        self.assertTrue(counters["error"].startswith("NO_USABLE_EVENTS"))
+        self.assertEqual(counters["reasons"], {"PAST": 1, "NO_START": 1})
 
     def test_sharp_drop_against_previous_report_is_an_error(self):
         from .__main__ import mark_sharp_drops
@@ -960,13 +973,14 @@ class RunStats(unittest.TestCase):
             ("group by run_id order by 2 desc limit 2", [last, ("run-1", dt.datetime(2026, 10, 5, 18, 3))]),
             ("extract(epoch", [(7,)]), ("count(*) from public.events", [(2219,)]),
             ("from private.ingest_runs r join public.event_sources", [
-                ("karabas", "Київ", 161, 160, 117, 116, 29, 28, 0, 1, None, None, "253/799", "0", "ЗАБЛОКОВАНО")]),
+                ("karabas", "Київ", 161, 160, 117, 116, 29, 28, 0, 1, None, None, "253/799", "0", "ЗАБЛОКОВАНО",
+                 '{"PAST": 3}')]),
             ("d.stage = 'duplicate'", [("Копія", "Переможець", "karabas", "2026-10-10",
                                          "https://dnipro.karabas.com/" + "a" * 70, "https://concert.ua/uk/event/b")])])
         text = build_report(conn)
         for part in ("run-2", "за 0.5 год до останнього", "7 хв тому", "2219", "karabas", "Черга перегляду", "без координат",
                      "категорію й майданчик", "злитих дублів", "посилання переможця", "було", "https://concert.ua/uk/event/b", "a" * 70,
-                     "253/799", "ЗАБЛОКОВАНО"):
+                     "253/799", "ЗАБЛОКОВАНО", "відсіяно", '{"PAST": 3}'):
             self.assertIn(part, text)
         self.assertFalse([q for q in conn.sql if not q.lstrip().lower().startswith(("select", "with"))])
 

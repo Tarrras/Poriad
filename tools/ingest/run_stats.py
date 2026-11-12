@@ -51,13 +51,15 @@ def build_report(conn) -> str:
              " r.merged, p.merged, r.review, p.review, r.error, p.error,"
              # Зняття зниклих: скільки зникло зі скількох, скільки знято, чи спрацював запобіжник на частку.
              " concat_ws('/', r.report->>'retire_gone', r.report->>'retire_scope'), r.report->>'retired',"
-             " case when (r.report->>'retire_blocked')::boolean then 'ЗАБЛОКОВАНО' end"
+             " case when (r.report->>'retire_blocked')::boolean then 'ЗАБЛОКОВАНО' end,"
+             # Чому розібране не дійшло до публікації (PAST, NO_START, INCOMPLETE, скасування…).
+             " nullif(r.report->>'reasons', '{}')"
              " from private.ingest_runs r join public.event_sources s on s.id = r.source_id"
              " left join private.ingest_runs p on p.run_id = %s and p.source_id = r.source_id"
              "   and p.city is not distinct from r.city"
              " where r.run_id = %s order by s.slug, r.city", prev, last)
     out += [_table(["джерело", "місто", "parsed", "було", "published", "було", "merged", "було", "review", "було",
-                    "error", "було error", "зникло/з", "знято", "запобіжник"], rows), ""]
+                    "error", "було error", "зникло/з", "знято", "запобіжник", "відсіяно"], rows), ""]
 
     out += ["== Черга перегляду за причинами (останній обхід)"]
     out += [_table(["причина", "подій"], q(
@@ -66,12 +68,12 @@ def build_report(conn) -> str:
         " group by 1 order by 2 desc", last)), ""]
 
     out += [f"== Найчастіші майданчики без координат (NO_GEO; кандидати в aliases.json), топ {VENUES_LIMIT}"]
-    out += [_table(["місто", "майданчик", "подій"], q(
-        "select r.city, i.raw->>'venue', count(*) from private.ingest_items i"
+    out += [_table(["місто", "майданчик", "джерело", "подій"], q(
+        "select r.city, i.raw->>'venue', i.raw->>'source', count(*) from private.ingest_items i"
         " join private.ingest_runs r on r.id = i.run_id"
         " where r.run_id = %s and i.stage = 'review' and i.raw->>'lat' is null"
         "   and i.reject_reason like 'NO_GEO%%'"
-        " group by 1, 2 order by 3 desc limit %s", last, VENUES_LIMIT)), ""]
+        " group by 1, 2, 3 order by 4 desc limit %s", last, VENUES_LIMIT)), ""]
 
     out += ["== Опубліковані: чим визначено категорію й майданчик, за джерелами"]
     out += [_table(["джерело", "опубліковано", "категорія fallback", "категорія agent", "майданчик photon"], q(

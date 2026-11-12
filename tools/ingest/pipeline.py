@@ -146,8 +146,10 @@ def harvest(source: Source, city: str, index: VenueIndex,
         _enrich_performers(raw_events, source, now, counters)
     items = _build_items(raw_events, source, city, index, now, geocoder, counters)
     # Тихий нуль: розмітка є, а придатних подій немає — майже завжди зміна верстки, не порожня афіша.
+    # Крім списку з самих минулих (yoy, коли в місті нема майбутніх): розмітка ціла, афіша просто тиха.
     if not items and not counters["withdrawals"]:
-        counters["error"] = f"NO_USABLE_EVENTS: розібрано {counters['parsed']}, придатних 0"
+        if counters["reasons"].get("PAST") != counters["parsed"]:
+            counters["error"] = f"NO_USABLE_EVENTS: розібрано {counters['parsed']}, придатних 0"
         return [], counters
 
     _rescue_addresses(items, source, city, geocoder, counters)
@@ -422,9 +424,15 @@ def _build_items(raw_events: list[dict], source: Source, city: str, index: Venue
             counters.setdefault("bad_events", []).append(
                 f"{str(raw.get('url') or raw.get('@id') or '?')[:200]}: {type(exc).__name__}: {exc}")
             item = None
+        else:
+            if item is None:
+                # Грубо, без повтору перевірок _build: дата без години, уже почалась чи минула, решта (назва, посилання).
+                start = normalize.parse_datetime(raw.get("startDate"), source.tz_policy, source.time_zone)
+                why = "NO_START" if start is None else "PAST" if start <= now else "INCOMPLETE"
+                counters["reasons"][why] = counters["reasons"].get(why, 0) + 1
         if item is None:
             counters["rejected"] += 1
-            # Без причини (її знає лише _build), але з адресою: агент-аналітик звірить зі сторінкою.
+            # З адресою: агент-аналітик звірить зі сторінкою.
             counters.setdefault("dropped", []).append(str(raw.get("url") or raw.get("@id") or "?")[:200])
             continue
         if item.ends_at - item.starts_at > PERMANENT_RUN:

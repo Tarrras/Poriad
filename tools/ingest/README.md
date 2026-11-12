@@ -29,7 +29,8 @@ python3 -m tools.ingest.test_ingest
 
 Для вкладених шляхів JSON створіть теку заздалегідь (`mkdir -p out`). Код завершення 1 означає
 помилку/неповний результат хоча б одного джерела; придатні результати інших джерел залишаються
-в SQL і JSON. `--report` містить деталі; помилкою рахуються й «тихий нуль» (`NO_USABLE_EVENTS`) та
+в SQL і JSON. `--report` містить деталі; помилкою рахуються й «тихий нуль» (`NO_USABLE_EVENTS`; список із
+самих минулих подій — тиха афіша, не помилка) та
 спад понад 70% проти минулого звіту за тим самим шляхом (`SHARP_DROP`), що дивитись у звіті — у
 [docs/event-ingestion.md](../../docs/event-ingestion.md), розділ 7. Джерело читає до 100 карток на місто; досягнення межі
 позначається як неповний результат. `--sql-max-bytes` враховує заголовки й транзакції; мінімум
@@ -482,7 +483,9 @@ dev — вручну, Run workflow → env: dev.
   (= `events.ingest_run_id`), `city` (null — перевірка статусів Karabas), лічильники `fetched`,
   `parsed`, `geocoded`, `published`, `merged` (злито як дублікати), `rejected`, `review`, `error`
   (зокрема `NO_EVENTS`, `NO_USABLE_EVENTS`, `SHARP_DROP`) і `report` — повний запис звіту джерела:
-  `withdrawals`, `reasons`, `bad_events`, `dropped` (адреси, які `_build` відкинув), `detail_errors`,
+  `withdrawals`, `reasons` (скасування, `PERMANENT_OFFER` і відсів `_build`: `PAST` — уже почалась чи минула,
+  `NO_START` — дата без години, `INCOMPLETE` — без назви, посилання чи з чужим статусом), `bad_events`,
+  `dropped` (адреси, які `_build` відкинув), `detail_errors`,
   `cached`, `retire` (чи знімались зниклі й чому ні) тощо.
 - `private.ingest_items` — кожен елемент обходу: `stage` (`published`, `duplicate`, `review`),
   `reject_reason`, `candidate_event_id` (для дубля — `event_id` переможця) і `raw` — той самий
