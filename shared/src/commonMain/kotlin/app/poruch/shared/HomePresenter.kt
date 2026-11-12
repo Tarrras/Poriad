@@ -278,7 +278,7 @@ class HomePresenter(
             .mapNotNull { entry -> cards[entry.id]?.takeIf { it.isListed(now) }?.let { CompanyEntry(it, entry.companyCount) } }
         // Кімнати, що дістали власну секцію, у стрічці не повторюємо й уперед їх більше не ставимо. Так само афіші рейки компанії.
         val all = HomeRules.feed(suggested, city, followedHere, mineIds + people.map { it.event.id } + company.map { it.event.id },
-            roomsFirst = people.isEmpty())
+            roomsFirst = people.isEmpty(), pinned = home.index.filter { it.pinned }.mapTo(HashSet()) { it.id })
             .map { if (it.source == FeedSource.FOLLOWING) it.copy(followName = via[it.event.id]) else it }
         // Час із шапки звужує всю афішу міста, разом із великими квитками: «Сьогодні» над квитком на суботу було б неправдою.
         val timeChips = HomeRules.timeChips(all, now, zoneId)

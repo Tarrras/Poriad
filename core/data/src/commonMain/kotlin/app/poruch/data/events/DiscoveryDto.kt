@@ -53,6 +53,8 @@ private object Column {
     const val PLACE = 12
     /** З 20261112120000: сеанси кінопрокату `[[id, starts_at], …]` за часом, включно з власним; решті null. */
     const val SESSIONS = 13
+    /** З 20261204120000: `1` — закріплена подія, решті null. Старий сервер позиції не шле. */
+    const val PINNED = 14
     const val WIDTH = 11
 }
 
@@ -75,7 +77,8 @@ private fun JsonArray.indexEntry(): EventIndexEntry? {
         attendeeCount = int(Column.ATTENDEE_COUNT) ?: 0,
         companyCount = int(Column.COMPANY_COUNT) ?: 0,
         place = text(Column.PLACE),
-        sessions = sessions(text(Column.TIME_ZONE).orEmpty())
+        sessions = sessions(text(Column.TIME_ZONE).orEmpty()),
+        pinned = int(Column.PINNED) == 1
     )
 }
 

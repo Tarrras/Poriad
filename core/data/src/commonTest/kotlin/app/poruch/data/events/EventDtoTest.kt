@@ -187,6 +187,28 @@ class EventDtoTest {
         assertTrue(single.sessions.isEmpty())
     }
 
+    /** 15-та позиція — пін (20261204120000): `1` — закріплена, null чи нема (старий сервер, 14 позицій) — ні. */
+    @Test fun theIndexCarriesThePin() {
+        val stored = """{"total":3,"truncated":false,"index":[
+            ["p1",50.45,30.52,"music","2030-09-06T19:00:00Z","Europe/Kyiv","Подія","import","karabas",null,0,0,null,null,1],
+            ["e1",50.45,30.52,"music","2030-09-06T19:00:00Z","Europe/Kyiv","Подія","import","karabas",null,0,0,null,null,null],
+            ["e2",50.45,30.52,"music","2030-09-06T19:00:00Z","Europe/Kyiv","Подія","import","karabas",null,0,0,null,null]],"cards":[]}"""
+        val page = json.decodeFromString<DiscoveryEnvelope>(stored).domain()
+        assertEquals(listOf(true, false, false), page.index.map { it.pinned })
+    }
+
+    /** Промокод з `event_result`; старий сервер полів не шле — промокоду нема. */
+    @Test fun aPromoArrivesWithTheDetails() {
+        val event = parse(
+            "origin" to "\"import\"", "source_name" to "\"Karabas\"",
+            "promo_code" to "\"PORIAD15\"", "promo_note" to "\"−15% на квитки\"", "promo_until" to "\"2030-09-06T19:00:00+00:00\""
+        )
+        assertEquals("PORIAD15", event.promoCode)
+        assertEquals("−15% на квитки", event.promoNote)
+        assertEquals("PORIAD15", event.activePromo(kotlin.time.Instant.parse("2030-09-06T18:59:00Z")))
+        assertNull(parse("origin" to "\"import\"", "source_name" to "\"Karabas\"").promoCode)
+    }
+
     @Test fun aPlaceRowParses() {
         val place = json.decodeFromString<List<PlaceDto>>(
             """[{"id":"p1","name":"Малевич","city":"Львів","address":"пр-т В'ячеслава Чорновола, 2, Львів","latitude":49.8475,"longitude":24.0263,"upcoming":26}]"""

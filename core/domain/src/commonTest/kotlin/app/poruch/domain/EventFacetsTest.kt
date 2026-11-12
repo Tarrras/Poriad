@@ -86,6 +86,15 @@ class EventFacetsTest {
         assertFalse(afisha.copy(state = ListingState.POSTPONED, previousStartsAt = "2030-09-05T16:00:00Z").isMoved)
     }
 
+    /** Промокод показуємо, поки діє: строк минув на відкритому екрані чи подію скасовано — рядка нема. */
+    @Test fun aPromoShowsOnlyWhileItLasts() {
+        val promo = base(listing = afisha).copy(promoCode = "PORIAD15", promoNote = "−15% на квитки", promoUntil = "2030-09-06T19:00:00Z")
+        assertEquals("PORIAD15", promo.activePromo(kotlin.time.Instant.parse("2030-09-06T18:00:00Z")))
+        assertNull(promo.activePromo(kotlin.time.Instant.parse("2030-09-06T19:00:00Z")))
+        assertNull(promo.copy(promoUntil = null).activePromo(kotlin.time.Instant.parse("2030-09-06T18:00:00Z")))
+        assertNull(promo.copy(status = EventStatus.CANCELLED).activePromo(kotlin.time.Instant.parse("2030-09-06T18:00:00Z")))
+    }
+
     @Test fun openEntryIsAFreeListingWithNoTicketLink() {
         assertTrue(Listing("Кафе", isFree = true).isOpenEntry)
         assertFalse(afisha.copy(isFree = true).isOpenEntry, "з посиланням — квитки, хай і безкоштовні")

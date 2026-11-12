@@ -91,6 +91,21 @@ class HomeRulesTest {
         assertEquals(listOf("mine", "other"), ids.take(2))
     }
 
+    // ---- Пін (docs/promo-pins-2026-11.md)
+
+    @Test fun pinnedGoFirstEvenBeforeRoomsAndTheRestKeepsItsOrder() {
+        val city = listOf(event("c1"), room("r1"), event("p"), event("c2"))
+        val ids = HomeRules.feed(emptyList(), city, emptyList(), pinned = setOf("p")).map { it.event.id }
+        assertEquals(listOf("p", "r1", "c1", "c2"), ids)
+        assertEquals(listOf("r1", "c1", "p", "c2"), feedOf(city = city), "без піну — як було")
+    }
+
+    @Test fun aPinOnlyAppliesToWhatIsListedAndNotShownAbove() {
+        // Пін на подію, якої нема в списках (не проходить фільтри) чи вже вище («Ваше»), нічого не тягне.
+        assertEquals(listOf("c1"), HomeRules.feed(emptyList(), listOf(event("c1")), emptyList(), pinned = setOf("gone")).map { it.event.id })
+        assertEquals(listOf("c1"), HomeRules.feed(emptyList(), listOf(event("c1"), event("p")), emptyList(), skip = setOf("p"), pinned = setOf("p")).map { it.event.id })
+    }
+
     // ---- Секція «Від людей»
 
     private fun rooms(count: Int, prefix: String = "r") = (1..count).map { room("$prefix$it") }

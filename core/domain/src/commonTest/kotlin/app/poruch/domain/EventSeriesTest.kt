@@ -51,6 +51,20 @@ class EventSeriesTest {
     }
 
     @Test
+    fun `a pinned session stands for its run`() {
+        // Пін і промокод — на вечірньому сеансі: картка першою в «У місті» веде на нього, а не на ранній.
+        val folded = EventSeries.fold(
+            listOf(
+                entry("early", "Музика при свічках", "2026-11-13T16:00:00Z"),
+                entry("late", "Музика при свічках", "2026-11-13T18:00:00Z").copy(pinned = true),
+            )
+        )
+        assertEquals("late", folded.single().id)
+        assertTrue(folded.single().pinned)
+        assertEquals(listOf("early", "late"), folded.single().sessions.map { it.id }, "сеанси й далі за часом")
+    }
+
+    @Test
     fun `two showings on one day are a run too`() {
         val folded = EventSeries.fold(
             listOf(

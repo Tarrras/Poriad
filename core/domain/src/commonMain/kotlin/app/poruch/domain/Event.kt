@@ -47,7 +47,14 @@ data class Event(
      * [media] — повні, з `event_details` чи «Моїх подій». Картки стрічки медіа не несуть, і тоді порожній [media] нічого не
      * каже: чернетка правки з такої картки ([EventEdit.draft]) не має [EventDraft.mediaBase].
      */
-    val mediaLoaded: Boolean = false
+    val mediaLoaded: Boolean = false,
+    /**
+     * Промокод на квитки (docs/promo-pins-2026-11.md): код, що він дає («−15% на квитки»), і до коли діє. Сервер віддає їх,
+     * поки строк не минув, але минути він може й на відкритому екрані, тож показ — лише через [activePromo].
+     */
+    val promoCode: String? = null,
+    val promoNote: String? = null,
+    val promoUntil: String? = null
 ) : Rankable {
     override val isCancelled get() = status == EventStatus.CANCELLED || status == EventStatus.HIDDEN ||
         listing?.state == ListingState.CANCELLED
@@ -178,6 +185,10 @@ data class Event(
 
     /** Ще не завершилась — показуємо у планах. */
     fun isCurrent(now: Instant): Boolean = !hasEnded(now)
+
+    /** Промокод, який показують деталі: строк ще не минув, і подія в силі. Null — рядка нема. */
+    fun activePromo(now: Instant): String? = promoCode?.takeIf { it.isNotBlank() && !isCalledOff }
+        ?.takeIf { promoUntil?.let { until -> runCatching { Instant.parse(until) }.getOrNull() }?.let { it > now } == true }
 
     /** Ще можна піти, тож пропонуємо у стрічках: див. [isListed] нижче. */
     fun isListed(now: Instant): Boolean {

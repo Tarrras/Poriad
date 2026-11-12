@@ -103,7 +103,11 @@ internal data class EventDto(
     @SerialName("refund_policy") val refundPolicy: String? = null,
     @SerialName("prepay") val prepay: Boolean? = null,
     // Міграція 20261203120000: лише деталі й «Мої події» (`event_rows`); видача прихованих не несе.
-    @SerialName("link_only") val linkOnly: Boolean? = null
+    @SerialName("link_only") val linkOnly: Boolean? = null,
+    // Міграція 20261204120000: промокод, поки діє. Лише деталі й `event_cards_by_ids`; старий сервер полів не знає.
+    @SerialName("promo_code") val promoCode: String? = null,
+    @SerialName("promo_note") val promoNote: String? = null,
+    @SerialName("promo_until") val promoUntil: String? = null
 ) {
     fun domain() = Event(
         id = id, title = title, description = description, category = EventCategory.fromKey(category),
@@ -112,7 +116,8 @@ internal data class EventDto(
         latitude = latitude, longitude = longitude, imageUrl = imageUrl,
         gathering = gathering(), listing = listing(),
         artists = artists.map { it.domain() }, blurb = blurb, pitch = pitch,
-        media = media.orEmpty().mapNotNull { it.domain() }, mediaLoaded = media != null
+        media = media.orEmpty().mapNotNull { it.domain() }, mediaLoaded = media != null,
+        promoCode = promoCode, promoNote = promoNote, promoUntil = promoUntil
     )
 
     /**
