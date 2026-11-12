@@ -7,6 +7,8 @@ struct ScheduleFields: View {
     @Binding var starts: Date
     @Binding var ends: Date
     let zone: String
+    /// Лише кінець і тривалість: початок обирають чипами «Коли» швидкої форми.
+    var endOnly = false
 
     @State private var picking: Picking?
 
@@ -27,7 +29,7 @@ struct ScheduleFields: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
-            field(Copy.starts, starts, start: true)
+            if !endOnly { field(Copy.starts, starts, start: true) }
             field(Copy.ends, ends, start: false)
             durationRow
         }
@@ -57,7 +59,8 @@ struct ScheduleFields: View {
     private var durationRow: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             Text(Copy.duration.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-            HStack(spacing: Space.xs) {
+            // Рядами: на великому шрифті «1 год · 2 год · 3 год» і значення не влазять в один.
+            FlowLayout(spacing: Space.xs) {
                 ForEach(commonDurations, id: \.self) { hours in
                     let seconds = TimeInterval(hours) * 3600
                     Chip(label: Copy.duration_hours("\(hours)"), selected: matches(hours)) {
@@ -95,7 +98,7 @@ struct ScheduleFields: View {
 /// День або година в шторці — що саме, вирішує частина поля, яку торкнули; заголовок називає поле, бо шторка його
 /// закриває. Один пікер на шторку: удвох із календарем година йшла за згин. День — `CalendarGrid` у мові «Корінця»,
 /// година — системний барабан. Висота — за вмістом, як у `PromptSheet`. Те саме, що `DateTimeSheet` на Android.
-private struct PickerSheet: View {
+struct PickerSheet: View {
     let title: String
     let time: Bool
     @Binding var value: Date

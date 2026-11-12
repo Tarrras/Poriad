@@ -328,8 +328,9 @@ class PoruchApp internal constructor(
     fun createStarted(from: String) = PoruchAnalytics.track("create_start", "from" to from, "guest" to !state.value.signedIn)
 
     /**
-     * Редактор нової події: відкрито (`about`) чи пройдено «Далі» на крок `place`, `schedule`, `people` — воронка між
-     * `create_start` і `event_create`, котрий крок губить людей. [draft] — форма з незакінченої чернетки: чи повертаються до неї.
+     * Воронка між `create_start` і `event_create`. З 1.5 («швидка подія», один екран): `quick` — форму «Своя зустріч»
+     * відкрито, `more` — розгорнуто «Ще», `afisha` — у виборі після «+» обрано «На подію з афіші». До 1.5 — кроки
+     * майстра `about`, `place`, `schedule`, `people`. [draft] — форма з незакінченої чернетки: чи повертаються до неї.
      * [mediaCount] — скільки фото й відео вже в чернетці. `guest` — гість: редактор відкритий і йому, вхід — на «Опублікувати».
      */
     fun createStep(step: String, draft: Boolean, mediaCount: Int) = PoruchAnalytics.track(
@@ -338,6 +339,12 @@ class PoruchApp internal constructor(
 
     /** Збірки до фото й відео в редакторі. */
     fun createStep(step: String, draft: Boolean) = createStep(step, draft, 0)
+
+    /** «На подію з афіші» у виборі після «+»: крок воронки й підказка на мапі, куди веде вибір. */
+    fun createFromAfisha() {
+        createStep("afisha", false)
+        store.tell(AppMessage.PICK_AFISHA_EVENT)
+    }
 
     /** До чернетки додали фото чи відео (кожен файл): чи додають організатори медіа, і що саме. */
     fun mediaAdded(kind: MediaKind) = PoruchAnalytics.track("media_add", "kind" to kind.key)

@@ -377,9 +377,10 @@ struct EventDetailView: View, Equatable {
             if let room = view.room, !(view.organizer && view.attendees.isEmpty && room.attendeeCount == 0) { people(room, view) }
             if view.canAsk { askOrganizer(view) }
             venue(event, view)
-            if !view.cancelled && !view.ended { safety() }
+            // Безпека й «Ще в цьому місці» — для тих, хто йде; організатору на своїй події вони зайві (власник, 11.11).
+            if !view.organizer && !view.cancelled && !view.ended { safety() }
             description(event)
-            if !view.othersHere.isEmpty { othersHereSection(view.othersHere, placeName: event.placeName) }
+            if !view.organizer && !view.othersHere.isEmpty { othersHereSection(view.othersHere, placeName: event.placeName) }
             if view.hasChat || view.contactURL != nil { contact(view) }
             if view.organizer && !view.requests.isEmpty {
                 joinRequests(event, view).id(requestsSectionID).overlay { companyFlashRing(requestsSectionID).padding(-Space.sm) }

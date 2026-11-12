@@ -127,6 +127,8 @@ struct RootView: View {
     private var root: RootScreenModel { model.root }
     @State private var tab = 0
     @State private var creating = false
+    /// «+» питає одне: на подію з афіші чи своя зустріч.
+    @State private var choosingCreate = false
     /// Екран, що заявив `hidesTabBar()`, зараз це деталі події.
     @State private var tabBarHidden = false
     /// Явні шляхи стосів замість `navigationDestination(isPresented:)`: після `dismiss()` SwiftUI
@@ -258,7 +260,7 @@ struct RootView: View {
     /// Тап по «Створити»: рахуємо, з якого місця він був. Редактор відкритий і гостю — вхід лише на «Опублікувати».
     private func startCreating(from: String) {
         model.app.createStarted(from: from)
-        creating = true
+        choosingCreate = true
     }
 
     private var app: some View {
@@ -350,6 +352,7 @@ struct RootView: View {
             // Без нічого — дайджест вихідних: лише головна.
             PushDelegate.openEvent = { id, chat, placeId, artistId, thread in
                 creating = false
+                choosingCreate = false
                 dismissPresentedSheets()
                 tab = 0
                 minePath = NavigationPath()
@@ -377,6 +380,7 @@ struct RootView: View {
         }
         .environment(\.openMap, showMap)
         .environment(\.morphSpace, morphs ? morph : nil)
+        .createChoice(isPresented: $choosingCreate, app: model.app, own: { creating = true }, afisha: showMap)
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
         .sheet(isPresented: Binding(get: { root.passwordRecovery }, set: { _ in })) { NewPasswordView() }
         .sheet(

@@ -211,9 +211,10 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit, focusRequ
                             ?.let { People(state, it, onIntent) }
                         if (state.screen.canAsk) AskOrganizer(state, onIntent)
                         Venue(event, state.screen.followingPlace, onIntent)
-                        if (!state.screen.cancelled && !state.screen.ended) Safety(state, onIntent)
+                        // Безпека й «Ще в цьому місці» — для тих, хто йде; організатору на своїй події вони зайві (власник, 11.11).
+                        if (!state.screen.organizer && !state.screen.cancelled && !state.screen.ended) Safety(state, onIntent)
                         Description(event, onIntent)
-                        if (state.screen.othersHere.isNotEmpty()) OthersHere(state.screen.othersHere, event.placeName, onIntent)
+                        if (!state.screen.organizer && state.screen.othersHere.isNotEmpty()) OthersHere(state.screen.othersHere, event.placeName, onIntent)
                         // Чат і посилання — для своїх: сервер віддає посилання лише організатору й підтвердженим.
                         if (state.screen.hasChat || event.gathering?.hasContact == true) ContactSection(state, event, onIntent)
                         if (state.screen.organizer && state.screen.requests.isNotEmpty()) JoinRequests(

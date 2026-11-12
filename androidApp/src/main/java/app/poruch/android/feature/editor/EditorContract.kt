@@ -8,7 +8,10 @@ import app.poruch.domain.AppError
 import app.poruch.domain.ContactRules
 import app.poruch.domain.DraftField
 import app.poruch.domain.EventDraft
+import app.poruch.domain.MeetupTemplate
 import app.poruch.domain.PlaceResult
+import app.poruch.domain.QuickDay
+import app.poruch.domain.QuickEvent
 import app.poruch.domain.SafetyRules
 import java.time.Instant
 import java.time.LocalDateTime
@@ -41,7 +44,11 @@ data class EditorForm(
     /** Коли платять: передоплата, а не на зустрічі. Лише з ціною. */
     val prepay: Boolean = false,
     /** Вхід платний: тоді є ціна й «Коли платять». Платно без ціни — помилка ціни, а не безкоштовна подія. */
-    val paid: Boolean = false
+    val paid: Boolean = false,
+    /** Шаблон «швидкої події»: підсвічує чип і дає типовий опис. Правка наявної події його не має. */
+    val template: MeetupTemplate? = null,
+    /** «Лише за посиланням»: не на мапі, не в пошуку, без пушів (docs/link-only-2026-11.md). */
+    val linkOnly: Boolean = false
 ) {
     /** Крапка зустрічі, якщо є. З самих координат, а не з прапорця: прапорець розходився з ними. */
     val point: Pair<Double, Double>?
@@ -62,7 +69,8 @@ data class EditorForm(
             timeZone = timeZone, capacity = capacity.toInt(), imageUrl = imageUrl,
             minAge = minAge.toInt(), maxAge = maxAge.trim().takeIf { it.isNotEmpty() }?.toInt(),
             approvalRequired = approvalRequired, contactUrl = ContactRules.normalize(contactUrl), media = media,
-            mediaBase = mediaBase, price = if (paid) price.trim().toInt() else null, prepay = paid && prepay
+            mediaBase = mediaBase, price = if (paid) price.trim().toInt() else null, prepay = paid && prepay,
+            linkOnly = linkOnly, template = template?.key
         ).also {
             if (!SafetyRules.isAgeLimit(it.minAge, it.maxAge)) error("age limits")
             if (!ContactRules.isContactUrl(it.contactUrl)) error("contact url")
@@ -88,35 +96,54 @@ data class EditorForm(
         ).validate(now.toString())
     }
 
+    /** Початок і кінець як мить: правила дня й тривалості ([QuickEvent]) рахують у мілісекундах. */
+    val startMillis: Long? get() = millis(starts)
+    val endMillis: Long? get() = millis(ends)
+
+    private fun millis(value: String) = runCatching {
+        LocalDateTime.parse(value, LOCAL_FORMAT).atZone(ZoneId.of(timeZone)).toInstant().toEpochMilli()
+    }.getOrNull()
+
+    private fun local(millis: Long) = runCatching {
+        Instant.ofEpochMilli(millis).atZone(ZoneId.of(timeZone)).toLocalDateTime().format(LOCAL_FORMAT)
+    }.getOrDefault("")
+
+    /** Новий початок; кінець їде за ним, зберігаючи тривалість (без неї — шаблону чи типову). Як `moveStart` на iOS. */
+    fun startingAt(start: Long) = copy(
+        starts = local(start),
+        ends = local(QuickEvent.end(start, startMillis, endMillis, template?.minutes ?: QuickEvent.DEFAULT_MINUTES))
+    )
+
+    /** Шаблон ставить жанр, місця й тривалість; [title] — назва, якщо людина ще не написала свою ([QuickEvent.title]). */
+    fun with(template: MeetupTemplate, title: String) = copy(
+        template = template, category = template.category, capacity = template.seats.toString(), title = title,
+        ends = startMillis?.let { local(QuickEvent.end(it, minutes = template.minutes)) } ?: ends
+    )
+
+    /** Нова зустріч без початку (перша чи давня чернетка) — одразу з вечором: квиток друкує годину, «Коли» вже з відповіддю. */
+    fun scheduled(now: Long = System.currentTimeMillis()) =
+        if (starts.isNotEmpty()) this else copy(ends = "").startingAt(QuickEvent.defaultStart(now, timeZone))
+
+    /** Опис для публікації: свій або, якщо його нема, типовий за шаблоном ([about]) — сервер без опису подію не прийме. */
+    fun described(about: String) = if (description.isBlank()) copy(description = about) else this
+
     companion object {
         val DEFAULT_CATEGORY = EventCategory.SOCIAL
-        const val DEFAULT_CAPACITY = "20"
+        val DEFAULT_CAPACITY = QuickEvent.DEFAULT_SEATS.toString()
         val DEFAULT_MIN_AGE = SafetyRules.MIN_SIGNUP_AGE.toString()
         /** Формат дат у чернетці: локальний час, не UTC. */
         val LOCAL_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
     }
 }
 
-enum class EditorStep(
-    /** Поля, які людина вводить на цьому кроці: їхні помилки тримають «Далі». */
-    val fields: Set<DraftField>
-) {
-    // IMAGE_URL — і понад п'ять фото чи відео: вони на першому кроці.
-    ABOUT(setOf(DraftField.TITLE, DraftField.DESCRIPTION, DraftField.CATEGORY, DraftField.IMAGE_URL)),
-    PLACE(setOf(DraftField.ADDRESS, DraftField.LOCATION)),
-    SCHEDULE(setOf(DraftField.STARTS_AT, DraftField.ENDS_AT, DraftField.TIME_ZONE)),
-    PEOPLE(setOf(DraftField.CAPACITY, DraftField.AGE_LIMITS, DraftField.CONTACT_URL, DraftField.PRICE));
-
-    val isLast get() = this == PEOPLE
-    fun next() = entries.getOrElse(ordinal + 1) { this }
-    fun previous() = entries.getOrElse(ordinal - 1) { this }
-}
-
 data class EditorState(
     val editing: Boolean = false,
     /** Правка події з оплатою онлайн: підказка під ціною — про неї, а не «на місці». */
     val payOnline: Boolean = false,
-    val step: EditorStep = EditorStep.ABOUT,
+    /** Правка: ця подія в кабінеті на сайті — «Повні налаштування — в кабінеті». Нова подія — null. */
+    val cabinet: String? = null,
+    /** «Ще» розгорнуто: опис, фото, вхід, чат і решта, чого проста зустріч не потребує. */
+    val more: Boolean = false,
     val form: EditorForm = EditorForm(),
     val mutating: Boolean = false,
     /** Де відкривається мапа до вибору крапки. */
@@ -131,8 +158,10 @@ data class EditorState(
     val pickingPoint: Boolean = false,
     /** Адреса під ціллю на екрані вибору. Порожня, поки відповідь у дорозі. */
     val aimAddress: String = "",
-    /** «Далі» натиснули з помилками: тепер вони видні під полями, поки крок не зміниться. */
+    /** «Опублікувати» натиснули з помилками: тепер вони видні під полями. */
     val showProblems: Boolean = false,
+    /** Росте з кожною відмовою «Опублікувати»: екран веде до першого поля з помилкою й ставить у нього фокус. */
+    val jump: Int = 0,
     /** Публікацію відхилено: текст стоїть над кнопкою, а не зникає банером. */
     val failure: AppError? = null,
     /** Відкрита шторка підтвердження: що саме зникне. */
@@ -159,8 +188,12 @@ data class EditorState(
     /** «Завантажуємо 2 з 4» під час публікації. */
     val upload: app.poruch.shared.MediaUpload? = null,
     /** Нова подія публікується: накладка з анімацією й лічильником файлів. */
-    val publishing: Boolean = false
+    val publishing: Boolean = false,
+    /** Правка: форма, якою подія прийшла. Null — нова подія. */
+    val unedited: EditorForm? = null
 ) {
+    /** Правку змінено: «назад» спершу питає, чи скасувати зміни. */
+    val changed get() = unedited != null && unedited != form
     val point get() = form.point
     val pointChosen get() = point != null
 
@@ -171,8 +204,9 @@ data class EditorState(
     /** Скільки ще файлів можна додати. */
     val mediaRoom get() = app.poruch.domain.MediaRules.MAX_ITEMS - form.media.size - importing
 
-    /** Кожен крок перевіряє лише свої поля, тож «Далі» не блокується наступним. */
-    val stepProblems: List<DraftField> get() = form.problems().filter { it in step.fields }
+    /** Що не так у формі. Порожній опис — не помилка: публікація ставить типовий ([EditorForm.described]). */
+    val problems: List<DraftField>
+        get() = QuickEvent.placeProblems(form.problems().filter { it != DraftField.DESCRIPTION || form.description.isNotBlank() })
 }
 
 /** Що зникне після підтвердження: правки наявної події чи чернетка нової. */
@@ -190,12 +224,21 @@ sealed interface EditorIntent {
     data class AimAt(val latitude: Double, val longitude: Double) : EditorIntent
     /** Обрана підказка адреси: разом із нею приходить і крапка. */
     data class PickAddress(val place: PlaceResult) : EditorIntent
-    data object Next : EditorIntent
-    data object Back : EditorIntent
-    data object Submit : EditorIntent
+    /** Чип шаблону: жанр, місця, тривалість і назва, якщо своєї ще нема. */
+    data class PickTemplate(val template: MeetupTemplate, val title: String) : EditorIntent
+    /** Чип дня: «Сьогодні», «Завтра», вихідний. */
+    data class PickDay(val day: QuickDay) : EditorIntent
+    /** «−» і «+» біля місць. */
+    data class Seats(val delta: Int) : EditorIntent
+    /** Розгорнути чи згорнути «Ще». */
+    data object ToggleMore : EditorIntent
+    /** Кабінет на сайті: підказка великої події чи «Повні налаштування» у правці. */
+    data class OpenCabinet(val url: String) : EditorIntent
+    /** [about] — типовий опис за шаблоном, якщо людина не написала свого. */
+    data class Submit(val about: String) : EditorIntent
     data class ShowPicker(val request: PickerRequest?, val time: Boolean = false) : EditorIntent
     data class SetDateTime(val request: PickerRequest, val value: LocalDateTime) : EditorIntent
-    /** Хрестик чи системне «назад» з першого кроку. Правки наявної події спершу підтверджують. */
+    /** Хрестик чи системне «назад». Правки наявної події спершу підтверджують. */
     data object Close : EditorIntent
     /** Відкрити чи сховати (null) шторку підтвердження. */
     data class AskDiscard(val what: Discard?) : EditorIntent
@@ -221,4 +264,5 @@ sealed interface EditorEffect {
     /** Нову подію опубліковано: редактор поступається екрану «Подію створено». */
     data object Published : EditorEffect
     data object AskNotificationPermission : EditorEffect
+    data class Browse(val url: String) : EditorEffect
 }

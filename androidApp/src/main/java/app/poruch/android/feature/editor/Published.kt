@@ -159,12 +159,21 @@ fun PublishedScreen(state: PublishedState, onIntent: (PublishedIntent) -> Unit) 
                 TitleRules.display(published.title), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary,
                 textAlign = TextAlign.Center
             )
-            Spacer(Modifier.height(Spacing.sm))
-            PrimaryButton(
-                stringResource(if (published.shareMode == ShareMode.PROMOTE) R.string.share_promote else R.string.share_friend),
-                { onIntent(PublishedIntent.Share) }, Modifier.fillMaxWidth(), icon = PoruchIcons.share, loading = state.sharing
+            // Що далі: людина знає, звідки дізнається про тих, хто прийде, і де їх шукати.
+            Text(
+                stringResource(R.string.published_next), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary,
+                textAlign = TextAlign.Center
             )
-            SecondaryButton(stringResource(R.string.published_copy_link), { onIntent(PublishedIntent.Copy) }, Modifier.fillMaxWidth(), icon = PoruchIcons.link)
+            Spacer(Modifier.height(Spacing.sm))
+            val share = stringResource(if (published.shareMode == ShareMode.PROMOTE) R.string.share_promote else R.string.share_friend)
+            // Маленька компанія (до 12 місць): посилання у свій чат — першим, анонс — другим. Більшій потрібні нові люди.
+            if (published.small) {
+                PrimaryButton(stringResource(R.string.published_copy_link), { onIntent(PublishedIntent.Copy) }, Modifier.fillMaxWidth(), icon = PoruchIcons.link)
+                SecondaryButton(share, { onIntent(PublishedIntent.Share) }, Modifier.fillMaxWidth(), enabled = !state.sharing, icon = PoruchIcons.share)
+            } else {
+                PrimaryButton(share, { onIntent(PublishedIntent.Share) }, Modifier.fillMaxWidth(), icon = PoruchIcons.share, loading = state.sharing)
+                SecondaryButton(stringResource(R.string.published_copy_link), { onIntent(PublishedIntent.Copy) }, Modifier.fillMaxWidth(), icon = PoruchIcons.link)
+            }
             GhostButton(
                 stringResource(R.string.published_calendar), { onIntent(PublishedIntent.Calendar) },
                 tone = colors.inkSecondary, icon = PoruchIcons.calendar
@@ -203,7 +212,7 @@ private fun PrintedTicket(event: Event, onOpen: () -> Unit) {
 @Preview(heightDp = 760)
 @Composable
 private fun PublishedPreview() = PoruchTheme(dark = false) {
-    PublishedScreen(PublishedState(PREVIEW_PUBLISHED.copy(cabinet = true), PREVIEW_EVENT)) {}
+    PublishedScreen(PublishedState(PREVIEW_PUBLISHED.copy(cabinet = true, small = true), PREVIEW_EVENT)) {}
 }
 
 @Preview(heightDp = 760)

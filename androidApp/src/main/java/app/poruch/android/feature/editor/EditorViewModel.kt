@@ -19,14 +19,17 @@ import app.poruch.domain.Event
 import app.poruch.domain.EventCategory
 import app.poruch.domain.EventDraft
 import app.poruch.domain.EventRules
+import app.poruch.domain.LegalLinks
 import app.poruch.domain.PlaceResult
+import app.poruch.domain.QuickEvent
 import app.poruch.shared.AppNotice
 import app.poruch.shared.PoruchApp
 import java.time.Instant
 import java.time.ZoneId
 
 /**
- * Редактор на чотири кроки. Тримає форму, відновлює чернетку з [DraftStore], у стор іде лише коли все розбирається.
+ * Редактор одним екраном («швидка подія», docs/creation-platform-plan-2026-11.md): що, коли, де й скільки людей на
+ * видноті, решта під «Ще». Тримає форму, відновлює чернетку з [DraftStore], у стор іде лише коли все розбирається.
  * Відкритий і гостю: вхід — на «Опублікувати», після нього подія публікується сама ([AppState.publishAfterSignIn]).
  * [repeatOf] — нова подія з полями, фото й відео власної («Повторити»).
  */
@@ -37,7 +40,9 @@ class EditorViewModel(
     private val notifications: NotificationPermission,
     private val editingId: String?,
     repeatOf: String? = null
-) : MviViewModel<EditorState, EditorIntent, EditorEffect>(EditorState(editing = editingId != null)) {
+) : MviViewModel<EditorState, EditorIntent, EditorEffect>(
+    EditorState(editing = editingId != null, cabinet = editingId?.let(LegalLinks::cabinetEvent))
+) {
 
     private var original: Event? = null
     private var submitted = false
@@ -78,11 +83,11 @@ class EditorViewModel(
         val repeated = repeatOf?.let { id -> app.known(id) ?: shared.library.myEvents.firstOrNull { it.id == id } }
             ?.let(app::repeatDraft)?.toForm()
         reduce {
-            val restored = originalForm ?: repeated ?: drafts.load(shared.city.name)
+            val restored = originalForm ?: repeated ?: drafts.load(shared.city.name).scheduled()
             // Мапа відкривається на крапці, якщо вона вже є.
             val (latitude, longitude) = restored.point ?: (shared.city.latitude to shared.city.longitude)
             copy(
-                form = restored, mapLatitude = latitude, mapLongitude = longitude,
+                form = restored, unedited = originalForm, mapLatitude = latitude, mapLongitude = longitude,
                 host = (event?.gathering?.organizerName ?: shared.library.profile?.name)?.takeIf { it.isNotBlank() },
                 taken = event?.gathering?.attendeeCount ?: 0,
                 payOnline = event?.gathering?.payOnline == true
@@ -99,7 +104,7 @@ class EditorViewModel(
                 app.zoneAudience(point.first, point.second) { count -> reduce { if (this.point == point) copy(audience = count) else this } }
             }
         }
-        track(EditorStep.ABOUT)
+        track("quick")
         observe(app) { latest ->
             // Редагування з deep link: запис може приїхати після екрана.
             val loaded = editingId?.let { id -> latest.detail.event?.takeIf { it.id == id } }
@@ -109,7 +114,7 @@ class EditorViewModel(
                 val form = editDraft?.toForm() ?: return@observe copy(mutating = latest.mutating)
                 originalForm = form
                 return@observe copy(
-                    form = form, mapLatitude = loaded.latitude, mapLongitude = loaded.longitude, mutating = latest.mutating,
+                    form = form, unedited = form, mapLatitude = loaded.latitude, mapLongitude = loaded.longitude, mutating = latest.mutating,
                     host = loaded.gathering?.organizerName?.takeIf { it.isNotBlank() } ?: host,
                     taken = loaded.gathering?.attendeeCount ?: 0
                 )
@@ -204,12 +209,23 @@ class EditorViewModel(
                 // Екран вибору вже спитав про цю крапку.
                 if (known == null) describePoint(intent.latitude, intent.longitude)
             }
-            EditorIntent.Next -> {
-                val problem = state.value.stepProblems.firstOrNull()
-                if (problem != null) { blocked(problem); reduce { copy(showProblems = true) } }
-                else { reduce { copy(step = step.next(), showProblems = false) }; track(state.value.step) }
+            is EditorIntent.PickTemplate -> {
+                reduce { copy(form = form.with(intent.template, intent.title.take(EventRules.titleLength.last))) }
+                persist()
             }
-            EditorIntent.Back -> reduce { copy(step = step.previous(), showProblems = false, failure = null) }
+            is EditorIntent.PickDay -> {
+                reduce { copy(form = form.startingAt(QuickEvent.startOn(intent.day, form.startMillis, System.currentTimeMillis(), form.timeZone))) }
+                persist()
+            }
+            is EditorIntent.Seats -> {
+                reduce { copy(form = form.copy(capacity = ((form.capacity.toIntOrNull() ?: 0) + intent.delta).coerceIn(EventRules.capacity).toString())) }
+                persist()
+            }
+            EditorIntent.ToggleMore -> {
+                reduce { copy(more = !more) }
+                if (state.value.more) track("more")
+            }
+            is EditorIntent.OpenCabinet -> send(EditorEffect.Browse(intent.url))
             is EditorIntent.ShowPicker -> reduce { copy(picker = intent.request, pickerTime = intent.time) }
             is EditorIntent.SetDateTime -> {
                 val text = intent.value.format(EditorForm.LOCAL_FORMAT)
@@ -217,14 +233,15 @@ class EditorViewModel(
                     copy(
                         picker = null,
                         form = when (intent.request) {
-                            PickerRequest.STARTS -> form.copy(starts = text)
+                            // Кінець їде за початком, зберігаючи тривалість.
+                            PickerRequest.STARTS -> form.copy(starts = text).startMillis?.let(form::startingAt) ?: form.copy(starts = text)
                             PickerRequest.ENDS -> form.copy(ends = text)
                         }
                     )
                 }
                 persist()
             }
-            EditorIntent.Submit -> submit()
+            is EditorIntent.Submit -> submit(intent.about)
             EditorIntent.Close -> when {
                 // Під час публікації не закриваємось: відповідь сервера нікому було б прийняти,
                 // чернетка лишалась би, і наступне «+» публікувало б ту саму подію вдруге.
@@ -240,7 +257,7 @@ class EditorViewModel(
                     unsaved = false; saveJob?.cancel(); drafts.clear(); resumed = false
                     val city = app.state.value.city
                     reduce {
-                        EditorState(form = drafts.load(city.name), mapLatitude = city.latitude, mapLongitude = city.longitude, host = host)
+                        EditorState(form = drafts.load(city.name).scheduled(), mapLatitude = city.latitude, mapLongitude = city.longitude, host = host)
                     }
                 }
             }
@@ -287,7 +304,7 @@ class EditorViewModel(
             }
             reduce { copy(announcing = false, announced = fill, form = form.filledFrom(fill)) }
             persist()
-            // Крапку ставить людина з підказок адрес, як і для набраної адреси: на кроці «Де» вони вже чекатимуть.
+            // Крапку ставить людина з підказок адрес, як і для набраної адреси: у «Де» вони вже чекатимуть.
             fill.address?.let(::suggestAddresses)
         }
     }
@@ -333,21 +350,22 @@ class EditorViewModel(
     /** Нові файли правки потрібні лише до збереження: чернетки в правки нема. */
     private fun dropLocalFiles() = state.value.form.media.filterIsInstance<DraftMedia.Local>().forEach { files.delete(it.key) }
 
-    private fun submit() {
+    private fun submit(about: String) {
         // Файл ще стискається: без нього подія вийшла б не з тими медіа, а він лишився б у закритому редакторі.
         if (state.value.importing > 0) return
-        // Уся форма, а не крок: поки людина дивилась на неї, початок міг стати минулим.
-        state.value.form.problems().firstOrNull()?.let { field ->
+        // Свіжа перевірка: поки людина дивилась на форму, початок міг стати минулим. Помилка під «Ще» розгортає його.
+        state.value.problems.firstOrNull()?.let { field ->
             blocked(field)
-            return reduce { copy(step = EditorStep.entries.first { field in it.fields }, showProblems = true) }
+            return reduce { copy(more = more || QuickEvent.isMore(field), showProblems = true, jump = jump + 1) }
         }
-        val form = state.value.form
+        // Без свого опису — типовий за шаблоном; у формі поле лишається порожнім.
+        val form = state.value.form.described(about)
         // Правка без змін у файлах — null: сервер лишає медіа як є (старі клієнти так само).
         // Правка: медіа не чіпали — null, сервер лишає як є; інакше список разом з базою, з якою редактор відкрився.
         val base = editDraft
         val media = if (base == null) form.media else form.media.takeIf { it != originalForm?.media }
         val draft = form.toDraft(base?.imageUrl, media, base?.mediaBase) ?: return
-        reduce { copy(failure = null) }
+        reduce { copy(failure = null, showProblems = false) }
         app.clearCompletedEvent()
         submitted = true
         val id = editingId
@@ -355,12 +373,12 @@ class EditorViewModel(
     }
 
     /** Воронка створення (docs/analytics.md): лише нова подія, правка наявної — інша історія. */
-    private fun track(reached: EditorStep) {
-        if (editingId == null) app.createStep(reached.name.lowercase(), resumed, state.value.form.media.size)
+    private fun track(reached: String) {
+        if (editingId == null) app.createStep(reached, resumed, state.value.form.media.size)
     }
 
     private fun blocked(field: DraftField) {
-        if (editingId == null) app.createBlocked(EditorStep.entries.first { field in it.fields }.name.lowercase(), field)
+        if (editingId == null) app.createBlocked(if (QuickEvent.isMore(field)) "more" else "quick", field)
     }
 
     /** Запис чернетки після паузи в наборі: п'ятнадцять ключів на кожну літеру — зайве для диска. */
@@ -452,7 +470,7 @@ class EditorViewModel(
     }
 
     /** Правку змінено відносно форми, з якою вона відкрилась. */
-    private fun edited() = originalForm != null && originalForm != state.value.form
+    private fun edited() = state.value.changed
 
     /** Чернетка правки ([PoruchApp.editDraft]) чи «Повторити» у формі; у повтору дати вже на тиждень пізніше. */
     private fun EventDraft.toForm() = EditorForm(
@@ -461,7 +479,7 @@ class EditorViewModel(
         starts = startsAt.toLocal(timeZone), ends = endsAt.toLocal(timeZone), capacity = capacity.toString(),
         minAge = minAge.toString(), maxAge = maxAge?.toString().orEmpty(), approvalRequired = approvalRequired,
         contactUrl = contactUrl.orEmpty(), media = media.orEmpty(), price = price?.toString().orEmpty(), prepay = prepay,
-        paid = price != null
+        paid = price != null, linkOnly = linkOnly
     )
 
     private fun String.toLocal(zone: String) = runCatching {

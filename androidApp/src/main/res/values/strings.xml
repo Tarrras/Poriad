@@ -260,7 +260,7 @@
   <string name="capacity_label">Місткість</string>
   <string name="description_title">Опис</string>
   <string name="create_banner_title">Маєте ідею зустрічі?</string>
-  <string name="create_banner_subtitle">Опублікуйте подію за чотири кроки</string>
+  <string name="create_banner_subtitle">Посилання для компанії — за хвилину</string>
   <string name="profile_guest_cta">Увійти</string>
   <string name="about_app">Про застосунок</string>
   <string name="privacy_policy">Політика конфіденційності</string>
@@ -285,10 +285,6 @@
   <string name="auth_consent_terms">Умовами користування</string>
   <string name="auth_consent_privacy">Політикою конфіденційності</string>
   <string name="about_app_body">«Поряд» — події та люди у вашому місті. Мапа: MapLibre та OpenFreeMap.</string>
-  <string name="step_one">Про подію</string>
-  <string name="step_two">Місце</string>
-  <string name="step_three">Час</string>
-  <string name="step_four">Хто прийде</string>
   <string name="events_here">Тут подій: %1$d</string>
   <string name="show_all_events">Показати всі події</string>
   <string name="home_switch_city">Показати події в місті %1$s</string>
@@ -386,7 +382,6 @@
   </plurals>
   <string name="picked_for_you">Для вас</string>
   <string name="on_map">На мапі</string>
-  <string name="editor_mode_new">Нова подія</string>
   <string name="editor_mode_edit">Редагування</string>
   <string name="editor_start_over">Почати заново</string>
   <string name="editor_start_over_title">Стерти чернетку?</string>
@@ -398,13 +393,8 @@
   <string name="editor_keep_editing">Редагувати далі</string>
   <string name="category_single">Категорія</string>
   <string name="editor_about_title">Що плануєте?</string>
-  <string name="editor_about_hint">Назва, кілька речень і категорія — за цим подію знайдуть.</string>
   <string name="editor_place_title">Де зустрічаємось?</string>
-  <string name="editor_place_hint">Адреса або точка на мапі. Її побачать усі, хто відкриє подію.</string>
   <string name="editor_schedule_title">Коли?</string>
-  <string name="editor_schedule_hint">Початок і скільки триватиме.</string>
-  <string name="editor_people_title">Хто може прийти?</string>
-  <string name="editor_people_hint">Скільки місць, з якого віку й де учасники говоритимуть між собою.</string>
   <string name="auth_tab_login">Вхід</string>
   <string name="auth_tab_signup">Реєстрація</string>
   <string name="continue_with_google">Продовжити з Google</string>
@@ -472,6 +462,10 @@
   <string name="age_to">Вік до</string>
   <string name="age_to_placeholder">Без обмеження</string>
   <string name="age_limit_hint">Мінімум %1$d — молодших у застосунку немає.</string>
+  <!-- «Лише за посиланням» (docs/link-only-2026-11.md): перемикач під «Де» і штамп для організатора. -->
+  <string name="link_only_label">Лише за посиланням</string>
+  <string name="link_only_hint">Не на мапі й не в пошуку — прийдуть ті, кому надішлете посилання</string>
+  <string name="link_only_stamp">За посиланням</string>
   <string name="approval_label">Підтверджувати учасників</string>
   <string name="approval_hint">Ви вирішуєте, хто приєднається до події.</string>
   <string name="approval_guest_hint">Організатор підтверджує кожного гостя.</string>
@@ -879,7 +873,7 @@
   </plurals>
   <string name="field_category">Оберіть категорію</string>
   <string name="field_address">Вкажіть місто й адресу</string>
-  <string name="field_location">Поставте точку зустрічі на мапі</string>
+  <string name="field_location">Оберіть адресу з підказок або точку на мапі</string>
   <string name="field_capacity">Кількість місць — від %1$d до %2$d</string>
   <string name="field_starts_at">Початок — дата й час у майбутньому</string>
   <string name="field_ends_at">Кінець — пізніше за початок</string>
@@ -908,6 +902,8 @@
   <string name="auth_open_mail">Відкрити пошту</string>
   <string name="auth_confirmed_login">Уже підтвердили? Увійти</string>
   <string name="msg_zoom_in">Збільшіть масштаб мапи, щоб побачити всі події в цій області</string>
+  <!-- Після «На подію з афіші» людина на мапі: інструкція зі шторки, яка вже закрилась. -->
+  <string name="msg_pick_afisha_event">Оберіть подію й натисніть «Хочу піти з компанією»</string>
   <string name="you_organize">Ви організатор</string>
   <!-- Афіша з відкритого джерела. Атрибуція й посилання на джерело — вимога, а не оздоблення
        (docs/event-ingestion.md §8), тому назва джерела стоїть у бейджі, у фактах і на кнопці. -->
@@ -958,8 +954,8 @@
   <!-- Порожній пошук — не те саме, що порожня околиця: підказка має вести до іншої дії. -->
   <string name="nothing_found">Нічого не знайшлося</string>
   <string name="nothing_found_hint">Спробуйте інше слово або зніміть фільтри.</string>
-  <!-- Адресу набирають, крапку ставить застосунок. Мапа лишається для місць без адреси. -->
-  <string name="address_hint">Почніть набирати — знайдемо на мапі</string>
+  <!-- Адресу набирають, крапку ставить застосунок. Мапа лишається для місць без адреси. Що з місцем зараз — один
+       рядок під полем (address_or_map / address_point_set / field_location), без другої підказки над ним. -->
   <string name="address_placeholder">Вулиця, будинок або назва закладу</string>
   <string name="address_or_map">Знайдіть адресу або вкажіть точку на мапі</string>
   <string name="address_point_set">Точку зустрічі позначено</string>
@@ -1025,7 +1021,7 @@
   <string name="going_empty_text">Приєднайтесь до зустрічі поруч&#160;— вона зʼявиться тут із часом і маршрутом.</string>
   <string name="find_nearby">Знайти подію поруч</string>
   <string name="organizing_empty_title">Ви ще нічого не організували</string>
-  <string name="organizing_empty_text">Зберіть людей на настолки, пробіжку чи кіно — це чотири кроки.</string>
+  <string name="organizing_empty_text">Зберіть людей на настолки, пробіжку чи кіно — посилання буде за хвилину.</string>
   <string name="saved_empty_title">Нічого не збережено</string>
   <string name="saved_empty_text">Торкніться закладки на картці події, щоб повернутися до неї пізніше.</string>
   <plurals name="going_ahead">
@@ -1300,7 +1296,7 @@
   <string name="announce_field">Текст анонсу</string>
   <string name="announce_fill">Заповнити</string>
   <string name="announce_filling">Заповнюємо…</string>
-  <string name="announce_filled">Заповнили з анонсу: %1$s. Перевірте на кожному кроці.</string>
+  <string name="announce_filled">Заповнили з анонсу: %1$s. Перевірте поля нижче.</string>
   <string name="announce_other">Інший текст</string>
   <!-- Android сам підписує «Вставити» в рядку анонсу (на iOS напис дає системна PasteButton). -->
   <string name="announce_paste">Вставити</string>
@@ -1340,6 +1336,8 @@
   <string name="published_copy_link">Скопіювати посилання</string>
   <string name="published_link_copied">Посилання скопійовано</string>
   <string name="published_calendar">Додати в календар</string>
+  <!-- «Що далі» під квитком на «Подію створено»: push надсилає організатору і запит (`request`), і запис (`joined`). -->
+  <string name="published_next">Записи й заявки прийдуть сповіщенням, а список — у «Моїх подіях».</string>
   <string name="published_done">Готово</string>
   <!-- Рядок про кабінет на сайті — лише тому, хто публікує вже не першу власну подію (PublishedEvent.cabinet). -->
   <string name="published_cabinet">Ведете події регулярно? Є кабінет на сайті</string>
@@ -1378,4 +1376,36 @@
   <string name="price_prepay_hint">Організатор попросить заплатити заздалегідь і сам напише, як і коли. «Поряд» не приймає оплату й не відповідає за неї.</string>
   <string name="price_pay_online_hint">Оплата онлайн організатору. «Поряд» не приймає оплату й не відповідає за неї.</string>
   <string name="err_price">Ціна — від 1 до 100 000 ₴</string>
+  <!-- «Швидка подія» (docs/creation-platform-plan-2026-11.md, етап 2): «+» питає одне, далі — один екран. -->
+  <string name="create_choice_title">Куди збираємо компанію?</string>
+  <string name="create_choice_afisha">На подію з афіші</string>
+  <string name="create_choice_afisha_hint">Оберіть концерт чи виставу й натисніть «Хочу піти з компанією»</string>
+  <string name="create_choice_own">Своя зустріч</string>
+  <string name="create_choice_own_hint">Кіно, настолки, прогулянка чи кава — посилання за хвилину</string>
+  <string name="quick_people">Скільки людей?</string>
+  <string name="quick_title_placeholder">Назва або шаблон нижче</string>
+  <string name="template_cinema">Кіно</string>
+  <string name="template_board_games">Настолки</string>
+  <string name="template_walk">Прогулянка</string>
+  <string name="template_coffee">Кава</string>
+  <string name="template_workshop">Майстер-клас</string>
+  <!-- Опис, якщо людина не написала свого: сервер без опису подію не прийме. -->
+  <string name="quick_about_default">Збираємо невелику компанію. Приєднуйтесь!</string>
+  <string name="quick_about_cinema">Йдемо в кіно невеликою компанією. Приєднуйтесь!</string>
+  <string name="quick_about_board_games">Граємо в настолки невеликою компанією. Приєднуйтесь!</string>
+  <string name="quick_about_walk">Гуляємо невеликою компанією. Приєднуйтесь!</string>
+  <string name="quick_about_coffee">Кава й розмова в невеликій компанії. Приєднуйтесь!</string>
+  <string name="quick_about_workshop">Невеликий майстер-клас: вчимося й робимо разом. Приєднуйтесь!</string>
+  <string name="quick_about_sport">Тренуємось невеликою компанією. Приєднуйтесь!</string>
+  <string name="quick_about_hint">Можна не писати — тоді в події буде: «%1$s»</string>
+  <string name="quick_saturday">Субота</string>
+  <string name="quick_sunday">Неділя</string>
+  <string name="quick_other_date">Інша дата</string>
+  <string name="quick_seats_less">Менше місць</string>
+  <string name="quick_seats_more">Більше місць</string>
+  <string name="quick_more">Ще</string>
+  <string name="quick_more_hint">Опис, фото, жанр, тривалість, вхід, вік, чат</string>
+  <string name="quick_large_hint">Для великих подій зручніше кабінет</string>
+  <string name="quick_open_cabinet">Відкрити кабінет</string>
+  <string name="quick_full_settings">Повні налаштування — в кабінеті</string>
 </resources>

@@ -1,14 +1,13 @@
 package app.poruch.android.feature.editor
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
@@ -19,14 +18,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.IntSize
@@ -35,7 +37,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
@@ -58,6 +59,10 @@ import app.poruch.android.ui.*
 import app.poruch.domain.ContactRules
 import app.poruch.domain.DraftField
 import app.poruch.domain.EventRules
+import app.poruch.domain.LegalLinks
+import app.poruch.domain.MeetupTemplate
+import app.poruch.domain.QuickDayKind
+import app.poruch.domain.QuickEvent
 import app.poruch.domain.SafetyRules
 import app.poruch.domain.TitleRules
 import java.time.LocalDateTime
@@ -65,83 +70,12 @@ import java.time.LocalDateTime
 @Composable
 fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     val colors = Poruch.colors
-    // Системний «назад» — крок назад, з першого кроку — закрити майстер тим самим шляхом, що й хрестик. Поки публікується,
-    // ковтаємо його: інакше кроки гортались би під накладкою, і відмова сервера показалась би не на тому кроці.
-    BackHandler {
-        if (!state.publishing) onIntent(if (state.step != EditorStep.ABOUT) EditorIntent.Back else EditorIntent.Close)
-    }
-    Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding().imePadding()) {
-        WizardHeader(state, onIntent)
-        val scroll = rememberScrollState()
-        // Новий крок починається згори: інакше заголовок питання лишався за краєм, прокрученим ще на минулому.
-        LaunchedEffect(state.step) { scroll.scrollTo(0) }
-        Column(
-            Modifier.weight(1f).verticalScroll(scroll).padding(Spacing.page),
-            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
-        ) {
-            // Квиток друкується згори, поки людина відповідає: той самий, що побачать у «Від людей».
-            DraftTicket(state)
-            // Кожен крок — одне питання великим заголовком, як в онбордингу. «Крок 1 з 4» над ним нема: сегменти в шапці
-            // кажуть те саме, а TalkBack читає номер з них. На першому кроці й без підзаголовка — назву, опис і жанр
-            // називають підписи полів, а «Назва» має бути на першому екрані.
-            Column(Modifier.padding(bottom = Spacing.xs), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(
-                    stringResource(state.step.headline), style = PoruchType.brandDisplay, color = colors.ink,
-                    modifier = Modifier.semantics { heading() }
-                )
-                if (state.step != EditorStep.ABOUT) Text(
-                    stringResource(state.step.hint), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
-                )
-            }
-            when (state.step) {
-                EditorStep.ABOUT -> AboutStep(state, onIntent)
-                EditorStep.PLACE -> PlaceStep(state, onIntent)
-                EditorStep.SCHEDULE -> ScheduleStep(state, onIntent)
-                EditorStep.PEOPLE -> PeopleStep(state, onIntent)
-            }
-        }
-        Column(
-            Modifier.fillMaxWidth().background(colors.surface).navigationBarsPadding().padding(Spacing.page),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md)
-        ) {
-            // Останній крок, а файл ще стискається: «Опублікувати» чекає на нього.
-            if (state.step.isLast && state.importing > 0) Text(
-                stringResource(R.string.media_compressing), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
-            )
-            // Публікація вантажить файли по черзі: без рядка спінер на кнопці висів би мовчки.
-            state.upload?.let {
-                Text(
-                    stringResource(R.string.media_uploading, it.current, it.total), style = MaterialTheme.typography.bodyMedium,
-                    color = colors.inkSecondary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
-                )
-            }
-            // Над кнопкою, бо поле з помилкою може бути за краєм або під клавіатурою.
-            (state.failure?.text() ?: state.stepProblems.firstOrNull()?.takeIf { state.showProblems }?.rule())?.let {
-                // Червоний рядок TalkBack сам не помітить: кажемо його, щойно він з'явився чи змінився.
-                Text(
-                    it, style = MaterialTheme.typography.bodyMedium, color = colors.danger,
-                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
-                )
-            }
-            val back: @Composable (Modifier) -> Unit = { modifier ->
-                if (state.step != EditorStep.ABOUT) SecondaryButton(stringResource(R.string.back), { onIntent(EditorIntent.Back) }, modifier)
-            }
-            // Активна й з помилками: тап показує, що виправити, замість мовчазної сірої кнопки.
-            val primary: @Composable (Modifier) -> Unit = { modifier ->
-                PrimaryButton(
-                    stringResource(if (!state.step.isLast) R.string.next else if (state.editing) R.string.apply else R.string.publish),
-                    { onIntent(if (state.step.isLast) EditorIntent.Submit else EditorIntent.Next) },
-                    modifier, enabled = !state.mutating && !(state.step.isLast && state.importing > 0), loading = state.mutating
-                )
-            }
-            // На великому шрифті дві кнопки поруч не вміщають напис — ставимо одна під одною.
-            if (LocalDensity.current.fontScale > LARGE_FONT_SCALE) Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                back(Modifier.fillMaxWidth()); primary(Modifier.fillMaxWidth())
-            } else Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                back(Modifier.weight(1f)); primary(Modifier.weight(1f))
-            }
-        }
-    }
+    // Типовий опис за шаблоном: ним публікація заповнює порожнє поле (сервер без опису подію не прийме).
+    val about = stringResource(state.form.template.about)
+    // «Назад» перехоплюємо, лише коли є що берегти: поки публікується (ковтаємо) і в зміненій правці (питаємо). Решту
+    // закриває сам NavDisplay з передбачуваним «назад» — хрестик веде туди ж (чернетка нової зберігається й так).
+    BackHandler(state.publishing || state.mutating || state.changed) { if (!state.publishing) onIntent(EditorIntent.Close) }
+    EditorBody(state, about, onIntent)
 
     if (state.pickingPoint) PointPicker(state, onIntent)
     if (state.publishing) PublishingOverlay(state)
@@ -182,114 +116,209 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     }
 }
 
+/**
+ * Куди веде відмова «Опублікувати»: розділ першого поля з помилкою — у видиму частину, а назва чи адреса ще й
+ * отримують фокус (клавіатура одразу там, де треба набирати). Решта полів — без фокусу, щоб клавіатура не закривала їх.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+private class EditorFocus {
+    val title = FocusRequester()
+    val address = FocusRequester()
+    val what = BringIntoViewRequester()
+    val time = BringIntoViewRequester()
+    val place = BringIntoViewRequester()
+    val people = BringIntoViewRequester()
+    val more = BringIntoViewRequester()
+}
+
+/** Шапка, форма й кнопка публікації. Окремо від шторок і системного «назад»: так її малює прев'ю. */
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+@Composable
+private fun EditorBody(state: EditorState, about: String, onIntent: (EditorIntent) -> Unit) {
+    val colors = Poruch.colors
+    val focus = remember { EditorFocus() }
+    val focusManager = LocalFocusManager.current
+    LaunchedEffect(state.jump) {
+        val field = state.problems.firstOrNull()?.takeIf { state.jump > 0 } ?: return@LaunchedEffect
+        when (field) {
+            DraftField.TITLE -> { focus.what.bringIntoView(); focus.title.requestFocus() }
+            DraftField.ADDRESS, DraftField.LOCATION -> { focus.place.bringIntoView(); focus.address.requestFocus() }
+            DraftField.STARTS_AT -> { focusManager.clearFocus(); focus.time.bringIntoView() }
+            DraftField.CAPACITY -> { focusManager.clearFocus(); focus.people.bringIntoView() }
+            else -> { focusManager.clearFocus(); focus.more.bringIntoView() }
+        }
+    }
+    // Адреса з фокусом і відкритою клавіатурою — розділ «Де» вгору цілком: інакше поле лягало на край клавіатури,
+    // а рядок під ним і підказки, що з'являються під полем, опинялись під нею.
+    var placeFocused by remember { mutableStateOf(false) }
+    val imeVisible = WindowInsets.isImeVisible
+    LaunchedEffect(imeVisible, placeFocused, state.addressSuggestions.size) {
+        if (imeVisible && placeFocused) focus.place.bringIntoView()
+    }
+    Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding().imePadding()) {
+        EditorHeader(state, onIntent)
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(Spacing.page),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xxl)
+        ) {
+            // Квиток друкується згори, поки людина відповідає: той самий, що побачать у «Від людей».
+            DraftTicket(state)
+            // Готовий пост з Threads заповнює все одразу — тож над назвою, а не під «Ще». Лише для нової.
+            if (!state.editing) AnnounceCard(state, onIntent)
+            // Чотири питання на одному екрані — хвилина від «+» до посилання; решта під «Ще».
+            Box(Modifier.bringIntoViewRequester(focus.what)) { WhatSection(state, onIntent, focus.title) }
+            Box(Modifier.bringIntoViewRequester(focus.time)) { WhenSection(state, onIntent) }
+            Box(Modifier.bringIntoViewRequester(focus.place)) { WhereSection(state, onIntent, focus.address) { placeFocused = it } }
+            Box(Modifier.bringIntoViewRequester(focus.people)) { PeopleSection(state, onIntent) }
+            Box(Modifier.bringIntoViewRequester(focus.more)) { MoreSection(state, about, onIntent) }
+            // Правка: застосунок показує прості поля, а склад, серію й оплату онлайн веде кабінет — і не стирає їх.
+            state.cabinet?.let { url -> CabinetLine(R.string.quick_full_settings) { onIntent(EditorIntent.OpenCabinet(url)) } }
+        }
+        // Поки відкрита клавіатура, кнопки нема: удвох вони лишали формі чверть екрана, а підказки адрес ховались під
+        // кнопкою. «Готово» на клавіатурі ховає її — і кнопка повертається.
+        if (!imeVisible) Column(
+            Modifier.fillMaxWidth().background(colors.surface).navigationBarsPadding().padding(Spacing.page),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            // Файл ще стискається: «Опублікувати» чекає на нього.
+            if (state.importing > 0) Text(
+                stringResource(R.string.media_compressing), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
+            )
+            // Публікація вантажить файли по черзі: без рядка спінер на кнопці висів би мовчки.
+            state.upload?.let {
+                Text(
+                    stringResource(R.string.media_uploading, it.current, it.total), style = MaterialTheme.typography.bodyMedium,
+                    color = colors.inkSecondary, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                )
+            }
+            // Над кнопкою, бо поле з помилкою може бути за краєм або під клавіатурою.
+            (state.failure?.text() ?: state.problems.firstOrNull()?.takeIf { state.showProblems }?.rule())?.let {
+                // Червоний рядок TalkBack сам не помітить: кажемо його, щойно він з'явився чи змінився.
+                Text(
+                    it, style = MaterialTheme.typography.bodyMedium, color = colors.danger,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                )
+            }
+            // Активна й з помилками: тап показує, що виправити, замість мовчазної сірої кнопки.
+            PrimaryButton(
+                stringResource(if (state.editing) R.string.apply else R.string.publish), { onIntent(EditorIntent.Submit(about)) },
+                Modifier.fillMaxWidth(), enabled = !state.mutating && state.importing == 0, loading = state.mutating
+            )
+        }
+    }
+}
+
 private fun EditorForm.parse(value: String) =
     runCatching { LocalDateTime.parse(value, EditorForm.LOCAL_FORMAT) }.getOrNull()
 
-/** Закрити, прогрес трьома сегментами і назва режиму. Той самий ряд, що в онбордингу. */
+/** Закрити, назва режиму і «Почати заново». Шапка — хром: шрифт росте до 1.3, як xxLarge на iOS. */
 @Composable
-private fun WizardHeader(state: EditorState, onIntent: (EditorIntent) -> Unit) {
-    // Шапка — хром: шрифт росте до 1.3, далі напис справа витісняв смужки прогресу в нуль. Те саме, що xxLarge на iOS.
+private fun EditorHeader(state: EditorState, onIntent: (EditorIntent) -> Unit) {
+    val colors = Poruch.colors
     val density = LocalDensity.current
     androidx.compose.runtime.CompositionLocalProvider(
         LocalDensity provides androidx.compose.ui.unit.Density(density.density, density.fontScale.coerceAtMost(LARGE_FONT_SCALE))
-    ) { WizardHeaderRow(state, onIntent) }
-}
-
-@Composable
-private fun WizardHeaderRow(state: EditorState, onIntent: (EditorIntent) -> Unit) {
-    val colors = Poruch.colors
-    // «Крок 2 з 3: Місце» — і як назва індикатора, і як оголошення, коли крок змінився.
-    val stepLabel = stringResource(R.string.onboarding_step, state.step.ordinal + 1, EditorStep.entries.size) +
-        ": " + stringResource(state.step.label)
-    Row(
-        Modifier.fillMaxWidth().height(56.dp).padding(horizontal = Spacing.page),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        IconPill(PoruchIcons.close, stringResource(R.string.close), size = 40.dp, onClick = { onIntent(EditorIntent.Close) })
         Row(
-            Modifier.weight(1f).clearAndSetSemantics { contentDescription = stepLabel; liveRegion = LiveRegionMode.Polite },
-            horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+            Modifier.fillMaxWidth().height(56.dp).padding(horizontal = Spacing.page),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            EditorStep.entries.forEach { entry ->
-                val tint by animateColorAsState(
-                    if (entry.ordinal <= state.step.ordinal) colors.brand else colors.brandContainer,
-                    animationSpec = Motion.quick(Poruch.reducedMotion), label = "step"
-                )
-                Box(Modifier.weight(1f).height(4.dp).background(tint, Radius.pill))
-            }
+            IconPill(PoruchIcons.close, stringResource(R.string.close), size = 40.dp, onClick = { onIntent(EditorIntent.Close) })
+            Text(
+                stringResource(if (state.editing) R.string.editor_mode_edit else R.string.create_choice_own),
+                Modifier.weight(1f).semantics { heading() }, style = PoruchType.brandTitle3, color = colors.ink, maxLines = 1
+            )
+            if (state.canStartOver) GhostButton(
+                stringResource(R.string.editor_start_over), { onIntent(EditorIntent.AskDiscard(Discard.DRAFT)) },
+                tone = colors.inkSecondary, enabled = !state.mutating
+            )
         }
-        if (state.canStartOver) GhostButton(
-            stringResource(R.string.editor_start_over), { onIntent(EditorIntent.AskDiscard(Discard.DRAFT)) },
-            tone = colors.inkSecondary, enabled = !state.mutating
-        ) else Text(
-            stringResource(if (state.editing) R.string.editor_mode_edit else R.string.editor_mode_new),
-            style = MaterialTheme.typography.labelLarge, color = colors.inkSecondary
-        )
     }
 }
 
+/** Питання секції тим самим голосом, що назва на квитку, і відповідь під ним. */
+@Composable
+private fun Section(question: Int, content: @Composable ColumnScope.() -> Unit) =
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        Text(stringResource(question), style = PoruchType.brandTitle2, color = Poruch.colors.ink, modifier = Modifier.semantics { heading() })
+        content()
+    }
+
+/** «Що»: назва й шаблони. Шаблон одним тапом ставить назву, жанр (колір корінця), місця й тривалість. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AboutStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
+private fun WhatSection(state: EditorState, onIntent: (EditorIntent) -> Unit, focus: FocusRequester? = null) = Section(R.string.editor_about_title) {
     val form = state.form
-    val description = form.description.trim().length
-    // Порядок як у пості Threads: готовий текст, назва, опис, фото й відео, а жанр наприкінці.
-    if (!state.editing) AnnounceCard(state, onIntent)
     LabelledField(
         stringResource(R.string.title), form.title,
         { value -> onIntent(EditorIntent.Edit { copy(title = value.take(EventRules.titleLength.last)) }) },
-        placeholder = stringResource(R.string.title_placeholder), error = state.problem(DraftField.TITLE),
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next)
+        placeholder = stringResource(R.string.quick_title_placeholder), error = state.problem(DraftField.TITLE),
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+        focusRequester = focus
     )
-    LabelledField(
-        stringResource(R.string.description), form.description,
-        { value -> onIntent(EditorIntent.Edit { copy(description = value.take(EventRules.descriptionLength.last)) }) },
-        placeholder = stringResource(R.string.description_placeholder), singleLine = false,
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-        hint = EventRules.descriptionLength.let { rule ->
-            if (description < rule.first) stringResource(R.string.description_counter_min, description, rule.first)
-            else stringResource(R.string.description_counter, description, rule.last)
-        },
-        error = state.problem(DraftField.DESCRIPTION)
-    )
-    MediaSection(state, onIntent)
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        Text(
-            stringResource(R.string.category_single).uppercase(), style = MaterialTheme.typography.labelSmall,
-            color = Poruch.colors.inkTertiary
-        )
-        // Ті самі плитки, що в шторці категорій пошуку: жанр обирають однаково скрізь. Усі одинадцять видно одразу.
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-            categories.forEach { key ->
-                CategoryTile(key, form.category == key) { onIntent(EditorIntent.Edit { copy(category = key) }) }
+    // У правці шаблонів нема: тап переписав би місця, жанр і кінець уже опублікованої події.
+    if (!state.editing) {
+        val previous = form.template?.let { stringResource(it.label) }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            MeetupTemplate.entries.forEach { template ->
+                val label = stringResource(template.label)
+                PoruchChip(label, form.template == template, {
+                    onIntent(EditorIntent.PickTemplate(template, QuickEvent.title(form.title, previous, label)))
+                }, dot = template.category)
             }
         }
-        state.problem(DraftField.CATEGORY)?.let { FieldError(it) }
     }
 }
 
-/** Правило поля, якщо людина вже натиснула «Далі», а воно не пройшло. */
+/** «Коли»: день одним тапом — сьогодні, завтра, найближчий вихідний чи інша дата — і година поруч. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun EditorState.problem(field: DraftField): String? =
-    if (showProblems && field in stepProblems) field.rule() else null
+private fun WhenSection(state: EditorState, onIntent: (EditorIntent) -> Unit) = Section(R.string.editor_schedule_title) {
+    val form = state.form
+    val now = remember(form.starts) { System.currentTimeMillis() }
+    val days = remember(now, form.timeZone) { QuickEvent.days(now, form.timeZone) }
+    val picked = form.startMillis?.let { QuickEvent.dayOf(it, now, form.timeZone) }
+    // «Пт, 20 лист.» і «19:00»: 24 години, як на корінці квитка над формою й скрізь у застосунку.
+    val dates = remember { java.time.format.DateTimeFormatter.ofPattern("EEE, d MMM", java.util.Locale.forLanguageTag("uk")) }
+    val hours = remember { java.time.format.DateTimeFormatter.ofPattern(HOUR_FORMAT) }
+    val start = form.parse(form.starts)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        days.forEach { day ->
+            val label = when (day.kind) {
+                QuickDayKind.TODAY -> R.string.today
+                QuickDayKind.TOMORROW -> R.string.tomorrow
+                QuickDayKind.WEEKEND -> if (day.sunday) R.string.quick_sunday else R.string.quick_saturday
+            }
+            PoruchChip(stringResource(label), picked == day.kind, { onIntent(EditorIntent.PickDay(day)) })
+        }
+        // Інша дата — чип із самим днем, коли його обрано: «Пт, 20 лист.».
+        PoruchChip(
+            start?.takeIf { picked == null }?.format(dates)?.replaceFirstChar { it.uppercase() } ?: stringResource(R.string.quick_other_date),
+            start != null && picked == null, { onIntent(EditorIntent.ShowPicker(PickerRequest.STARTS)) },
+            icon = PoruchIcons.calendar, trailingIcon = PoruchIcons.chevronDown
+        )
+        PoruchChip(
+            start?.format(hours) ?: stringResource(R.string.time), false, { onIntent(EditorIntent.ShowPicker(PickerRequest.STARTS, time = true)) },
+            icon = PoruchIcons.clock, trailingIcon = PoruchIcons.chevronDown
+        )
+    }
+    state.problem(DraftField.STARTS_AT)?.let { FieldError(it) }
+}
 
+/** «Де»: адреса з підказками або точка на мапі. Мапа — лише підтвердження вибраного, тож з'являється з крапкою. */
 @Composable
-private fun FieldError(text: String) =
-    Text(text, style = MaterialTheme.typography.bodySmall, color = Poruch.colors.danger)
-
-@Composable
-private fun PlaceStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
+private fun WhereSection(
+    state: EditorState, onIntent: (EditorIntent) -> Unit, focus: FocusRequester? = null, onFocus: (Boolean) -> Unit = {}
+) = Section(R.string.editor_place_title) {
     val colors = Poruch.colors
     val form = state.form
-    LabelledField(
-        stringResource(R.string.city), form.city, { value -> onIntent(EditorIntent.Edit { copy(city = value) }) },
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next)
-    )
+    val focusManager = LocalFocusManager.current
     LabelledField(
         stringResource(R.string.address), form.address, { value -> onIntent(EditorIntent.Edit { copy(address = value) }) },
         placeholder = stringResource(R.string.address_placeholder),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-        hint = stringResource(R.string.address_hint), error = state.problem(DraftField.ADDRESS)
+        error = state.problem(DraftField.ADDRESS), focusRequester = focus,
+        modifier = Modifier.onFocusChanged { onFocus(it.hasFocus) }
     )
     // Підказки одразу під полем, як продовження набору.
     if (state.addressSuggestions.isNotEmpty()) Column(
@@ -298,7 +327,8 @@ private fun PlaceStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         state.addressSuggestions.forEachIndexed { index, place ->
             if (index > 0) HairLine()
             Row(
-                Modifier.fillMaxWidth().clickable(role = Role.Button) { onIntent(EditorIntent.PickAddress(place)) }
+                // Адресу обрано — клавіатура більше не потрібна: вона закривала мапу з точкою й «Опублікувати».
+                Modifier.fillMaxWidth().clickable(role = Role.Button) { focusManager.clearFocus(); onIntent(EditorIntent.PickAddress(place)) }
                     .padding(Spacing.lg),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.md)
@@ -314,14 +344,18 @@ private fun PlaceStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
             }
         }
     }
-    Text(
+    // Мапа лише показує вибране: жести на такій висоті коштували б точності.
+    if (state.pointChosen) Box(Modifier.fillMaxWidth().height(140.dp).clip(Radius.md)) {
+        EventMap(emptyList(), state.mapLatitude, state.mapLongitude, chosenPoint = state.point, interactive = false, centerZoom = MapZoom.street)
+    }
+    // Один рядок про місце: що зробити, що вже є, або — після «Опублікувати» — чого бракує, на тому ж місці.
+    state.problem(DraftField.LOCATION)?.let { FieldError(it) } ?: Text(
         stringResource(if (state.pointChosen) R.string.address_point_set else R.string.address_or_map),
         style = MaterialTheme.typography.bodySmall,
         color = if (state.pointChosen) colors.success else colors.inkTertiary
     )
-    state.problem(DraftField.LOCATION)?.let { FieldError(it) }
-    // «Мої місця»: скільки людей поруч почують про зустріч. Менше трьох — мовчимо.
-    state.audience?.let { count ->
+    // «Мої місця»: скільки людей поруч почують про зустріч. Менше трьох — мовчимо; прихована — нікому не кажемо.
+    state.audience?.takeUnless { form.linkOnly }?.let { count ->
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
             Icon(PoruchIcons.bell, null, Modifier.size(16.dp), tint = colors.inkSecondary)
             Text(
@@ -330,21 +364,166 @@ private fun PlaceStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
             )
         }
     }
-    // Мапа лише показує вибране: жести на 260 dp коштували б точності.
-    Box(Modifier.fillMaxWidth().height(260.dp).clip(Radius.md)) {
-        EventMap(
-            emptyList(), state.mapLatitude, state.mapLongitude,
-            chosenPoint = state.point, interactive = false,
-            // Є крапка — показуємо будинок, а не місто.
-            centerZoom = if (state.pointChosen) MapZoom.street else MapZoom.city
-        )
-    }
     SecondaryButton(
         stringResource(if (state.pointChosen) R.string.change_point else R.string.choose_point),
-        { onIntent(EditorIntent.ShowPointPicker(true)) },
-        Modifier.fillMaxWidth()
+        { onIntent(EditorIntent.ShowPointPicker(true)) }, Modifier.fillMaxWidth(), icon = PoruchIcons.pin
     )
+    // Тут, а не в «Ще»: про приватність адреси думають, коли її вводять («Настолки вдома»).
+    SwitchCard(R.string.link_only_label, R.string.link_only_hint, form.linkOnly) { value ->
+        onIntent(EditorIntent.Edit { copy(linkOnly = value) })
+    }
 }
+
+/** Перемикач на всю картку: TalkBack читає підпис разом зі станом, а ціль дотику — уся картка. */
+@Composable
+private fun SwitchCard(label: Int, hint: Int, checked: Boolean, onChange: (Boolean) -> Unit) {
+    val colors = Poruch.colors
+    Row(
+        Modifier.fillMaxWidth().cardSurface().toggleable(checked, role = Role.Switch, onValueChange = onChange).padding(Spacing.lg),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(stringResource(label), style = MaterialTheme.typography.titleSmall, color = colors.ink)
+            Text(stringResource(hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+        }
+        PoruchSwitch(checked, null)
+    }
+}
+
+/** «Скільки людей»: число великими цифрами, як на корінці, і «−» / «+» для дрібних поправок. Понад 30 — підказка про кабінет. */
+@Composable
+private fun PeopleSection(state: EditorState, onIntent: (EditorIntent) -> Unit) = Section(R.string.quick_people) {
+    val colors = Poruch.colors
+    val form = state.form
+    val seats = stringResource(R.string.capacity)
+    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+        ZoomButton(PoruchIcons.minus, R.string.quick_seats_less) { onIntent(EditorIntent.Seats(-1)) }
+        androidx.compose.foundation.text.BasicTextField(
+            form.capacity, { value -> onIntent(EditorIntent.Edit { copy(capacity = value.filter(Char::isDigit).take(5)) }) },
+            Modifier.width(112.dp).background(colors.surface, Radius.sm).padding(vertical = Spacing.md).semantics { contentDescription = seats },
+            textStyle = PoruchType.numeral.copy(color = colors.ink, textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontFeatureSettings = "tnum"),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done), singleLine = true,
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.ink)
+        )
+        ZoomButton(PoruchIcons.plus, R.string.quick_seats_more) { onIntent(EditorIntent.Seats(1)) }
+    }
+    state.problem(DraftField.CAPACITY)?.let { FieldError(it) }
+    // Підказка, не заборона: великій події зручніше в кабінеті, але й тут її можна опублікувати.
+    if (QuickEvent.isLarge(form.capacity.toIntOrNull() ?: 0)) CabinetLine(R.string.quick_large_hint) {
+        onIntent(EditorIntent.OpenCabinet(LegalLinks.CABINET))
+    }
+}
+
+/** Тихий рядок із посиланням на кабінет: підказка великої події й «Повні налаштування» у правці. */
+@Composable
+private fun CabinetLine(text: Int, onClick: () -> Unit) {
+    val colors = Poruch.colors
+    Row(
+        Modifier.fillMaxWidth().background(colors.surfaceMuted, Radius.md).clip(Radius.md)
+            // Увесь рядок — посилання; куди воно веде, TalkBack каже назвою дії.
+            .clickable(onClickLabel = stringResource(R.string.quick_open_cabinet), role = Role.Button, onClick = onClick)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        Text(stringResource(text), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = colors.ink)
+        Icon(PoruchIcons.arrowRight, null, Modifier.size(18.dp), tint = colors.inkSecondary)
+    }
+}
+
+/**
+ * «Ще» — згорнуто: опис, фото, «За підтвердженням», чат і вхід, а під ними те, що за планом лишиться тільки сайту
+ * (кілька фото й відео, вік, коли платять) — поки тут, щоб правка події з сайту нічого не губила.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MoreSection(state: EditorState, about: String, onIntent: (EditorIntent) -> Unit) {
+    val colors = Poruch.colors
+    val form = state.form
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {
+        Row(
+            Modifier.fillMaxWidth().cardSurface(Radius.md).toggleable(state.more, role = Role.Button) { onIntent(EditorIntent.ToggleMore) }
+                .padding(Spacing.lg),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stringResource(R.string.quick_more), style = MaterialTheme.typography.titleSmall, color = colors.ink)
+                Text(stringResource(R.string.quick_more_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+            }
+            Icon(if (state.more) PoruchIcons.chevronUp else PoruchIcons.chevronDown, null, Modifier.size(20.dp), tint = colors.inkSecondary)
+        }
+        if (!state.more) return@Column
+        val description = form.description.trim().length
+        LabelledField(
+            stringResource(R.string.description), form.description,
+            { value -> onIntent(EditorIntent.Edit { copy(description = value.take(EventRules.descriptionLength.last)) }) },
+            placeholder = stringResource(R.string.description_placeholder), singleLine = false,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            hint = EventRules.descriptionLength.let { rule ->
+                when {
+                    description == 0 -> stringResource(R.string.quick_about_hint, about)
+                    description < rule.first -> stringResource(R.string.description_counter_min, description, rule.first)
+                    else -> stringResource(R.string.description_counter, description, rule.last)
+                }
+            },
+            error = state.problem(DraftField.DESCRIPTION)
+        )
+        MediaSection(state, onIntent)
+        SwitchCard(R.string.approval_label, R.string.approval_hint, form.approvalRequired) { value ->
+            onIntent(EditorIntent.Edit { copy(approvalRequired = value) })
+        }
+        // Чат — єдиний канал до учасників. Лише https: решту відкидає і чернетка, і сервер.
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            LabelledField(
+                stringResource(R.string.contact_label), form.contactUrl,
+                { value -> onIntent(EditorIntent.Edit { copy(contactUrl = value.take(ContactRules.MAX_URL_LENGTH)) }) },
+                placeholder = stringResource(R.string.contact_placeholder),
+                hint = stringResource(R.string.contact_editor_hint),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done)
+            )
+            if (form.contactUrl.isNotBlank() && !ContactRules.isContactUrl(form.contactUrl)) FieldError(DraftField.CONTACT_URL.rule())
+        }
+        EntryFields(state, onIntent)
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            Text(
+                stringResource(R.string.category_single).uppercase(), style = MaterialTheme.typography.labelSmall,
+                color = colors.inkTertiary
+            )
+            // Ті самі плитки, що в шторці категорій пошуку: жанр обирають однаково скрізь.
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                categories.forEach { key ->
+                    CategoryTile(key, form.category == key) { onIntent(EditorIntent.Edit { copy(category = key) }) }
+                }
+            }
+            state.problem(DraftField.CATEGORY)?.let { FieldError(it) }
+        }
+        // Кінець ставить шаблон (тривалість) і їде за початком; тут — коли треба інакше.
+        val days = remember { java.time.format.DateTimeFormatter.ofPattern("EEE, d MMM", java.util.Locale.forLanguageTag("uk")) }
+        val hours = remember { java.time.format.DateTimeFormatter.ofPattern(HOUR_FORMAT) }
+        DateTimeField(
+            stringResource(R.string.ends), form.parse(form.ends)?.format(days)?.replaceFirstChar { it.uppercase() }.orEmpty(),
+            form.parse(form.ends)?.format(hours).orEmpty(), state.problem(DraftField.ENDS_AT),
+            onDate = { onIntent(EditorIntent.ShowPicker(PickerRequest.ENDS)) },
+            onTime = { onIntent(EditorIntent.ShowPicker(PickerRequest.ENDS, time = true)) }
+        )
+        TimeZoneNote(form.timeZone, form.city, form.parse(form.starts))
+        state.problem(DraftField.TIME_ZONE)?.let { FieldError(it) }
+        AgeFields(state, onIntent)
+        // Місто їде за адресою з підказки чи крапкою; поле — коли геокодер помилився.
+        LabelledField(
+            stringResource(R.string.city), form.city, { value -> onIntent(EditorIntent.Edit { copy(city = value) }) },
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done)
+        )
+    }
+}
+
+/** Правило поля, якщо людина вже натиснула «Опублікувати», а воно не пройшло. */
+@Composable
+private fun EditorState.problem(field: DraftField): String? =
+    if (showProblems && field in problems) field.rule() else null
+
+@Composable
+private fun FieldError(text: String) =
+    Text(text, style = MaterialTheme.typography.bodySmall, color = Poruch.colors.danger)
 
 /** Кругла кнопка масштабу поверх мапи. */
 @Composable
@@ -366,9 +545,10 @@ private fun PointPicker(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     val start = state.point ?: (state.mapLatitude to state.mapLongitude)
     var center by remember { mutableStateOf(start) }
     val controller = remember { MapController() }
+    // Від краю до краю, як коло в «Моїх місцях»: мапа йде під системні смуги, а не стоїть вікном у сірій рамці.
     Dialog(
         onDismissRequest = { onIntent(EditorIntent.ShowPointPicker(false)) },
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
         Box(Modifier.fillMaxSize().background(colors.canvas)) {
             EventMap(
@@ -467,41 +647,11 @@ private fun TimeZoneNote(zone: String, city: String, at: LocalDateTime?) {
     }
 }
 
+/** Вхід: спершу безкоштовно чи платно (власник 05.11). Платно — ціна й коли платять; безкоштовно прибирає обидва. */
 @Composable
-private fun ScheduleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
-    val form = state.form
-    // «Сб, 17 жовт.» і «19:00»; у чернетці лишається машинний формат. Година — як на телефоні.
-    val hour = if (android.text.format.DateFormat.is24HourFormat(androidx.compose.ui.platform.LocalContext.current)) "HH:mm" else "h:mm a"
-    val days = remember { java.time.format.DateTimeFormatter.ofPattern("EEE, d MMM", java.util.Locale.forLanguageTag("uk")) }
-    val hours = remember(hour) { java.time.format.DateTimeFormatter.ofPattern(hour, java.util.Locale.forLanguageTag("uk")) }
-    fun day(value: String) = form.parse(value)?.format(days)?.replaceFirstChar { it.uppercase() }.orEmpty()
-    fun time(value: String) = form.parse(value)?.format(hours).orEmpty()
-    DateTimeField(
-        stringResource(R.string.starts), day(form.starts), time(form.starts),
-        state.problem(DraftField.STARTS_AT),
-        onDate = { onIntent(EditorIntent.ShowPicker(PickerRequest.STARTS)) },
-        onTime = { onIntent(EditorIntent.ShowPicker(PickerRequest.STARTS, time = true)) }
-    )
-    DateTimeField(
-        stringResource(R.string.ends), day(form.ends), time(form.ends),
-        state.problem(DraftField.ENDS_AT),
-        onDate = { onIntent(EditorIntent.ShowPicker(PickerRequest.ENDS)) },
-        onTime = { onIntent(EditorIntent.ShowPicker(PickerRequest.ENDS, time = true)) }
-    )
-    TimeZoneNote(form.timeZone, form.city, form.parse(form.starts))
-    state.problem(DraftField.TIME_ZONE)?.let { FieldError(it) }
-}
-
-/** Хто може прийти — окремий крок, а не хвіст «Коли»: місця, вік, погодження й чат — частина публікації. */
-@Composable
-private fun PeopleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
+private fun EntryFields(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     val colors = Poruch.colors
     val form = state.form
-    LabelledField(
-        stringResource(R.string.capacity), form.capacity, { value -> onIntent(EditorIntent.Edit { copy(capacity = value.filter(Char::isDigit).take(5)) }) },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next), error = state.problem(DraftField.CAPACITY)
-    )
-    // Вхід: спершу безкоштовно чи платно (власник 05.11). Платно — ціна й коли платять; безкоштовно прибирає обидва.
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Text(stringResource(R.string.entry_label).uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
         SegmentedPill(
@@ -515,7 +665,7 @@ private fun PeopleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         placeholder = stringResource(R.string.price_placeholder),
         hint = if (state.payOnline) stringResource(R.string.price_hint_online) else null,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-        // Платно без ціни — після спроби далі; поза межами — одразу.
+        // Платно без ціни — після спроби опублікувати; поза межами — одразу.
         error = DraftField.PRICE.rule().takeIf { form.price.isNotEmpty() && form.price.toInt() !in EventRules.price } ?: state.problem(DraftField.PRICE)
     )
     // Коли платять: людина бачить це під ціною й на панелі. Онлайн-подію змінюють у кабінеті.
@@ -530,6 +680,12 @@ private fun PeopleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
             style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary
         )
     }
+}
+
+/** Вікові межі: за планом — лише сайт, поки лишаються під «Ще». */
+@Composable
+private fun AgeFields(state: EditorState, onIntent: (EditorIntent) -> Unit) {
+    val form = state.form
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
             LabelledField(
@@ -546,41 +702,17 @@ private fun PeopleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         }
         Text(
             stringResource(R.string.age_limit_hint, SafetyRules.MIN_SIGNUP_AGE),
-            style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary
+            style = MaterialTheme.typography.bodySmall, color = Poruch.colors.inkTertiary
         )
         state.problem(DraftField.AGE_LIMITS)?.let { FieldError(it) }
-        // Перемикає весь рядок: так TalkBack читає підпис разом зі станом, а ціль дотику — уся картка.
-        Row(
-            Modifier.fillMaxWidth().cardSurface()
-                .toggleable(form.approvalRequired, role = Role.Switch) { value ->
-                    onIntent(EditorIntent.Edit { copy(approvalRequired = value) })
-                }
-                .padding(Spacing.lg),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
-        ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(R.string.approval_label), style = MaterialTheme.typography.titleSmall, color = colors.ink)
-                Text(stringResource(R.string.approval_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
-            }
-            PoruchSwitch(form.approvalRequired, null)
-        }
-        // Чат — єдиний канал до учасників. Лише https: решту відкидає і чернетка, і сервер.
-        LabelledField(
-            stringResource(R.string.contact_label), form.contactUrl,
-            { value -> onIntent(EditorIntent.Edit { copy(contactUrl = value.take(ContactRules.MAX_URL_LENGTH)) }) },
-            placeholder = stringResource(R.string.contact_placeholder),
-            hint = stringResource(R.string.contact_editor_hint),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done)
-        )
-        if (form.contactUrl.isNotBlank() && !ContactRules.isContactUrl(form.contactUrl)) FieldError(DraftField.CONTACT_URL.rule())
     }
 }
 
 /**
  * Квиток «Від людей», що друкується з форми: незаповнене — сірі смуги, як на порожньому квитку, заповнене проступає
- * текстом. Корінець одразу кольору жанру; година, день і місця — коли обрано початок. На перших трьох кроках — смужкою
- * з корінцем часу праворуч: повний квиток забирав чверть екрана, і поля йшли за згин. Повний — на останньому, прев'ю
- * перед публікацією. Для TalkBack він повтор форми, тож прихований. Те саме, що `DraftTicket` на iOS.
+ * текстом. Корінець одразу кольору жанру (його ставить шаблон), на ньому година, день і місця. Смужкою: повний квиток
+ * забирав чверть екрана, а тут чотири питання мають стояти поруч. Для TalkBack він повтор форми, тож прихований.
+ * Те саме, що `DraftTicket` на iOS.
  */
 @Composable
 private fun DraftTicket(state: EditorState) {
@@ -593,66 +725,34 @@ private fun DraftTicket(state: EditorState) {
         runCatching { form.parse(form.starts)?.atZone(java.time.ZoneId.of(form.timeZone)) }.getOrNull()
     }
     val (big, small) = start?.let { draftStubParts(it, words) } ?: ("––:––" to "")
-    val motion = Motion.quick<IntSize>(Poruch.reducedMotion)
     val day = PoruchType.overline.copy(color = Color.White, letterSpacing = 0.6.sp)
-    if (state.step != EditorStep.PEOPLE) {
-        Ticket(
-            categoryStub(form.category),
-            stub = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(big, style = PoruchType.numeralSmall.copy(color = Color.White, fontFeatureSettings = "tnum"), maxLines = 1)
-                    if (start != null) Text(small, style = day, maxLines = 1)
-                }
-            },
-            modifier = Modifier.fillMaxWidth().decorative()
-        ) {
-            Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                if (title.isEmpty()) Blank(140.dp, 10.dp)
-                else Text(TitleRules.display(title), style = PoruchType.brandTitle3, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (place.isEmpty()) Blank(100.dp, 6.dp) else MetaLine(PoruchIcons.pin, place)
-            }
-        }
-        return
-    }
     Ticket(
         categoryStub(form.category),
         stub = {
-            Row(
-                // Як у StubTime(row): відступ зверху врівноважує порожнє місце під цифрами, жанр не липне до перфорації.
-                Modifier.fillMaxWidth().padding(horizontal = Spacing.md).padding(top = Spacing.sm),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(stringResource(categoryLabel(form.category)).uppercase(), style = day, maxLines = 1)
-                    Text(big, style = PoruchType.numeral.copy(color = Color.White, fontFeatureSettings = "tnum"), maxLines = 1)
-                }
-                if (start != null) Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(small, style = day, maxLines = 1)
-                    Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(PoruchIcons.social, null, Modifier.size(12.dp), tint = Color.White)
-                        Text("${state.taken}/${form.capacity.ifBlank { "0" }}", style = day.copy(fontFeatureSettings = "tnum"))
-                    }
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(big, style = PoruchType.numeralSmall.copy(color = Color.White, fontFeatureSettings = "tnum"), maxLines = 1)
+                if (start != null) Text(small, style = day, maxLines = 1)
+                Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(PoruchIcons.social, null, Modifier.size(12.dp), tint = Color.White)
+                    Text("${state.taken}/${form.capacity.ifBlank { "0" }}", style = day.copy(fontFeatureSettings = "tnum"))
                 }
             }
         },
-        // Вертикальний квиток бере висоту від місця виклику: у прокрутці її нема, і без Min основа сплющувалась у нуль.
-        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min).decorative(),
-        vertical = true, stubLength = 64.dp
+        modifier = Modifier.fillMaxWidth().decorative()
     ) {
         Column(
-            Modifier.animateContentSize(motion).padding(start = Spacing.md, end = Spacing.md, top = Spacing.md, bottom = Spacing.lg),
+            Modifier.animateContentSize(Motion.quick<IntSize>(Poruch.reducedMotion)).padding(Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.xs)
         ) {
-            if (title.isEmpty()) { Blank(160.dp, 12.dp); Blank(96.dp, 12.dp) }
-            else Text(TitleRules.display(title), style = PoruchType.brandTitle2, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (title.isEmpty()) Blank(140.dp, 10.dp)
+            else Text(TitleRules.display(title), style = PoruchType.brandTitle3, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
             state.host?.let { host ->
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Avatar(host, null, 20.dp)
                     Text(stringResource(R.string.hosted_by, host), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1)
                 }
             }
-            Spacer(Modifier.height(Spacing.sm))
-            if (place.isEmpty()) Blank(120.dp, 6.dp) else MetaLine(PoruchIcons.pin, place)
+            if (place.isEmpty()) Blank(100.dp, 6.dp) else MetaLine(PoruchIcons.pin, place)
         }
     }
 }
@@ -665,36 +765,51 @@ private fun Blank(width: androidx.compose.ui.unit.Dp, height: androidx.compose.u
 /** Звідки кнопки підвалу стають одна під одною: 1.3 — найбільший системний шрифт без «екстра». */
 private const val LARGE_FONT_SCALE = 1.3f
 
-private val EditorStep.headline: Int
+/** Година на чипах форми — 24 години, як `HOUR` у Format.kt; пікер часу лишається за налаштуванням телефона. */
+private const val HOUR_FORMAT = "HH:mm"
+
+private val MeetupTemplate.label: Int
     get() = when (this) {
-        EditorStep.ABOUT -> R.string.editor_about_title
-        EditorStep.PLACE -> R.string.editor_place_title
-        EditorStep.SCHEDULE -> R.string.editor_schedule_title
-        EditorStep.PEOPLE -> R.string.editor_people_title
+        MeetupTemplate.CINEMA -> R.string.template_cinema
+        MeetupTemplate.BOARD_GAMES -> R.string.template_board_games
+        MeetupTemplate.WALK -> R.string.template_walk
+        MeetupTemplate.COFFEE -> R.string.template_coffee
+        MeetupTemplate.WORKSHOP -> R.string.template_workshop
+        MeetupTemplate.SPORT -> R.string.sport
     }
 
-private val EditorStep.hint: Int
+/** Типовий опис: шаблону чи, без нього, загальний. */
+private val MeetupTemplate?.about: Int
     get() = when (this) {
-        EditorStep.ABOUT -> R.string.editor_about_hint
-        EditorStep.PLACE -> R.string.editor_place_hint
-        EditorStep.SCHEDULE -> R.string.editor_schedule_hint
-        EditorStep.PEOPLE -> R.string.editor_people_hint
+        MeetupTemplate.CINEMA -> R.string.quick_about_cinema
+        MeetupTemplate.BOARD_GAMES -> R.string.quick_about_board_games
+        MeetupTemplate.WALK -> R.string.quick_about_walk
+        MeetupTemplate.COFFEE -> R.string.quick_about_coffee
+        MeetupTemplate.WORKSHOP -> R.string.quick_about_workshop
+        MeetupTemplate.SPORT -> R.string.quick_about_sport
+        null -> R.string.quick_about_default
     }
 
-private val EditorStep.label: Int
-    get() = when (this) {
-        EditorStep.ABOUT -> R.string.step_one
-        EditorStep.PLACE -> R.string.step_two
-        EditorStep.SCHEDULE -> R.string.step_three
-        EditorStep.PEOPLE -> R.string.step_four
-    }
-
-@Preview(widthDp = 360, heightDp = 900)
+@Preview(widthDp = 360, heightDp = 1100)
 @Composable
-private fun PeopleStepPricePreview() = PoruchTheme(dark = false) {
-    Column(Modifier.background(Poruch.colors.canvas).padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {
-        PeopleStep(EditorState(step = EditorStep.PEOPLE, form = EditorForm(capacity = "12")), {})
-        PeopleStep(EditorState(step = EditorStep.PEOPLE, form = EditorForm(capacity = "12", price = "300", paid = true)), {})
-        PeopleStep(EditorState(step = EditorStep.PEOPLE, form = EditorForm(capacity = "12", price = "200000", paid = true, prepay = true)), {})
-    }
+private fun QuickFormPreview() = PoruchTheme(dark = false) {
+    EditorBody(EditorState(form = EditorForm(city = "Київ").scheduled(), host = "Оля"), "", {})
+}
+
+@Preview(widthDp = 360, heightDp = 2300)
+@Composable
+private fun QuickFormMorePreview() = PoruchTheme(dark = false) {
+    EditorBody(
+        EditorState(
+            form = EditorForm(city = "Київ", address = "Кав'ярня «Фуга», Рейтарська, 9").scheduled()
+                .with(MeetupTemplate.BOARD_GAMES, "Настолки").copy(capacity = "40"),
+            host = "Оля", more = true, cabinet = LegalLinks.cabinetEvent("e1"), editing = true
+        ), stringResource(R.string.quick_about_board_games), {}
+    )
+}
+
+@Preview(widthDp = 360, heightDp = 1100)
+@Composable
+private fun QuickFormDarkPreview() = PoruchTheme(dark = true) {
+    EditorBody(EditorState(form = EditorForm(city = "Київ").scheduled().with(MeetupTemplate.COFFEE, "Кава"), host = "Оля", showProblems = true), "", {})
 }

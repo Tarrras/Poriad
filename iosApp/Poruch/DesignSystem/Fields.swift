@@ -12,6 +12,8 @@ struct LabelledField<Trailing: View>: View {
     var secure: Bool = false
     /// Опис росте з текстом; решта полів однорядкові.
     var multiline: Bool = false
+    /// Фокус від екрана (редактор веде в поле з помилкою). `.focused` на всьому `LabelledField` не діяв — стоїть на самому полі.
+    var focus: FocusState<Bool>.Binding? = nil
     @ViewBuilder var trailing: Trailing
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
@@ -32,6 +34,7 @@ struct LabelledField<Trailing: View>: View {
                 }
                 .font(PoruchFont.bodyText).foregroundStyle(Palette.ink).tint(Palette.ink).textFieldStyle(.plain)
                 .accessibilityHint(hint ?? "")
+                .modifier(FocusIf(focus: focus))
                 trailing
             }
             // Висота вміщує 44 pt ціль кінцевого контролу, не переростаючи сусіднє поле.
@@ -127,19 +130,23 @@ struct DateTimeField: View {
     let onTime: () -> Void
 
     @ScaledMetric(relativeTo: .body) private var timeWidth: CGFloat = 112
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// Великий шрифт: день над годиною на всю ширину, а не «Пт, 2…» і «19:0» поруч.
+    private var stacked: Bool { typeSize.isAccessibilitySize }
 
     var body: some View {
+        let row = stacked ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
         VStack(alignment: .leading, spacing: Space.sm) {
             Text(label.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                 .accessibilityHidden(true)
-            HStack(spacing: 0) {
+            row {
                 part(PoruchIcons.calendar, date.isEmpty ? Copy.pick_date : date, blank: date.isEmpty,
                      label: "\(label): \(date.isEmpty ? Copy.pick_date : date)", action: onDate)
                 part(PoruchIcons.clock, time.isEmpty ? Copy.time : time, blank: time.isEmpty,
                      label: "\(label), \(Copy.time.lowercased()): \(time.isEmpty ? Copy.pick_time : time)", action: onTime)
-                    .frame(width: min(timeWidth, 168))
+                    .frame(width: stacked ? nil : min(timeWidth, 168))
                     // Накладкою, а не в ряду: у `fixedSize` фігура брала свої 10 pt висоти, і лінії не було.
-                    .overlay(alignment: .leading) { TearLine() }
+                    .overlay(alignment: stacked ? .top : .leading) { TearLine(across: stacked) }
             }
             .fixedSize(horizontal: false, vertical: true)
             .background(Palette.surface)
@@ -151,7 +158,7 @@ struct DateTimeField: View {
         Button(action: action) {
             HStack(spacing: Space.md) {
                 PoruchIcon(glyph: glyph, size: 20).foregroundStyle(Palette.inkSecondary)
-                Text(text).font(PoruchFont.bodyText).monospacedDigit().minimumScaleFactor(0.7)
+                Text(text).font(PoruchFont.bodyText).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
                     .foregroundStyle(blank ? Palette.inkTertiary : Palette.ink)
             }
             .padding(.horizontal, Space.lg)
@@ -290,10 +297,18 @@ struct CalendarGrid: View {
 extension LabelledField where Trailing == EmptyView {
     init(
         label: String, text: Binding<String>, placeholder: String = "",
-        hint: String? = nil, secure: Bool = false, multiline: Bool = false
+        hint: String? = nil, secure: Bool = false, multiline: Bool = false, focus: FocusState<Bool>.Binding? = nil
     ) {
-        self.init(label: label, text: text, placeholder: placeholder, hint: hint, secure: secure, multiline: multiline) {
+        self.init(label: label, text: text, placeholder: placeholder, hint: hint, secure: secure, multiline: multiline, focus: focus) {
             EmptyView()
         }
+    }
+}
+
+/// `.focused` лише тоді, коли екран дав прив'язку.
+private struct FocusIf: ViewModifier {
+    let focus: FocusState<Bool>.Binding?
+    @ViewBuilder func body(content: Content) -> some View {
+        if let focus { content.focused(focus) } else { content }
     }
 }

@@ -118,6 +118,7 @@ private val AppMessage.resource: Int
         AppMessage.USER_BLOCKED -> R.string.msg_user_blocked
         AppMessage.AGE_CONFIRMED -> R.string.msg_age_confirmed
         AppMessage.ACCOUNT_DELETED -> R.string.msg_account_deleted
+        AppMessage.PICK_AFISHA_EVENT -> R.string.msg_pick_afisha_event
     }
 
 /** Причини скарги в порядку шторки. */

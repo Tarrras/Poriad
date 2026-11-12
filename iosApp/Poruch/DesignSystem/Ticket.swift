@@ -52,8 +52,14 @@ private let perforation = StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [0.
 /// Лінія відриву поза квитком: та сама перфорація ділить поле «Коли» на день і годину. Завширшки зі штрих, лінія
 /// посередині: вигляд нульової ширини SwiftUI не малює.
 struct TearLine: View {
+    /// Поперек поля: на великому шрифті день стоїть над годиною.
+    var across = false
     var body: some View {
-        Perforation(vertical: false, stub: 1.25).stroke(Palette.canvas, style: perforation).frame(width: 2.5)
+        if across {
+            Perforation(vertical: true, stub: 1.25).stroke(Palette.canvas, style: perforation).frame(height: 2.5)
+        } else {
+            Perforation(vertical: false, stub: 1.25).stroke(Palette.canvas, style: perforation).frame(width: 2.5)
+        }
     }
 }
 

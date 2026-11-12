@@ -38,6 +38,8 @@ class DraftStore(context: Context, private val files: DraftMediaFiles) {
             contactUrl = store.read(CONTACT), price = store.read(PRICE), prepay = store.getBoolean(PREPAY, false),
             // Старі чернетки без прапорця: платна — та, де є ціна.
             paid = store.getBoolean(PAID, store.read(PRICE).isNotEmpty()),
+            template = app.poruch.domain.MeetupTemplate.fromKey(store.read(TEMPLATE)),
+            linkOnly = store.getBoolean(LINK_ONLY, false),
             media = store.read(MEDIA).lines().mapNotNull(::media)
         ).also { form ->
             // Файли прибраних і опублікованих чернеток: редагування своїх файлів не лишає (їх прибирає модель).
@@ -53,7 +55,8 @@ class DraftStore(context: Context, private val files: DraftMediaFiles) {
         putString(CAPACITY, form.capacity)
         putString(MIN_AGE, form.minAge); putString(MAX_AGE, form.maxAge); putBoolean(APPROVAL, form.approvalRequired)
         putString(CONTACT, form.contactUrl); putString(PRICE, form.price); putBoolean(PREPAY, form.prepay); putBoolean(PAID, form.paid)
-        putString(MEDIA, form.media.joinToString("\n", transform = ::line))
+        putString(MEDIA, form.media.joinToString("\n", transform = ::line)); putString(TEMPLATE, form.template?.key.orEmpty())
+        putBoolean(LINK_ONLY, form.linkOnly)
     }
 
     fun clear() {
@@ -104,5 +107,7 @@ class DraftStore(context: Context, private val files: DraftMediaFiles) {
         const val PREPAY = "prepay"
         const val PAID = "paid"
         const val MEDIA = "media"
+        const val TEMPLATE = "template"
+        const val LINK_ONLY = "link_only"
     }
 }

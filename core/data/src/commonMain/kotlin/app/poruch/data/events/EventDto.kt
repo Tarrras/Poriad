@@ -101,7 +101,9 @@ internal data class EventDto(
     val media: List<MediaDto>? = null,
     @SerialName("pay_online") val payOnline: Boolean = false,
     @SerialName("refund_policy") val refundPolicy: String? = null,
-    @SerialName("prepay") val prepay: Boolean? = null
+    @SerialName("prepay") val prepay: Boolean? = null,
+    // Міграція 20261203120000: лише деталі й «Мої події» (`event_rows`); видача прихованих не несе.
+    @SerialName("link_only") val linkOnly: Boolean? = null
 ) {
     fun domain() = Event(
         id = id, title = title, description = description, category = EventCategory.fromKey(category),
@@ -136,7 +138,8 @@ internal data class EventDto(
             price = priceMin?.toInt()?.takeIf { it > 0 },
             payOnline = payOnline && (priceMin ?: 0.0) > 0,
             refundPolicy = RefundPolicy.of(refundPolicy),
-            prepay = prepay == true && (priceMin ?: 0.0) > 0
+            prepay = prepay == true && (priceMin ?: 0.0) > 0,
+            linkOnly = linkOnly == true
         )
     }
 

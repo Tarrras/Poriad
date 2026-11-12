@@ -99,6 +99,8 @@ internal class SupabaseEventAuthoring(
         put("p_price", d.price ?: 0)
         // Теж завжди: false повертає «на зустрічі». Сервер без 20261125190000 цього параметра не знає — спершу міграція.
         put("p_prepay", d.prepay && d.price != null)
+        // Теж завжди: правку відкривають з деталей, де сервер віддає `link_only`. Без 20261203120000 — спершу міграція.
+        put("p_link_only", d.linkOnly)
         // Лише коли є: сервер без міграції чату не знає цього параметра, а відсутній означає «без чату».
         ContactRules.normalize(d.contactUrl)?.let { put("p_contact_url", it) }
     }

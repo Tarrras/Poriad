@@ -229,7 +229,16 @@ internal class EventUseCases(
         PoruchAnalytics.track(
             "event_create",
             "category" to draft.category?.key,
-            "approval" to draft.approvalRequired
+            "approval" to draft.approvalRequired,
+            // «Швидка подія» (1.5): який шаблон, скільки місць і чи користуються тим, що сховано під «Ще» — за цим
+            // вирішуємо, що лишити лише сайту (docs/creation-platform-plan-2026-11.md, етап 2).
+            "template" to (draft.template ?: "none"),
+            "seats" to draft.capacity,
+            "media" to (draft.media?.size ?: 0),
+            "paid" to (draft.price != null),
+            "age" to (draft.minAge != SafetyRules.MIN_SIGNUP_AGE || draft.maxAge != null),
+            "chat" to (draft.contactUrl != null),
+            "link_only" to draft.linkOnly
         )
         // Подія вже опублікована: файли далі, і збій котрогось її не скасовує. Ключ чернетки живе до кінця цього кроку:
         // перезапуск посеред вивантаження повторить `create_event` з тим самим id, і сервер віддасть ту саму подію.
@@ -261,12 +270,12 @@ internal class EventUseCases(
         return PublishedEvent(
             id = id, link = EventLinks.url(id),
             post = ThreadsPost.text(id, TitleRules.display(draft.title.trim()), draft.startsAt, draft.timeZone, draft.address.trim(), null, draft.description, draft.price, prepay = draft.prepay),
-            // Звичайна подія свого організатора: саме вона щойно опублікована, тож завжди анонс.
-            shareMode = ShareMode.PROMOTE,
+            // Звичайна подія свого організатора: анонс, а «лише за посиланням» — особисте посилання другу, без поста.
+            shareMode = if (draft.linkOnly) ShareMode.FRIEND else ShareMode.PROMOTE,
             title = draft.title.trim(),
             startMillis = Instant.parse(draft.startsAt).toEpochMilliseconds(),
             endMillis = Instant.parse(draft.endsAt).toEpochMilliseconds(),
-            timeZone = draft.timeZone, location = place
+            timeZone = draft.timeZone, location = place, small = QuickEvent.isSmall(draft.capacity) || draft.linkOnly
         )
     }
 

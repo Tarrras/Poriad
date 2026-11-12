@@ -185,9 +185,13 @@ struct SegmentedPill: View {
     let selection: Int
     let select: (Int) -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Namespace private var thumb
     var body: some View {
-        HStack(spacing: 0) {
+        // Великий шрифт ставить пункти один під одним: «Безкоштов…» поруч з «Платно» не читається.
+        let stacked = typeSize.isAccessibilitySize
+        let row = stacked ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
+        row {
             ForEach(Array(items.enumerated()), id: \.offset) { index, title in
                 Button { if index != selection { select(index) } } label: {
                     // Великий шрифт стискає напис до 70 % і робить пункт вищим, а не обрізає «Реєстрац…».
@@ -208,8 +212,8 @@ struct SegmentedPill: View {
                 .accessibilityAddTraits(index == selection ? .isSelected : [])
             }
         }
-        .padding(.horizontal, 4).padding(.vertical, 2)
-        .background(Palette.brandContainer, in: Capsule())
+        .padding(.horizontal, 4).padding(.vertical, stacked ? 4 : 2)
+        .background(Palette.brandContainer, in: RoundedRectangle(cornerRadius: stacked ? Corner.md : 999, style: .continuous))
         .motion(Motion.spring, value: selection)
     }
 }

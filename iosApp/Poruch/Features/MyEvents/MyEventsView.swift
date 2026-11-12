@@ -25,6 +25,7 @@ struct MyEventsView: View, Equatable {
     @State private var declining: JoinRequest?
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var creating = false
+    @State private var choosingCreate = false
     @State private var auth = false
     @State private var allPast = false
     /// Подія, яку оцінюють у шторці. Маршрут, бо `sheet(item:)` потребує identity.
@@ -57,7 +58,7 @@ struct MyEventsView: View, Equatable {
     /// Тап по «Створити» звідси: рахуємо, звідки він, і відкриваємо редактор.
     private func startCreating() {
         model.app.createStarted(from: "mine")
-        creating = true
+        choosingCreate = true
     }
 
     var body: some View {
@@ -92,6 +93,7 @@ struct MyEventsView: View, Equatable {
             commitDecline()
         }
         .onDisappear { commitDecline() }
+        .createChoice(isPresented: $choosingCreate, app: model.app, own: { creating = true }, afisha: openMap)
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
         .sheet(item: $repeating) { EventEditor(event: nil, app: model.app, home: model.state, repeated: $0.draft) }
         .threadsShare($threadsEvent)
@@ -358,8 +360,10 @@ struct MyEventsView: View, Equatable {
         let again = own && past
         // Запит до не найближчої події інакше видно лише в бейджі чипа.
         let asks = tab == .organizing ? view.requestsFor(id: event.id).count : 0
+        // Запити важливіші; інакше своя прихована подія каже, чому її ніхто не знаходить на мапі.
         let status: (String, BadgeTone, PoruchGlyph?)? = asks > 0
-            ? (Copy.join_requests(asks), .accent, PoruchIcons.personAdd) : nil
+            ? (Copy.join_requests(asks), .accent, PoruchIcons.personAdd)
+            : own && event.gathering?.linkOnly == true ? (Copy.link_only_stamp, .neutral, PoruchIcons.link) : nil
         // На великому шрифті «Оцінити» стає під рядок: поруч вона лишала назві «push j…».
         let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0)) : AnyLayout(HStackLayout(spacing: Space.sm))

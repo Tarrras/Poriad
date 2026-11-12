@@ -427,7 +427,7 @@ class PoruchAppTest {
             assertEquals(events.createIds.first(),events.createIds.last())
             assertEquals(events.createIds.last(),app.state.value.completedEventId)
             assertEquals(
-                listOf("create_failed" to mapOf("reason" to "Network"),"event_create" to mapOf("category" to "outdoors","approval" to "false")),
+                listOf("create_failed" to mapOf("reason" to "Network"),"event_create" to mapOf("category" to "outdoors","approval" to "false","template" to "none","seats" to "10","media" to "0","paid" to "false","age" to "false","chat" to "false","link_only" to "false")),
                 tracked.filter { it.first.startsWith("create_") || it.first=="event_create" }
             )
             app.close()

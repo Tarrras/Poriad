@@ -26,7 +26,7 @@ object EventEdit {
             imageUrl = event.imageUrl, minAge = room.minAge, maxAge = room.maxAge, approvalRequired = room.approvalRequired,
             contactUrl = room.contactUrl, media = media.map { DraftMedia.Remote(it) },
             mediaBase = if (event.mediaLoaded) media.flatMap { listOfNotNull(it.url, it.poster) }.toSet() else null,
-            price = room.price, prepay = room.prepay
+            price = room.price, prepay = room.prepay, linkOnly = room.linkOnly
         )
     }
 }
@@ -66,14 +66,15 @@ enum class ShareMode { PROMOTE, FRIEND }
 
 object ShareRules {
     /**
-     * Анонс поширює лише організатор власної звичайної спільнотної події, що ще попереду й не скасована. Усі інші діляться
+     * Анонс поширює лише організатор власної звичайної спільнотної події, що ще попереду й не скасована й не «лише за
+     * посиланням» (публічний пост суперечив би вибору). Усі інші діляться
      * з другом: творець «Шукаю компанію» (його збір — про чужу афішу), гість на чужій події, афіша. [me] — id акаунта, null — гість.
      */
     fun mode(event: Event, me: String?, now: Instant): ShareMode {
         val room = event.gathering
         // Скасовану чи минулу анонсувати нема куди: ділимось, як і «Покликати» ([canInvite] деталей), з другом.
         val live = !event.isCalledOff && !event.hasEnded(now)
-        return if (me != null && room != null && room.companionOf == null && room.organizerId == me && live) ShareMode.PROMOTE else ShareMode.FRIEND
+        return if (me != null && room != null && room.companionOf == null && !room.linkOnly && room.organizerId == me && live) ShareMode.PROMOTE else ShareMode.FRIEND
     }
 }
 

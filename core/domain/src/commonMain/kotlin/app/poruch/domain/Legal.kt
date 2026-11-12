@@ -12,6 +12,8 @@ object LegalLinks {
     const val SUPPORT_EMAIL = "hello@poriad.app"
     /** Кабінет організатора на сайті; `from=app` — мітка для його аналітики (`kab_open`, docs/analytics.md). */
     const val CABINET = "$SITE/kabinet?from=app"
+    /** Та сама подія в кабінеті: там поля, яких застосунок не показує (склад, серія, оплата онлайн). */
+    fun cabinetEvent(id: String) = "$CABINET#/e/$id"
 }
 
 /** Сторінки застосунку в сторах. Ділимось сайтом: на ньому обидві кнопки, а друг може бути з іншою ОС. */

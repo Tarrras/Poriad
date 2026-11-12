@@ -413,7 +413,10 @@ private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsI
             val asks =
                 if (state.tab == MyEventsTab.ORGANIZING) state.screen.requests.count { it.eventId == event.id } else 0
             val note = score?.let { stringResource(R.string.my_score, it) }
-            val status = if (asks > 0) pluralStringResource(R.plurals.join_requests, asks, asks) to BadgeTone.Accent else null
+            // Запити важливіші; інакше своя прихована подія каже, чому її ніхто не знаходить на мапі.
+            val status = if (asks > 0) pluralStringResource(R.plurals.join_requests, asks, asks) to BadgeTone.Accent
+                else if (organizing && event.gathering?.linkOnly == true) stringResource(R.string.link_only_stamp) to BadgeTone.Neutral
+                else null
             var menu by remember(event.id) { mutableStateOf(false) }
             UnfoldSource(event.id, "mine", { onIntent(MyEventsIntent.OpenEvent(event.id)) }, bare = true) { source, open ->
                 Box { EventRow(

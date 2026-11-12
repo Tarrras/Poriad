@@ -54,6 +54,7 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import app.poruch.android.feature.editor.CreateChoiceSheet
 import app.poruch.android.feature.OnboardingRoute
 import app.poruch.android.feature.cityAt
 import app.poruch.android.feature.lastKnownPosition
@@ -579,6 +580,8 @@ private fun RootLayout(
             // Одна підказка — «+»: місто вже з геолокації, а «Мапа» підписана в таббарі (рішення власника 02.11).
             CoachMarks(listOf(CoachTip.CREATE), enabled = tourAllowed && current == Home)
         }
+        // «+» питає одне: на подію з афіші чи своя зустріч.
+        if (navigator.choosingCreate) CreateChoiceSheet(navigator::chooseCreate)
         NoticeHost(state.notice, app::clearNotice, Modifier.align(Alignment.TopCenter))
         if (state.mutating) LinearProgressIndicator(
             Modifier

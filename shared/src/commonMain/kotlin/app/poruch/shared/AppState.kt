@@ -196,7 +196,9 @@ data class PublishedEvent(
     val endMillis: Long,
     val timeZone: String,
     val location: String,
-    val cabinet: Boolean = false
+    val cabinet: Boolean = false,
+    /** До 12 місць ([QuickEvent.isSmall]) чи «лише за посиланням»: першим «Скопіювати посилання», поширення — другим. */
+    val small: Boolean = false
 )
 
 /** Дія на «Подію створено» для `publish_done {action}`: [DONE] ще й закриває екран; [CABINET] — тап по рядку про кабінет. */

@@ -253,7 +253,9 @@ data class Gathering(
      * Коли платять: true — передоплата (як і куди — пише організатор), false — на зустрічі. Лише з ціною; онлайн-подія
      * теж передоплата. Позначка, не оплата: «Поряд» гроші не приймає.
      */
-    val prepay: Boolean = false
+    val prepay: Boolean = false,
+    /** «Лише за посиланням» (docs/link-only-2026-11.md): не на мапі, не в пошуку, без пушів — відкривають за посиланням. */
+    val linkOnly: Boolean = false
 ) {
     val seatsLeft get() = (capacity - attendeeCount).coerceAtLeast(0)
 
@@ -471,7 +473,11 @@ data class EventDraft(
     /** Ціна входу в гривнях, [EventRules.price]. Null — безкоштовно: правка її теж прибирає. */
     val price: Int? = null,
     /** Передоплата, а не на зустрічі ([Gathering.prepay]). Без ціни сервер її не зберігає. */
-    val prepay: Boolean = false
+    val prepay: Boolean = false,
+    /** «Лише за посиланням» ([Gathering.linkOnly]). */
+    val linkOnly: Boolean = false,
+    /** Шаблон «швидкої події» ([MeetupTemplate.key]) — лише для `event_create`; на сервер не йде. */
+    val template: String? = null
 ) {
     fun validate(now: String): List<DraftField> = buildList {
         if (title.trim().length !in EventRules.titleLength) add(DraftField.TITLE)

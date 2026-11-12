@@ -26,7 +26,9 @@ internal class PlaceLookup(
         val search = addresses ?: return onFound(emptyList())
         searchJob?.cancel()
         searchJob = scope.launch {
-            val found = quietly { search.places(query, latitude, longitude) } ?: emptyList()
+            // Геокодер віддає ту саму адресу кількома входами («вулиця Хрещатик, 22» двічі): людині це один рядок.
+            val found = (quietly { search.places(query, latitude, longitude) } ?: emptyList())
+                .distinctBy { it.label.trim().lowercase() to it.detail.trim().lowercase() }
             // Місто форми — першим: геокодер за близькістю ставив Боярку над Хрещатиком. Решта — у його порядку.
             onFound(found.sortedByDescending { city.isNotBlank() && it.city.equals(city.trim(), ignoreCase = true) })
         }

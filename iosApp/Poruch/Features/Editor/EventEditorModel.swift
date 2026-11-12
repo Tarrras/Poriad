@@ -44,11 +44,19 @@ struct EditorForm: Codable, Equatable {
     /// Вхід платний: тоді є ціна й «Коли платять». Nil (стара чернетка) — платна, якщо є ціна.
     var paid: Bool?
     var isPaid: Bool { paid ?? (price != nil) }
+    /// Шаблон «швидкої події» (`MeetupTemplate.key`): підсвічує чип і дає типовий опис. Правка наявної події його не має.
+    var template: String?
+    var meetup: MeetupTemplate? { MeetupTemplate.companion.fromKey(key: template) }
+    /// «Лише за посиланням»: не на мапі, не в пошуку, без пушів (docs/link-only-2026-11.md). Optional — старі чернетки.
+    var linkOnly: Bool?
 
     private enum CodingKeys: String, CodingKey {
         case title, description, categoryKey = "category", city, address, latitude, longitude, placed
-        case starts, ends, timeZone, capacity, minAge, maxAge, approvalRequired, contactUrl, media, price, prepay, paid
+        case starts, ends, timeZone, capacity, minAge, maxAge, approvalRequired, contactUrl, media, price, prepay, paid, template, linkOnly
     }
+
+    /// Типовий опис за шаблоном: ним публікація заповнює порожнє поле — сервер без опису подію не прийме.
+    var about: String { meetupAbout(meetup) }
 
     /// Посилання, як його бачить чернетка: обрізане, порожнє стає nil.
     var contactLink: String? { ContactRules.shared.normalize(value: contactUrl) }
@@ -59,7 +67,8 @@ struct EditorForm: Codable, Equatable {
     /// Порушені правила. Та сама `EventDraft.validate`, що на Android і в спільному шарі, тож межі
     /// з `EventRules` не дублюються тут числами. Медіа не перевіряємо: вибір і так не дає більше пʼяти.
     func issues(imageUrl: String?) -> [DraftField] {
-        build(imageUrl: imageUrl, media: nil, mediaBase: nil).validate(now: iso.string(from: Date()))
+        // «Де?» — одне прохання: нема точки — лише про неї, без «Вкажіть місто й адресу» над нею (`QuickEvent.placeProblems`).
+        QuickEvent.shared.placeProblems(problems: build(imageUrl: imageUrl, media: nil, mediaBase: nil).validate(now: iso.string(from: Date())))
     }
 
     /// Nil, поки хоч одне поле порушує правило. Публікація дивиться сюди. [media] null — медіа події не чіпати;
@@ -71,7 +80,7 @@ struct EditorForm: Codable, Equatable {
 
     private func build(imageUrl: String?, media: [DraftMedia]?, mediaBase: Set<String>?) -> EventDraft {
         EventDraft(
-            title: title.trimmed, description: description.trimmed, category: category,
+            title: title.trimmed, description: description.trimmed.isEmpty ? about : description.trimmed, category: category,
             // Без обраної крапки — NaN: правило LOCATION не пропустить центр міста як місце зустрічі.
             city: city.trimmed, address: address.trimmed,
             latitude: placed == true ? latitude : .nan, longitude: placed == true ? longitude : .nan,
@@ -80,59 +89,39 @@ struct EditorForm: Codable, Equatable {
             minAge: Int32(minAge), maxAge: maxAge.map { KotlinInt(int: Int32($0)) },
             approvalRequired: approvalRequired, contactUrl: contactLink, media: media, mediaBase: mediaBase,
             // Платно без ціни — 0: правило ціни назве поле, а не опублікує безкоштовну подію.
-            price: isPaid ? KotlinInt(int: Int32(clamping: price ?? 0)) : nil, prepay: isPaid && prepay == true
+            price: isPaid ? KotlinInt(int: Int32(clamping: price ?? 0)) : nil, prepay: isPaid && prepay == true,
+            linkOnly: linkOnly == true, template: template
         )
     }
 }
 
-enum EditorStep: Int, CaseIterable, Identifiable {
-    case about, place, schedule, people
-    var id: Int { rawValue }
-    var title: String {
-        switch self {
-        case .about: Copy.step_one
-        case .place: Copy.step_two
-        case .schedule: Copy.step_three
-        case .people: Copy.step_four
-        }
-    }
-    /// Питання кроку великим заголовком.
-    var headline: String {
-        switch self {
-        case .about: Copy.editor_about_title
-        case .place: Copy.editor_place_title
-        case .schedule: Copy.editor_schedule_title
-        case .people: Copy.editor_people_title
-        }
-    }
-    var hint: String {
-        switch self {
-        case .about: Copy.editor_about_hint
-        case .place: Copy.editor_place_hint
-        case .schedule: Copy.editor_schedule_hint
-        case .people: Copy.editor_people_hint
-        }
-    }
-    var isLast: Bool { self == .people }
+/// Шаблони «швидкої події» з назвами: порядок чипів. Жанр, місця й тривалість — у `MeetupTemplate`.
+let meetupTemplates: [(template: MeetupTemplate, label: String)] = [
+    (.cinema, Copy.template_cinema), (.boardGames, Copy.template_board_games), (.walk, Copy.template_walk),
+    (.coffee, Copy.template_coffee), (.workshop, Copy.template_workshop), (.sport, Copy.sport)
+]
 
-    /// Крок, де поле вводять: там «Далі» не пускає далі, туди веде й відмова публікації.
-    static func of(_ field: DraftField) -> EditorStep {
-        switch field.name {
-        case "TITLE", "DESCRIPTION", "CATEGORY": .about
-        case "ADDRESS", "LOCATION": .place
-        case "STARTS_AT", "ENDS_AT", "TIME_ZONE": .schedule
-        default: .people
-        }
+/// Типовий опис: шаблону чи, без нього, загальний.
+func meetupAbout(_ template: MeetupTemplate?) -> String {
+    switch template {
+    case .cinema?: Copy.quick_about_cinema
+    case .boardGames?: Copy.quick_about_board_games
+    case .walk?: Copy.quick_about_walk
+    case .coffee?: Copy.quick_about_coffee
+    case .workshop?: Copy.quick_about_workshop
+    case .sport?: Copy.quick_about_sport
+    default: Copy.quick_about_default
     }
 }
 
-/// Форма редактора, крок і чернетка. View лише малює й передає правки; тестується без SwiftUI.
+/// Форма редактора одним екраном («швидка подія») і чернетка. View лише малює й передає правки; тестується без SwiftUI.
 @MainActor final class EventEditorModel: ObservableObject {
     @Published var form = EditorForm() { didSet { issues = form.issues(imageUrl: event?.imageUrl); syncOrphans() } }
-    @Published var step = EditorStep.about
+    /// «Ще» розгорнуто: опис, фото, вхід, чат і решта, чого проста зустріч не потребує.
+    @Published private(set) var more = false
     /// Порушені правила всієї форми. Рахуються раз на правку, а не на кожне поле в тілі.
     @Published private(set) var issues: [DraftField] = []
-    /// Людина вже натиснула «Далі» чи «Опублікувати» на цьому кроці: тепер червоніють і порожні поля.
+    /// Людина вже натиснула «Опублікувати»: тепер червоніють і порожні поля.
     @Published private(set) var revealed = false
     /// Поле, до якого прокрутити, і лічильник-сигнал: той самий збій двічі має прокрутити двічі.
     @Published private(set) var focus: DraftField?
@@ -205,15 +194,57 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         restore()
         issues = form.issues(imageUrl: event?.imageUrl)
         resumed = canStartOver
-        track(.about)
+        track("quick")
     }
 
     /// Воронка створення (docs/analytics.md): лише нова подія, правка наявної — інша історія.
-    private func track(_ reached: EditorStep) {
-        if !editing { app.createStep(step: String(describing: reached), draft: resumed, mediaCount: Int32(form.media?.count ?? 0)) }
+    private func track(_ reached: String) {
+        if !editing { app.createStep(step: reached, draft: resumed, mediaCount: Int32(form.media?.count ?? 0)) }
     }
+    /// Тап по «Ще». Воронка пише `more` лише тут: розгортання через помилку в схованому полі — не вибір людини (як на Android).
+    func toggleMore() {
+        more.toggle()
+        if more { track("more") }
+    }
+
     private func blocked(by field: DraftField) {
-        if !editing { app.createBlocked(step: String(describing: EditorStep.of(field)), field: field) }
+        if !editing { app.createBlocked(step: QuickEvent.shared.isMore(field: field) ? "more" : "quick", field: field) }
+    }
+
+    /// Правка: ця подія в кабінеті на сайті — «Повні налаштування — в кабінеті». Нова подія — nil.
+    var cabinet: URL? { event.flatMap { URL(string: LegalLinks.shared.cabinetEvent(id: $0.id)) } }
+
+    // ---- «Швидка подія»: шаблон, день, година
+
+    /// Шаблон ставить жанр, місця й тривалість, а назву — лише поки людина не написала свою.
+    func pick(_ template: MeetupTemplate, label: String) {
+        let previous = meetupTemplates.first { $0.template == form.meetup }?.label
+        form.title = QuickEvent.shared.title(current: form.title, previous: previous, label: label)
+        form.template = template.key
+        form.category = template.category
+        form.capacity = Int(template.seats)
+        form.ends = form.starts.addingTimeInterval(TimeInterval(template.minutes) * 60)
+    }
+
+    private var now: Int64 { Date().millis }
+
+    /// Чипи дня: сьогодні, завтра й найближчий вихідний — у поясі події.
+    var days: [QuickDay] { QuickEvent.shared.days(now: now, zone: form.timeZone) }
+    /// Котрий чип відповідає початку; nil — «інша дата».
+    var pickedDay: QuickDayKind? { QuickEvent.shared.dayOf(start: form.starts.millis, now: now, zone: form.timeZone) }
+
+    func pick(_ day: QuickDay) {
+        moveStart(to: Date(millis: QuickEvent.shared.startOn(day: day, current: KotlinLong(value: form.starts.millis), now: now, zone: form.timeZone)))
+    }
+
+    /// Новий початок; кінець їде за ним, зберігаючи тривалість.
+    func moveStart(to value: Date) {
+        let end = QuickEvent.shared.end(
+            start: value.millis, previousStart: KotlinLong(value: form.starts.millis), previousEnd: KotlinLong(value: form.ends.millis),
+            minutes: form.meetup?.minutes ?? QuickEvent.shared.DEFAULT_MINUTES
+        )
+        form.starts = value
+        form.ends = Date(millis: end)
     }
 
     var editing: Bool { event != nil }
@@ -243,7 +274,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         UserDefaults.standard.removeObject(forKey: storageKey)
         pendingSave?.cancel(); pendingSave = nil
         form = EditorForm()
-        step = .about
+        more = false
         revealed = false
         pointChosen = false
         accepted = nil
@@ -373,10 +404,9 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         Dictionary(uniqueKeysWithValues: issues.compactMap { field in issue(field).map { (field, $0) } })
     }
 
-    /// Показати поле з порушенням: його крок, текст під ним і прокрутка до нього.
-    /// `revealed` тут означає й «крок змінила помилка»: тоді вголос кажемо її, а не назву кроку.
+    /// Показати поле з порушенням: текст під ним і прокрутка до нього; сховане під «Ще» — розгортає «Ще».
     private func show(_ field: DraftField) {
-        step = EditorStep.of(field)
+        if QuickEvent.shared.isMore(field: field) { more = true }
         revealed = true
         focus = field
         jump += 1
@@ -488,13 +518,6 @@ enum EditorStep: Int, CaseIterable, Identifiable {
             form.timeZone = zone
         }
     }
-
-    /// Кожен крок перевіряє лише свої поля, тож «Далі» не блокується наступним.
-    func advance() {
-        if let field = issues.first(where: { EditorStep.of($0) == step }) { blocked(by: field); return show(field) }
-        if let next = EditorStep(rawValue: step.rawValue + 1) { step = next; revealed = false; track(next) }
-    }
-    func retreat() { if let previous = EditorStep(rawValue: step.rawValue - 1) { step = previous; revealed = false } }
 
     func submit() {
         // Файл, що ще стискається, інакше мовчки випав би з публікації: кнопка й так неактивна, це запобіжник.
@@ -610,7 +633,8 @@ extension EditorForm {
                 (item as? DraftMediaCopied).map { DraftItem($0.media, origin: .copied) }
                     ?? (item as? DraftMediaRemote).map { DraftItem($0.media, origin: .remote) }
             },
-            price: draft.price.map { Int(truncating: $0) }, prepay: draft.prepay, paid: draft.price != nil
+            price: draft.price.map { Int(truncating: $0) }, prepay: draft.prepay, paid: draft.price != nil,
+            template: draft.template_, linkOnly: draft.linkOnly
         )
     }
 }
@@ -647,13 +671,17 @@ private let iso = ISO8601DateFormatter()
 /// Коротший запит нічого не звужує, а мережі коштує.
 private let minAddressQuery = 3
 
-private let defaultLead: TimeInterval = 3600
-
-/// Типовий початок — повна година, не раніше ніж за годину: «21:00», а не «20:43».
+/// Типовий початок — вечір: сьогодні о 19:00, якщо до неї ще дві години, інакше завтра (`QuickEvent.defaultStart`).
 private func defaultStart() -> Date {
-    let soon = Date().addingTimeInterval(defaultLead)
-    return Calendar.current.nextDate(after: soon, matching: DateComponents(minute: 0), matchingPolicy: .nextTime) ?? soon
+    Date(millis: QuickEvent.shared.defaultStart(now: Date().millis, zone: TimeZone.current.identifier))
 }
-private let defaultDuration: TimeInterval = 3600
+private let defaultDuration = TimeInterval(QuickEvent.shared.DEFAULT_MINUTES) * 60
 private let defaultCategory = EventCategory.social
-private let defaultCapacity = 20
+/// Без шаблону — невелика компанія, а не зала на 20.
+private let defaultCapacity = Int(QuickEvent.shared.DEFAULT_SEATS)
+
+private extension Date {
+    /// Мілісекунди епохи: так час рахують спільні правила «швидкої події».
+    var millis: Int64 { Int64((timeIntervalSince1970 * 1000).rounded()) }
+    init(millis: Int64) { self.init(timeIntervalSince1970: TimeInterval(millis) / 1000) }
+}

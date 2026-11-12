@@ -61,6 +61,8 @@ extension EventDetailView {
     func coverState(_ event: Event, _ view: DetailScreenState) -> (String, BadgeTone, PoruchGlyph?)? {
         if view.cancelled { return (Copy.cancelled_short, .danger, nil) }
         if let listing = view.listing { return listingStamp(listing) }
+        // Своя прихована: «За посиланням» з ланкою — що «Ви організатор», і так видно з дій нижче.
+        if view.organizer, view.room?.linkOnly == true { return (Copy.link_only_stamp, .neutral, PoruchIcons.link) }
         if view.organizer { return (Copy.you_organize, .neutral, nil) }
         // Після кінця лишається лише факт участі: черга й місця вже нічого не значать.
         if view.ended { return view.room?.joined == true ? (Copy.went, .neutral, PoruchIcons.check) : nil }
@@ -301,7 +303,7 @@ extension EventDetailView {
             // Хто чим ділиться (1.6, `shareMode`): організатор своєї події — «Поширити анонс» (пост для Threads з
             // посиланням для запису, лише з повними деталями); усі інші — «Поділитися з другом», особисте посилання, як
             // «Покликати» (docs/invites.md). Скасовану чи минулу — просто поділитися.
-            if promotesOnPanel(view) {
+            if sharesOnPanel(view) {
                 // Поширення — на панелі дії.
             } else if view.canInvite && view.shareMode == .promote {
                 Button { threadsEvent = event } label: {
@@ -799,11 +801,16 @@ extension EventDetailView {
             SecondaryButton(title: Copy.pay_chat_open, glyph: PoruchIcons.chat, lines: 3) { writingTo = ChatRoute(id: event.id, thread: me) }
                 .frame(maxWidth: .infinity)
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1)
-        } else if promotesOnPanel(view) {
-            PrimaryButton(
-                title: Copy.share_promote, glyph: PoruchIcons.share,
-                loading: threadsEvent != nil, enabled: screen.detailsLoaded && threadsEvent == nil
-            ) { threadsEvent = event }
+        } else if sharesOnPanel(view) {
+            if view.shareMode == .promote {
+                PrimaryButton(
+                    title: Copy.share_promote, glyph: PoruchIcons.share,
+                    loading: threadsEvent != nil, enabled: screen.detailsLoaded && threadsEvent == nil
+                ) { threadsEvent = event }
+            } else {
+                // «Лише за посиланням»: публічного поста нема — особисте посилання другу, як на Android.
+                PrimaryButton(title: Copy.share_friend, glyph: PoruchIcons.personAdd, loading: inviting) { invite(event) }
+            }
         } else if participationStamp(view) != nil {
             SecondaryButton(title: view.action.title, enabled: view.action.isEnabled && !view.mutating, lines: 3) {
                 if !actions.perform(view.action, on: event, signedIn: view.signedIn) { auth = .join }
@@ -827,9 +834,10 @@ extension EventDetailView {
         }
     }
 
-    /// Пост для Threads своєї події — на панелі дії, а не круглою дією: одна функція — одне місце.
-    func promotesOnPanel(_ view: DetailScreenState) -> Bool {
-        view.action == .organizer && view.canInvite && view.shareMode == .promote
+    /// Поширення своєї події — на панелі дії, а не круглою дією: одна функція — одне місце. Пост для Threads чи, для
+    /// «лише за посиланням», особисте посилання другу.
+    func sharesOnPanel(_ view: DetailScreenState) -> Bool {
+        view.action == .organizer && view.canInvite
     }
 
     /// Штамп участі на панелі: записався, чекає підтвердження чи в черзі.

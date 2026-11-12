@@ -259,6 +259,7 @@ fun ChatRoute(route: Chat, navigator: Navigator) {
 @Composable
 fun EditorRoute(route: Editor, navigator: Navigator) {
     val model = koinViewModel<EditorViewModel> { parametersOf(route) }
+    val context = LocalContext.current
     val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         model.dispatch(EditorIntent.NotificationPermissionAnswered(granted))
     }
@@ -268,6 +269,7 @@ fun EditorRoute(route: Editor, navigator: Navigator) {
             EditorEffect.SignIn -> navigator.open(Auth(AuthReason.CREATE))
             EditorEffect.Published -> { navigator.back(); navigator.open(Published) }
             EditorEffect.AskNotificationPermission -> notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+            is EditorEffect.Browse -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
         }
     }
     EditorScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
@@ -362,7 +364,11 @@ fun PublishedRoute(navigator: Navigator) {
         when (effect) {
             is PublishedEffect.Promote -> scope.launch { context.shareThreadsPost(effect.media, effect.post) }
             is PublishedEffect.Friend -> context.shareLink(effect.link)
-            is PublishedEffect.Copy -> { context.copyText(effect.link); context.toast(R.string.published_link_copied) }
+            is PublishedEffect.Copy -> {
+                context.copyText(effect.link)
+                // З Android 13 про скопійоване каже сама система; наш тост лягав поверх її плашки й закривав «Готово».
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) context.toast(R.string.published_link_copied)
+            }
             is PublishedEffect.Calendar -> with(effect.event) {
                 if (!context.addToCalendar(title, null, location, timeZone, startMillis, endMillis)) context.toast(R.string.calendar_unavailable)
             }

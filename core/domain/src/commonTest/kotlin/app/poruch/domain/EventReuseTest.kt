@@ -67,6 +67,16 @@ class EventReuseTest {
         assertEquals(ShareMode.FRIEND, ShareRules.mode(club.copy(gathering = null, listing = Listing("Karabas")), "me", before), "a listing")
         assertEquals(ShareMode.FRIEND, ShareRules.mode(club.copy(status = EventStatus.CANCELLED), "me", before), "cancelled")
         assertEquals(ShareMode.FRIEND, ShareRules.mode(club, "me", Instant.parse("2026-10-21T12:00:00Z")), "over")
+        val hidden = club.copy(gathering = club.gathering!!.copy(linkOnly = true))
+        assertEquals(ShareMode.FRIEND, ShareRules.mode(hidden, "me", before), "link-only: no public post")
+    }
+
+    /** «Лише за посиланням» не губиться ні в правці, ні в «Повторити». */
+    @Test fun linkOnlySurvivesEditAndRepeat() {
+        val hidden = club.copy(gathering = club.gathering!!.copy(linkOnly = true))
+        assertTrue(EventEdit.draft(hidden)!!.linkOnly)
+        assertTrue(EventRepeat.draft(hidden, Instant.parse("2026-10-01T12:00:00Z"))!!.linkOnly)
+        assertFalse(EventEdit.draft(club)!!.linkOnly)
     }
 
     /** Чернетку правки будує спільний шар: база медіа — лише з повних медіа; стара обкладинка — першим фото. */

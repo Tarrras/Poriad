@@ -273,10 +273,14 @@ struct MetaLine: View {
     let glyph: PoruchGlyph
     let text: String
     var tone: Color?
+    @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
-        HStack(spacing: Space.sm) {
+        // Великий шрифт переносить рядок, а не обрізає підказку на півслові.
+        HStack(alignment: typeSize.isAccessibilitySize ? .firstTextBaseline : .center, spacing: Space.sm) {
             PoruchIcon(glyph: glyph, size: 15).foregroundStyle(tone ?? Palette.inkTertiary).frame(width: 15)
-            Text(text).font(PoruchFont.caption).foregroundStyle(tone ?? Palette.inkSecondary).lineLimit(1)
+            Text(text).font(PoruchFont.caption).foregroundStyle(tone ?? Palette.inkSecondary)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                .fixedSize(horizontal: false, vertical: typeSize.isAccessibilitySize)
         }
     }
 }

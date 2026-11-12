@@ -66,7 +66,8 @@ extension DraftField {
         case "DESCRIPTION": return lengthRule("Опис", low: Int(rules.descriptionLength.first), high: Int(rules.descriptionLength.last), length)
         case "CATEGORY": return "Оберіть категорію"
         case "ADDRESS": return "Вкажіть місто й адресу"
-        case "LOCATION": return "Позначте точку зустрічі на мапі"
+        // Той самий рядок, що на Android: нема точки — одне прохання за обидва поля (`QuickEvent.placeProblems`).
+        case "LOCATION": return Copy.field_location
         case "CAPACITY": return "Кількість місць — від \(rules.capacity.first) до \(rules.capacity.last)"
         case "STARTS_AT": return "Початок має бути в майбутньому"
         case "ENDS_AT": return "Кінець має бути пізніше за початок"
@@ -106,6 +107,7 @@ extension AppMessage {
         case "REPORT_SENT": "Дякуємо. Модерація перегляне скаргу"
         case "USER_BLOCKED": "Заблоковано"
         case "AGE_CONFIRMED": "Вік підтверджено"
+        case "PICK_AFISHA_EVENT": Copy.msg_pick_afisha_event
         default: "Збільшіть масштаб мапи, щоб побачити всі події в цій області"
         }
     }

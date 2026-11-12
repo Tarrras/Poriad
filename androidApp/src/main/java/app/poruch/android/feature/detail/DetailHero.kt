@@ -125,6 +125,8 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
             val stamp: Triple<String, BadgeTone, ImageVector?>? = when {
                 state.screen.cancelled -> Triple(stringResource(R.string.cancelled_short), BadgeTone.Danger, null)
                 state.screen.listing != null -> listingStamp(state.screen.listing!!)?.let { Triple(it.first, it.second, null) }
+                // Своя прихована: «За посиланням» з ланкою — що «Ви організатор», і так видно з дій нижче.
+                state.screen.organizer && room?.linkOnly == true -> Triple(stringResource(R.string.link_only_stamp), BadgeTone.Neutral, PoruchIcons.link)
                 state.screen.organizer -> Triple(stringResource(R.string.you_organize), BadgeTone.Neutral, null)
                 // Після кінця лишається лише факт участі: черга й місця вже нічого не значать.
                 state.screen.ended -> if (room?.joined == true) Triple(stringResource(R.string.went), BadgeTone.Neutral, PoruchIcons.check) else null

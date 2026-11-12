@@ -47,10 +47,20 @@ struct PublishedView: View {
                     Text(TitleRules.shared.display(title: published.title)).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                         .multilineTextAlignment(.center)
                 }
+                // Що далі: людина знає, звідки дізнається про тих, хто прийде, і де їх шукати.
+                Text(Copy.published_next).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                    .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                 VStack(spacing: Space.md) {
-                    PrimaryButton(title: shareTitle, glyph: PoruchIcons.share, loading: preparing, enabled: !preparing) { shareTapped() }
-                    SecondaryButton(title: Copy.published_copy_link, glyph: PoruchIcons.link) { copyLink() }
-                        .frame(maxWidth: .infinity)
+                    // Маленька компанія (до 12 місць): посилання у свій чат — першим, анонс — другим. Більшій потрібні нові люди.
+                    if published.small {
+                        PrimaryButton(title: Copy.published_copy_link, glyph: PoruchIcons.link) { copyLink() }
+                        SecondaryButton(title: shareTitle, glyph: PoruchIcons.share, enabled: !preparing) { shareTapped() }
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        PrimaryButton(title: shareTitle, glyph: PoruchIcons.share, loading: preparing, enabled: !preparing) { shareTapped() }
+                        SecondaryButton(title: Copy.published_copy_link, glyph: PoruchIcons.link) { copyLink() }
+                            .frame(maxWidth: .infinity)
+                    }
                     Button { addToCalendar() } label: {
                         HStack(spacing: Space.sm) {
                             PoruchIcon(glyph: PoruchIcons.calendar, size: 18)
