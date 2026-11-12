@@ -197,6 +197,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit, focusRequ
                         if (event.artists.isNotEmpty()) Lineup(event, onIntent)
                         RadarHint(state, onIntent)
                         Facts(event)
+                        event.activePromo(kotlin.time.Clock.System.now())?.let { PromoRow(event, it) { onIntent(DetailIntent.PromoCopied) } }
                         val listing = state.screen.listing
                         if (listing == null) { if (state.screen.myTickets.isNotEmpty()) YourTickets(state.screen.myTickets) }
                         else if (!listing.needsAttention) TicketsBlock(state, listing, onIntent, addTicket)

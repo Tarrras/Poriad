@@ -1260,3 +1260,54 @@ private struct InviterLine: View {
         .accessibilityElement(children: .combine)
     }
 }
+
+/// Промокод на квитки (docs/promo-pins-2026-11.md): квиток з корінцем «Скопіювати» біля квитків. Після тапу під кодом —
+/// «Скопійовано, вставте на сайті квитків», і VoiceOver чує те саме. На картках списку промокоду нема.
+struct PromoTicket: View {
+    let event: Event
+    let code: String
+    let onCopy: () -> Void
+    @State private var copied = false
+    var body: some View {
+        Button(action: copy) {
+            Ticket(stubColor: ticketStub(event)) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Copy.promo_label.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                    // Код — одним рядком: розірваний «PORIAD / 15» на великому шрифті читався б як два слова.
+                    Text(code).font(PoruchFont.title2).kerning(1).foregroundStyle(Palette.ink).lineLimit(1).minimumScaleFactor(0.5)
+                    if let note = event.promoNote, !note.isEmpty {
+                        Text(note).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                    }
+                    if copied {
+                        Text(Copy.promo_copied).font(PoruchFont.caption).foregroundStyle(Palette.ink).padding(.top, Space.xs)
+                    }
+                }
+                .multilineTextAlignment(.leading)
+                .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+            } stub: {
+                VStack(spacing: Space.xs) {
+                    PoruchIcon(glyph: copied ? PoruchIcons.check : PoruchIcons.copy, size: 22)
+                    // Довге слово на вузькому корінці стискається, а не обрізається — як день на корінці часу.
+                    Text((copied ? Copy.chat_copied : Copy.chat_copy).uppercased())
+                        .font(PoruchFont.stamp).kerning(0.6).lineLimit(1).minimumScaleFactor(0.6)
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, Space.sm)
+                // Корінець росте лише до 1,5×, тож і друк на ньому — як у `StubTime`.
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+            }
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(["\(Copy.promo_label) \(code)", event.promoNote].compactMap { $0 }.joined(separator: ", "))
+        .accessibilityValue(copied ? Copy.promo_copied : "")
+        .accessibilityHint(Copy.chat_copy)
+    }
+
+    private func copy() {
+        UIPasteboard.general.string = code
+        copied = true
+        onCopy()
+        AccessibilityNotification.Announcement(Copy.promo_copied).post()
+    }
+}

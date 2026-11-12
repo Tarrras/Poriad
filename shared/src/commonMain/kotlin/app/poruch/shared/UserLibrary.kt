@@ -116,11 +116,16 @@ internal class UserLibrary(
                     .flatten().firstOrNull { event -> event.id == id }
         }
         // Перегляд — відкриті деталі, а не крок каруселі: інакше метрика росла б від гортання. Категорія — які жанри
-        // відкривають; нема, лише коли подію відкрито з посилання й нічого про неї ще не знаємо.
-        if (full && viewedId != id) PoruchAnalytics.track(
-            "event_view", "from" to openedFrom?.takeIf { it.first == id }?.second,
-            "category" to (known?.category ?: store.value.home.index.firstOrNull { it.id == id }?.category)?.key
-        )
+        // відкривають; нема, лише коли подію відкрито з посилання й нічого про неї ще не знаємо. `pinned` — подія закріплена
+        // в стрічці (docs/promo-pins-2026-11.md): скільки відкриттів дав пін.
+        if (full && viewedId != id) {
+            val entry = store.value.home.index.firstOrNull { it.id == id }
+            PoruchAnalytics.track(
+                "event_view", "from" to openedFrom?.takeIf { it.first == id }?.second,
+                "category" to (known?.category ?: entry?.category)?.key,
+                "pinned" to true.takeIf { entry?.pinned == true }
+            )
+        }
         if (full) viewedId = id
         // Інша дата того ж прокату без картки: лишаємо поточну до відповіді. Порожній екран
         // гірший за секунду старої дати, а при 504 людина лишається з банером, а не спінером.

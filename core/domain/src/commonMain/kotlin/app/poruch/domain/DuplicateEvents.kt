@@ -49,7 +49,8 @@ object DuplicateEvents {
             if (bucket.size == 1) continue
             for (cluster in bucket.cluster()) {
                 if (cluster.size == 1) continue
-                val primary = cluster.minBy { it.id }
+                // Закріплений дубль лишається представником: інакше пін зник би разом з ним.
+                val primary = cluster.firstOrNull { it.pinned } ?: cluster.minBy { it.id }
                 merged[primary.id] = primary.copy(mergedWith = cluster.map { it.id }.filter { it != primary.id })
                 cluster.forEach { if (it.id != primary.id) absorbed += it.id }
             }

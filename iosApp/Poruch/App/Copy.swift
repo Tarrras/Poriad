@@ -735,6 +735,8 @@ enum Copy {
     static let listing_tickets = "Купити квиток"
     static let listing_read_more = "Читати повністю на джерелі"
     static let listing_price_label = "Квитки"
+    static let promo_label = "Промокод"
+    static let promo_copied = "Скопійовано, вставте на сайті квитків"
     static func listing_price_from(_ a0: String) -> String { "від \(a0) ₴" }
     static let listing_free = "Безкоштовно"
     static let listing_price_unknown = "Ціну вкаже джерело"

@@ -158,6 +158,7 @@ class DetailViewModel(
                 send(DetailEffect.OpenLink(app.ticketOpened(eventId, intent.offer.sourceName, intent.from, it)))
             }
 
+            DetailIntent.PromoCopied -> app.promoCopied(eventId)
             is DetailIntent.ShowMeetTime -> reduce { copy(movingMeet = intent.from) }
             is DetailIntent.MoveMeet -> {
                 reduce { copy(movingMeet = null) }

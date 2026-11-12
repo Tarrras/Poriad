@@ -41,7 +41,12 @@ data class EventIndexEntry(
      * Назва кінотеатру — лише в кіносеансу (docs/cinema-import.md), решті null: той самий фільм у ту саму хвилину йде в
      * кількох залах мережі, і [TicketMatch] звіряє зал із квитком.
      */
-    val place: String? = null
+    val place: String? = null,
+    /**
+     * Закріплена подія (docs/promo-pins-2026-11.md): перша в «У місті» ([HomeRules.feed]), без позначки. Ставимо лише ми,
+     * у видачу вона потрапляє, тільки якщо й так проходить фільтри.
+     */
+    val pinned: Boolean = false
 ) : Rankable {
     /** За карткою стоїть більше одного рядка бази. */
     val isMerged get() = mergedWith.isNotEmpty()

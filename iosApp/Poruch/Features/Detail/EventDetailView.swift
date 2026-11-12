@@ -369,6 +369,9 @@ struct EventDetailView: View, Equatable {
                 radarRow(view)
             }
             facts(event)
+            if let code = event.activePromo(now: nowInstant()) {
+                PromoTicket(event: event, code: code) { model.app.promoCopied(eventId: event.id) }.id(event.id)
+            }
             if let listing = view.listing, !listing.needsAttention { ticketsBlock(event, listing, view) }
             else if view.listing == nil, !view.myTickets.isEmpty { yourTickets(view.myTickets) }
             if view.canWantCompany && !view.cancelled { companySection(view).id(companySectionID) }

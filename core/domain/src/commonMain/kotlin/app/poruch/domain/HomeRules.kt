@@ -131,10 +131,13 @@ object HomeRules {
      * стояла б нижче афіші, що збіглась. Тож перші [HERO_COUNT] кімнат займають великі картки, а решта кімнат стоять
      * першими в кожному колі. Порядок серед кімнат — ранг списків. Коли кімнат стільки, що їм дано власну секцію
      * ([people]), передають `false`: тоді вони не повторюються великими картками, а решта йдуть як будь-яка подія.
+     *
+     * [pinned] — закріплені ([EventIndexEntry.pinned], docs/promo-pins-2026-11.md): стоять першими, перед кімнатами, без
+     * позначки; решта порядку та сама. Лише ті, що є в списках, тож фільтр часу, місто й [skip] пін не обходить.
      */
     fun feed(
         forYou: List<Event>, city: List<Event>, following: List<Event>,
-        skip: Set<String> = emptySet(), roomsFirst: Boolean = true
+        skip: Set<String> = emptySet(), roomsFirst: Boolean = true, pinned: Set<String> = emptySet()
     ): List<FeedEntry> {
         val followed = following.mapTo(HashSet()) { it.id }
         val picked = forYou.mapTo(HashSet()) { it.id }
@@ -146,6 +149,7 @@ object HomeRules {
             feed += FeedEntry(event, sourceOf(event, picked, followed))
             return true
         }
+        if (pinned.isNotEmpty()) (forYou + city + following).forEach { if (it.id in pinned) add(it) }
         rooms.forEach { if (feed.size < HERO_COUNT) add(it) }
         val lanes = listOf(rooms, forYou, city, following).map { it.iterator() }
         do {

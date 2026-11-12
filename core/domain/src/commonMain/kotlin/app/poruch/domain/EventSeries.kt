@@ -17,7 +17,10 @@ import kotlin.time.Instant
  */
 object EventSeries {
 
-    /** Збирає сеанси прокату в одну картку. Представник — найраніший сеанс, решта в `sessions` за часом. */
+    /**
+     * Збирає сеанси прокату в одну картку. Представник — найраніший сеанс, а закріплений ([EventIndexEntry.pinned]) — сам:
+     * пін і промокод стоять на конкретному вечорі, і картка першою в «У місті» має вести саме на нього. Решта в `sessions` за часом.
+     */
     fun fold(events: List<EventIndexEntry>): List<EventIndexEntry> {
         if (events.size < 2) return events
 
@@ -35,13 +38,13 @@ object EventSeries {
             for (run in bucket.runs()) {
                 if (run.size == 1) continue
                 val ordered = run.sortedWith(compareBy({ it.startsAtInstant() }, { it.id }))
-                val primary = ordered.first()
+                val primary = ordered.firstOrNull { it.pinned } ?: ordered.first()
                 // Кінопрокат сервер віддає вже зібраним (`sessions`), тож сеанси не губимо, а зводимо.
                 primaries[primary.id] = primary.copy(
                     sessions = ordered.flatMap { it.sessions.ifEmpty { listOf(EventSession(it.id, it.startsAt, it.timeZone)) } }
                         .distinctBy { it.id }
                         .sortedWith(compareBy({ it.startInstant?.epochSeconds ?: Long.MAX_VALUE }, { it.id })))
-                ordered.drop(1).forEach { absorbed += it.id }
+                ordered.forEach { if (it.id != primary.id) absorbed += it.id }
             }
         }
         if (primaries.isEmpty()) return events

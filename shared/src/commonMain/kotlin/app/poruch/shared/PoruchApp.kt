@@ -782,6 +782,12 @@ class PoruchApp internal constructor(
     fun boughtPromptAnswered(saved: Boolean, ticket: Boolean = false) =
         PoruchAnalytics.track("bought_prompt", "saved" to saved, "ticket" to ticket)
 
+    /**
+     * «Скопіювати» промокод на деталях (docs/promo-pins-2026-11.md). Id події — виняток зі словника: подія публічна, а звіт
+     * партнеру рахує копіювання саме його коду.
+     */
+    fun promoCopied(eventId: String) = PoruchAnalytics.track("promo_copy", "event_id" to eventId)
+
     /** «Поділитися застосунком» з профілю. */
     fun appShared() = PoruchAnalytics.track("share", "kind" to "app")
 
