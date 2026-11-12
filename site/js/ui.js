@@ -2,9 +2,9 @@
 // Сайт — режим перегляду: дивитися, ділитися й купувати квиток можна тут, а піти, зберегти, нагадати й знайти
 // компанію — у застосунку. Кожна така кнопка відкриває шторку з тим, що саме дасть застосунок.
 import {
-  APP_STORE_URL, PLAY_URL, CATEGORIES, cardsByIds, eventSafety, displayTitle, overline, dayLabel, timeOf, stubParts,
+  APP_STORE_URL, PLAY_URL, CATEGORIES, cardsByIds, eventSafety, displayTitle, cardTitle, overline, dayLabel, timeOf, stubParts,
   price, sourceNote, httpsOrNull, ticketHref, esc, otherDays, qrPath, eventUrl, icsFile, googleCalendarUrl,
-} from "./poriad.js?v=19";
+} from "./poriad.js?v=20";
 
 const ua = navigator.userAgent;
 export const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -14,7 +14,8 @@ export const PLATFORMS = PLAY_URL
   ? { short: "iPhone і Android", long: "Для iPhone з iOS 17 і Android 8+.", camera: "телефону" }
   : { short: "Для iPhone", long: "Поки лише для iPhone з iOS 17.", camera: "iPhone" };
 
-export const icon = (name, cls = "ico") => `<svg class="${cls}" aria-hidden="true"><use href="img/icons.svg#i-${name}"/></svg>`;
+// Від кореня сайту: шторки ui.js відкриваються й на сторінках події воркера (/e/{id}), де відносний шлях веде в /e/img.
+export const icon = (name, cls = "ico") => `<svg class="${cls}" aria-hidden="true"><use href="/img/icons.svg#i-${name}"/></svg>`;
 
 /** Картки за id з кешем: індекс приходить одразу, картки — порціями, коли їх видно. */
 export const cards = new Map();
@@ -41,7 +42,8 @@ export function art(card) {
 
 const placeOf = (card) => card.place_name || card.address || card.city || "";
 const href = (card) => `afisha.html?e=${encodeURIComponent(card.id)}`;
-const seatsOf = (card) => card.origin === "community" && card.capacity ? `${card.attendee_count ?? 0}/${card.capacity}` : null;
+/** «3/8» на корінці — лише з першого учасника: «0/6» на вітрині читається як «нікого» (PRODUCT, принцип 3). */
+export const seatsOf = (card) => card.origin === "community" && card.capacity && card.attendee_count > 0 ? `${card.attendee_count}/${card.capacity}` : null;
 const stamp = (text, cls = "", glyph = null) => `<span class="stamp ${cls}">${glyph ? icon(glyph) : ""}${esc(text)}</span>`;
 
 /** Друк корінця: година табличними цифрами, день, а в зустрічі від людей — місця «3/8». `qr` — знак над годиною. */
@@ -63,7 +65,7 @@ export function poster(card, entry) {
   <a class="face" href="${href(card)}">
     ${image ? `<div class="cover">${photo(card)}${mark ? stamp(mark[0], `photo ${mark[1]}`) : ""}${cost ? `<span class="price">${esc(cost)}</span>` : ""}</div>`
       : `<div class="printed">${mark ? stamp(mark[0], mark[1]) : ""}</div>`}
-    <h3>${esc(displayTitle(card.title))}</h3>
+    <h3>${esc(cardTitle(card))}</h3>
     <div class="where"><span class="dot"></span><span>${esc(placeOf(card))}</span></div>
     ${!image && cost ? `<div class="note">${esc(cost)}</div>` : ""}
     <div class="note">${more ? `Ще ${more} ${more === 1 ? "день" : more < 5 ? "дні" : "днів"} · ` : ""}${esc(sourceNote(card))}</div>
@@ -79,7 +81,7 @@ export const skeletons = (n) => Array.from({ length: n }, () =>
 /** Великий горизонтальний квиток (EventHeroCard) для стрічки «Не пропустіть»: на корінці «зберегти» й час. */
 export const heroCard = (card) => `<article class="ticket hero-ticket cat-${esc(card.category)}" data-id="${esc(card.id)}" data-ui>
   <a class="face" href="${href(card)}"><div class="cover">${photo(card)}${card.status === "cancelled" ? stamp("Скасовано", "photo danger") : ""}${price(card) ? `<span class="price">${esc(price(card))}</span>` : ""}</div>
-    <h3>${esc(displayTitle(card.title))}</h3><div class="where"><span class="dot"></span><span>${esc(placeOf(card))}</span></div>
+    <h3>${esc(cardTitle(card))}</h3><div class="where"><span class="dot"></span><span>${esc(placeOf(card))}</span></div>
     <div class="note"><span class="genre-word">${esc(CATEGORIES[card.category] || "Подія")}</span> · ${esc(sourceNote(card))}</div></a>
   <div class="stub"><button class="save" type="button" data-lock="save" aria-label="Зберегти в застосунку">${icon("bookmark")}</button>
     <div role="img" aria-label="${esc(overline(card, new Date(), true))}"><b class="t">${esc(stubParts(card)[0])}</b><small>${esc(stubParts(card)[1])}</small></div></div>
@@ -257,7 +259,7 @@ async function renderSafety(card) {
       ${curfew ? `<div class="row"><i>${icon("clock")}</i><div class="txt"><span>Комендантська в місті: ${esc(curfew.starts)}–${esc(curfew.ends)}</span></div></div>` : ""}
       ${shelters.map((s) => `<a class="row" href="https://www.google.com/maps/dir/?api=1&destination=${Number(s.latitude)},${Number(s.longitude)}&travelmode=walking" target="_blank" rel="noopener">
         <i>${icon("shield")}</i><div class="txt"><small>${esc(SHELTER_KINDS[s.kind] || "Укриття")} · ${Number(s.distance_m)} м${s.accessible ? " · є пандус" : ""}</small><b>${esc(s.address)}</b></div></a>`).join("")}
-    </div>${shelters.length ? `<p class="fine">Укриття — за відкритими даними КМДА (CC BY). Тап відкриває маршрут.</p>` : ""}`;
+    </div>${shelters.length ? `<p class="fine">Укриття — за відкритими даними КМДА (CC BY). Адреса веде до маршруту.</p>` : ""}`;
     block.hidden = false;
   } catch { /* блок лишається прихованим */ }
 }

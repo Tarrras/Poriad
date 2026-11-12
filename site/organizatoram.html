@@ -10,16 +10,16 @@
 <meta property="og:image" content="https://poriad.app/img/og.png">
 <meta property="og:url" content="https://poriad.app/organizatoram">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#F2F2F4" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F3EEE4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14110D" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="https://poriad.app/organizatoram">
 <link rel="preload" href="fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="tokens.css?v=19">
-<link rel="stylesheet" href="web.css?v=19">
+<link rel="stylesheet" href="tokens.css?v=20">
+<link rel="stylesheet" href="web.css?v=20">
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
-<script src="js/boot.js?v=19"></script>
-<script type="module" src="js/org.js?v=19"></script>
+<script src="js/boot.js?v=20"></script>
+<script type="module" src="js/org.js?v=20"></script>
 </head>
 <body>
 
@@ -32,6 +32,15 @@
       <a href="organizatoram" aria-current="page">Організаторам</a>
       <a href="kabinet?from=org">Увійти</a>
       <a class="btn primary small" href="kabinet?from=org#/new">Створити подію</a>
+      <details class="nav-more">
+        <summary aria-label="Меню"><svg class="ico i-open" aria-hidden="true"><use href="img/icons.svg#i-menu"/></svg><svg class="ico i-shut" aria-hidden="true"><use href="img/icons.svg#i-close"/></svg></summary>
+        <div class="nav-pop">
+          <a href="./#people">Від людей</a>
+          <a href="afisha.html">Афіша</a>
+          <a href="organizatoram" aria-current="page">Організаторам</a>
+          <a href="kabinet?from=org">Увійти</a>
+        </div>
+      </details>
     </nav>
   </div>
 </header>
@@ -42,7 +51,7 @@
   <div class="wrap">
     <div class="ticket page-ticket">
       <div class="face">
-        <h1><span>Одне посилання.</span> <span>Один список.</span></h1>
+        <h1 class="fit"><span>Одне посилання.</span> <span>Один список.</span></h1>
         <div>
         <p class="lead">Створіть подію з готового анонсу й дайте людям посилання. Вони записуються без застосунку, а&nbsp;ви бачите, хто йде, і&nbsp;не збираєте «+» по діректах.</p>
         <div class="actions-row">
@@ -94,7 +103,7 @@
         </div>
         <div class="stub">
           <div><b class="t">19:00</b><small>Четвер</small></div>
-          <div class="org-go"><span>12/20</span><b>Йду</b></div>
+          <div class="org-go"><b>Йду</b></div>
         </div>
       </div>
       <p class="hint">Так подію бачить гість за вашим посиланням: у&nbsp;біо, сторіз чи пості. Натискає «Йду», входить через Google або кодом з пошти — і&nbsp;він у списку.</p>
@@ -126,7 +135,7 @@
           <h3>Вечори у вас</h3>
           <ul>
             <li>Подія з’являється на мапі міста поруч з афішею</li>
-            <li>Ціна входу видно на картці, оплата — у вас на місці</li>
+            <li>Ціну входу видно на картці, оплата — у вас на місці</li>
             <li>Гості, що стежать за вами, дізнаються про нову подію</li>
           </ul>
         </div>

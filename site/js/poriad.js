@@ -83,6 +83,14 @@ const isLower = (c) => c !== c.toUpperCase() && c === c.toLowerCase();
 const isLetterOrDigit = (c) => /[\p{L}\p{N}]/u.test(c);
 const isWordChar = (c) => isLetterOrDigit(c) || c === "'" || c === "’" || c === "ʼ" || c === "-";
 
+/**
+ * Назва на картці: «Йдемо разом: Концерт» — без префікса, як `Event.cardTitle` у застосунку (DESIGN.md, головна);
+ * шторка й сторінка події лишають повну. Картки не несуть companion_of, тож упізнаємо збір за префіксом від бази.
+ */
+const TOGETHER = "Йдемо разом: ";
+export const cardTitle = (card) =>
+  displayTitle(card.origin === "community" && String(card.title ?? "").startsWith(TOGETHER) ? card.title.slice(TOGETHER.length) : card.title);
+
 export function displayTitle(title) {
   return apostrophes(quotes(isShouting(title) ? capitalized(title) : title));
 }

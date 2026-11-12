@@ -1,6 +1,6 @@
 // Сторінка події без Cloudflare: node worker/event.test.mjs
 import assert from "node:assert/strict";
-import { eventPage, eventResponse, esc } from "./index.mjs";
+import { eventPage, eventResponse, esc, curfewNote } from "./index.mjs";
 import { base, now, shelters, env, detailsOk } from "./fixtures.mjs";
 
 const community = eventPage(base, now);
@@ -61,10 +61,31 @@ assert.ok(!imported.includes("data-ask>"), "в афіші організатор
 assert.ok(!eventPage(host, new Date("2026-10-05T00:00:00Z")).includes("data-ask>"), "минула — без кнопки");
 
 const withShelters = eventPage(base, now, shelters);
-assert.ok(withShelters.includes("Укриття поруч") && withShelters.includes("Метро · 66 м · Є пандус"));
+assert.ok(withShelters.includes("<h2>Безпека</h2>") && withShelters.includes("Метро · 66 м · Є пандус"));
 assert.ok(!withShelters.includes("<b>»"), "адреса укриття екранується");
-assert.ok(!eventPage(base, now).includes("Укриття поруч"), "без даних секції нема");
-assert.ok(!eventPage({ ...base, status: "cancelled" }, now, shelters).includes("Укриття поруч"), "скасованій — ні");
+assert.ok(!eventPage(base, now).includes("<h2>Безпека</h2>"), "без даних секції нема");
+assert.ok(!eventPage({ ...base, status: "cancelled" }, now, shelters).includes("<h2>Безпека</h2>"), "скасованій — ні");
+// Комендантська — у всіх містах, навіть без укриттів; запас після події — як у застосунку (CurfewRules.note).
+const curfew = { starts: "00:00", ends: "05:00" };
+const night = eventPage({ ...base, curfew }, now);
+assert.ok(night.includes("<h2>Безпека</h2>") && night.includes("Комендантська в місті · 00:00–05:00")
+  && night.includes("Закінчиться о 22:00, до комендантської лишиться 2 год"), "кінець о 22:00 — 2 год до 00:00");
+assert.ok(!night.includes("КМДА"), "без укриттів — без підпису про дані КМДА");
+assert.ok(eventPage({ ...base, curfew: { starts: "23:00", ends: "05:00" } }, now).includes("Закінчиться о 22:00, до комендантської лишиться 1 год"));
+assert.ok(eventPage({ ...base, curfew: { starts: "21:30", ends: "05:00" } }, now).includes("Закінчиться о 22:00, уже під час комендантської"));
+assert.ok(eventPage({ ...base, ends_at: "2026-10-04T09:00:00Z", starts_at: "2026-10-04T07:00:00Z", curfew }, now).includes("<span>Комендантська в місті: 00:00–05:00</span>"),
+  "вдень (понад 4 год до неї) — лише години");
+assert.equal(curfewNote({ ...base, ends_at: "2026-10-04T21:15:00Z" }, curfew, now).left, 0, "00:15 — уже під час");
+assert.equal(curfewNote({ ...base, ends_at: "2026-10-04T20:20:00Z" }, curfew, now).left, 40, "23:20 — 40 хв");
+assert.equal(curfewNote({ ...base, starts_at: "2026-10-01T16:00:00Z" }, curfew, now), null, "прокат на кілька днів — без рядка");
+assert.equal(curfewNote({ ...base, ends_at: null }, curfew, now), null, "без кінця — без рядка");
+assert.equal(curfewNote(base, { starts: "x", ends: "05:00" }, now), null, "зламані години — без рядка");
+// «Шукаю компанію» — друга дія афішної події, шторкою з event.js; на зустрічі людей і минулій — нема.
+const company = eventPage({ ...base, origin: "import", canonical_url: "https://concert.ua/x", source_name: "Concert.ua" }, now);
+assert.ok(company.includes('data-lock="company">') && company.includes('<script type="module" src="/js/event.js?v=20"></script>'));
+assert.ok(company.indexOf("Квитки на Concert.ua") < company.indexOf('data-lock="company"'), "квитки — головна, компанія — під ними");
+assert.ok(!community.includes('data-lock="company"') && !community.includes("/js/event.js"), "зустріч людей — без неї");
+assert.ok(!eventPage({ ...base, origin: "import", canonical_url: "https://concert.ua/x" }, new Date("2026-10-05T00:00:00Z")).includes('data-lock="company"'), "минула — ні");
 assert.ok(eventPage({ ...base, status: "cancelled" }, now).includes("Подію скасовано."));
 assert.ok(eventPage(base, new Date("2026-10-05T00:00:00Z")).includes("вже минула"));
 const companion = eventPage({ ...base, title: "Йдемо разом: Концерт", companion_of: "b2000000-0000-4000-8000-000000000001", companion_of_title: "Концерт <b>" }, now);
@@ -125,4 +146,45 @@ assert.ok(!ticketed.includes('rel="canonical"') && !ticketed.includes("Джер�
 const walkIn = eventPage({ ...venue, canonical_url: null, price_min: null, is_free: true }, now);
 assert.ok(walkIn.includes('<p class="closed">Вхід без запису</p>') && walkIn.includes("Безкоштовно") && !walkIn.includes("data-join"), "вільний вхід");
 assert.ok(eventPage({ ...venue, canonical_url: null, status: "cancelled" }, now).includes("Подію скасовано."), "скасована — словами організатора");
+
+// Склад («Хто виступає»): імена з картки ведуть на сторінку артиста; без складу чи зі збоєм картки сторінка та сама.
+const lineup = [{ id: "d4000000-0000-4000-8000-000000000001", name: "Гурт <b>", kind: "group", role: "performer" },
+  { id: "javascript:alert(1)", name: "Без сторінки" }];
+const staged = eventPage({ ...venue, artists: lineup }, now);
+assert.ok(staged.includes('<h2>Хто виступає</h2><div class="artist-chips"><a class="chip" href="/a/d4000000-0000-4000-8000-000000000001">Гурт &lt;b&gt;</a></div>'),
+  "ім'я екрановано й веде на /a/{id}; лише uuid у href");
+assert.ok(eventPage({ ...base, artists: lineup }, now).includes("Хто виступає") && eventPage({ ...afisha, artists: lineup }, now).includes("Хто виступає"), "і від людей, і в афіші з кас");
+assert.equal(eventPage({ ...base, artists: [] }, now), community, "порожній склад — сторінка без змін");
+assert.equal(eventPage({ ...base, artists: "x" }, now), community, "сміття замість складу — теж");
+const withCards = (cards) => async (url, init) => url.endsWith("/event_cards_by_ids")
+  ? (assert.deepEqual(JSON.parse(init.body), { p_ids: [base.id] }), cards()) : detailsOk(url);
+globalThis.fetch = withCards(() => new Response(JSON.stringify([{ id: base.id, artists: lineup }])));
+assert.ok((await (await eventResponse(base.id, env)).text()).includes('href="/a/d4000000-0000-4000-8000-000000000001">Гурт &lt;b&gt;</a>'), "склад приходить з картки");
+for (const cards of [() => new Response("boom", { status: 500 }), () => { throw new Error("мережа"); }, () => new Response(JSON.stringify([{ id: base.id }]))]) {
+  globalThis.fetch = withCards(cards);
+  const page = await eventResponse(base.id, env);
+  assert.ok(page.status === 200 && !(await page.text()).includes("Хто виступає"), "збій картки чи подія без складу — сторінка як була");
+}
+// Групи «Йдемо разом» на афішу (критика сайту 12.11): спершу приєднатися до наявної, свою — у застосунку.
+const groups = [
+  { id: "c5000000-0000-4000-8000-000000000001", starts_at: "2026-10-04T15:30:00Z", time_zone: "Europe/Kyiv", meet_note: "Біля <входу>", capacity: 4, attendee_count: 1 },
+  { id: "javascript:alert(1)", starts_at: "2026-10-04T15:30:00Z", capacity: 4 },
+];
+const together = eventPage({ ...afisha, offers, companions: groups }, now);
+assert.ok(together.includes('<div class="block" id="company"><h2>Уже шукають компанію · 1</h2>'), "блок з числом груп; лише uuid");
+assert.ok(together.includes('<a class="row" href="/e/c5000000-0000-4000-8000-000000000001">') && together.includes("Біля &lt;входу&gt;")
+  && together.includes("вільно 3 місця"), "група веде на свою сторінку, примітка екранована, скільки вільно");
+assert.ok(together.includes('href="#company">') && together.includes("Шукаю компанію · 1") && together.includes('data-lock="company">'),
+  "кнопка в панелі веде до груп, «Зібрати свою групу» — шторка застосунку");
+const lonely = eventPage({ ...afisha, offers }, now);
+assert.ok(!lonely.includes("Уже шукають") && !lonely.includes('href="#company"') && lonely.includes('data-lock="company">'), "без груп — шторка, як було");
+assert.ok(!eventPage({ ...base, companions: groups }, now).includes("Уже шукають"), "у кімнати людей груп нема");
+// eventResponse бере справжній годинник: афіша — у майбутньому, інакше вона минула й груп не показує.
+const soon = { ...afisha, starts_at: new Date(Date.now() + 3 * 864e5).toISOString(), ends_at: new Date(Date.now() + 3 * 864e5 + 2 * 36e5).toISOString() };
+globalThis.fetch = async (url) => new Response(url.endsWith("/event_details") ? JSON.stringify([soon]) : url.endsWith("/companions") ? JSON.stringify(groups) : "{}");
+assert.ok((await (await eventResponse(base.id, env)).text()).includes("Уже шукають компанію · 1"), "групи приходять з companions");
+globalThis.fetch = async (url) => url.endsWith("/companions") ? new Response("boom", { status: 500 }) : new Response(url.endsWith("/event_details") ? JSON.stringify([soon]) : "{}");
+const failed = await eventResponse(base.id, env);
+assert.ok(failed.status === 200 && !(await failed.text()).includes("Уже шукають"), "збій груп — сторінка без блоку");
+
 console.log("event ok");

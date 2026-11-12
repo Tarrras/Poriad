@@ -1,7 +1,7 @@
 // Веб-афіша — режим перегляду: місто, дати, категорії, пошук, сітка з довантаженням і мапа.
 // Стан — у адресі (?city=&when=&cat=&q=&view=&e=), тож будь-який вигляд можна надіслати посиланням.
-import { discover, fold, soonFirst, inWhen, CITIES, cityOf, CATEGORIES, CATEGORY_COLORS, WHEN, plural, EVENTS, httpsOrNull, mapStyle, displayTitle, timeOf, esc } from "./poriad.js?v=19";
-import { ensureCards, remember, poster, heroCard, skeletons, bindCards, openEvent, reveal, navLine, bindLocks, savedCity, icon, stubTile, isIOS } from "./ui.js?v=19";
+import { discover, fold, soonFirst, inWhen, CITIES, cityOf, CATEGORIES, CATEGORY_COLORS, WHEN, plural, EVENTS, httpsOrNull, mapStyle, displayTitle, cardTitle, timeOf, esc } from "./poriad.js?v=20";
+import { ensureCards, remember, poster, heroCard, skeletons, bindCards, openEvent, reveal, navLine, bindLocks, savedCity, icon, stubTile, isIOS } from "./ui.js?v=20";
 
 navLine();
 bindLocks();
@@ -51,6 +51,11 @@ new IntersectionObserver((entries) => {
 
 const toolbar = $("[data-toolbar]");
 addEventListener("scroll", () => toolbar.classList.toggle("stuck", toolbar.getBoundingClientRect().top <= 80), { passive: true });
+// Шапка й панель фільтрів липкі, тож фокус з клавіатури браузер має ставити нижче за обидві (WCAG 2.4.11). Панель
+// переноситься в кілька рядків — запас згори (scroll-padding, у web.css 88 px) міряємо, а не вгадуємо.
+const header = $("header.nav");
+new ResizeObserver(() => { document.documentElement.style.scrollPaddingTop = `${header.offsetHeight + toolbar.offsetHeight + 16}px`; })
+  .observe(toolbar);
 
 // Плашка застосунку: після першої прокрутки; хрестик ховає до кінця сеансу. На iPhone її робота — системний банер Safari
 // (meta apple-itunes-app), тож двох запрошень не буде; над мапою плашка теж не висить.
@@ -69,6 +74,13 @@ async function load() {
   $("[data-title]").textContent = `Афіша ${city.of}`;
   document.title = `Афіша ${city.of} — Поряд`;
   $("[data-grid]").innerHTML = skeletons(8);
+  // «Не пропустіть» з'являвся над сіткою вже після неї й штовхав сторінку вниз (CLS 0,33–0,39): місце — одразу, сірими
+  // квитками; подій з фото менше трьох — рейка зникає, як і раніше.
+  if (state.view !== "map" && !state.when && !state.cat && !state.q) {
+    $("[data-rail-wrap]").hidden = false;
+    $("[data-rail]").innerHTML = Array.from({ length: 3 }, () =>
+      `<div class="ticket hero-ticket skeleton" aria-hidden="true"><div class="face"><div class="cover"></div><div class="bar wide"></div><div class="bar"></div></div><div class="stub"></div></div>`).join("");
+  }
   $("[data-count]").textContent = "Завантажуємо…";
   const key = `${city.name}|${state.q}`;
   const token = ++renderToken;
@@ -197,6 +209,13 @@ function loadMap() {
       const map = new maplibregl.Map({ container: $("[data-map]"), style: mapStyle(dark), center: [city.lng, city.lat], zoom: 11.3, attributionControl: { compact: true }, dragRotate: false });
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
       map.on("load", () => { setupLayers(map); resolve(map); });
+      matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+        if (isDark() === dark) return;
+        dark = isDark(); tint();
+        // Новий стиль скидає джерела й шари; обробники кліків прив'язані до id шарів і лишаються.
+        map.once("style.load", () => addLayers(map));
+        map.setStyle(mapStyle(dark));
+      });
       map.on("moveend", () => updateHere(map));
       map.on("error", (e) => console.warn("map", e.error?.message));
     };
@@ -205,9 +224,12 @@ function loadMap() {
   });
 }
 
-// Тема мапи — як у сторінки на момент відкриття: чорнильні кластери вдень, паперові вночі.
-const dark = document.documentElement.dataset.theme === "dark" || (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
-const ink = dark ? "#F3F3F0" : "#141417", ground = dark ? "#0F0F13" : "#FFFFFF";
+// Тема мапи — як у сторінки: чорнильні кластери вдень, паперові вночі. Перемкнули тему системи — мапа міняє стиль слідом
+// (раніше лишалась тією, з якою відкрилась).
+const isDark = () => document.documentElement.dataset.theme === "dark" || (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+let dark = isDark(), ink, ground;
+const tint = () => { ink = dark ? "#F6F0E4" : "#1B1712"; ground = dark ? "#14110D" : "#FFFDF8"; };
+tint();
 
 /** Кластер — теж квиток (DESIGN.md): 46×28, радіус 7, півкруглі вирізи 4,5 з боків, заливка чорнилом, край 2 кольором поверхні. */
 function ticketImage(fill, edge, s = 2) {
@@ -228,7 +250,7 @@ function ticketImage(fill, edge, s = 2) {
   return { width: w * s, height: h * s, data: g.getImageData(0, 0, w * s, h * s).data };
 }
 
-function setupLayers(map) {
+function addLayers(map) {
   map.addImage("ticket", ticketImage(ink, ground), { pixelRatio: 2 });
   map.addSource("events", { type: "geojson", data: geojson(), cluster: true, clusterRadius: 60, clusterMaxZoom: 15 });
   map.addLayer({ id: "clusters", type: "symbol", source: "events", filter: ["has", "point_count"],
@@ -239,7 +261,9 @@ function setupLayers(map) {
   map.addLayer({ id: "points", type: "circle", source: "events", filter: ["!", ["has", "point_count"]],
     paint: { "circle-color": ["match", ["get", "category"], ...Object.entries(CATEGORY_COLORS).flat(), ink],
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 7, 16, 10], "circle-stroke-width": 3, "circle-stroke-color": ground } });
-
+}
+function setupLayers(map) {
+  addLayers(map);
   map.on("click", "clusters", async (event) => {
     const feature = event.features[0], source = map.getSource("events"), id = feature.properties.cluster_id;
     const zoom = await source.getClusterExpansionZoom(id);
@@ -302,7 +326,7 @@ async function showStack(ids) {
   panel.querySelector("button").onclick = () => panel.remove();
   const got = (await ensureCards(ids.slice(0, 100))).sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
   panel.insertAdjacentHTML("beforeend", got.map((card) => `<a class="mini" href="afisha.html?e=${encodeURIComponent(card.id)}" data-id="${esc(card.id)}">${stubTile(card)}
-    <div><b>${esc(displayTitle(card.title))}</b><span>${esc(card.place_name || card.address || "")}</span></div></a>`).join(""));
+    <div><b>${esc(cardTitle(card))}</b><span>${esc(card.place_name || card.address || "")}</span></div></a>`).join(""));
 }
 
 // Подія за посиланням `?e=` відкривається поверх афіші.

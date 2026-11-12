@@ -3,26 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Поряд — є куди, буде з ким</title>
+<title>Поряд. Є куди. Буде з ким.</title>
 <meta name="description" content="Афіша Києва, Львова, Одеси, Дніпра й Харкова на одній мапі — і зустрічі, які збирають самі люди. Знайдіть, куди піти сьогодні, або зберіть своїх у застосунку «Поряд».">
-<meta property="og:title" content="Поряд — є куди, буде з ким">
+<meta property="og:title" content="Поряд. Є куди. Буде з ким.">
 <meta property="og:description" content="Афіша міста на мапі й зустрічі від людей. Знайдіть, куди піти сьогодні, і з ким.">
 <meta property="og:image" content="https://poriad.app/img/og.png">
 <meta property="og:url" content="https://poriad.app/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="apple-itunes-app" content="app-id=6813543772, affiliate-data=ct=banner&amp;pt=129478154">
-<meta name="theme-color" content="#F2F2F4" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F3EEE4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14110D" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="https://poriad.app/">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Поряд","alternateName":"Poriad","url":"https://poriad.app/"}</script>
 <link rel="preconnect" href="https://tzdogzdvctlumsqlqskr.supabase.co" crossorigin>
 <link rel="preload" href="fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="tokens.css?v=19">
-<link rel="stylesheet" href="web.css?v=19">
+<link rel="stylesheet" href="tokens.css?v=20">
+<link rel="stylesheet" href="web.css?v=20">
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
-<script src="js/boot.js?v=19"></script>
-<script type="module" src="js/home.js?v=19"></script>
+<script src="js/boot.js?v=20"></script>
+<script type="module" src="js/home.js?v=20"></script>
 </head>
 <body>
 
@@ -35,46 +35,80 @@
       <a href="#safety">Безпека</a>
       <a href="organizatoram">Організаторам</a>
       <a class="btn primary small" href="https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&amp;ct=site&amp;mt=8" data-lock="app">Завантажити</a>
+      <details class="nav-more">
+        <summary aria-label="Меню"><svg class="ico i-open" aria-hidden="true"><use href="img/icons.svg#i-menu"/></svg><svg class="ico i-shut" aria-hidden="true"><use href="img/icons.svg#i-close"/></svg></summary>
+        <div class="nav-pop">
+          <a href="#people">Від людей</a>
+          <a href="#afisha">Афіша</a>
+          <a href="#safety">Безпека</a>
+          <a href="organizatoram">Організаторам</a>
+        </div>
+      </details>
     </nav>
   </div>
 </header>
 
 <main>
-<!-- Героїня — лицьова сторона квитка сторінки. На корінці — доказ: що справді йде сьогодні ввечері в місті, з афіші prod. -->
+<!-- Квиток-мандрівник: один об'ємний квиток на всю сторінку. Прокрутка веде його від причалу до причалу ([data-dock] у кожній
+     секції), і на кожному він стає іншим: подія вечора, свій квиток, «Шукаю компанію», афіша, правила, перепустка в застосунок. -->
+<div class="t3-fly">
+      <div class="t3" data-t3 hidden>
+        <div class="t3-shadow"></div>
+        <div class="t3-float"><div class="t3-body" data-t3-body>
+          <div class="t3-panel top"><i class="t3-edge"></i><i class="t3-edge"></i><i class="t3-edge"></i><i class="t3-edge"></i><i class="t3-edge"></i><div class="t3-side a" data-t3-face></div><div class="t3-side b" data-t3-face></div></div>
+          <div class="t3-panel stub" data-t3-hinge><i class="t3-edge"></i><i class="t3-edge"></i><i class="t3-edge"></i><i class="t3-edge"></i><i class="t3-edge"></i><div class="t3-side a" data-t3-stub></div><div class="t3-side b" data-t3-stub></div></div>
+        </div></div>
+      </div>
+</div>
+<!-- Героїня — перший причал квитка-мандрівника: тут його крутять курсором чи пальцем, на кожному боці — справжня подія
+     вечора з афіші prod. Півоберта — наступна подія. -->
 <section class="hero">
-  <div class="wrap">
-    <div class="ticket page-ticket">
-      <div class="face">
-        <h1><span>Є куди.</span> <span>Буде з ким.</span></h1>
-        <div>
-        <p class="lead">Афіша вашого міста на одній мапі і&nbsp;зустрічі, які збирають самі люди. Знайдіть, куди піти сьогодні, або зберіть своїх.</p>
-        <div class="actions-row">
-          <a class="store" data-store href="https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&amp;ct=site&amp;mt=8"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-apple"/></svg><span><small>Завантажити в</small>App Store</span></a>
-          <a class="btn" href="afisha.html" data-all>Афіша на сайті</a>
-          <span class="cities"><span data-platforms="short">Для iPhone</span> · Київ, Львів, Одеса, Дніпро, Харків</span>
-        </div>
-        </div>
+  <div class="wrap hero-grid">
+    <h1><span>Є куди.</span> <span>Буде з ким.</span></h1>
+    <div class="hero-say">
+      <p class="lead">Афіша вашого міста на одній мапі і&nbsp;зустрічі, які збирають самі люди. Знайдіть, куди піти сьогодні, або зберіть своїх.</p>
+      <div class="actions-row">
+        <a class="store" data-store href="https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&amp;ct=site&amp;mt=8"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-apple"/></svg><span><small>Завантажити в</small>App Store</span></a>
+        <a class="btn" href="afisha.html" data-all><span data-tonight-all>Афіша</span><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-arrow"/></svg></a>
+        <span class="cities"><span data-platforms="short">Для iPhone</span> · Київ, Львів, Одеса, Дніпро, Харків</span>
       </div>
-      <div class="stub tonight" data-tonight>
-        <h2 data-tonight-title>Сьогодні ввечері</h2>
-        <div class="tn-list" data-tonight-list aria-live="polite">
-          <div class="tn skel" aria-hidden="true"><i></i><div><b></b><span></span></div></div>
-          <div class="tn skel" aria-hidden="true"><i></i><div><b></b><span></span></div></div>
-          <div class="tn skel" aria-hidden="true"><i></i><div><b></b><span></span></div></div>
-        </div>
-        <a class="go" href="afisha.html" data-all><span data-tonight-all>Уся афіша</span><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-arrow"/></svg></a>
-      </div>
+      <p class="org-line"><a href="organizatoram">Організовуєте події? Кабінет організатора<svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-arrow"/></svg></a></p>
+    </div>
+    <div class="hero-stage">
+      <h2 class="sr" data-tonight-title>Сьогодні ввечері</h2>
+      <div class="dock" data-dock="hero"></div>
+      <div class="hero-stops" role="group" aria-label="Події вечора" data-hero-stops></div>
+      <p class="hero-hint" data-hero-hint hidden>Покрутіть квиток: на звороті наступна подія.</p>
+      <div class="hero-note" data-hero-note hidden></div>
     </div>
   </div>
 </section>
 
-<!-- Від людей — серце продукту. Порожній квиток веде, поки зустрічей мало; активності не вигадуємо. -->
+<!-- Від людей — серце продукту. Квиток-мандрівник тут порожній: жанр, назву й місця на ньому друкує відвідувач.
+     Що входить у зустріч — звичайний список (.incl), не ще один квиток. -->
 <section class="section" id="people">
   <div class="wrap people">
     <div>
       <h2 class="h2 reveal">Зберіть своїх</h2>
       <p class="copy reveal d08">Зустріч від людей&nbsp;— квиток, який друкуєте самі. Опишіть, що збираєте, поставте точку на мапі, виберіть час і скільки людей шукаєте. Хто хоче долучитися, натискає «Приєднатися», а коли місць нема, стає в чергу.</p>
-      <div class="slip reveal d16">
+    </div>
+
+    <div class="dock" data-dock="people"></div>
+    <div class="print-ctl reveal d10">
+      <div class="chips" role="group" aria-label="Жанр зустрічі" data-genres></div>
+      <div class="print-form">
+        <label class="sr" for="blank-title">Що збираєте</label>
+        <input id="blank-title" type="text" maxlength="60" placeholder="Що збираєте?" value="Настолки після роботи" autocomplete="off" enterkeyhint="done">
+        <span class="seats-lbl" aria-hidden="true">Місця</span>
+        <div class="seats-ctl" role="group" aria-label="Місця">
+          <button type="button" data-seats="-1" aria-label="Менше місць">−</button>
+          <span><span data-seats-text>1/6</span><span class="sr"> місць зайнято</span></span>
+          <button type="button" data-seats="1" aria-label="Більше місць">+</button>
+        </div>
+      </div>
+      <p class="hint">Спробуйте: напишіть свою зустріч, виберіть жанр і кількість місць. Надрукувати її по-справжньому можна в застосунку.</p>
+      <button class="btn primary" type="button" data-lock="create"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-edit"/></svg>Організувати подію в застосунку</button>
+      <div class="incl">
         <div class="group"><h3>У застосунку</h3>
           <div class="ln"><span>Опис і жанр</span><span>хвилина</span></div>
           <div class="ln"><span>Точка на мапі</span><span>один дотик</span></div>
@@ -83,46 +117,46 @@
           <div class="ln"><span>Підтвердження учасників</span><span>якщо хочете</span></div>
           <div class="ln"><span>Звільнене місце</span><span>першому в черзі</span></div>
           <div class="ln"><span>Чат</span><span>для учасників</span></div></div>
-        <div class="total"><span>Ваш квиток у «Від людей»</span><b data-slip-seats>1/6</b></div>
       </div>
-    </div>
-
-    <div class="printer reveal d10">
-      <div class="chips" role="group" aria-label="Жанр зустрічі" data-genres></div>
-      <div class="ticket v blank cat-games" data-ui data-blank>
-        <div class="face">
-          <span class="stamp">Від людей</span>
-          <label class="sr" for="blank-title">Що збираєте</label>
-          <textarea id="blank-title" rows="2" maxlength="60" placeholder="Що збираєте?">Настолки після роботи</textarea>
-          <div class="descr"><span class="dot cat"></span><span data-genre-name>Ігри</span><span class="muted">Київ · точка на мапі</span></div>
-        </div>
-        <div class="stub">
-          <div><b class="t">19:00</b><small>Сьогодні</small></div>
-          <div class="seats-ctl" role="group" aria-label="Місця">
-            <button type="button" data-seats="-1" aria-label="Менше місць">−</button>
-            <span><span data-seats-text>1/6</span><span class="sr"> місць зайнято</span></span>
-            <button type="button" data-seats="1" aria-label="Більше місць">+</button>
-          </div>
-        </div>
-      </div>
-      <p class="hint">Спробуйте: напишіть свою зустріч, виберіть жанр і кількість місць. Надрукувати її по-справжньому можна в застосунку.</p>
-      <button class="btn primary" type="button" data-lock="create"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-edit"/></svg>Організувати подію в застосунку</button>
     </div>
   </div>
   <div class="wrap found" data-found hidden><h3 data-found-title>Уже збирають</h3><div class="rail" data-found-rail></div></div>
 </section>
 
-<!-- Шукаю компанію: справжня подія з афіші — квиток, до якого можна знайти компанію. -->
+<!-- Організаторам: разова зустріч — у застосунку (вище), а хто збирає людей регулярно — клуб, заклад, артист — веде події в
+     кабінеті на сайті. Мандрівник сідає подією клубу з уже зібраним списком. Обіцяємо лише те, що вміє кабінет («Організаторам»). -->
+<section class="section" id="org">
+  <div class="wrap people">
+    <div>
+      <h2 class="h2 reveal">Збираєте людей регулярно?</h2>
+      <p class="copy reveal d08">Для клубів, закладів і&nbsp;артистів є кабінет організатора на сайті. Вставте готовий анонс, і&nbsp;подія готова. Люди записуються за одним посиланням без застосунку, а&nbsp;ви бачите один список замість «+» по діректах.</p>
+      <div class="org-acts reveal d12">
+        <a class="btn primary" href="kabinet?from=home#/new"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-edit"/></svg>Створити подію</a>
+        <a class="btn" href="organizatoram">Як це працює</a>
+        <span class="cities">З комп’ютера чи телефона, без встановлення</span>
+      </div>
+    </div>
+
+    <div class="dock" data-dock="org"></div>
+    <div class="incl reveal d10">
+      <div class="group"><h3>У кабінеті</h3>
+        <div class="ln"><span>Готовий анонс</span><span>вставити текст</span></div>
+        <div class="ln"><span>Запис без застосунку</span><span>Google чи пошта</span></div>
+        <div class="ln"><span>Черга</span><span>сама</span></div>
+        <div class="ln"><span>Повторити</span><span>+7 днів</span></div></div>
+      <div class="group"><h3>Для кого</h3>
+        <div class="ln"><span>Клуби й спільноти</span><span>мафія, біг</span></div>
+        <div class="ln"><span>Заклади</span><span>кафе, бари</span></div>
+        <div class="ln"><span>Артисти</span><span>концерти</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Шукаю компанію: мандрівник сідає зі справжньою подією з афіші й дістає штамп. -->
 <section class="section" id="company">
   <div class="wrap plate-row">
     <div class="plate-col">
-    <div class="ticket plate reveal" data-ui data-plate>
-      <div class="face">
-        <div class="cover" data-plate-cover><span class="stamp photo" data-plate-stamp>Шукаю компанію</span></div>
-        <div class="cap"><p class="title" data-plate-title></p><p data-plate-where></p></div>
-      </div>
-      <div class="stub" data-plate-stub><b class="t" data-plate-time></b><small data-plate-day></small></div>
-    </div>
+    <div class="dock" data-dock="company"></div>
     <div class="queue reveal d10" role="group" aria-label="Інші події з афіші" data-plate-queue></div>
     </div>
     <div class="story">
@@ -153,6 +187,7 @@
           <p class="copy reveal d06">Сотні подій з квиткових сервісів і майданчиків міста на одній мапі, з джерелом на кожній картці. Дивитися можна просто тут, без застосунку.</p>
           <div class="controls reveal d12"><div class="tabs" role="group" aria-label="Місто" data-cities></div></div>
         </div>
+        <div class="dock mini" data-dock="afisha"></div>
       </div>
       <div class="genres" data-genre-list></div>
       <a class="btn all" href="afisha.html" data-all>Відкрити афішу й мапу<svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-arrow"/></svg></a>
@@ -167,6 +202,7 @@
       <h2 class="h2 reveal">Спокійно, як удома</h2>
       <p class="copy reveal d06">Тривоги й комендантська&nbsp;— частина вечора, а не тема для паніки. Правила тримає база, а не обіцянки.</p>
       <p class="note reveal d12">Укриття за відкритими даними КМДА (CC BY), поки що лише для Києва.</p>
+      <div class="dock mini" data-dock="safety"></div>
     </div>
     <div class="menu reveal d10">
       <div class="group"><h3>Безпека</h3>
@@ -193,7 +229,7 @@
       <p class="reveal d06">Нагадування за годину до початку, «Шукаю компанію», свої зустрічі й мапа навколо вас. <span data-platforms="long">Поки лише для iPhone з iOS&nbsp;17.</span></p>
       <div class="stores reveal d12"><a class="store" data-store href="https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&amp;ct=site&amp;mt=8"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-apple"/></svg><span><small>Завантажити в</small>App Store</span></a></div>
     </div>
-    <div data-qr></div>
+    <div class="dock" data-dock="download"></div>
   </div>
   <div class="side right" data-tile-photo aria-hidden="true"></div>
 </section>
@@ -208,7 +244,7 @@
     </div>
     <a class="mail" href="mailto:hello@poriad.app">hello@poriad.app</a>
     <div class="meta">
-      <nav aria-label="Документи"><a href="afisha.html">Афіша</a><a href="privacy.html">Конфіденційність</a><a href="terms.html">Умови</a><a href="delete-account.html">Видалити акаунт</a><a href="privacy-en.html">English</a></nav>
+      <nav aria-label="Документи"><a href="afisha.html">Афіша</a><a href="organizatoram">Організаторам</a><a href="privacy.html">Конфіденційність</a><a href="terms.html">Умови</a><a href="delete-account.html">Видалити акаунт</a><a href="privacy-en.html">English</a></nav>
       <span>Є куди. Буде з ким.</span>
       <span><a href="afisha/kyiv">Київ</a> · <a href="afisha/lviv">Львів</a> · <a href="afisha/odesa">Одеса</a> · <a href="afisha/dnipro">Дніпро</a> · <a href="afisha/kharkiv">Харків</a></span>
     </div>

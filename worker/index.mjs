@@ -170,7 +170,13 @@ export async function eventResponse(id, env, invite = null) {
   const policy = CSP.event(env);
   if (!UUID.test(id)) return html(notFoundPage(), 404, policy);
   const rpc = (name) => eventRpc(name, id, env);
-  const [upstream, safety] = await Promise.all([rpc("event_details"), rpc("event_safety").catch(() => null)]);
+  // Склад — доповнення, як і укриття: його несе картка, а не event_details; збій чи стара база лише ховають блок.
+  // Групи «Йдемо разом» на афішу — теж: питаємо паралельно, бо тип події ще невідомий; у кімнати людей їх нема.
+  const [upstream, safety, cards, groups] = await Promise.all([rpc("event_details"), rpc("event_safety").catch(() => null),
+    cardsByIds([id], { url: env.SUPABASE_URL, key: env.SUPABASE_KEY }).catch(() => []),
+    fetch(`${env.SUPABASE_URL}/rest/v1/rpc/companions`, {
+      method: "POST", headers: { apikey: env.SUPABASE_KEY, "content-type": "application/json" }, body: JSON.stringify({ p_parent_id: id }),
+    }).then((r) => (r.ok ? r.json() : [])).catch(() => [])]);
   // Помилку бази не кешуємо й не видаємо за «подію не знайдено».
   if (!upstream.ok) return html(notFoundPage("Не вдалося завантажити подію. Спробуйте ще раз за хвилину."), 503, policy);
   const rows = await upstream.json();
@@ -180,9 +186,10 @@ export async function eventResponse(id, env, invite = null) {
   if (UUID.test(live) && live.toLowerCase() !== id.toLowerCase()) {
     return Response.redirect(`https://poriad.app/e/${live}${invite ? `?by=${invite.by}` : ""}`, 301);
   }
-  // Укриття — доповнення: збій чи стара база без event_safety лише ховають секцію.
-  const shelters = safety?.ok ? ((await safety.json().catch(() => null))?.shelters ?? []) : [];
-  return html(eventPage(rows[0], new Date(), shelters, invite), 200, policy, Boolean(invite));
+  // Безпека (укриття й комендантська) — доповнення: збій чи стара база без event_safety лише ховають секцію.
+  const safe = safety?.ok ? await safety.json().catch(() => null) : null;
+  return html(eventPage({ ...rows[0], artists: cards[0]?.artists, curfew: safe?.curfew ?? null, companions: groups }, new Date(), safe?.shelters ?? [], invite),
+    200, policy, Boolean(invite));
 }
 
 export function eventPage(e, now, shelters = [], invite = null) {
@@ -227,6 +234,11 @@ export function eventPage(e, now, shelters = [], invite = null) {
       : e.pay_online ? "Подію скасовано. Якщо ви вже оплатили, організатор має повернути гроші — напишіть йому в розмові." : "Подію скасовано.")
     : withdrawn ? STATES[state] : moved ? `Перенесено: було ${moved}. Якщо нова дата не підходить, квиток повертають там, де купували.` : null;
   const live = !cancelled && !withdrawn && !past;
+  // Групи «Йдемо разом» на цю афішу: спершу приєднатися до наявної (запис за посиланням, без застосунку), свою — у
+  // застосунку. UUID перевіряємо — рядок з бази йде в href.
+  const groups = listed && live ? (Array.isArray(e.companions) ? e.companions : []).filter((g) => UUID.test(g?.id ?? "") && g.starts_at) : [];
+  // Склад: імена ведуть на сторінку артиста. UUID перевіряємо — рядок з бази йде в href.
+  const artists = (Array.isArray(e.artists) ? e.artists : []).filter((a) => a?.name && UUID.test(a.id ?? ""));
   // «Не знайшли» — без тривоги: ми не знаємо, що сталось. Перенесена жива — теж не червоним.
   const calm = !past && !cancelled && (state === "unknown" || Boolean(moved));
   // Продавці: основний першим. Без даних фази 4 — лише основний з полів події.
@@ -272,15 +284,17 @@ ${ticketUrl && imported ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""
       <a href="${maps}" rel="noopener"><i>${icon("pin")}</i>Маршрут</a>
       <button type="button" data-share><i>${icon("share")}</i>Поділитися з другом</button>
       ${listed ? "" : `<button type="button" data-copy-link hidden><i>${icon("link")}</i>Скопіювати посилання</button>`}
-      <a href="poriad://event/${e.id}${by}"><i>${icon("bookmark")}</i>У «Поряд»</a>
+      <a href="poriad://event/${e.id}${by}"><i>${icon("external")}</i>У застосунку</a>
       <a href="/afisha.html${e.city && e.city !== "Київ" ? `?city=${encodeURIComponent(e.city)}` : ""}" data-afisha><i>${icon("map")}</i>Афіша</a>
     </div>
     ${!imported && e.pay_online ? `<p class="fine">${esc(PAY_ONLINE_FINE)}${e.refund_policy ? ` ${esc(refundText(e.refund_policy))}` : ""}</p>`
       : !imported && e.approval_required ? `<p class="fine">Участь за підтвердженням організатора.</p>` : ""}
     ${!listed && (live || (cancelled && e.pay_online && !past)) && UUID.test(e.organizer_id ?? "") ? `<button class="btn secondary ask" type="button" data-ask>${icon("chat")}Написати організатору</button>` : ""}
     ${imported && !past ? sellersSection(live ? liveOffers : offers, !live, e.checked_at, e.time_zone) : ""}
+    ${groups.length ? companionsSection(groups, now) : ""}
+    ${artists.length ? `<div class="block"><h2>Хто виступає</h2><div class="artist-chips">${artists.map((a) => `<a class="chip" href="/a/${a.id}">${esc(a.name)}</a>`).join("")}</div></div>` : ""}
     ${e.description ? `<div class="block"><h2>Опис</h2><p class="description">${esc(e.description)}</p></div>` : ""}
-    ${live ? sheltersSection(shelters) : ""}
+    ${live ? safetySection(shelters, e, now) : ""}
     <div class="app-only"><b>${listed ? "Підете? Не забудьте" : "У застосунку ще зручніше"}</b>
       <ul><li>${icon("bell")}Нагадування за годину до початку</li><li>${icon("people")}«Шукаю компанію» — знайдіть, з ким піти</li><li>${icon("map")}Що ще відбувається поряд — на мапі</li></ul>
       <div class="stores">${storeButtons(ct)}</div></div>
@@ -291,11 +305,13 @@ ${ticketUrl && imported ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""
       : listed && !imported && live ? `<p class="closed">Вхід без запису</p>`
       : listed ? `<a class="btn primary" href="/app?from=${ct}">Завантажити «Поряд»</a>`
       : open ? `<button class="btn primary" type="button" data-join>Йду</button>` : `<p class="closed">Запис на цю подію закрито</p>`}</div>
+    ${listed && live ? (groups.length ? `<a class="btn secondary" href="#company">${icon("people")}Шукаю компанію · ${groups.length}</a>`
+      : `<button class="btn secondary" type="button" data-lock="company">${icon("people")}Шукаю компанію</button>`) : ""}
     ${open ? `<a class="open-app" href="poriad://event/${e.id}${by}">Уже є застосунок? Відкрити</a>` : ""}</div>
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>
-${listed ? "" : `${joinSheet(e, ct, now)}
-<script type="module" src="/js/join.js?v=19"></script>`}`,
+${listed ? (live ? `<script type="module" src="/js/event.js?v=20"></script>` : "") : `${joinSheet(e, ct, now)}
+<script type="module" src="/js/join.js?v=20"></script>`}`,
   });
 }
 
@@ -333,15 +349,57 @@ function sellersSection(offers, refund, checkedAt, tz) {
 // Правила Мінкульту з 11.09.2026: про найближче укриття повідомляють заздалегідь, зокрема на сайті.
 const SHELTER_KINDS = { metro: "Метро", underpass: "Підземний перехід", parking: "Підземний паркінг", basement: "Укриття" };
 
-function sheltersSection(shelters) {
-  if (!Array.isArray(shelters) || shelters.length === 0) return "";
-  const rows = shelters.map((s) => {
+/** «Безпека», як у шторці афіші й застосунку: комендантська міста (усі міста) і найближчі укриття (поки Київ). */
+/**
+ * «Уже шукають компанію»: групи «Йдемо разом» на цю афішу — коли й де збір, скільки вільно. Рядок веде на сторінку
+ * групи, де записуються з вебу; «Зібрати свою» — шторка застосунку (event.js), як «Шукаю компанію» без груп.
+ */
+function companionsSection(groups, now) {
+  const rows = groups.map((g) => {
+    const free = Math.max(0, Number(g.capacity) - Number(g.attendee_count || 0));
+    const seats = Number(g.capacity) > 0 ? (free ? `вільно ${plural(free, ["місце", "місця", "місць"])}` : "місць нема") : null;
+    return `<a class="row" href="/e/${g.id}"><i>${icon("people")}</i><div class="txt"><small>${esc(["Збір: " + overline(g, now, true), seats].filter(Boolean).join(" · "))}</small>
+      <b>${esc(String(g.meet_note ?? "").trim() || "Йдемо разом")}</b></div></a>`;
+  }).join("");
+  return `<div class="block" id="company"><h2>Уже шукають компанію · ${groups.length}</h2><div class="rows">${rows}</div>
+    <p class="fine">Запис у групу — за посиланням, без застосунку.</p>
+    <button class="btn secondary" type="button" data-lock="company">${icon("people")}Зібрати свою групу</button></div>`;
+}
+
+function safetySection(shelters, e, now) {
+  const list = Array.isArray(shelters) ? shelters : [];
+  const hours = e.curfew?.starts && e.curfew?.ends ? `${esc(e.curfew.starts)}–${esc(e.curfew.ends)}` : null;
+  if (!list.length && !hours) return "";
+  const note = hours ? curfewNote(e, e.curfew, now) : null;
+  const curfew = !hours ? "" : `<div class="row"><i>${icon("clock")}</i><div class="txt">${note
+    ? `<small>Комендантська в місті · ${hours}</small><b>${note.left ? `Закінчиться о ${note.endsAt}, до комендантської лишиться ${durationWords(note.left)}`
+      : `Закінчиться о ${note.endsAt}, уже під час комендантської`}</b>`
+    : `<span>Комендантська в місті: ${hours}</span>`}</div></div>`;
+  const rows = list.map((s) => {
     const extras = [s.hours, s.accessible ? "Є пандус" : null].filter(Boolean).map(esc).join(" · ");
     return `<a class="row" href="https://www.google.com/maps/dir/?api=1&destination=${Number(s.latitude)},${Number(s.longitude)}&travelmode=walking" rel="noopener">
       <i>${icon("shield")}</i><div class="txt"><small>${esc(SHELTER_KINDS[s.kind] || "Укриття")} · ${Number(s.distance_m)} м${extras ? ` · ${extras}` : ""}</small><b>${esc(s.address)}</b></div></a>`;
   }).join("");
-  return `<div class="block"><h2>Укриття поруч</h2><div class="rows">${rows}</div><p class="fine">За відкритими даними КМДА (CC BY).</p></div>`;
+  return `<div class="block"><h2>Безпека</h2><div class="rows">${curfew}${rows}</div>${list.length ? `<p class="fine">Укриття — за відкритими даними КМДА (CC BY).</p>` : ""}</div>`;
 }
+
+/**
+ * Порт `CurfewRules.note` (core/domain Safety.kt): як кінець події стоїть щодо комендантської. `left` 0 — закінчиться вже
+ * під час неї; null — до неї понад 4 год (вдень це шум), події без кінця й прокат довший за 12 год.
+ */
+export function curfewNote(e, curfew, now) {
+  const minute = (t) => { const [h, m] = String(t ?? "").split(":").map(Number); return Number.isInteger(h) && Number.isInteger(m) ? h * 60 + m : null; };
+  const start = Date.parse(e.starts_at), end = Date.parse(e.ends_at);
+  const from = minute(curfew?.starts), until = minute(curfew?.ends);
+  if (from === null || until === null || !(end > now.getTime()) || !(end - start <= 12 * 3600e3)) return null;
+  const endsAt = timeOf(new Date(end), e.time_zone || "Europe/Kyiv");
+  const local = minute(endsAt);
+  if (local === null) return null;
+  if (from < until ? local >= from && local < until : local >= from || local < until) return { endsAt, left: 0 };
+  const left = (((from - local) % 1440) + 1440) % 1440;
+  return left <= 240 ? { endsAt, left } : null;
+}
+const durationWords = (m) => (m < 60 ? `${m} хв` : m % 60 ? `${Math.floor(m / 60)} год ${m % 60} хв` : `${m / 60} год`);
 
 /**
  * Карусель — прокрутка зі снепом, без скрипта. Відео — наш платний трафік Storage (docs/organizers-1.5.md, 1.3): лише
@@ -418,7 +476,7 @@ function joinSheet(e, ct, now) {
       <button class="btn secondary" type="button" data-invite>${icon("share")}Поділитися з другом</button>
       <div class="app-pitch"><b>Нагадаємо за день і скажемо першим, коли звільниться місце</b><p class="fine" data-google-hint hidden>У застосунку увійдіть через Google — цей запис уже буде там.</p><div class="stores">${storeButtons(ct)}</div></div>
     </div>
-    ${city ? `<div class="block week" data-week hidden><h2>Цього тижня ${esc(city[1][1])}</h2><div class="rows" data-cards></div><a class="link" href="/afisha/${city[0]}">Уся афіша ${esc(cityOf(city[1][0]).of)}</a></div>` : ""}
+    ${city ? `<div class="block week" data-week hidden><h2>Цього тижня ${esc(city[1][1])}</h2><div class="rows" data-cards></div><a class="link" href="/afisha/${city[0]}">Афіша ${esc(cityOf(city[1][0]).of)} на тиждень</a></div>` : ""}
   </section>
   <section data-step="ask" hidden>
     <h2>Розмова з організатором</h2>
@@ -468,7 +526,7 @@ export function notFoundPage(message = "Подію не знайдено: її �
 const CITY_PAGES = { kyiv: ["Київ", "в Києві"], lviv: ["Львів", "у Львові"], odesa: ["Одеса", "в Одесі"], dnipro: ["Дніпро", "в Дніпрі"], kharkiv: ["Харків", "в Харкові"] };
 /** Розділ: чип, заголовок, що беремо й на скільки днів уперед. Категорії — ті, де в кожному місті є з чого вибрати. */
 const FACETS = {
-  "": { chip: "Уся афіша", h1: (at, of) => `Афіша ${of}`, title: (at, of) => `Афіша ${of} на тиждень: куди піти`, days: 7, lead: "на найближчий тиждень: концерти, театр, стендап, події для дітей" },
+  "": { chip: "Тиждень", h1: (at, of) => `Афіша ${of}`, title: (at, of) => `Афіша ${of} на тиждень: куди піти`, days: 7, lead: "на найближчий тиждень: концерти, театр, стендап, події для дітей" },
   sohodni: { chip: "Сьогодні", h1: (at) => `Куди піти ${at} сьогодні`, when: "today", days: 1, lead: "ще попереду сьогодні" },
   vykhidni: { chip: "Вихідні", h1: (at) => `Куди піти ${at} на вихідних`, when: "weekend", days: 8, lead: "на суботу й неділю" },
   kontserty: { chip: "Концерти", h1: (at) => `Концерти ${at}`, category: "music", days: 31, lead: "на найближчий місяць" },
@@ -569,10 +627,10 @@ export function cityPage(slug, key, cards, total, now) {
     <p class="lead">${esc(intro)}. Час, місце й ціна; квитки продають на сайтах продавців. Афіша оновлюється щодня.</p></div>
   <nav class="chips" aria-label="Розділи афіші">${chips}</nav>
   ${cards.length ? [...days].map(([day, list]) => `<section class="block"><h2>${esc(day)}</h2><div class="rows">${list.map((c) => cityRow(c, now)).join("")}</div></section>`).join("")
-    : `<div class="empty"><b>Тут поки тихо</b><span>На ці дні в афіші ${esc(city.of)} такого нема.</span><a class="btn secondary" href="${key ? here(slug, "") : afishaHref}">Уся афіша ${esc(city.of)}</a></div>`}
+    : `<div class="empty"><b>Тут поки тихо</b><span>На ці дні в афіші ${esc(city.of)} такого нема.</span><a class="btn secondary" href="${key ? here(slug, "") : afishaHref}">Афіша ${esc(city.of)}</a></div>`}
   ${cards.length && cards.length < total ? `<p class="fine">Тут ${cards.length} з ${total}. Решта — <a href="${afishaHref}">в афіші на сайті</a> і в застосунку.</p>` : ""}
   <div class="app-only"><b>Що поруч з вами, видно на мапі</b>
-    <ul><li>${icon("map")}Уся афіша міста на мапі, фільтр «сьогодні»</li><li>${icon("bell")}Нагадування за годину до початку</li><li>${icon("people")}«Шукаю компанію», якщо нема з ким піти</li></ul>
+    <ul><li>${icon("map")}Афіша міста на мапі, фільтр «сьогодні»</li><li>${icon("bell")}Нагадування за годину до початку</li><li>${icon("people")}«Шукаю компанію», якщо нема з ким піти</li></ul>
     <div class="stores">${storeButtons("city")}</div></div>
   <p class="fine">Афіша інших міст: ${others}</p>
 </div></article>`,
@@ -705,17 +763,19 @@ function layout({ title, description, image, url, head, body, from = "event" }) 
 <meta property="og:image" content="${esc(image)}">
 <meta property="og:url" content="${esc(url)}">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#F2F2F4" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F3EEE4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14110D" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=19">
-<link rel="stylesheet" href="/web.css?v=19">
+<link rel="stylesheet" href="/tokens.css?v=20">
+<link rel="stylesheet" href="/web.css?v=20">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">
 <header class="nav scrolled"><div class="wrap"><a class="brand" href="/"><img src="/icon.png" alt="">Поряд</a>
-  <nav class="links" aria-label="Розділи"><a href="/afisha.html">Афіша</a><a href="/organizatoram">Організаторам</a><a class="btn primary small" href="/app?from=${from}">Завантажити</a></nav></div></header>
+  <nav class="links" aria-label="Розділи"><a href="/afisha.html">Афіша</a><a href="/organizatoram">Організаторам</a><a class="btn primary small" href="/app?from=${from}">Завантажити</a>
+  <details class="nav-more"><summary aria-label="Меню"><svg class="ico i-open" aria-hidden="true"><use href="/img/icons.svg#i-menu"/></svg><svg class="ico i-shut" aria-hidden="true"><use href="/img/icons.svg#i-close"/></svg></summary>
+  <div class="nav-pop"><a href="/afisha.html">Афіша</a><a href="/organizatoram">Організаторам</a></div></details></nav></div></header>
 <main class="event-shell">${body}</main>
 <footer class="site"><div class="wrap"><span>Питання й скарги: <a href="mailto:hello@poriad.app">hello@poriad.app</a></span>
   <nav aria-label="Афіша міст">${Object.entries(CITY_PAGES).map(([s, [n]]) => `<a href="/afisha/${s}">${n}</a>`).join("")}</nav>

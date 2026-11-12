@@ -51,7 +51,7 @@ assert.ok(weekend.includes("Концерт &lt;/script&gt;&lt;b&gt;") && weekend
 await cityResponse("kyiv", "kontserty", env, cityNow);
 assert.equal(discoverBody.p_category, "music", "категорію фільтрує сервер");
 const lviv = cityPage("lviv", "sohodni", [], 0, cityNow);
-assert.ok(lviv.includes("Куди піти у Львові сьогодні") && lviv.includes("Тут поки тихо") && lviv.includes('href="/afisha/lviv">Уся афіша Львова'));
+assert.ok(lviv.includes("Куди піти у Львові сьогодні") && lviv.includes("Тут поки тихо") && lviv.includes('href="/afisha/lviv">Афіша Львова'));
 assert.ok(eventPage(base, now).includes('href="/afisha/kyiv"'), "сторінки подій посилаються на міста");
 
 const puts = [];

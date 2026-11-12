@@ -3,10 +3,10 @@
 // організатора. Вхід (Google або пошта з паролем, docs/web-auth.md) — auth.js, дані —
 // ті самі функції бази, що в застосунку; сторінка перевіряє лише очевидне, решту каже сервер. Чисті правила вгорі (дати,
 // тривалість, медіа, текст для Threads) перевіряє `node tools/kabinet_test.mjs`; DOM — нижче, лише в браузері.
-import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText, plural, EVENTS, POST_MONTHS, payWay } from "./poriad.js?v=19";
-import { threadFeed, openProof, forgetProofs, fit, jpeg, jpegFile, PHOTO, payStage } from "./chat.js?v=19";
+import { SUPABASE, CATEGORIES, CITIES, cityOf, displayTitle, esc, overline, mapStyle, threadsPost, threadsIntent, httpsOrNull, priceText, plural, EVENTS, POST_MONTHS, payWay } from "./poriad.js?v=20";
+import { threadFeed, openProof, forgetProofs, fit, jpeg, jpegFile, PHOTO, payStage } from "./chat.js?v=20";
 import { session, verifyCode, google, completeRedirect, rpc, upload, signOut, inAppBrowser, browserLinks, signInWithPassword, signUp, resendSignup,
-  requestRecovery, updatePassword, reauthenticate, verifyPassword, currentUser, updateMetadata, signInMethods, isEmail, MIN_PASSWORD, MAX_PASSWORD } from "./auth.js?v=19";
+  requestRecovery, updatePassword, reauthenticate, verifyPassword, currentUser, updateMetadata, signInMethods, isEmail, MIN_PASSWORD, MAX_PASSWORD } from "./auth.js?v=20";
 
 // ---- Дати. Усі п'ять міст в одному поясі; подія з іншим поясом (з застосунку) редагується у своєму.
 export const TZ = "Europe/Kyiv";
@@ -116,6 +116,39 @@ export function seriesDates(d, count) {
   const total = Math.min(Math.max(Math.round(+count) || 1, 1), SERIES_MAX);
   return Array.from({ length: total - 1 }, (_, i) => ({ startDate: shift(d.startDate, 7 * (i + 1)), endDate: shift(d.endDate, 7 * (i + 1)) }));
 }
+// ---- Серія після створення (20261201120000): `series_events` — події серії за початком; «ця й наступні» — у кабінеті.
+/** «Наступні»: події серії після цієї, які ще не почались і не скасовані. */
+export function seriesAfter(list, id, now = Date.now()) {
+  const i = (list ?? []).findIndex((e) => e.id === id);
+  return i < 0 ? [] : list.slice(i + 1).filter((e) => e.status === "published" && Date.parse(e.starts_at) > now);
+}
+/**
+ * Правка «цієї й наступних»: наступна подія `e` лишається на своїй даті — перенесення цієї її не зсуває. Годину початку
+ * й тривалість бере з форми, лише якщо їх змінили (`was` — ця подія до правки): виправлене окремо не губиться.
+ */
+export function seriesWhen(d, was, e) {
+  const span = (x) => Date.parse(instant(x.endDate, x.endTime, d.tz)) - Date.parse(instant(x.startDate, x.startTime, d.tz));
+  const start = local(e.starts_at, d.tz);
+  const time = d.startTime === was.startTime ? start.time : d.startTime;
+  const ms = span(d) === span(was) ? Date.parse(e.ends_at ?? e.starts_at) - Date.parse(e.starts_at) || 2 * HOUR : span(d);
+  const end = endAfter(start.date, time, ms / 6e4, d.tz);
+  return { startDate: start.date, startTime: time, endDate: end.date, endTime: end.time };
+}
+/** «Серія: N подій» і дати: решта — посиланнями на свої екрани, скасована — закреслена. */
+export function seriesLine(list, id) {
+  const day = (e) => new Intl.DateTimeFormat("uk-UA", { timeZone: e.time_zone || TZ, day: "numeric", month: "short" }).format(new Date(e.starts_at));
+  const mark = (e) => (e.status === "cancelled" ? ' class="void" title="Скасовано"' : "");
+  return `<b>Серія: ${plural(list.length, EVENTS)}</b>` + list.map((e) => (e.id === id ? `<span aria-current="true"${mark(e)}>${day(e)}</span>`
+    : `<a href="#/e/${esc(e.id)}"${mark(e)}>${day(e)}</a>`)).join("");
+}
+export const cancelSeriesQuestion = (rest) => `Скасувати цю подію й ще ${plural(rest, ["наступну", "наступні", "наступних"])} — разом ${plural(rest + 1, EVENTS)}? `
+  + "Учасники отримають сповіщення, а повернути події не вийде.";
+/** Підсумок дії над «цією й наступними» (`cancel` — скасування, інакше правка): збій посеред серії зробленого не ховає. */
+export function seriesResult(s, cancel = false) {
+  const lead = cancel ? "Скасовано" : "Разом з наступними";
+  if (s.made === s.count) return `${lead}: ${plural(s.count, EVENTS)}.`;
+  return `${lead}: ${s.made} з ${s.count}. ${s.error ? `${s.error.replace(/\.$/, "")}. ` : ""}Решту ${cancel ? "скасуйте" : "відредагуйте"} окремо.`;
+}
 export function priceProblem(price) {
   const text = String(price ?? "").trim();
   if (!text) return null;
@@ -126,7 +159,7 @@ export function priceProblem(price) {
 export const priceParam = (price) => String(price ?? "").trim() ? Math.round(Number(price)) : 0;
 
 // ---- «Пост для Threads» (1.5) — у poriad.js: той самий текст ділить і сторінка події (1.6).
-export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=19";
+export { threadsPost, threadsIntent, ABOUT_MAX } from "./poriad.js?v=20";
 
 // ---- Анімації публікації (1.6, design/lottie/LICENSES.md): корінець запечений кольором музики — фарбуємо в жанр.
 const MUSIC_STUB = [0x60, 0x41, 0xb1].map((v) => v / 255);
@@ -1123,10 +1156,30 @@ function row(e, waiting) {
 
 let published = null; // { id, failed } — щойно опублікована: показуємо «Подію опубліковано»
 
+/** Скільки місць — «маленька зустріч»: першим «Скопіювати посилання» (як `QuickEvent.SMALL_SEATS` у застосунках). */
+const SMALL_SEATS = 12;
+/**
+ * Що поширювати першим: маленька зустріч і «лише за посиланням» — посилання у свій чат; решта — пост для Threads.
+ * Прихованій поста нема зовсім: публічний пост суперечить вибору. [copy] і [post] — кнопки; перша стає primary й першою.
+ */
+function shareOrder(event, copy, post) {
+  const copyFirst = Boolean(event.link_only) || (event.capacity > 0 && event.capacity <= SMALL_SEATS) || post.hidden;
+  if (event.link_only) post.hidden = true;
+  copy.classList.toggle("primary", copyFirst);
+  post.classList.toggle("primary", !copyFirst);
+  copy.parentNode.prepend(copyFirst ? copy : post);
+}
+async function copyLink() {
+  const url = `https://poriad.app/e/${current.id}`;
+  if (await copyText(url)) ui.toast("Посилання скопійовано"); else prompt("Посилання на подію", url);
+}
+
 async function showEvent(id) {
   view("event");
+  $("[data-end]").hidden = true;
   for (const el of $$("[data-view=event] [data-event-title], [data-view=event] [data-event-when], [data-view=event] [data-event-place]")) el.textContent = "";
   $("[data-people]").innerHTML = "";
+  $("[data-series]").hidden = $("[data-cancel-series]").hidden = true;
   if (!(await signedIn()) && !(await signIn({ lead: "Увійдіть тією поштою чи Google, з якими створювали подію." }))) return void (location.hash = "#/");
   const note = $("[data-event-note]");
   note.textContent = "Завантажуємо…";
@@ -1139,6 +1192,7 @@ async function showEvent(id) {
   $("[data-published]").hidden = !fresh;
   if (fresh) $("[data-published-note]").textContent = fresh.failed
     ? `Не вдалося додати ${fresh.failed} ${fresh.failed === 1 ? "файл" : fresh.failed < 5 ? "файли" : "файлів"}. Спробуйте ще раз у редагуванні.` : fresh.edited ? "" : "Поділіться посиланням — і люди зможуть записатися просто з вебу.";
+  if (fresh?.edited && fresh.series) $("[data-published-note]").append(` ${seriesResult(fresh.series)}`);
   if (fresh?.edited) $("[data-published] b").textContent = "Зміни збережено";
   else $("[data-published] b").textContent = "Подію опубліковано";
   if (!event) return;
@@ -1146,17 +1200,34 @@ async function showEvent(id) {
   $("[data-event-title]").textContent = displayTitle(event.title);
   $("[data-event-when]").textContent = overline(event, new Date(), true);
   $("[data-event-place]").textContent = [[event.address, event.city].filter(Boolean).join(", "),
-    Number(event.price_min) > 0 ? `${priceText(event.price_min)}, ${payWay(event)}` : ""].filter(Boolean).join(" · ");
+    Number(event.price_min) > 0 ? `${priceText(event.price_min)}, ${payWay(event)}` : "", event.link_only ? "лише за посиланням" : ""].filter(Boolean).join(" · ");
   $("[data-open]").href = `/e/${event.id}`;
   $("[data-edit]").href = `#/e/${event.id}/edit`;
   const live = event.status === "published" && Date.parse(event.starts_at) > Date.now();
   $("[data-edit]").hidden = !live;
   $("[data-cancel]").hidden = !live;
+  $("[data-end]").hidden = !live;
   $("[data-threads]").hidden = event.status !== "published" || ended(event);
+  shareOrder(event, $("[data-copy-link]"), $("[data-threads]"));
   current = event;
-  // Розмови — окремо: таблиця учасників не чекає на них і не падає разом з ними.
+  // Розмови й серія — окремо: таблиця учасників не чекає на них і не падає разом з ними.
   loadTalks(event).catch(() => { $("[data-talks]").hidden = true; });
+  loadSeries(event, live);
   await loadPeople(event);
+}
+
+let seriesList = []; // `series_events` події на екрані «Подія»; порожньо — не серія (чи база без 20261201120000)
+const seriesOf = async (id) => (await rpc("series_events", { p_event: id }).catch(() => null)) ?? [];
+/** «Серія: N подій» під місцем і «Скасувати цю й наступні» — коли є що скасовувати далі. */
+async function loadSeries(event, live) {
+  const list = await seriesOf(event.id);
+  // Відповідь для події, з якої вже пішли, не пишемо: інакше «Скасувати цю й наступні» нової події скасувала б лише її.
+  if (current?.id !== event.id) return;
+  seriesList = list;
+  if (seriesList.length < 2) return;
+  $("[data-series]").innerHTML = seriesLine(seriesList, event.id);
+  $("[data-series]").hidden = false;
+  $("[data-cancel-series]").hidden = !live || !seriesAfter(seriesList, event.id).length;
 }
 
 let current = null; // подія на екрані «Подія»
@@ -1168,7 +1239,8 @@ async function loadPeople(event) {
   // Без запису списку нема: кажемо це замість «поки ніхто не записався».
   const listed = event.origin === "partner", empty = $("[data-people-empty]");
   noPeople ??= empty.textContent;
-  empty.textContent = listed ? "На цю подію не записуються: люди приходять за квитком або просто так. Хто шукає компанію — видно в застосунку." : noPeople;
+  empty.textContent = listed ? "На цю подію не записуються: люди приходять за квитком або просто так. Хто шукає компанію — видно в застосунку."
+    : event.link_only ? "Поки ніхто не записався. Надішліть посилання тим, кого кличете." : noPeople;
   if (listed) {
     roster = []; requests = [];
     $("[data-people]").innerHTML = "";
@@ -1357,10 +1429,8 @@ function setupEvent() {
   });
   $("[data-threads]").addEventListener("click", () => shareAnnouncement(current));
   $("[data-done-share]").addEventListener("click", () => shareAnnouncement(current));
-  $("[data-done-copy]").addEventListener("click", async () => {
-    const url = `https://poriad.app/e/${current.id}`;
-    if (await copyText(url)) ui.toast("Посилання скопійовано"); else prompt("Посилання на подію", url);
-  });
+  $("[data-done-copy]").addEventListener("click", copyLink);
+  $("[data-copy-link]").addEventListener("click", copyLink);
   $("[data-repeat]").addEventListener("click", async (event) => {
     event.preventDefault();
     if (!current) return;
@@ -1380,6 +1450,21 @@ function setupEvent() {
     } catch (e) {
       ui.toast(errorText(e));
     }
+  });
+  // Ця й наступні — по одній, тим самим cancel_event: збій посеред каже, скільки вже скасовано, а рядок серії — які.
+  $("[data-cancel-series]").addEventListener("click", async (event) => {
+    const button = event.currentTarget, rest = seriesAfter(seriesList, current.id);
+    if (button.disabled || !confirm(cancelSeriesQuestion(rest.length))) return;
+    button.disabled = true;
+    const done = { made: 0, count: rest.length + 1 };
+    try {
+      for (const e of [current, ...rest]) { await rpc("cancel_event", { p_event_id: e.id }); done.made++; }
+    } catch (e) {
+      done.error = errorText(e);
+    }
+    button.disabled = false;
+    ui.toast(seriesResult(done, true));
+    await showEvent(current.id);
   });
 }
 
@@ -1440,6 +1525,9 @@ async function showDone(id) {
     fresh.failed ? `Не вдалося додати ${fresh.failed} ${fresh.failed === 1 ? "файл" : fresh.failed < 5 ? "файли" : "файлів"}. Спробуйте ще раз у редагуванні.` : "",
     seriesNote(fresh.series),
   ].filter(Boolean).join(" ");
+  $("[data-done-share]").hidden = false;
+  shareOrder(event, $("[data-done-copy]"), $("[data-done-share]"));
+  $("[data-done-share-hint]").hidden = $("[data-done-share]").hidden;
   $("[data-done-ics]").href = `/e/${event.id}.ics`;
   $("[data-done-ready]").href = `#/e/${event.id}`;
   animate($("[data-done-anim]"), "published", event.category);
@@ -1460,6 +1548,7 @@ function doneTicket(e) {
 // через Google перезавантажує сторінку).
 
 let editing = null; // подія, яку редагуємо; null — нова
+let editSeries = []; // `series_events` події, яку редагуємо: окремо від екрана «Подія», щоб запізніла відповідь одного не підмінила іншому
 // Оплата онлайн за вимикачем на сервері (`pay_online_enabled`, 20261125160000): вимкнено — «Як платять» не показуємо.
 let payOnlineOn = true;
 // Що можна цьому організатору з оплатою онлайн (`my_pay_online_limits`): межі рівня, згода, наступний рівень. null —
@@ -1582,6 +1671,14 @@ async function showEditor(id) {
   lineupWas = editing ? JSON.stringify(lineupParams(lineup)) : NO_LINEUP;
   paintLineup();
   repeatView();
+  // Подія серії: перед «Зберегти» — вибір «лише цю» чи «цю й наступні»; щоразу з «лише цю».
+  form().scope.value = "one";
+  $("[data-scope-box]").hidden = true;
+  editSeries = editing ? await seriesOf(editing.id) : [];
+  const rest = editing ? seriesAfter(editSeries, editing.id) : [];
+  $("[data-scope-box]").hidden = !rest.length;
+  $("[data-scope-note]").textContent = `Ще ${plural(rest.length, EVENTS)}: ${rest.map((e) => local(e.starts_at, form().dataset.tz).date).map((x) => `${x.slice(8)}.${x.slice(5, 7)}`).join(", ")}. `
+    + "Кожна лишається на своїй даті: перенесення цієї події інших не зсуває. Зміните час початку чи тривалість — їх отримають і наступні. Фото й відео змінюються лише в цієї події.";
   const auto = autoPlace(mine, { editing: Boolean(editing), draft: hadDraft, repeat: repeated });
   if (auto) usePlace(auto);
   paintOwnPlaces();
@@ -1597,6 +1694,7 @@ export function eventDraft(e) {
     lat: e.latitude, lon: e.longitude, placed: true, startDate: start.date, startTime: start.time, endDate: end.date, endTime: end.time,
     capacity: e.capacity ?? 10, minAge: e.min_age ?? 18, maxAge: e.max_age ?? "", approval: Boolean(e.approval_required), contact: e.contact_url ?? "", tz,
     payOnline: Boolean(e.pay_online), prepay: Boolean(e.prepay), paid: Number(e.price_min) > 0, refund: e.refund_policy ?? "",
+    linkOnly: Boolean(e.link_only),
     price: Number(e.price_min) > 0 ? String(Math.round(Number(e.price_min))) : "",
     how: howOf(e), ticket: e.origin === "partner" ? e.canonical_url ?? "" : "" };
 }
@@ -1607,6 +1705,7 @@ function fill(d) {
   for (const name of FIELDS) f[name].value = d[name] ?? "";
   f.city.value = CITIES.some((c) => c.name === d.city) ? d.city : CITIES[0].name;
   f.approval.checked = Boolean(d.approval);
+  f.linkOnly.checked = Boolean(d.linkOnly);
   // Стара чернетка без прапорця — платна, якщо є ціна.
   for (const radio of $$("[name=entry]", f)) radio.checked = radio.value === ((d.paid ?? Boolean(String(d.price ?? "").trim())) ? "paid" : "free");
   for (const radio of $$("[name=pay]", f)) radio.checked = radio.value === (d.payOnline ? "online" : d.prepay ? "prepay" : "onsite");
@@ -1632,7 +1731,7 @@ function fill(d) {
 /** Форма → чернетка. */
 function draft() {
   const f = form();
-  const d = { id: f.dataset.id || null, tz: f.dataset.tz || TZ, category: f.dataset.category || null, approval: f.approval.checked, city: f.city.value, ...place,
+  const d = { id: f.dataset.id || null, tz: f.dataset.tz || TZ, category: f.dataset.category || null, approval: f.approval.checked, linkOnly: f.linkOnly.checked, city: f.city.value, ...place,
     payOnline: f.pay.value === "online", prepay: f.pay.value === "prepay", paid: f.entry.value === "paid", refund: f.refund.value, payTerms: f.payterms.checked, how: f.how.value,
     lineup: lineup.map((a) => ({ id: a.id ?? null, name: a.name, own: Boolean(a.own) })), repeat: f.repeat.checked };
   for (const name of FIELDS) d[name] = f[name].value;
@@ -1864,7 +1963,7 @@ function placeMarker(fly = true) {
   if (!map) return;
   if (!place.placed) { marker?.remove(); marker = null; return; }
   if (!marker) {
-    marker = new maplibregl.Marker({ color: getComputedStyle(document.documentElement).getPropertyValue("--ink").trim() || "#141417", draggable: true });
+    marker = new maplibregl.Marker({ color: getComputedStyle(document.documentElement).getPropertyValue("--ink").trim() || "#1B1712", draggable: true });
     marker.on("dragend", () => { const { lat, lng } = marker.getLngLat(); setPlace(lat, lng); });
   }
   marker.setLngLat([place.lon, place.lat]).addTo(map);
@@ -1898,6 +1997,11 @@ async function showMap() {
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
   map.on("click", (event) => setPlace(event.lngLat.lat, event.lngLat.lng));
   map.on("error", (event) => console.warn("map", event.error?.message));
+  // Тема системи змінилась — мапа й шпилька (колір чорнила) слідом, а не лишаються тими, з якими відкрились.
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    map.setStyle(mapStyle(isDark()));
+    marker?.remove(); marker = null; placeMarker(false);
+  });
   placeMarker(false);
 }
 
@@ -2054,6 +2158,8 @@ export function params(d, id) {
     p_refund_policy: payOnlineOn && online ? d.refund : null,
     // Завжди явно: false повертає «на зустрічі»; без ціни сервер передоплату не зберігає.
     p_prepay: room && !online && Boolean(d.prepay),
+    // Теж завжди явно: правка відкривається з `my_events`, де сервер віддає link_only. Без 20261203120000 — спершу міграція.
+    p_link_only: Boolean(d.linkOnly),
     // Спосіб входу шлемо, лише коли він не «запис» (чи був не «запис»): звичайна подія публікується й на базі без 20261129120000.
     ...(room && editing?.origin !== "partner" ? {} : { p_entry: how, p_ticket_url: how === "tickets" ? String(d.ticket ?? "").trim() : null }),
   };
@@ -2142,7 +2248,8 @@ async function publish() {
     if (editing && list) removeFiles(editing.media ?? [], list);
     // Склад — окремим запитом: незмінений не шлемо. Збій тут — помилка публікації: повтор подію не дублює.
     const lineupArgs = lineupParams(d.lineup), lineupKey = JSON.stringify(lineupArgs);
-    if (lineupKey !== lineupWas) { await rpc("set_event_lineup", { p_event: id, ...lineupArgs }); lineupWas = lineupKey; }
+    const lineupChanged = lineupKey !== lineupWas;
+    if (lineupChanged) { await rpc("set_event_lineup", { p_event: id, ...lineupArgs }); lineupWas = lineupKey; }
     // Серія: решта дат — окремі події з копіями фото й тим самим складом. Збій посеред серії першої події не скасовує.
     let series = null;
     if (!editing && d.repeat) {
@@ -2160,6 +2267,24 @@ async function publish() {
             await rpc("update_event", { ...nextArgs, p_media: copies });
           }
           if (lineupKey !== NO_LINEUP) await rpc("set_event_lineup", { p_event: next, ...lineupArgs });
+          series.made++;
+        }
+      } catch (e) {
+        console.warn("series", e.status, e.code);
+        series.error = errorText(e);
+      }
+    }
+    // «Цю й наступні»: та сама правка кожній наступній події серії — на її даті, з її обкладинкою й медіа (p_media null);
+    // склад — якщо змінився. Збій посеред збереженого не скасовує: на екрані події — «N з M».
+    const rest = editing && form().scope.value === "following" ? seriesAfter(editSeries, id) : [];
+    if (rest.length) {
+      series = { made: 1, count: rest.length + 1 };
+      const was = eventDraft(editing);
+      try {
+        for (const next of rest) {
+          progress.textContent = `Зберігаємо подію ${series.made + 1} з ${series.count}`;
+          await rpc("update_event", { ...params({ ...d, ...seriesWhen(d, was, next) }, next.id), p_image_url: next.image_url ?? null, p_media: null });
+          if (lineupChanged) await rpc("set_event_lineup", { p_event: next.id, ...lineupArgs });
           series.made++;
         }
       } catch (e) {
@@ -2273,7 +2398,7 @@ function setupEditor() {
 }
 
 async function start() {
-  ui = await import("./ui.js?v=19");
+  ui = await import("./ui.js?v=20");
   window.poriadReady = true;
   setupAuth();
   setupAccount();

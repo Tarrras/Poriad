@@ -2,9 +2,9 @@
 // кешує зі сторінкою, а цей скрипт входить (auth.js), записує, показує стан запису й «Після запису». Він же робить
 // `?unfollow` з листа. На сторінці без шторки (афіша) нічого не робить. Правила без DOM — експорти, перевірка —
 // `node tools/join_test.mjs`.
-import { session, sendCode, verifyCode, google, completeRedirect, rpc, signOut, inAppBrowser, browserLinks } from "./auth.js?v=19";
-import { SUPABASE, discover, fold, cardsByIds, esc, displayTitle, stubParts, timeOf, CATEGORIES, price, priceText, threadsPost, threadsIntent, plural, POST_MONTHS } from "./poriad.js?v=19";
-import { threadFeed, sendProof, forgetProofs, openProof, payStage } from "./chat.js?v=19";
+import { session, sendCode, verifyCode, google, completeRedirect, rpc, signOut, inAppBrowser, browserLinks } from "./auth.js?v=20";
+import { SUPABASE, discover, fold, cardsByIds, esc, displayTitle, stubParts, timeOf, CATEGORIES, price, priceText, threadsPost, threadsIntent, plural, POST_MONTHS } from "./poriad.js?v=20";
+import { threadFeed, sendProof, forgetProofs, openProof, payStage } from "./chat.js?v=20";
 
 /** Відповідь бази на запис → стан шторки (таблиця «Інші відповіді на запис»). Невідома — null: показуємо помилку. */
 const OUTCOMES = {
@@ -89,12 +89,13 @@ const MESSAGES = {
 
 /**
  * Хто чим ділиться (docs/organizers-1.5.md, 1.6) — та сама умова, що `ShareRules.mode` у застосунку: «Поширити анонс»
- * (promote) — лише організатор власної звичайної спільнотної події без companion_of, не скасованої й не завершеної.
+ * (promote) — лише організатор власної звичайної спільнотної події без companion_of, не скасованої, не завершеної й не
+ * «лише за посиланням» (публічний пост суперечив би вибору).
  * Решта — «Поділитися з другом» (friend). `event` — рядок event_details, `me` — id акаунта (null — гість).
  */
 export function shareMode(event, me, now = Date.now()) {
   const ended = event?.ends_at ? Date.parse(event.ends_at) <= now : false;
-  return me && event?.origin === "community" && !event.companion_of && event.organizer_id === me && event.status !== "cancelled" && !ended
+  return me && event?.origin === "community" && !event.companion_of && event.organizer_id === me && !event.link_only && event.status !== "cancelled" && !ended
     ? "promote" : "friend";
 }
 

@@ -1,8 +1,8 @@
 // Розмова з організатором — спільне для сторінки події (join.js) і кабінету (kabinet.js, «Розмови з учасниками»):
 // повідомлення, скріншоти оплати з приватного бакета, стрічка з опитуванням і JPEG з файлу (скріншот, фото події,
 // аватар). Правила без DOM — експорти, перевірка — `node tools/join_test.mjs`.
-import { rpc, upload, download } from "./auth.js?v=19";
-import { esc } from "./poriad.js?v=19";
+import { rpc, upload, download } from "./auth.js?v=20";
+import { esc } from "./poriad.js?v=20";
 
 // ---- Повідомлення
 
