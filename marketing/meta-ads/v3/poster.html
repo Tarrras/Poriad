@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- Постер «паперове місто» для Instagram і Threads. Тло — plate-4x5.png і plate-9x16.png (Higgsfield, GPT Image 2.5,
+     без тексту), підписи наші. 4:5 → 2160×2700, 9:16 (#9x16) → 2160×3840; у 9:16 усе між 14% згори і 35% знизу (Reels):
+     C="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+     "$C" --headless --hide-scrollbars --force-device-scale-factor=2 --virtual-time-budget=3000 --window-size=1080,1350 --screenshot="$PWD/paper-city-4x5.png" "file://$PWD/poster.html"
+     "$C" --headless --hide-scrollbars --force-device-scale-factor=2 --virtual-time-budget=3000 --window-size=1080,1920 --screenshot="$PWD/paper-city-9x16.png" "file://$PWD/poster.html#9x16" -->
+<meta charset="utf-8">
+<style>
+@font-face{font-family:Cond;font-weight:800;src:url(../../../site/fonts/sofia-sans-condensed-800.woff2)}
+@font-face{font-family:XCond;font-weight:800;src:url(../../../site/fonts/sofia-sans-extra-condensed-800.woff2)}
+@font-face{font-family:Sys;font-weight:500;src:url(../../../site/fonts/inter-cyrillic-500-normal.woff2);unicode-range:U+0400-045F,U+0490-0491}
+@font-face{font-family:Sys;font-weight:500;src:url(../../../site/fonts/inter-latin-500-normal.woff2);unicode-range:U+0000-00FF,U+2000-206F}
+*{margin:0;box-sizing:border-box}
+body{width:1080px;height:1350px;overflow:hidden;background:#F3EEE4 url(plate-4x5.png) center/cover;color:#1B1712;
+  font-family:Sys,sans-serif;-webkit-font-smoothing:antialiased;text-align:center}
+.brand{margin-top:72px;display:inline-flex;align-items:center;gap:14px;font:800 46px/1 Cond;letter-spacing:-1px}
+.brand img{width:54px;height:54px;border-radius:12px}
+h1{margin-top:44px;font:800 168px/.92 XCond;letter-spacing:-1px}
+p{margin-top:30px;font:500 31px/1.4 Sys;color:#5B5348}
+.v body{height:1920px;background-image:url(plate-9x16.png)}
+.v .brand{margin-top:290px}
+.v h1{font-size:196px}
+.v p{font-size:35px}
+</style>
+<script>if (location.hash === "#9x16") document.documentElement.className = "v"</script>
+<div class="brand"><img src="../../hyperframes/g2-window/assets/icon.png">Поряд</div>
+<h1>Куди піти<br>сьогодні?</h1>
+<p>Події твого міста на одній мапі.<br>Безкоштовно для iPhone і Android.</p>
