@@ -152,7 +152,8 @@ async function renderRail() {
   if (state.when || state.cat || state.q) { wrap.hidden = true; return; }
   // Вечір і дорослі події першими: сайт продає вечір, дитячі ранки — у категорії «Дітям».
   const rank = (e) => (e.category === "kids" ? 2 : 0) + (Number(timeOf(new Date(e.startsAt), e.tz).slice(0, 2)) >= 17 ? 0 : 1);
-  const soon = pinnedFirst(state.list.filter((e) => e.pinned || ((inWhen(e, "today") || inWhen(e, "tomorrow")) && new Date(e.startsAt) > Date.now()))
+  // Закріплена — лише якщо й так сьогодні чи завтра: підпис рейки не бреше (docs/promo-pins-2026-11.md).
+  const soon = pinnedFirst(state.list.filter((e) => (inWhen(e, "today") || inWhen(e, "tomorrow")) && new Date(e.startsAt) > Date.now())
     .sort((a, b) => rank(a) - rank(b))).slice(0, 30);
   const got = (await ensureCards(soon.map((e) => e.id))).filter((c) => httpsOrNull(c.image_url)).slice(0, 10);
   wrap.hidden = got.length < 3;
