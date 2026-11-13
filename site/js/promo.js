@@ -1,6 +1,6 @@
 // Промокод на сторінці події (worker eventPage, docs/promo-pins-2026-11.md): «Скопіювати» кладе код у буфер і каже, куди
 // його вставити. Копіювання рахуємо (`promo_copy`, docs/analytics.md) — для звіту партнеру, тож із самим кодом.
-import { track } from "./poriad.js?v=22";
+import { track } from "./poriad.js?v=23";
 
 const button = document.querySelector("[data-promo]");
 button?.addEventListener("click", async () => {

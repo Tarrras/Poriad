@@ -6,4 +6,4 @@ var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && n
 if (ios) location.replace("https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&mt=8&ct=" + ct);
 // Решта: Android — у Google Play, щойно його ввімкнено в poriad.js (PLAY_LIVE); поки ні, і на комп'ютері — лендинг.
 // Звичайний скрипт, щоб iOS пішов у стор, не чекаючи модуля; import() — відносно цього файлу.
-else import("./poriad.js?v=22").then(function (m) { location.replace((/Android/.test(ua) && m.playUrl(ct)) || "./#download"); });
+else import("./poriad.js?v=23").then(function (m) { location.replace((/Android/.test(ua) && m.playUrl(ct)) || "./#download"); });

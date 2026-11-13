@@ -273,18 +273,30 @@ export function eventPage(e, now, shelters = [], invite = null) {
 ${ticketUrl && imported ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     // Обкладинка — сам квиток (design-wow-1.5): фото, назва display, надруковані поля й корінець жанру за перфорацією
     // з вирізами. Жанр, «Від людей» / «Афіша» і вік друкуються на корінці; продавці — у «Джерело». Дата — на корінці панелі дії.
+    // Промокод (над «Квитки»: спершу копіюють код), панель дії й кнопки — в .hold: на широкому екрані це липка колонка
+    // праворуч, у вузькому панель стає останньою й липне донизу (web.css, «Сторінка події»).
     body: `<article class="sheet-box">
-  <header class="cover-big ticket v cat-${category}">${media.length ? mediaCarousel(media, category) : `<div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img src="${esc(image)}" alt="">` : ""}</div>`}
+  <header class="cover-big ticket v cat-${category}">${media.length ? mediaCarousel(media, category) : `<div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img class="fill" src="${esc(image)}" alt=""><img src="${esc(image)}" alt="">` : ""}</div>`}
     ${invite ? `<p class="quiet"><b>${esc(invite.name)}</b> кличе тебе</p>` : ""}<h1${title.length > 64 ? ` class="long"` : ""}>${esc(title)}</h1>
     <div class="facts">${facts.map(([label, value, sub, info]) => `<div><span class="overline">${label}</span><b${label === "Учасники" ? " data-spots" : ""}>${esc(value)}${info
       ? ` <button class="info" type="button" popovertarget="fact-info" aria-label="Як платити">${icon("info")}</button>` : ""}</b>${sub && sub !== value ? `<small>${esc(sub)}</small>` : ""}${info
       ? `<div class="info-pop" id="fact-info" popover>${esc(info)}</div>` : ""}</div>`).join("")}</div>
     <p class="stub"><span class="kind">${icon(category)}${esc(CATEGORIES[category])}</span><small>${listed ? "Афіша" : "Від людей"}${e.min_age ? ` · ${Number(e.min_age)}+` : ""}</small></p>
   </header>
-  <div class="detail">
+  <div class="hold">
     ${notice ? `<p class="notice${calm ? " calm" : ""}">${notice}</p>` : ""}
     ${parent ? `<p class="note">Разом на: <a href="/e/${parent.id}">${esc(parent.title)}</a></p>` : ""}
     ${promo}
+    <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${listed ? "" : `<b class="stamp" data-going hidden></b>`}${spots && !cost ? `<small>Учасники</small><span data-spots>${esc(spots.replace("Учасників: ", ""))}</span>`
+        : `${cost || !spots ? `<small>${!listed && cost ? `Ціна · ${payWay(e)}` : "Ціна"}</small>` : ""}<span>${esc(cost || spots || "Вхід уточнюйте")}</span>`}</div>
+      ${ticketUrl && live ? `<a class="btn primary" href="${esc(ticketHref(ticketUrl))}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
+        : listed && !imported && live ? `<p class="closed">Вхід без запису</p>`
+        : listed ? `<a class="btn primary" href="/app?from=${ct}">Завантажити «Поряд»</a>`
+        : open ? `<button class="btn primary" type="button" data-join>Йду</button>` : `<p class="closed">Запис на цю подію закрито</p>`}</div>
+      ${listed && live ? (groups.length ? `<a class="btn secondary" href="#company">${icon("people")}Шукаю компанію · ${groups.length}</a>`
+        : `<button class="btn secondary" type="button" data-lock="company">${icon("people")}Шукаю компанію</button>`) : ""}
+      ${open ? `<a class="open-app" href="poriad://event/${e.id}${by}">Уже є застосунок? Відкрити</a>` : ""}</div>
+      <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
     <div class="actions">
       <a href="${maps}" rel="noopener"><i>${icon("pin")}</i>Маршрут</a>
       <button type="button" data-share><i>${icon("share")}</i>Поділитися з другом</button>
@@ -295,6 +307,8 @@ ${ticketUrl && imported ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""
     ${!imported && e.pay_online ? `<p class="fine">${esc(PAY_ONLINE_FINE)}${e.refund_policy ? ` ${esc(refundText(e.refund_policy))}` : ""}</p>`
       : !imported && e.approval_required ? `<p class="fine">Участь за підтвердженням організатора.</p>` : ""}
     ${!listed && (live || (cancelled && e.pay_online && !past)) && UUID.test(e.organizer_id ?? "") ? `<button class="btn secondary ask" type="button" data-ask>${icon("chat")}Написати організатору</button>` : ""}
+  </div>
+  <div class="detail">
     ${imported && !past ? sellersSection(live ? liveOffers : offers, !live, e.checked_at, e.time_zone) : ""}
     ${groups.length ? companionsSection(groups, now) : ""}
     ${artists.length ? `<div class="block"><h2>Хто виступає</h2><div class="artist-chips">${artists.map((a) => `<a class="chip" href="/a/${a.id}">${esc(a.name)}</a>`).join("")}</div></div>` : ""}
@@ -304,20 +318,10 @@ ${ticketUrl && imported ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""
       <ul><li>${icon("bell")}Нагадування за годину до початку</li><li>${icon("people")}«Шукаю компанію» — знайдіть, з ким піти</li><li>${icon("map")}Що ще відбувається поряд — на мапі</li></ul>
       <div class="stores">${storeButtons(ct)}</div></div>
   </div>
-  <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${listed ? "" : `<b class="stamp" data-going hidden></b>`}${spots && !cost ? `<small>Учасники</small><span data-spots>${esc(spots.replace("Учасників: ", ""))}</span>`
-      : `${cost || !spots ? `<small>${!listed && cost ? `Ціна · ${payWay(e)}` : "Ціна"}</small>` : ""}<span>${esc(cost || spots || "Вхід уточнюйте")}</span>`}</div>
-    ${ticketUrl && live ? `<a class="btn primary" href="${esc(ticketHref(ticketUrl))}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
-      : listed && !imported && live ? `<p class="closed">Вхід без запису</p>`
-      : listed ? `<a class="btn primary" href="/app?from=${ct}">Завантажити «Поряд»</a>`
-      : open ? `<button class="btn primary" type="button" data-join>Йду</button>` : `<p class="closed">Запис на цю подію закрито</p>`}</div>
-    ${listed && live ? (groups.length ? `<a class="btn secondary" href="#company">${icon("people")}Шукаю компанію · ${groups.length}</a>`
-      : `<button class="btn secondary" type="button" data-lock="company">${icon("people")}Шукаю компанію</button>`) : ""}
-    ${open ? `<a class="open-app" href="poriad://event/${e.id}${by}">Уже є застосунок? Відкрити</a>` : ""}</div>
-    <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>
-${listed ? (live ? `<script type="module" src="/js/event.js?v=22"></script>` : "") : `${joinSheet(e, ct, now)}
-<script type="module" src="/js/join.js?v=22"></script>`}${promo ? `
-<script type="module" src="/js/promo.js?v=22"></script>` : ""}`,
+${listed ? (live ? `<script type="module" src="/js/event.js?v=23"></script>` : "") : `${joinSheet(e, ct, now)}
+<script type="module" src="/js/join.js?v=23"></script>`}${promo ? `
+<script type="module" src="/js/promo.js?v=23"></script>` : ""}`,
   });
 }
 
@@ -415,7 +419,7 @@ function mediaCarousel(media, category) {
   // Перший кадр — одразу, решта — коли догорнуть: у Threads сторінку відкривають на мобільному інтернеті.
   const slides = media.map((m, i) => m.kind === "video"
     ? `<video src="${esc(m.url)}"${m.poster ? ` poster="${esc(m.poster)}"` : ""} controls playsinline preload="none"></video>`
-    : `<img src="${esc(m.url)}" alt=""${i ? ` loading="lazy" decoding="async"` : ""}>`).join("");
+    : `<div class="pic"><img class="fill" src="${esc(m.url)}" alt=""${i ? ` loading="lazy" decoding="async"` : ""}><img src="${esc(m.url)}" alt=""${i ? ` loading="lazy" decoding="async"` : ""}></div>`).join("");
   return `<div class="art media${media.length > 1 ? " many" : ""} cat-${category}"><div class="slides" tabindex="0" aria-label="Фото й відео від організатора">${slides}</div></div>`;
 }
 
@@ -776,8 +780,8 @@ function layout({ title, description, image, url, head, body, from = "event" }) 
 <meta name="theme-color" content="#14110D" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=22">
-<link rel="stylesheet" href="/web.css?v=22">
+<link rel="stylesheet" href="/tokens.css?v=23">
+<link rel="stylesheet" href="/web.css?v=23">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">

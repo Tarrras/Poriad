@@ -41,11 +41,11 @@ python3 -m http.server 8766 --directory site
 
 ## Кеш
 
-Cloudflare каже браузерам тримати файли 4 години. Тому CSS і JS підключені з версією (`web.css?v=22`, `import … from "./ui.js?v=22"`, на правових сторінках — `style.css?v=22`):
+Cloudflare каже браузерам тримати файли 4 години. Тому CSS і JS підключені з версією (`web.css?v=23`, `import … from "./ui.js?v=23"`, на правових сторінках — `style.css?v=23`):
 змінили CSS чи JS — підніміть номер усюди однаково, інакше людина побачить новий HTML зі старими стилями. Одним рядком:
 
 ```bash
-sed -i '' -E 's/\?v=22"/?v=22"/g' site/*.html site/js/*.js worker/index.mjs
+sed -i '' -E 's/\?v=23"/?v=24"/g' site/*.html site/js/*.js worker/index.mjs
 ```
 
 ## Перед публікацією

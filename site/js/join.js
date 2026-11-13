@@ -2,9 +2,9 @@
 // кешує зі сторінкою, а цей скрипт входить (auth.js), записує, показує стан запису й «Після запису». Він же робить
 // `?unfollow` з листа. На сторінці без шторки (афіша) нічого не робить. Правила без DOM — експорти, перевірка —
 // `node tools/join_test.mjs`.
-import { session, sendCode, verifyCode, google, completeRedirect, rpc, signOut, inAppBrowser, browserLinks } from "./auth.js?v=22";
-import { SUPABASE, discover, fold, cardsByIds, esc, displayTitle, stubParts, timeOf, CATEGORIES, price, priceText, threadsPost, threadsIntent, plural, POST_MONTHS } from "./poriad.js?v=22";
-import { threadFeed, sendProof, forgetProofs, openProof, payStage } from "./chat.js?v=22";
+import { session, sendCode, verifyCode, google, completeRedirect, rpc, signOut, inAppBrowser, browserLinks } from "./auth.js?v=23";
+import { SUPABASE, discover, fold, cardsByIds, esc, displayTitle, stubParts, timeOf, CATEGORIES, price, priceText, threadsPost, threadsIntent, plural, POST_MONTHS } from "./poriad.js?v=23";
+import { threadFeed, sendProof, forgetProofs, openProof, payStage } from "./chat.js?v=23";
 
 /** Відповідь бази на запис → стан шторки (таблиця «Інші відповіді на запис»). Невідома — null: показуємо помилку. */
 const OUTCOMES = {

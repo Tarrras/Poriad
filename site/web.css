@@ -595,27 +595,42 @@ a.row:hover { background: var(--surface-muted); }
 /* ================= Сторінка події за посиланням (worker/, poriad.app/e/{id}) ================= */
 /* Розмітку малює worker/index.mjs; тут — той самий квиток, що в шторці. Корінець кольору жанру — з класу обкладинки. */
 .event-shell { max-width: 640px; margin: 16px auto 0; padding: 0 16px; }
-/* Широкий екран: квиток-обкладинка ліворуч, деталі й панель дії праворуч — замість колонки 640 посеред порожнечі. */
-@media (min-width: 1100px) {
-  .event-shell { max-width: 1160px; padding: 0 32px; }
-  .event-shell .sheet-box { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); column-gap: 48px; align-items: start; }
-  .event-shell .cover-big { grid-column: 1; grid-row: 1 / span 2; }
-  .event-shell .detail { grid-column: 2; grid-row: 1; padding-top: 0; }
-  .event-shell .bar { grid-column: 2; grid-row: 2; }
-}
-.event-shell .sheet-box { height: auto; overflow: visible; box-shadow: none; background: none; border-radius: 0; }
+.event-shell .sheet-box { height: auto; overflow: visible; box-shadow: none; background: none; border-radius: 0; gap: 26px; }
+/* Панель дії в розмітці стоїть у .hold поруч із промокодом і кнопками (worker/index.mjs). В одній колонці .hold розчиняється,
+   а панель іде останньою й липне до низу екрана, як у застосунку; на широкому .hold — липка колонка праворуч. */
+.event-shell .hold { display: contents; }
 .event-shell .cover-big { border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--edge); }
 .event-shell .cover-big .badges { right: 14px; }
-.event-shell .detail { padding: 24px 0; background: none; }
+/* Постер цілий: афіші здебільшого вертикальні (A4, 4:5), і обрізка 16:10 різала дату й назву з постера. Вписуємо його
+   на розмиту копію себе — і вертикальний, і горизонтальний лягають без порожніх смуг. */
+.event-shell .cover-big > .art { aspect-ratio: 4 / 3; }
+.event-shell .cover-big > .art > img, .art.media .pic > img { object-fit: contain; }
+.event-shell .cover-big img.fill { object-fit: cover; transform: scale(1.15); filter: blur(28px) brightness(.7) saturate(1.2); }
+.art.media .pic { position: relative; overflow: hidden; }
+.art.media .pic > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.event-shell .detail { padding: 0; background: none; }
 .event-shell .detail.lost { padding-top: 24px; }
 .event-shell .description { max-height: none; }
 .event-shell .app-only { position: relative; border-radius: var(--r-lg); padding: 20px; display: flex; flex-direction: column; gap: 14px; background: var(--surface); border: 1px solid var(--edge);
   outline: 1.5px dashed color-mix(in srgb, var(--ink-tertiary) 65%, transparent); outline-offset: -8px; }
 .event-shell .app-only .stores { margin-top: 4px; }
-.event-shell .bar { position: sticky; left: auto; right: auto; bottom: 12px; margin: 0 0 16px; }
+.event-shell .bar { order: 1; position: sticky; left: auto; right: auto; bottom: 12px; margin: 0 0 16px; }
 /* Фокус з клавіатури не ховається під липкою панеллю дії (до ~145 px з відступом; WCAG 2.4.11). */
-:root:has(.event-shell .bar) { scroll-padding-bottom: 168px; }
-:root:has(.event-shell .bar [data-lock]) { scroll-padding-bottom: 232px; } /* з «Шукаю компанію» панель ~195 px */
+@media (max-width: 1099px) {
+  :root:has(.event-shell .bar) { scroll-padding-bottom: 168px; }
+  :root:has(.event-shell .bar [data-lock]) { scroll-padding-bottom: 232px; } /* з «Шукаю компанію» панель ~195 px */
+}
+/* Широкий екран: ліворуч квиток-обкладинка й під ним опис — одна колонка читання без панелі поверх тексту; праворуч липка
+   колонка дії: панель з ціною й «Квитки», промокод і кнопки. Блок — після базових правил .event-shell, щоб їх перебити. */
+@media (min-width: 1100px) {
+  .event-shell { max-width: 1160px; padding: 0 32px; }
+  .event-shell .sheet-box { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); grid-template-rows: auto 1fr; gap: 32px 48px; align-items: start; }
+  .event-shell .cover-big { grid-column: 1; grid-row: 1; }
+  .event-shell .detail { grid-column: 1; grid-row: 2; padding-bottom: 32px; }
+  .event-shell .detail.lost { grid-column: 1 / -1; grid-row: 1; justify-self: center; width: min(640px, 100%); }
+  .event-shell .hold { grid-column: 2; grid-row: 1 / -1; position: sticky; top: 88px; display: flex; flex-direction: column; gap: 24px; }
+  .event-shell .bar { order: 0; position: relative; bottom: auto; margin: 0; filter: none; }
+}
 /* Обкладинка — сам квиток (design-wow-1.5): назва display на поверхні, корінець жанру 56 за перфорацією з вирізами,
    на ньому білим — гліф і жанр, «Від людей» чи «Афіша» й вік. Квиток у потоці плаский. */
 .event-shell .cover-big { --stub-h: 56px; --r: var(--r-lg); }
